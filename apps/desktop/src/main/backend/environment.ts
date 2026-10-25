@@ -4,7 +4,7 @@
 // API keys referenced by api_key_env).
 
 import { app } from 'electron'
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -30,10 +30,19 @@ function loginShellEnv(): Promise<NodeJS.ProcessEnv> {
   if (process.platform === 'win32') return Promise.resolve({})
   const shell = process.env.SHELL || '/bin/zsh'
   return new Promise((resolve) => {
-    execFile(shell, ['-ilc', 'env -0'], { timeout: 5000, maxBuffer: 4 << 20 }, (err, stdout) => {
-      if (err) return resolve({})
+    // Its own session (detached): an interactive shell would otherwise take
+    // over the launching terminal's foreground group, so Ctrl-C there stops
+    // reaching the app.
+    const child = spawn(shell, ['-ilc', 'env -0'], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] })
+    const chunks: Buffer[] = []
+    const timer = setTimeout(() => child.kill('SIGKILL'), 5000)
+    child.stdout.on('data', (c: Buffer) => chunks.push(c))
+    child.on('error', () => resolve({}))
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      if (code !== 0) return resolve({})
       const env: NodeJS.ProcessEnv = {}
-      for (const entry of stdout.split('\0')) {
+      for (const entry of Buffer.concat(chunks).toString().split('\0')) {
         const eq = entry.indexOf('=')
         if (eq > 0) env[entry.slice(0, eq)] = entry.slice(eq + 1)
       }
