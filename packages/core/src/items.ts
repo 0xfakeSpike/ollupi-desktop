@@ -24,7 +24,7 @@ export function parseArguments(item: Pick<ItemRow, 'arguments'>): Record<string,
 
 /** Mirrors ItemRow.WaitsForApproval on the server. */
 export function waitsForApproval(item: ItemRow): boolean {
-  return item.type === 'toolCall' && item.status === 'inProgress' && !!item.approval && !item.approval.decision
+  return item.type === 'toolCall' && item.status === 'pending' && !!item.approval && !item.approval.decision
 }
 
 export function waitsForUser(item: ItemRow): boolean {

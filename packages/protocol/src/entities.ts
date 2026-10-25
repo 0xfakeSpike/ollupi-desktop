@@ -86,7 +86,9 @@ export type ItemType =
   | 'toolProgress'
   | 'error'
 
-export type ItemStatus = 'inProgress' | 'completed' | 'failed' | 'declined'
+/** A tool call is `pending` from when the model emits it (validation, frozen
+ * command, approval) until it starts running, then `inProgress`. */
+export type ItemStatus = 'pending' | 'inProgress' | 'completed' | 'failed' | 'declined'
 
 export type Decision = 'accept' | 'acceptForSession' | 'decline'
 

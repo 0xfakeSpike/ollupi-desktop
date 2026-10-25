@@ -128,7 +128,7 @@ describe('items', () => {
   it('reads plans and pending approvals', () => {
     const it = item('p', 1, 'u1', {
       type: 'toolCall',
-      status: 'inProgress',
+      status: 'pending',
       tool: 'update_plan',
       arguments: JSON.stringify({ plan: [{ step: 'a', status: 'in_progress' }, { step: 'b', status: 'weird' }] }),
       approval: { id: 'ap', requestedAt: '' },
@@ -138,5 +138,7 @@ describe('items', () => {
       { step: 'b', status: 'pending' },
     ])
     expect(waitsForApproval(it)).toBe(true)
+    // Once a call starts running it is no longer waiting, decided or not.
+    expect(waitsForApproval({ ...it, status: 'inProgress' })).toBe(false)
   })
 })
