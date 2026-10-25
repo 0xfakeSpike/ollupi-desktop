@@ -98,6 +98,8 @@ export interface ClientMethods {
 
 export interface TurnNotification {
   threadId: string
+  /** The thread as stored after this turn event (preview, updatedAt). */
+  thread: ThreadRow
   turn: TurnRow
 }
 
