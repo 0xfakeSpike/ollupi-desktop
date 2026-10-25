@@ -31,9 +31,10 @@ export function topLevelThreads(list: readonly ThreadSummary[]): ThreadSummary[]
   return list.filter((t) => !t.parentThreadId)
 }
 
+/** The server sets the preview (first line of the first input) when the
+ * thread's first turn starts; until then the thread has no title. */
 export function threadTitle(thread: Pick<ThreadRow, 'preview'>): string {
-  const line = thread.preview.trim().split('\n')[0] ?? ''
-  return line || 'New thread'
+  return thread.preview || 'New thread'
 }
 
 export function isBusy(status: ThreadStatus | undefined): boolean {

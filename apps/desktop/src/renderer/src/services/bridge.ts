@@ -3,7 +3,7 @@
 // This is the only place that knows both the client's events and the stores.
 
 import type { OllupiClient } from '@ollupi/client'
-import { appendDelta, upsertItem, upsertTurn } from '@ollupi/core'
+import { appendDelta, setThread, upsertItem, upsertTurn } from '@ollupi/core'
 import type { TurnNotification } from '@ollupi/protocol'
 import { useCatalog } from '../stores/catalog'
 import { notify } from '../stores/notices'
@@ -15,16 +15,11 @@ export function bindClient(client: OllupiClient): () => void {
   const catalog = () => useCatalog.getState()
   const requests = () => useRequests.getState()
 
-  const onTurn = ({ threadId, turn }: TurnNotification) => {
-    timelines().update(threadId, (t) => upsertTurn(t, turn))
-    const summary = catalog().threads.find((t) => t.id === threadId)
-    if (summary) {
-      catalog().upsertThread({
-        ...summary,
-        preview: summary.preview || turn.input || '',
-        updatedAt: turn.completedAt ?? turn.startedAt,
-      })
-    }
+  // Turn events carry the thread as the server stored it, so the sidebar's
+  // title and order come straight from the server.
+  const onTurn = ({ threadId, thread, turn }: TurnNotification) => {
+    timelines().update(threadId, (t) => upsertTurn(setThread(t, thread), turn))
+    catalog().upsertThread(thread)
   }
 
   const offs = [

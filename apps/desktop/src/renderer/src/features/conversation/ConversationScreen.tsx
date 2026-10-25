@@ -29,8 +29,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             <ArrowLeft size={14} />
           </IconButton>
         )}
-        {/* The summary carries the preview the bridge fills in from the first turn. */}
-        <h1 className="min-w-0 truncate text-[13px] font-semibold text-fg">{threadTitle(summary ?? thread ?? { preview: '' })}</h1>
+        <h1 className="min-w-0 truncate text-[13px] font-semibold text-fg">{thread ? threadTitle(thread) : 'Thread'}</h1>
         {isSubagent && <Badge>Subagent</Badge>}
         {workspace && (
           <span className="flex min-w-0 items-center gap-1 text-xs text-fg-subtle" title={workspace.rootPath}>
