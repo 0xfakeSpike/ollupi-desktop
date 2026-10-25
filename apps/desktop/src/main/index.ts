@@ -49,6 +49,8 @@ if (!app.requestSingleInstanceLock()) {
     if (stopping) return
     stopping = true
     event.preventDefault()
-    void backend.stop().finally(() => app.quit())
+    // Quit again from a fresh task: re-quitting from a microtask while this
+    // quit is unwinding hangs Electron when a window-all-closed listener exists.
+    void backend.stop().finally(() => setTimeout(() => app.quit(), 0))
   })
 }
