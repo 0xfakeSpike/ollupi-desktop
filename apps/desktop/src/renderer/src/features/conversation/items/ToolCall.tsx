@@ -66,8 +66,13 @@ function CallStatus({ item }: { item: ItemRow }) {
   const asking = usePendingRequest(item.id)?.kind === 'approval' || waitsForApproval(item)
   let mark: ReactNode
   switch (item.status) {
-    case 'inProgress':
+    // Approval happens before a call runs, so only a pending call can be
+    // waiting on it; most pending calls are just about to run.
+    case 'pending':
       mark = asking ? <Badge tone="warning">needs approval</Badge> : <Spinner size={13} />
+      break
+    case 'inProgress':
+      mark = <Spinner size={13} />
       break
     case 'completed':
       mark = <Check size={14} className="text-success" />
