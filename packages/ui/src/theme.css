@@ -1,0 +1,75 @@
+/* Design tokens for @ollupi/ui. Components only use these semantic names
+   (bg-canvas, text-fg-muted, border-line, ...), so a theme is a set of
+   variable values and dark mode needs no per-component classes. */
+
+@theme inline {
+  --color-canvas: var(--ol-canvas);
+  --color-sidebar: var(--ol-sidebar);
+  --color-surface: var(--ol-surface);
+  --color-raised: var(--ol-raised);
+  --color-hover: var(--ol-hover);
+  --color-line: var(--ol-line);
+  --color-line-strong: var(--ol-line-strong);
+  --color-fg: var(--ol-fg);
+  --color-fg-muted: var(--ol-fg-muted);
+  --color-fg-subtle: var(--ol-fg-subtle);
+  --color-accent: var(--ol-accent);
+  --color-accent-fg: var(--ol-accent-fg);
+  --color-accent-soft: var(--ol-accent-soft);
+  --color-success: var(--ol-success);
+  --color-success-soft: var(--ol-success-soft);
+  --color-warning: var(--ol-warning);
+  --color-warning-soft: var(--ol-warning-soft);
+  --color-danger: var(--ol-danger);
+  --color-danger-soft: var(--ol-danger-soft);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: light dark;
+  --ol-canvas: #ffffff;
+  --ol-sidebar: #f7f7f6;
+  --ol-surface: #f6f6f5;
+  --ol-raised: #ffffff;
+  --ol-hover: rgb(0 0 0 / 0.05);
+  --ol-line: rgb(0 0 0 / 0.08);
+  --ol-line-strong: rgb(0 0 0 / 0.16);
+  --ol-fg: #1b1b1a;
+  --ol-fg-muted: #5f5f5c;
+  --ol-fg-subtle: #94948f;
+  --ol-accent: #1f6feb;
+  --ol-accent-fg: #ffffff;
+  --ol-accent-soft: rgb(31 111 235 / 0.1);
+  --ol-success: #1a7f37;
+  --ol-success-soft: rgb(26 127 55 / 0.1);
+  --ol-warning: #9a6700;
+  --ol-warning-soft: rgb(212 167 44 / 0.15);
+  --ol-danger: #cf222e;
+  --ol-danger-soft: rgb(207 34 46 / 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ol-canvas: #161616;
+    --ol-sidebar: #1c1c1c;
+    --ol-surface: #202020;
+    --ol-raised: #262626;
+    --ol-hover: rgb(255 255 255 / 0.06);
+    --ol-line: rgb(255 255 255 / 0.08);
+    --ol-line-strong: rgb(255 255 255 / 0.16);
+    --ol-fg: #ececea;
+    --ol-fg-muted: #a5a5a0;
+    --ol-fg-subtle: #6f6f6b;
+    --ol-accent: #4c8dff;
+    --ol-accent-fg: #ffffff;
+    --ol-accent-soft: rgb(76 141 255 / 0.14);
+    --ol-success: #3fb950;
+    --ol-success-soft: rgb(63 185 80 / 0.14);
+    --ol-warning: #d29922;
+    --ol-warning-soft: rgb(210 153 34 / 0.16);
+    --ol-danger: #f85149;
+    --ol-danger-soft: rgb(248 81 73 / 0.12);
+  }
+}

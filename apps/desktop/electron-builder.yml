@@ -1,0 +1,13 @@
+appId: dev.ollupi.desktop
+productName: Ollupi
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: resources/bin
+    to: bin
+mac:
+  category: public.app-category.developer-tools
+  target: [dmg]

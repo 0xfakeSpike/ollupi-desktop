@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "renderer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ollupi/desktop", "exec", "electron-vite", "dev", "--rendererOnly"],
+      "port": 5173
+    }
+  ]
+}
