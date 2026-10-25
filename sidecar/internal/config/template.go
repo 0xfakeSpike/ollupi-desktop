@@ -8,7 +8,8 @@ name: ollupi
 prompt: ""
 
 # OpenAI-compatible endpoints. Prefer api_key_env over api_key so the key stays
-# out of this file. Declare limits for models ollupi does not know.
+# out of this file. calls caps concurrent requests to the endpoint (default 4).
+# Declare limits for models ollupi does not know.
 endpoints:
   openai:
     base_url: https://api.openai.com/v1

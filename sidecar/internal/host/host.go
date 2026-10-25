@@ -157,7 +157,7 @@ func endpointClients(defs map[string]config.Endpoint) (map[string]*llm.OpenAI, e
 		if err != nil {
 			return nil, fmt.Errorf("endpoint %s: %w", name, err)
 		}
-		out[name] = llm.NewOpenAI(def.BaseURL, key, def.Limits)
+		out[name] = llm.NewOpenAI(def.BaseURL, key, def.Calls, def.Limits)
 	}
 	return out, nil
 }

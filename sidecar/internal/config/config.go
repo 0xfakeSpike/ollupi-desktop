@@ -35,10 +35,13 @@ type Config struct {
 
 // Endpoint is one OpenAI-compatible API; several models may share it.
 type Endpoint struct {
-	BaseURL   string                `json:"base_url,omitempty"`
-	APIKey    string                `json:"api_key,omitempty"`
-	APIKeyEnv string                `json:"api_key_env,omitempty"`
-	Limits    map[string]llm.Limits `json:"limits,omitempty"`
+	BaseURL   string `json:"base_url,omitempty"`
+	APIKey    string `json:"api_key,omitempty"`
+	APIKeyEnv string `json:"api_key_env,omitempty"`
+	// Calls caps concurrent model requests to this endpoint, across all its
+	// models; 0 uses ollupi's default.
+	Calls  int                   `json:"calls,omitempty"`
+	Limits map[string]llm.Limits `json:"limits,omitempty"`
 }
 
 type Shell struct {

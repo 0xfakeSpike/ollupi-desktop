@@ -104,7 +104,7 @@ pnpm --filter @ollupi/desktop dev:renderer
 
 ## 配置（`~/.ollupi/config.yaml`）
 
-- `endpoints`：OpenAI 兼容接口（`base_url`、`api_key_env` 或 `api_key`、未知模型的 `limits`）。
+- `endpoints`：OpenAI 兼容接口（`base_url`、`api_key_env` 或 `api_key`、并发上限 `calls`（同一接口下所有模型共用，默认 4）、未知模型的 `limits`）。
 - `models`：可选模型，第一个是默认。`id` 是 ollupi 所说的 connection，即 `turn/start` 选择模型用的唯一键；`name` 是发给 endpoint 的模型名。
 - `settings`：agent 级默认权限（审批策略 + allow/ask/deny 规则）；工作区和会话可以在 UI 里叠加规则。
 - `shell`：`run_command` 工具与 macOS 沙箱（`sandbox_mode`、网络、超时…）。config.yaml 本身对命令不可读。
