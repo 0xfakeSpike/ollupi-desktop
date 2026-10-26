@@ -1,7 +1,8 @@
-// Where the backend binary and data live, and the environment it runs with.
-// Apps started from Finder or the Dock get launchd's minimal environment, so
-// we borrow the user's login-shell environment once (PATH for the shell tool,
-// API keys referenced by api_key_env).
+// Where the backend binary and data live, and the environment it runs in.
+// An app started from Finder or the Dock gets launchd's minimal environment,
+// so the user's login-shell environment is read once and merged under the
+// inherited one: a variable set in the launching terminal wins over the
+// shell profile.
 
 import { app } from 'electron'
 import { spawn } from 'node:child_process'
@@ -10,9 +11,7 @@ import { join } from 'node:path'
 
 export function backendBinary(): string {
   const name = process.platform === 'win32' ? 'ollupid.exe' : 'ollupid'
-  return app.isPackaged
-    ? join(process.resourcesPath, 'bin', name)
-    : join(app.getAppPath(), 'resources', 'bin', name)
+  return app.isPackaged ? join(process.resourcesPath, 'bin', name) : join(app.getAppPath(), 'resources', 'bin', name)
 }
 
 export function backendHome(): string {
@@ -22,7 +21,7 @@ export function backendHome(): string {
 let cached: Promise<NodeJS.ProcessEnv> | undefined
 
 export function backendEnv(): Promise<NodeJS.ProcessEnv> {
-  cached ??= loginShellEnv().then((shellEnv) => ({ ...shellEnv, ...process.env, PATH: shellEnv.PATH ?? process.env.PATH }))
+  cached ??= loginShellEnv().then((shell) => ({ ...shell, ...process.env, PATH: shell.PATH ?? process.env.PATH }))
   return cached
 }
 
@@ -31,8 +30,8 @@ function loginShellEnv(): Promise<NodeJS.ProcessEnv> {
   const shell = process.env.SHELL || '/bin/zsh'
   return new Promise((resolve) => {
     // Its own session (detached): an interactive shell would otherwise take
-    // over the launching terminal's foreground group, so Ctrl-C there stops
-    // reaching the app.
+    // over the launching terminal's foreground group and keep Ctrl-C there
+    // from reaching the app.
     const child = spawn(shell, ['-ilc', 'env -0'], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] })
     const chunks: Buffer[] = []
     const timer = setTimeout(() => child.kill('SIGKILL'), 5000)

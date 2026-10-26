@@ -1,5 +1,5 @@
 // Main process entry: app lifecycle only. It wires the backend supervisor,
-// IPC and windows together; each concern lives in its own module.
+// IPC and the window together; each concern lives in its own module.
 
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
@@ -16,12 +16,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   const home = backendHome()
-  const backend = new BackendSupervisor({
-    binary: backendBinary(),
-    home,
-    allowOrigins: [APP_HOST],
-    env: backendEnv,
-  })
+  const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env: backendEnv })
 
   app.on('second-instance', () => {
     const win = BrowserWindow.getAllWindows()[0]
@@ -44,13 +39,15 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== 'darwin') app.quit()
   })
 
+  // Quitting (menu, Cmd+Q, or the SIGINT/SIGTERM Electron turns into a quit)
+  // waits for the backend to stop.
   let stopping = false
   app.on('before-quit', (event) => {
     if (stopping) return
     stopping = true
     event.preventDefault()
     // Quit again from a fresh task: re-quitting from a microtask while this
-    // quit is unwinding hangs Electron when a window-all-closed listener exists.
+    // quit unwinds hangs Electron when a window-all-closed listener exists.
     void backend.stop().finally(() => setTimeout(() => app.quit(), 0))
   })
 }

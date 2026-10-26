@@ -1,10 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './app/App'
-import { session } from './services/session'
+import { startSession } from './gateway/session'
 import './styles.css'
+import { App } from './views/App'
 
-void session.start()
+void startSession()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

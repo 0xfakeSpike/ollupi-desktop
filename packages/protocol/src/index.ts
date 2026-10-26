@@ -1,5 +1,5 @@
-// @ollupi/protocol: the ollupi gateway's wire contract. Types plus the error
-// code table, no dependencies, so every other package can share it.
-export type * from './entities'
-export type * from './messages'
-export { ErrorCode } from './errors'
+// @ollupi/protocol: the ollupi gateway's wire contract. generated.ts is
+// derived from ollupi's Go source by sidecar/cmd/protogen; wire.ts pairs the
+// method names with their params and results.
+export * from './generated'
+export type * from './wire'

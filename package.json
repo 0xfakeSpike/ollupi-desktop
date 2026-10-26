@@ -7,7 +7,9 @@
     "dev": "pnpm sidecar:build && pnpm --filter @ollupi/desktop dev",
     "build": "pnpm sidecar:build && pnpm --filter @ollupi/desktop build",
     "sidecar:build": "cd sidecar && go build -o ../apps/desktop/resources/bin/ollupid ./cmd/ollupid",
-    "sidecar:test": "cd sidecar && go test ./...",
+    "sidecar:test": "cd sidecar && go vet ./... && go test ./...",
+    "protocol:generate": "cd sidecar && go run ./cmd/protogen -out ../packages/protocol/src/generated.ts",
+    "protocol:check": "cd sidecar && go run ./cmd/protogen -check -out ../packages/protocol/src/generated.ts",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test && pnpm sidecar:test"
   },

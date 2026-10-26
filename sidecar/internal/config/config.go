@@ -1,10 +1,11 @@
-// Package config is the sidecar's on-disk configuration: what the desktop app
-// lets a user change without recompiling (models, connections, default
-// permissions, the shell tool and memory). It knows nothing about the agent;
-// host turns a Config into running components.
+// Package config is the backend's configuration file, <home>/config.yaml:
+// the agent-level settings ollupi takes once at start (models and their
+// endpoints, default permissions, the shell tool, memory, slots). It only
+// describes; host turns it into running components.
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,36 +22,34 @@ import (
 const FileName = "config.yaml"
 
 type Config struct {
-	Name      string              `json:"name"`
-	Prompt    string              `json:"prompt,omitempty"`
+	Name   string `json:"name"`
+	Prompt string `json:"prompt,omitempty"`
+	// Endpoints are OpenAI-compatible APIs, keyed by a name models refer to.
 	Endpoints map[string]Endpoint `json:"endpoints"`
-	Models    []Model             `json:"models"`
-	// Tools is the optional allow-list handed to the agent; empty allows every tool.
-	Tools     []string                `json:"tools,omitempty"`
-	Settings  repo.PermissionSettings `json:"settings"`
-	Shell     Shell                   `json:"shell"`
-	Memory    Memory                  `json:"memory"`
-	SkillsDir string                  `json:"skills_dir,omitempty"`
+	// Models are selectable per turn; the first is the default.
+	Models []Model `json:"models"`
+	// Tools is ollupi's tool allow-list; empty allows every tool.
+	Tools    []string                `json:"tools,omitempty"`
+	Settings repo.PermissionSettings `json:"settings"`
+	// Slots caps how many threads run at once; 0 uses ollupi's default.
+	Slots     int    `json:"slots,omitempty"`
+	Shell     Shell  `json:"shell"`
+	Memory    Memory `json:"memory"`
+	SkillsDir string `json:"skills_dir,omitempty"`
 }
 
-// Endpoint is one OpenAI-compatible API; several models may share it.
+// Endpoint is one API. All models on it share one client, so Calls caps
+// concurrent requests to the endpoint as a whole; 0 uses ollupi's default.
 type Endpoint struct {
-	BaseURL   string `json:"base_url,omitempty"`
-	APIKey    string `json:"api_key,omitempty"`
-	APIKeyEnv string `json:"api_key_env,omitempty"`
-	// Calls caps concurrent model requests to this endpoint, across all its
-	// models; 0 uses ollupi's default.
-	Calls  int                   `json:"calls,omitempty"`
-	Limits map[string]llm.Limits `json:"limits,omitempty"`
+	BaseURL   string                `json:"base_url,omitempty"`
+	APIKey    string                `json:"api_key,omitempty"`
+	APIKeyEnv string                `json:"api_key_env,omitempty"`
+	Calls     int                   `json:"calls,omitempty"`
+	Limits    map[string]llm.Limits `json:"limits,omitempty"`
 }
 
-type Shell struct {
-	Enabled bool `json:"enabled"`
-	shell.Config
-}
-
-// Model is one selectable model. ID is what ollupi calls the model's
-// connection: the unique key a turn selects it by and the UI shows.
+// Model is one selectable model. ID becomes ollupi's connection: the unique
+// key a turn selects the model by. Name is what the endpoint is asked for.
 type Model struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
@@ -62,37 +61,43 @@ func (m Model) LLM() llm.Model {
 	return llm.Model{Name: m.Name, Connection: m.ID, Thinking: m.Thinking}
 }
 
+type Shell struct {
+	Enabled bool `json:"enabled"`
+	shell.Config
+}
+
 type Memory struct {
-	Generate bool `json:"generate"`
 	Use      bool `json:"use"`
-	// Model extracts memories; its id may repeat a chat model's.
+	Generate bool `json:"generate"`
+	// Model extracts memories; required when Generate is on.
 	Model *Model `json:"model,omitempty"`
 }
 
-// Key resolves the endpoint's API key, preferring the literal value.
-func (c Endpoint) Key() (string, error) {
-	if c.APIKey != "" {
-		return c.APIKey, nil
+// Key resolves the endpoint's API key: the literal value, else the named
+// environment variable, which must then be set.
+func (e Endpoint) Key() (string, error) {
+	if e.APIKey != "" {
+		return e.APIKey, nil
 	}
-	if c.APIKeyEnv == "" {
+	if e.APIKeyEnv == "" {
 		return "", nil
 	}
-	if v := os.Getenv(c.APIKeyEnv); v != "" {
+	if v := os.Getenv(e.APIKeyEnv); v != "" {
 		return v, nil
 	}
-	return "", fmt.Errorf("environment variable %s is not set", c.APIKeyEnv)
+	return "", fmt.Errorf("environment variable %s is not set", e.APIKeyEnv)
 }
 
-// Load reads <home>/config.yaml, writing the starter template first when the
-// file does not exist yet. Relative paths in the file resolve against home.
+// Load reads <home>/config.yaml, writing the starter template first when
+// there is none. A relative skills_dir resolves against home.
 func Load(home string) (Config, error) {
 	path := filepath.Join(home, FileName)
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		if err := os.WriteFile(path, []byte(Template), 0o600); err != nil {
+		raw = []byte(Template)
+		if err := os.WriteFile(path, raw, 0o600); err != nil {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
-		raw = []byte(Template)
 	} else if err != nil {
 		return Config{}, err
 	}
@@ -106,8 +111,8 @@ func Load(home string) (Config, error) {
 	return cfg, nil
 }
 
-// Parse decodes YAML through JSON so the file reuses the json tags ollupi
-// already defines on its settings and shell types.
+// Parse decodes YAML by way of JSON so the file uses the json tags ollupi
+// defines on its settings and shell types. Unknown keys are errors.
 func Parse(raw []byte) (Config, error) {
 	var tree any
 	if err := yaml.Unmarshal(raw, &tree); err != nil {
@@ -117,15 +122,17 @@ func Parse(raw []byte) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	var cfg Config
-	dec := json.NewDecoder(strings.NewReader(string(asJSON)))
+	dec := json.NewDecoder(bytes.NewReader(asJSON))
 	dec.DisallowUnknownFields()
+	var cfg Config
 	if err := dec.Decode(&cfg); err != nil {
 		return Config{}, err
 	}
 	return cfg, cfg.Validate()
 }
 
+// Validate checks what only this file's shape can get wrong: references
+// between its sections. ollupi validates its own settings at start.
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.Name) == "" {
 		return errors.New("name is required")
@@ -133,22 +140,30 @@ func (c Config) Validate() error {
 	if len(c.Models) == 0 {
 		return errors.New("models: at least one model is required; the first is the default")
 	}
-	seen := map[string]bool{}
+	ids := map[string]bool{}
 	for _, m := range c.Models {
 		if err := c.checkModel(m); err != nil {
-			return err
+			return fmt.Errorf("models: %w", err)
 		}
-		if seen[m.ID] {
+		if ids[m.ID] {
 			return fmt.Errorf("models: id %q is listed twice", m.ID)
 		}
-		seen[m.ID] = true
+		ids[m.ID] = true
 	}
 	if c.Memory.Generate {
 		if c.Memory.Model == nil {
 			return errors.New("memory.model is required when memory.generate is on")
 		}
 		if err := c.checkModel(*c.Memory.Model); err != nil {
-			return fmt.Errorf("memory.%w", err)
+			return fmt.Errorf("memory.model: %w", err)
+		}
+	}
+	if c.Slots < 0 {
+		return errors.New("slots must not be negative")
+	}
+	for name, e := range c.Endpoints {
+		if e.Calls < 0 {
+			return fmt.Errorf("endpoint %s: calls must not be negative", name)
 		}
 	}
 	return nil
@@ -156,10 +171,10 @@ func (c Config) Validate() error {
 
 func (c Config) checkModel(m Model) error {
 	if strings.TrimSpace(m.ID) == "" || strings.TrimSpace(m.Name) == "" {
-		return errors.New("models: every model needs an id and a name")
+		return errors.New("every model needs an id and a name")
 	}
 	if _, ok := c.Endpoints[m.Endpoint]; !ok {
-		return fmt.Errorf("model %s uses endpoint %q, which is not defined under endpoints", m.ID, m.Endpoint)
+		return fmt.Errorf("model %s uses endpoint %q, which endpoints does not define", m.ID, m.Endpoint)
 	}
 	return nil
 }

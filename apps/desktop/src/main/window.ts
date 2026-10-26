@@ -22,19 +22,20 @@ export function createMainWindow(): BrowserWindow {
   })
   win.once('ready-to-show', () => win.show())
 
-  // Links open in the user's browser; the window itself never navigates away.
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  // Links open in the user's browser; the window never navigates away.
+  const external = (url: string) => {
     if (/^https?:/.test(url)) void shell.openExternal(url)
+  }
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    external(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
-    if (url !== win.webContents.getURL()) {
-      event.preventDefault()
-      if (/^https?:/.test(url)) void shell.openExternal(url)
-    }
+    if (url === win.webContents.getURL()) return
+    event.preventDefault()
+    external(url)
   })
 
-  const devURL = process.env.ELECTRON_RENDERER_URL
-  void (devURL ? win.loadURL(devURL) : win.loadURL(rendererURL))
+  void win.loadURL(process.env.ELECTRON_RENDERER_URL ?? rendererURL)
   return win
 }

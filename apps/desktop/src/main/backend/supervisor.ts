@@ -1,7 +1,7 @@
 // BackendSupervisor owns the ollupid process: it spawns it with a fresh
-// gateway token, reads the one-line handshake, keeps the tail of its stderr for
-// diagnostics and reports every state change. It never restarts on its own; a
-// crash becomes a visible "failed" state the user can retry.
+// gateway token, reads the handshake line, keeps the tail of its output for
+// diagnostics and reports every state change. It never restarts on its own;
+// a crash becomes a visible "failed" state the user can retry.
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -13,9 +13,10 @@ export interface SupervisorOptions {
   binary: string
   home: string
   allowOrigins: string[]
-  env: () => Promise<NodeJS.ProcessEnv>
+  env(): Promise<NodeJS.ProcessEnv>
 }
 
+/** sidecar/internal/handshake.Message */
 interface Handshake {
   type: 'ready' | 'fatal'
   url?: string
@@ -46,17 +47,12 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     this.log = []
     this.set({ status: 'starting' })
     const token = randomBytes(32).toString('hex')
+    // The token goes in the environment, not argv, which other users can read.
     const env = { ...(await this.opts.env()), OLLUPI_GATEWAY_TOKEN: token }
     const args = ['--home', this.opts.home, '--watch-stdin']
     if (this.opts.allowOrigins.length) args.push('--allow-origin', this.opts.allowOrigins.join(','))
 
-    let child: ChildProcess
-    try {
-      child = spawn(this.opts.binary, args, { env, stdio: ['pipe', 'pipe', 'pipe'] })
-    } catch (err) {
-      this.fail(`cannot start ${this.opts.binary}: ${String(err)}`)
-      return
-    }
+    const child = spawn(this.opts.binary, args, { env, stdio: ['pipe', 'pipe', 'pipe'] })
     this.child = child
     let handshaken = false
     const timer = setTimeout(() => {
@@ -67,20 +63,16 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
 
     createInterface({ input: child.stderr! }).on('line', (line) => this.remember(line))
     createInterface({ input: child.stdout! }).on('line', (line) => {
-      if (handshaken) return this.remember(line)
-      const msg = parseHandshake(line)
+      const msg = handshaken ? undefined : parseHandshake(line)
       if (!msg) return this.remember(line)
       handshaken = true
       clearTimeout(timer)
-      if (msg.type === 'ready' && msg.url) {
-        this.set({ status: 'ready', url: msg.url, token, version: msg.version ?? '' })
-      } else {
-        this.fail(msg.message ?? 'the backend failed to start', msg.configPath)
-      }
+      if (msg.type === 'ready' && msg.url) this.set({ status: 'ready', url: msg.url, token, version: msg.version ?? '' })
+      else this.fail(msg.message ?? 'the backend failed to start', msg.configPath)
     })
     child.on('error', (err) => {
       clearTimeout(timer)
-      this.fail(`cannot start the backend: ${err.message}`)
+      this.fail(`cannot start ${this.opts.binary}: ${err.message}`)
     })
     child.on('exit', (code, signal) => {
       clearTimeout(timer)
@@ -91,7 +83,7 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     })
   }
 
-  /** Asks the backend to finish in-flight writes, then forces it down. */
+  /** SIGTERM lets the backend finish its writes; SIGKILL if it hangs. */
   async stop(): Promise<void> {
     const child = this.child
     if (!child) return

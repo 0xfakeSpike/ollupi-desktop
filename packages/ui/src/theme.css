@@ -1,4 +1,4 @@
-/* Design tokens for @ollupi/ui. Components only use these semantic names
+/* Design tokens for @ollupi/ui. Components use only these semantic names
    (bg-canvas, text-fg-muted, border-line, ...), so a theme is a set of
    variable values and dark mode needs no per-component classes. */
 
@@ -31,7 +31,7 @@
   color-scheme: light dark;
   --ol-canvas: #ffffff;
   --ol-sidebar: #f7f7f6;
-  --ol-surface: #f6f6f5;
+  --ol-surface: #f5f5f4;
   --ol-raised: #ffffff;
   --ol-hover: rgb(0 0 0 / 0.05);
   --ol-line: rgb(0 0 0 / 0.08);
