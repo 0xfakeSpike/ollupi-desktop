@@ -1,4 +1,4 @@
-// Small display formatters shared by every view.
+// Display formatting shared by every view.
 
 import type { Usage } from '@ollupi/protocol'
 
@@ -8,8 +8,8 @@ export function formatTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`
 }
 
-export function usageLine(u: Usage | undefined): string {
-  if (!u || u.inputTokens + u.outputTokens === 0) return ''
+export function usageLine(u: Usage): string {
+  if (u.inputTokens + u.outputTokens === 0) return ''
   const cached = u.cachedInputTokens ? ` (${formatTokens(u.cachedInputTokens)} cached)` : ''
   return `${formatTokens(u.inputTokens)} in${cached} · ${formatTokens(u.outputTokens)} out`
 }
@@ -17,15 +17,20 @@ export function usageLine(u: Usage | undefined): string {
 export function relativeTime(iso: string, now = Date.now()): string {
   const t = Date.parse(iso)
   if (Number.isNaN(t)) return ''
-  const s = Math.max(0, Math.round((now - t) / 1000))
+  const s = Math.round((now - t) / 1000)
+  if (s < 0) return inFuture(-s)
   if (s < 60) return 'just now'
-  const m = Math.round(s / 60)
-  if (m < 60) return `${m}m`
-  const h = Math.round(m / 60)
-  if (h < 24) return `${h}h`
-  const d = Math.round(h / 24)
-  if (d < 30) return `${d}d`
+  if (s < 3600) return `${Math.round(s / 60)}m`
+  if (s < 86400) return `${Math.round(s / 3600)}h`
+  if (s < 30 * 86400) return `${Math.round(s / 86400)}d`
   return new Date(t).toLocaleDateString()
+}
+
+function inFuture(s: number): string {
+  if (s < 60) return 'in under a minute'
+  if (s < 3600) return `in ${Math.round(s / 60)}m`
+  if (s < 86400) return `in ${Math.round(s / 3600)}h`
+  return `in ${Math.round(s / 86400)}d`
 }
 
 export function duration(startIso: string, endIso: string | undefined, now = Date.now()): string {

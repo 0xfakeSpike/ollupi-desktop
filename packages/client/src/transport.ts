@@ -1,5 +1,5 @@
-// A transport moves whole JSON-RPC messages as text. The RPC layer never
-// touches sockets, so tests can drive it with an in-memory pair.
+// A transport carries whole JSON-RPC messages as text. The peer never sees a
+// socket, so tests drive it with an in-memory pair.
 
 export interface TransportEvents {
   message(text: string): void
@@ -9,11 +9,11 @@ export interface TransportEvents {
 export interface Transport {
   send(text: string): void
   close(): void
-  /** Called once; events before it are buffered by the implementation. */
+  /** Called once; whatever arrives before is buffered for it. */
   listen(events: TransportEvents): void
 }
 
-/** The subset of the WHATWG WebSocket the transport needs. */
+/** The part of the WHATWG WebSocket the transport uses. */
 export interface WebSocketLike {
   readonly readyState: number
   send(data: string): void
@@ -25,6 +25,7 @@ export type WebSocketFactory = (url: string) => WebSocketLike
 
 const OPEN = 1
 
+/** Opens a WebSocket and resolves once it is open. */
 export function connectWebSocket(
   url: string,
   create: WebSocketFactory = (u) => new WebSocket(u),
@@ -33,7 +34,7 @@ export function connectWebSocket(
     const ws = create(url)
     let events: TransportEvents | undefined
     const early: string[] = []
-    let closed: string | undefined
+    let closedWith: string | undefined
     let opened = false
 
     ws.addEventListener('open', () => {
@@ -45,8 +46,8 @@ export function connectWebSocket(
         close: () => ws.close(1000, 'client closed'),
         listen: (e) => {
           events = e
-          early.splice(0).forEach((m) => e.message(m))
-          if (closed !== undefined) e.close(closed)
+          for (const m of early.splice(0)) e.message(m)
+          if (closedWith !== undefined) e.close(closedWith)
         },
       })
     })
@@ -59,14 +60,10 @@ export function connectWebSocket(
       const reason = ev.reason || `socket closed (${ev.code})`
       if (!opened) reject(new Error(reason))
       else if (events) events.close(reason)
-      else closed = reason
+      else closedWith = reason
     })
     ws.addEventListener('error', () => {
-      if (!opened) reject(new Error(`cannot connect to ${redactToken(url)}`))
+      if (!opened) reject(new Error(`cannot connect to ${url.replace(/token=[^&]*/, 'token=***')}`))
     })
   })
-}
-
-function redactToken(url: string): string {
-  return url.replace(/token=[^&]*/, 'token=***')
 }

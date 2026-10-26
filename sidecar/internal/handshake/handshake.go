@@ -1,7 +1,7 @@
-// Package handshake is the line protocol between the sidecar and the desktop
-// process that supervises it: exactly one JSON line on stdout, either "ready"
-// with the gateway URL or "fatal" with why the backend could not start. All
-// logging goes to stderr so stdout stays machine-readable.
+// Package handshake is the sidecar's line protocol with the process that
+// supervises it: exactly one JSON line on stdout, "ready" with the gateway
+// URL or "fatal" with why the backend could not start. Logs go to stderr so
+// stdout stays machine-readable.
 package handshake
 
 import (
@@ -17,9 +17,7 @@ type Message struct {
 	ConfigPath string `json:"configPath,omitempty"`
 }
 
-func Ready(url, version string) {
-	write(Message{Type: "ready", URL: url, Version: version})
-}
+func Ready(url, version string) { write(Message{Type: "ready", URL: url, Version: version}) }
 
 func Fatal(err error, configPath string) {
 	write(Message{Type: "fatal", Message: err.Error(), ConfigPath: configPath})

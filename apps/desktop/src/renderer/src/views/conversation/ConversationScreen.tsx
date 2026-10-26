@@ -1,0 +1,103 @@
+import { activeTurn, lastConnection, needsUser, threadTitle } from '@ollupi/core'
+import { Badge, IconButton, Spinner } from '@ollupi/ui'
+import { ArrowDown, ArrowLeft, CalendarClock, Folder, Shield } from 'lucide-react'
+import { useState } from 'react'
+import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
+import { useThreadJobs } from '../../domains/cron'
+import { useThreadSummary } from '../../domains/threads'
+import { useWorkspace } from '../../domains/workspaces'
+import { useStickToBottom } from '../common/useStickToBottom'
+import { CronDialog } from '../cron/CronDialog'
+import { ThreadPermissionsDialog } from '../settings/ThreadPermissionsDialog'
+import { Composer } from './Composer'
+import { ModelPicker } from './ModelPicker'
+import { TimelineView } from './TimelineView'
+
+type Dialog = 'permissions' | 'cron' | undefined
+
+export function ConversationScreen({ threadId }: { threadId: string }) {
+  const timeline = useTimeline(threadId)
+  const summary = useThreadSummary(threadId)
+  const thread = timeline?.thread ?? summary
+  const workspace = useWorkspace(thread?.workspaceId)
+  const jobs = useThreadJobs(threadId)
+  const running = timeline && activeTurn(timeline)
+  const parent = thread?.parentThreadId
+  const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
+  const [dialog, setDialog] = useState<Dialog>()
+
+  return (
+    <div className="flex h-full flex-col">
+      <header className="drag flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-4">
+        {parent && (
+          <IconButton label="Back to the parent thread" size="sm" onClick={() => void openThread(parent)}>
+            <ArrowLeft size={14} />
+          </IconButton>
+        )}
+        <h1 className="min-w-0 truncate text-[13px] font-semibold text-fg">{thread ? threadTitle(thread) : 'Thread'}</h1>
+        {parent && <Badge>Subagent</Badge>}
+        {workspace && (
+          <span className="flex min-w-0 items-center gap-1 text-xs text-fg-subtle" title={workspace.rootPath}>
+            <Folder size={12} />
+            <span className="truncate">{workspace.name}</span>
+          </span>
+        )}
+        {needsUser(summary?.status) && <Badge tone="warning">Waiting for you</Badge>}
+        <div className="flex-1" />
+        {thread && !parent && (
+          <>
+            <IconButton label="Scheduled tasks" size="sm" onClick={() => setDialog('cron')} className="relative">
+              <CalendarClock size={14} />
+              {!!jobs?.length && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-accent" />}
+            </IconButton>
+            <IconButton label="Thread permissions" size="sm" onClick={() => setDialog('permissions')}>
+              <Shield size={14} />
+            </IconButton>
+          </>
+        )}
+      </header>
+
+      <div className="relative min-h-0 flex-1">
+        <div ref={ref} className="h-full overflow-y-auto">
+          {timeline ? (
+            <TimelineView timeline={timeline} />
+          ) : (
+            <div className="flex h-full items-center justify-center text-fg-subtle">
+              <Spinner />
+            </div>
+          )}
+        </div>
+        {!atBottom && (
+          <button
+            type="button"
+            aria-label="Scroll to the latest"
+            onClick={() => scrollToBottom(true)}
+            className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-line-strong bg-raised text-fg-muted shadow-md hover:text-fg"
+          >
+            <ArrowDown size={15} />
+          </button>
+        )}
+      </div>
+
+      {parent ? (
+        // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
+        // it works on the task its parent gave it and reports back there.
+        <p className="px-6 pb-5 text-center text-xs text-fg-subtle">
+          A subagent works on the task its parent thread gave it; talk to it through the parent thread.
+        </p>
+      ) : (
+        <Composer
+          placeholder={running ? 'Add to the running turn…' : 'Reply…'}
+          running={!!running}
+          disabled={!timeline}
+          onSubmit={(text, mode) => sendMessage(threadId, text, mode)}
+          onStop={() => void interrupt(threadId)}
+          toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
+        />
+      )}
+
+      {thread && dialog === 'permissions' && <ThreadPermissionsDialog thread={thread} onClose={() => setDialog(undefined)} />}
+      {dialog === 'cron' && <CronDialog threadId={threadId} onClose={() => setDialog(undefined)} />}
+    </div>
+  )
+}

@@ -19,7 +19,7 @@ body {
   user-select: none;
 }
 
-/* Text people read or copy stays selectable. */
+/* What people read or copy stays selectable. */
 .selectable,
 .markdown,
 pre,
@@ -29,7 +29,7 @@ input {
   user-select: text;
 }
 
-/* Frameless window: these regions move the window. */
+/* Frameless window: these regions move it. */
 .drag {
   -webkit-app-region: drag;
 }
@@ -37,7 +37,7 @@ input {
 .drag a,
 .drag select,
 .drag input,
-.no-drag {
+.drag label {
   -webkit-app-region: no-drag;
 }
 
@@ -52,7 +52,6 @@ input {
   background-clip: content-box;
 }
 
-/* Agent message markdown. */
 .markdown {
   line-height: 1.65;
   overflow-wrap: anywhere;

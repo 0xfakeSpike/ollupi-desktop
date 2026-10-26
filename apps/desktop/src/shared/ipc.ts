@@ -1,16 +1,18 @@
 // The contract between the main process and the renderer: channel names and
-// the API the preload script exposes as `window.desktop`. Both sides import
-// this file, so a change here is checked on both ends.
+// the API the preload exposes as window.desktop. Both sides import it, so a
+// change is checked on both ends.
 
+/** The backend process as the supervisor sees it. */
 export type BackendState =
   | { status: 'starting' }
   | { status: 'ready'; url: string; token: string; version: string }
-  | { status: 'failed'; message: string; configPath?: string; log: string }
+  | { status: 'failed'; message: string; configPath: string | undefined; log: string }
   | { status: 'stopped' }
 
 export interface AppInfo {
   version: string
   platform: string
+  /** The backend's data and config directory. */
   home: string
   configPath: string
 }
@@ -24,7 +26,6 @@ export interface DesktopApi {
   }
   pickDirectory(): Promise<string | undefined>
   openPath(path: string): Promise<void>
-  openExternal(url: string): Promise<void>
 }
 
 export const IpcChannel = {
@@ -34,9 +35,9 @@ export const IpcChannel = {
   BackendChanged: 'backend:changed',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',
-  OpenExternal: 'shell:openExternal',
 } as const
 
-/** The renderer's origin in packaged builds; the sidecar allows it. */
+/** Packaged builds serve the renderer from app://ollupi; the backend is told
+ * to allow that origin. */
 export const APP_SCHEME = 'app'
 export const APP_HOST = 'ollupi'

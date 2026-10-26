@@ -1,12 +1,13 @@
-// Package host assembles one ollupi backend from a Config: the database, the
-// model connections, the tool providers, memory, cron, the agent and the
-// gateway. It owns their lifetimes; main only supplies a context and a
-// listener: New, then Start, then Serve.
+// Package host assembles one ollupi backend from a Config, following the
+// assembly ollupi's README describes: the database, one model client per
+// endpoint, the tool providers, memory, cron, the agent and the gateway. It
+// owns their lifetimes: New builds everything without starting anything,
+// Start starts the agent and its sibling goroutines, Serve serves the gateway
+// until the context ends and then waits for every component to stop.
 package host
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -30,23 +31,20 @@ type Options struct {
 	Home   string
 	Token  string
 	Config config.Config
-	// AllowedOrigins lets the packaged renderer (served from app://ollupi)
-	// open the gateway WebSocket alongside the default localhost origins.
+	// AllowedOrigins are WebSocket origin patterns beyond loopback, e.g. the
+	// packaged renderer's app://ollupi.
 	AllowedOrigins []string
 }
 
 type Host struct {
-	agent   *agent.Agent
-	gateway *gateway.Server
-	memory  *memory.Manager
-	jobs    *cron.Jobs
-	closers []func() error
-
+	agent    *agent.Agent
+	gateway  *gateway.Server
+	memory   *memory.Manager
+	jobs     *cron.Jobs
+	closers  []func() error
 	siblings sync.WaitGroup
 }
 
-// New builds every component without starting any goroutine, so a config
-// error surfaces before anything runs.
 func New(opts Options) (_ *Host, err error) {
 	cfg := opts.Config
 	h := &Host{}
@@ -67,12 +65,14 @@ func New(opts Options) (_ *Host, err error) {
 		return nil, err
 	}
 	models := make([]llm.Model, len(cfg.Models))
-	conns := make(map[string]*llm.OpenAI, len(cfg.Models))
+	connections := make(map[string]*llm.OpenAI, len(cfg.Models))
 	for i, m := range cfg.Models {
 		models[i] = m.LLM()
-		conns[m.ID] = clients[m.Endpoint]
+		connections[m.ID] = clients[m.Endpoint]
 	}
 
+	// The cron component is both a tool provider (the model manages tasks)
+	// and the timer that sends due tasks; the gateway exposes it as cron/*.
 	h.jobs = cron.New(db, time.Local)
 	providers := []tools.Provider{h.jobs}
 	if cfg.Shell.Enabled {
@@ -95,7 +95,8 @@ func New(opts Options) (_ *Host, err error) {
 		Models:      models,
 		Tools:       cfg.Tools,
 		Settings:    cfg.Settings,
-		Connections: conns,
+		Slots:       cfg.Slots,
+		Connections: connections,
 		Providers:   providers,
 		SkillsDir:   cfg.SkillsDir,
 		Memory:      h.memory,
@@ -106,16 +107,18 @@ func New(opts Options) (_ *Host, err error) {
 		Token:          opts.Token,
 		AllowedOrigins: opts.AllowedOrigins,
 		Memory:         h.memory,
+		Jobs:           h.jobs,
 	})
 	if err != nil {
 		return nil, err
 	}
+	// Set before Start, so the agent never emits into a nil gateway.
 	deliver = h.gateway.Deliver
 	return h, nil
 }
 
-// Start starts the agent and its sibling goroutines (memory extraction and
-// cron). Cancelling ctx stops them; Serve waits for that.
+// Start starts the agent, then memory extraction and the cron timer beside
+// it. Cancelling ctx stops them all.
 func (h *Host) Start(ctx context.Context) error {
 	if err := h.agent.Start(ctx); err != nil {
 		h.close()
@@ -123,6 +126,7 @@ func (h *Host) Start(ctx context.Context) error {
 	}
 	h.siblings.Go(func() { h.memory.Run(ctx) })
 	h.siblings.Go(func() {
+		// A due task goes in through the same entry as a user's message.
 		h.jobs.Run(ctx, func(threadID, text, jobID string) error {
 			_, err := h.agent.StartTurn(threadID, agent.Input{Text: text, CronJobID: jobID})
 			return err
@@ -131,8 +135,8 @@ func (h *Host) Start(ctx context.Context) error {
 	return nil
 }
 
-// Serve serves the gateway on ln until ctx (the one given to Start) is
-// cancelled, then waits for every component to stop and releases them.
+// Serve serves the gateway on ln until the context given to Start ends, then
+// waits for the siblings and the agent before releasing the database.
 func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	defer h.close()
 	err := h.gateway.Serve(ctx, ln)
@@ -173,15 +177,16 @@ func shellRunner(home string, cfg config.Config) (*shell.Runner, error) {
 		sc.WorkspaceDirs = []string{scratch}
 	}
 	return shell.NewRunner(shell.Options{
-		Config:    sc,
-		Agent:     shell.AgentFiles{Home: home, SkillsDir: cfg.SkillsDir},
+		Config: sc,
+		Agent:  shell.AgentFiles{Home: home, SkillsDir: cfg.SkillsDir},
+		// Commands must not read the API keys in the config file.
 		DenyRead:  []string{filepath.Join(home, config.FileName)},
 		EnvMarker: "OLLUPI_SANDBOX",
 	})
 }
 
 func memoryManager(db *repo.DB, clients map[string]*llm.OpenAI, m config.Memory) (*memory.Manager, error) {
-	opts := memory.Options{Generate: m.Generate, Use: m.Use}
+	opts := memory.Options{Use: m.Use, Generate: m.Generate}
 	var client *llm.OpenAI
 	if m.Model != nil {
 		opts.Model = m.Model.LLM()
@@ -189,7 +194,7 @@ func memoryManager(db *repo.DB, clients map[string]*llm.OpenAI, m config.Memory)
 	}
 	mgr, err := memory.New(db, client, opts)
 	if err != nil {
-		return nil, errors.Join(errors.New("memory"), err)
+		return nil, fmt.Errorf("memory: %w", err)
 	}
 	return mgr, nil
 }

@@ -1,9 +1,9 @@
 import { ChevronRight, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { IconButton, cn } from './primitives'
+import { IconButton } from './buttons'
+import { cn } from './cn'
 
 export interface DialogProps {
-  open: boolean
   title: string
   onClose(): void
   children: ReactNode
@@ -11,14 +11,13 @@ export interface DialogProps {
   width?: number
 }
 
-export function Dialog({ open, title, onClose, children, footer, width = 440 }: DialogProps) {
+/** A modal; render it only while open. Escape and the backdrop close it. */
+export function Dialog({ title, onClose, children, footer, width = 440 }: DialogProps) {
   useEffect(() => {
-    if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-  if (!open) return null
+  }, [onClose])
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6" onMouseDown={onClose}>
       <div
@@ -47,7 +46,7 @@ export interface DisclosureProps {
   children: ReactNode
   defaultOpen?: boolean
   className?: string
-  /** Extra content on the summary row, outside the toggle. */
+  /** Content on the summary row outside the toggle, e.g. a status mark. */
   aside?: ReactNode
 }
 

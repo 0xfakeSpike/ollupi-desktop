@@ -1,48 +1,48 @@
-// The thread list in the sidebar: summaries kept newest first, with live
-// status from thread/status/changed.
+// The sidebar's thread list follows thread/list (repo.ThreadRows): only
+// top-level threads, ordered by updated_at then created_at, newest first.
+// Live updates must keep that, since thread/started also announces the
+// threads subagents run in.
 
 import type { ThreadRow, ThreadStatus, ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 
-export function sortThreads(list: readonly ThreadSummary[]): ThreadSummary[] {
-  return list.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+export function isTopLevel(thread: Pick<ThreadRow, 'parentThreadId'>): boolean {
+  return !thread.parentThreadId
 }
 
-/** Inserts or refreshes a thread, keeping a status already known for it. */
-export function upsertThread(
-  list: readonly ThreadSummary[],
-  thread: ThreadRow,
-  status?: ThreadStatus,
-): ThreadSummary[] {
-  const prev = list.find((t) => t.id === thread.id)
-  const next: ThreadSummary = { ...thread, status: status ?? prev?.status ?? 'idle' }
-  return sortThreads([...list.filter((t) => t.id !== thread.id), next])
+export function compareThreads(a: ThreadRow, b: ThreadRow): number {
+  return b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt)
 }
 
-export function setThreadStatus(
-  list: readonly ThreadSummary[],
-  threadId: string,
-  status: ThreadStatus,
-): ThreadSummary[] {
+/** Inserts or refreshes a top-level thread. Its status comes from
+ * thread/status/changed, so a known one is kept when only the row changed;
+ * a thread seen for the first time without one is idle (thread/start). */
+export function upsertThread(list: readonly ThreadSummary[], thread: ThreadRow, status?: ThreadStatus): ThreadSummary[] {
+  if (!isTopLevel(thread)) return list.slice()
+  const known = list.find((t) => t.id === thread.id)
+  const next: ThreadSummary = { ...thread, status: status ?? known?.status ?? 'idle' }
+  return [...list.filter((t) => t.id !== thread.id), next].sort(compareThreads)
+}
+
+export function setThreadStatus(list: readonly ThreadSummary[], threadId: string, status: ThreadStatus): ThreadSummary[] {
   return list.map((t) => (t.id === threadId ? { ...t, status } : t))
 }
 
-/** Subagent threads belong under their parent's tool call, not the sidebar. */
-export function topLevelThreads(list: readonly ThreadSummary[]): ThreadSummary[] {
-  return list.filter((t) => !t.parentThreadId)
-}
-
-/** The server sets the preview (first line of the first input) when the
- * thread's first turn starts; until then the thread has no title. */
+/** The server sets preview to the first line of the first turn's input when
+ * that turn starts; before then the thread has no title of its own. */
 export function threadTitle(thread: Pick<ThreadRow, 'preview'>): string {
   return thread.preview || 'New thread'
 }
 
-export function isBusy(status: ThreadStatus | undefined): boolean {
-  return status !== undefined && status !== 'idle'
+/** agent.threadStatus: idle without an inProgress turn; while one exists,
+ * waitingOn* when this thread, or a subagent thread it waits on, has a
+ * request pending, else active (running, waiting for a slot or for a
+ * subagent). So a waiting parent's request may live in a child thread. */
+export function needsUser(status: ThreadStatus | undefined): boolean {
+  return status === 'waitingOnApproval' || status === 'waitingOnUserInput'
 }
 
-export function needsAttention(status: ThreadStatus | undefined): boolean {
-  return status === 'waitingOnApproval' || status === 'waitingOnUserInput'
+export function isWorking(status: ThreadStatus | undefined): boolean {
+  return status === 'active'
 }
 
 export interface WorkspaceGroup {
@@ -50,18 +50,12 @@ export interface WorkspaceGroup {
   threads: ThreadSummary[]
 }
 
-/** Groups threads under active workspaces (in the given order), then the
- * threads outside any workspace. Archived workspaces are left out. */
-export function groupThreadsByWorkspace(
-  workspaces: readonly WorkspaceRow[],
-  threads: readonly ThreadSummary[],
-): WorkspaceGroup[] {
-  const active = workspaces.filter((w) => !w.archivedAt)
-  const groups: WorkspaceGroup[] = active.map((workspace) => ({
-    workspace,
-    threads: threads.filter((t) => t.workspaceId === workspace.id),
-  }))
-  const loose = threads.filter((t) => !t.workspaceId)
-  groups.push({ workspace: undefined, threads: loose })
+/** Threads under each active workspace (in the given order), then those
+ * outside any workspace. Archived workspaces are not listed. */
+export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: readonly ThreadSummary[]): WorkspaceGroup[] {
+  const groups: WorkspaceGroup[] = workspaces
+    .filter((w) => !w.archivedAt)
+    .map((workspace) => ({ workspace, threads: threads.filter((t) => t.workspaceId === workspace.id) }))
+  groups.push({ workspace: undefined, threads: threads.filter((t) => !t.workspaceId) })
   return groups
 }

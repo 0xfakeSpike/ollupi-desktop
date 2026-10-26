@@ -1,4 +1,4 @@
-// Exposes the DesktopApi to the sandboxed renderer. Nothing else from Node or
+// Exposes DesktopApi to the sandboxed renderer. Nothing else from Node or
 // Electron crosses the bridge.
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
@@ -17,7 +17,6 @@ const api: DesktopApi = {
   },
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
-  openExternal: (url) => ipcRenderer.invoke(IpcChannel.OpenExternal, url),
 }
 
 contextBridge.exposeInMainWorld('desktop', api)

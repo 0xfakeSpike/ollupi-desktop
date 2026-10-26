@@ -1,0 +1,34 @@
+import type { Model } from '@ollupi/protocol'
+import { ChevronDown, Cpu } from 'lucide-react'
+import { useModels } from '../../domains/models'
+import { chooseModel, useNavigation } from '../../domains/navigation'
+
+/** Chooses the model for the next turn. Without a choice the turn is sent
+ * without a connection and the server continues with `inherited` (the
+ * thread's last model), or its fallback for a thread with no turns. */
+export function ModelPicker({ inherited }: { inherited: string | undefined }) {
+  const models = useModels((s) => s.list)
+  const fallback = useModels((s) => s.fallback)
+  const chosen = useNavigation((s) => s.model)
+  const shown = chosen ?? inherited ?? fallback
+  if (models.length === 0) return null
+  return (
+    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg">
+      <Cpu size={13} />
+      <span className="max-w-48 truncate">{label(models.find((m) => m.connection === shown)) || shown}</span>
+      <ChevronDown size={12} />
+      <select aria-label="Model" className="absolute inset-0 cursor-pointer opacity-0" value={shown} onChange={(e) => chooseModel(e.target.value)}>
+        {models.map((m) => (
+          <option key={m.connection} value={m.connection}>
+            {label(m)}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function label(m: Model | undefined): string {
+  if (!m) return ''
+  return m.connection === m.name ? m.name : `${m.connection} · ${m.name}`
+}

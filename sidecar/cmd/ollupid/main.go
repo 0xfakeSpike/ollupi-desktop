@@ -1,7 +1,7 @@
 // Command ollupid is the desktop app's backend: it embeds the ollupi agent and
-// serves its gateway on a loopback port. The Electron main process spawns it,
-// passes the gateway token in OLLUPI_GATEWAY_TOKEN and reads one handshake line
-// from stdout. Closing stdin (the parent died) or SIGTERM shuts it down.
+// serves its gateway on a loopback port. The Electron main process spawns it
+// with the gateway token in OLLUPI_GATEWAY_TOKEN and reads one handshake line
+// from stdout. SIGTERM, or stdin closing when the parent dies, shuts it down.
 package main
 
 import (
@@ -32,9 +32,8 @@ func main() {
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	flag.Parse()
 
-	configPath := filepath.Join(*home, config.FileName)
 	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
-		handshake.Fatal(err, configPath)
+		handshake.Fatal(err, filepath.Join(*home, config.FileName))
 		log.Printf("ollupid: %v", err)
 		os.Exit(1)
 	}
@@ -70,6 +69,8 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 		}()
 	}
 
+	// Ready only once the agent has started, so a start failure is reported
+	// as fatal rather than after a ready line.
 	if err := h.Start(ctx); err != nil {
 		ln.Close()
 		return err
