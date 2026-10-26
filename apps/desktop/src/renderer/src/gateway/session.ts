@@ -5,7 +5,8 @@
 // it binds each domain, then has each sync; when the connection ends each
 // domain drops what only held for it.
 
-import { errorMessage, OllupiClient } from '@ollupi/client'
+import { errorMessage, OllupiClient, type Inspector } from '@ollupi/client'
+import { PROTOCOL_SHA256 } from '@ollupi/protocol'
 import type { BackendState } from '../../../shared/ipc'
 import { conversationDomain } from '../domains/conversation'
 import { cronDomain } from '../domains/cron'
@@ -46,12 +47,19 @@ function onBackend(state: BackendState): void {
   else useConnection.setState({ gateway: 'idle' })
 }
 
+// Dev builds check every message against the contract (gateway/contract.ts).
+const inspector: Promise<Inspector | undefined> = import.meta.env.DEV
+  ? import('./contract').then((m) => m.contractInspector())
+  : Promise.resolve(undefined)
+
 async function connect(backend: ReadyBackend, mine: number, status: 'connecting' | 'reconnecting'): Promise<void> {
   for (let attempt = 0; mine === epoch; attempt++) {
     useConnection.setState({ gateway: status })
     try {
-      const client = await OllupiClient.connect({ url: backend.url, token: backend.token, clientInfo: CLIENT_INFO })
+      const client = await OllupiClient.connect({ url: backend.url, token: backend.token, clientInfo: CLIENT_INFO, inspector: await inspector })
       if (mine !== epoch) return client.close()
+      const server = client.protocolSha256
+      useConnection.setState({ contractMismatch: server === PROTOCOL_SHA256 ? undefined : { server, ui: PROTOCOL_SHA256 } })
       attach(client, backend, mine)
       for (const d of domains) await d.sync?.(client)
       useConnection.setState({ gateway: 'connected', lastError: undefined, serverVersion: client.serverInfo.version, synced: true })

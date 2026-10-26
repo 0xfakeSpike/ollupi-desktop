@@ -1,0 +1,185 @@
+// Records real gateway traffic into fixtures/session.json for the contract
+// tests. It builds the sidecar against the current ollupi, starts it with
+// the scripted mock model on a throwaway home, and drives one session that
+// exercises every message kind the UI handles: streaming, an approval, a
+// question, a plan, a scheduled task created by the model, a subagent,
+// queued turns, the cron, workspace, memory and permission methods, and an
+// error response. Server requests are answered as a user would (approve,
+// pick the first option). Every JSON-RPC message is kept raw, in order,
+// with its direction.
+//
+//   node scripts/record-session.mjs   (re-run after ollupi changes the contract)
+
+import { execFileSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { createInterface } from 'node:readline'
+import { fileURLToPath } from 'node:url'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const sidecar = join(here, '../../../sidecar')
+const out = join(here, '../fixtures/session.json')
+const tmp = mkdtempSync(join(tmpdir(), 'ollupi-record-'))
+const PORT = 18000 + Math.floor(Math.random() * 1000)
+const TOKEN = 'record'
+
+const children = []
+process.on('exit', () => {
+  for (const c of children) c.kill('SIGTERM')
+  rmSync(tmp, { recursive: true, force: true })
+})
+
+const binary = join(tmp, 'ollupid')
+execFileSync('go', ['build', '-o', binary, './cmd/ollupid'], { cwd: sidecar, stdio: 'inherit' })
+const ollupi = execFileSync('go', ['list', '-m', '-f', '{{.Dir}}', 'github.com/0xfakeSpike/ollupi'], { cwd: sidecar, encoding: 'utf8' }).trim()
+const contract = readFileSync(join(ollupi, 'gateway/protocol.schema.json'))
+const revision = execFileSync('git', ['-C', ollupi, 'log', '-1', '--format=%h %s'], { encoding: 'utf8' }).trim()
+
+const home = join(tmp, 'home')
+const workspace = join(tmp, 'workspace')
+mkdirSync(home)
+mkdirSync(workspace)
+writeFileSync(join(workspace, 'README.md'), '# demo\n')
+writeFileSync(
+  join(home, 'config.yaml'),
+  `name: ollupi
+endpoints:
+  mock:
+    base_url: http://127.0.0.1:${PORT}/v1
+    api_key: test
+    limits:
+      mock-model: { context: 128000, output: 8000 }
+models:
+  - id: mock-model
+    name: mock-model
+    endpoint: mock
+settings:
+  approvalPolicy: on-request
+  permissions: {}
+shell:
+  enabled: true
+  sandbox_mode: workspace-write
+memory:
+  use: true
+  generate: false
+`,
+)
+
+children.push(spawn('node', [join(here, 'mock-model.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore' }))
+const backend = spawn(binary, ['--home', home], { env: { ...process.env, OLLUPI_GATEWAY_TOKEN: TOKEN }, stdio: ['ignore', 'pipe', 'inherit'] })
+children.push(backend)
+const url = await new Promise((resolve, reject) => {
+  createInterface({ input: backend.stdout }).once('line', (line) => {
+    const msg = JSON.parse(line)
+    msg.type === 'ready' ? resolve(msg.url) : reject(new Error(msg.message))
+  })
+})
+
+// --- a minimal JSON-RPC client that records everything ---
+
+const messages = []
+const ws = new WebSocket(`${url}?token=${TOKEN}`)
+await new Promise((r, e) => {
+  ws.addEventListener('open', r)
+  ws.addEventListener('error', e)
+})
+let nextId = 1
+const waiting = new Map()
+const listeners = new Set()
+const send = (m) => {
+  messages.push({ direction: 'out', message: m })
+  ws.send(JSON.stringify(m))
+}
+ws.addEventListener('message', (e) => {
+  const m = JSON.parse(e.data)
+  messages.push({ direction: 'in', message: m })
+  if (m.method && m.id !== undefined) return answer(m)
+  if (m.method) return listeners.forEach((l) => l(m))
+  const w = waiting.get(m.id)
+  waiting.delete(m.id)
+  m.error ? w.reject(Object.assign(new Error(m.error.message), { code: m.error.code })) : w.resolve(m.result)
+})
+const call = (method, params) =>
+  new Promise((resolve, reject) => {
+    const id = nextId++
+    waiting.set(id, { resolve, reject })
+    send({ jsonrpc: '2.0', id, method, params })
+  })
+
+function answer(m) {
+  if (m.method === 'item/toolCall/requestApproval') return send({ jsonrpc: '2.0', id: m.id, result: { decision: 'accept' } })
+  const answers = Object.fromEntries(m.params.questions.map((q) => [q.id, { answers: [q.options?.[0]?.label ?? 'yes'] }]))
+  send({ jsonrpc: '2.0', id: m.id, result: { answers } })
+}
+
+/** Resolves when the turn completes (turn/completed for it). */
+const completed = (turnId) =>
+  new Promise((resolve) => {
+    const l = (m) => {
+      if (m.method === 'turn/completed' && m.params.turn.id === turnId) {
+        listeners.delete(l)
+        resolve(m.params.turn)
+      }
+    }
+    listeners.add(l)
+  })
+
+async function turn(threadId, text) {
+  const { turn } = await call('turn/start', { threadId, input: [{ type: 'text', text }] })
+  return completed(turn.id)
+}
+
+// --- the session ---
+
+await call('initialize', { clientInfo: { name: 'record-session', version: '0' } })
+send({ jsonrpc: '2.0', method: 'initialized', params: {} })
+await call('model/list', {})
+await call('tool/list', {})
+const { workspace: ws1 } = await call('workspace/add', { path: workspace })
+await call('workspace/rename', { workspaceId: ws1.id, name: 'Demo' })
+await call('workspace/list', {})
+const { thread } = await call('thread/start', { workspaceId: ws1.id, permissions: {} })
+
+await turn(thread.id, 'Hello there\nsecond line')
+await turn(thread.id, 'run ls please')
+await turn(thread.id, 'please ask me which language')
+await turn(thread.id, 'make a plan')
+await turn(thread.id, 'please schedule a morning brief')
+await turn(thread.id, 'delegate the weather check')
+
+// Two messages at once: the second waits as a queued turn.
+const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of two' }] })
+const second = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'second of two' }] })
+await completed(first.turn.id)
+await completed(second.turn.id)
+
+await call('cron/list', { threadId: thread.id })
+await call('cron/create', { threadId: thread.id, name: 'hourly-check', spec: '@hourly', prompt: 'Anything new?' })
+await call('cron/pause', { threadId: thread.id, name: 'hourly-check', paused: true })
+await call('cron/delete', { threadId: thread.id, name: 'hourly-check' })
+await call('thread/updatePermissions', { threadId: thread.id, approvalPolicy: 'never', permissions: { deny: ['run_command(rm:*)'] } })
+await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { ask: ['run_command'] } })
+await call('memory/status', {})
+await call('memory/list', {})
+await call('thread/list', { limit: 100 })
+await call('thread/list', { workspaceId: ws1.id, limit: 100 })
+await call('thread/read', { threadId: thread.id, limit: 500 })
+await call('thread/read', { threadId: 'no-such-thread' }).catch(() => {})
+
+ws.close()
+writeFileSync(
+  out,
+  JSON.stringify(
+    {
+      recordedWith: { ollupi: revision, protocolSha256: createHash('sha256').update(contract).digest('hex') },
+      threadId: thread.id,
+      messages,
+    },
+    null,
+    1,
+  ) + '\n',
+)
+console.log(`recorded ${messages.length} messages to ${out}`)
+process.exit(0)

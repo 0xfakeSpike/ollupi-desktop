@@ -5,19 +5,19 @@
 import { RpcError } from '@ollupi/client'
 import {
   activeTurn,
-  appendDelta,
+  applyEvent,
   emptyTimeline,
   oldestSeq,
   prependPage,
   refreshFromPage,
   setThread,
   timelineFromPage,
-  upsertItem,
   upsertThread,
   upsertTurn,
   type Timeline,
+  type TimelineEvent,
 } from '@ollupi/core'
-import { ErrorCode, type PermissionSettings, type TurnNotification } from '@ollupi/protocol'
+import { ErrorCode, type PermissionSettings } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -46,15 +46,15 @@ function store(threadId: string, t: Timeline): void {
 
 export const conversationDomain: Domain = {
   bind: (client) => {
-    const onTurn = ({ threadId, thread, turn }: TurnNotification) => update(threadId, (t) => upsertTurn(setThread(t, thread), turn))
+    const apply = (e: TimelineEvent) => update(e.params.threadId, (t) => applyEvent(t, e))
     const offs = [
-      client.on('turn/queued', onTurn),
-      client.on('turn/started', onTurn),
-      client.on('turn/completed', onTurn),
-      client.on('item/started', ({ threadId, item }) => update(threadId, (t) => upsertItem(t, item))),
-      client.on('item/completed', ({ threadId, item }) => update(threadId, (t) => upsertItem(t, item))),
-      client.on('item/agentMessage/delta', ({ threadId, itemId, delta }) => update(threadId, (t) => appendDelta(t, itemId, delta))),
-      client.on('item/reasoning/textDelta', ({ threadId, itemId, delta }) => update(threadId, (t) => appendDelta(t, itemId, delta))),
+      client.on('turn/queued', (params) => apply({ method: 'turn/queued', params })),
+      client.on('turn/started', (params) => apply({ method: 'turn/started', params })),
+      client.on('turn/completed', (params) => apply({ method: 'turn/completed', params })),
+      client.on('item/started', (params) => apply({ method: 'item/started', params })),
+      client.on('item/completed', (params) => apply({ method: 'item/completed', params })),
+      client.on('item/agentMessage/delta', (params) => apply({ method: 'item/agentMessage/delta', params })),
+      client.on('item/reasoning/textDelta', (params) => apply({ method: 'item/reasoning/textDelta', params })),
     ]
     return () => offs.forEach((off) => off())
   },
@@ -124,7 +124,7 @@ export function sendMessage(threadId: string, text: string, mode: SendMode): Pro
         await gateway().call('turn/steer', { threadId, input: [{ type: 'text', text }], expectedTurnId: running.id })
         return true
       } catch (err) {
-        const ended = err instanceof RpcError && (err.code === ErrorCode.NoActiveTurn || err.code === ErrorCode.TurnMismatch)
+        const ended = err instanceof RpcError && (err.code === ErrorCode.noActiveTurn || err.code === ErrorCode.turnMismatch)
         if (!ended) throw err
       }
     }

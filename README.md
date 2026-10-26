@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 后端 | Go sidecar `ollupid`，直接 import ollupi | ollupi 是 Go 库；agent、SQLite、沙箱都在本进程内 |
 | 协议 | ollupi 的 gateway：JSON-RPC 2.0 over WebSocket | UI 只是网关的一个客户端 |
-| 契约 | `sidecar/cmd/protogen` 从 ollupi 源码生成 TypeScript 类型 | 线上的类型来自产生 JSON 的代码，而不是手抄 |
+| 契约 | ollupi 提交的 `gateway/protocol.schema.json`，生成 TypeScript | 契约由 ollupi 从它分发消息的那张表生成，并用真实流量测试；UI 只读这份 JSON |
 | 外壳 | Electron + electron-vite | 窗口、原生对话框、托管 sidecar |
 | 界面 | React 19 + TypeScript + Tailwind v4 + zustand | 领域逻辑在纯函数包里，store 只存状态 |
 
@@ -32,12 +32,12 @@
 
 | 包 | 职责 |
 | --- | --- |
-| `packages/protocol` | 网关契约。`generated.ts` 由 protogen 从 ollupi 源码生成（所有线上结构、各种状态的取值、方法/通知/请求名、错误码、内置工具名）；`wire.ts` 手写方法名与参数、结果的对应关系，并在类型层面检查它和网关的方法名完全一致，网关增删方法时编译失败。 |
+| `packages/protocol` | 网关契约。`src/generated/` 全部由 `scripts/generate.mjs` 从 ollupi 的 `protocol.schema.json` 生成：类型（json-schema-to-typescript）、方法/通知/请求的参数与结果、错误码、内置工具和提供方、契约指纹，以及内置工具参数和输出的校验器（ajv standalone，预编译、不用 eval）。`fixtures/session.json` 是录下的真实会话，测试用它校验契约。 |
 | `packages/client` | `RpcPeer`：与传输无关的双向 JSON-RPC；`OllupiClient`：按方法表类型化的 `call` / `on` / `handle`。不负责重连。 |
 | `packages/core` | 纯函数领域逻辑，每条规则对照 ollupi 的实现：时间线归并、会话列表（只含顶层会话、按 `updated_at`、`created_at` 排序）、工作区排序、工具调用解读（等审批只在 `pending`、等回答/子代理在 `inProgress`、shell 冻结命令与输出、计划、问答）、格式化。 |
 | `packages/ui` | 设计 token（`theme.css`，自动深色）和展示组件。 |
 | `apps/desktop` | Electron 主进程、preload、渲染进程。 |
-| `sidecar` | `cmd/ollupid` 后端入口；`cmd/protogen` 契约生成器；`internal/config` 配置文件；`internal/host` 组件装配与生命周期；`internal/handshake` 与主进程的启动协议。 |
+| `sidecar` | `cmd/ollupid` 后端入口；`internal/config` 配置文件；`internal/host` 组件装配与生命周期；`internal/handshake` 与主进程的启动协议。 |
 
 ### 渲染进程（`apps/desktop/src/renderer/src`）
 
@@ -45,7 +45,8 @@
 
 ```
 gateway/    连接本身：session（跟随后端状态连接、断线退避重连、后端重启后换新地址）、
-            connection（当前客户端与连接状态）、Domain 接口、run（动作失败转成提示）
+            connection（当前客户端与连接状态）、Domain 接口、run（动作失败转成提示）、
+            contract（仅开发构建：对照契约校验收发的每条消息）
 domains/    每个领域一个文件，自带 store、要订阅的网关事件（bind）、
             连接建立后的加载（sync）、断线时清理（disconnect）和用户动作：
             workspaces、threads、conversation、requests、models、tools、cron、memory，
@@ -63,6 +64,13 @@ session 不认识任何领域的事件：它依次调用各领域的 `bind`、�
 - 父会话在子代理等待用户时也报告"等待中"，所以子代理的审批和提问显示在父会话的子代理卡片上。
 - 定时任务没有推送：打开时读取；用户的 `cron/*` 调用返回最新记录；模型调用 cron 工具后，来自 cron 提供方（`ToolProvider.Cron`）的 `item/completed` 触发重新读取。
 - 审批策略"继承"就是不传 `approvalPolicy`。
+- 内置工具的参数是模型写的 JSON，只有对照契约校验通过才当作计划、问题、子代理任务来显示；命令以 ollupi 冻结的执行内容为准。
+
+### 契约如何守住
+
+- **类型**：`pnpm protocol:generate` 从 ollupi 的契约生成；`pnpm protocol:check` 在生成结果过期时失败（CI 里跑）。
+- **真实流量**：`packages/protocol/src/contract.test.ts` 用录下的会话校验双向每条消息；`packages/core/src/replay.test.ts` 把录下的通知按应用同样的方式应用，结果必须和服务端最后的 `thread/read` 一致。ollupi 一侧另有 `gateway/traffic_test.go`。
+- **运行时**：开发构建里每条消息都对照契约校验，不符合就提示；握手时比对契约指纹（`protocolSha256`），后端和界面不是用同一份契约构建时显示横幅。
 
 ## 开发
 
@@ -78,11 +86,17 @@ pnpm dev
 
 `pnpm dev` 先编译 sidecar，再启动 electron-vite（HMR）。首次运行写入 `~/.ollupi/config.yaml` 模板，填好后在应用里点 "Restart backend"。数据目录可用 `OLLUPI_HOME` 覆盖。环境变量优先用启动终端里的值，其次是登录 shell 的；改了 `~/.zshrc` 要从新的终端启动。
 
-ollupi 改动后重新生成契约，生成结果要提交：
+ollupi 改动契约后，重新生成并重新录制会话，结果都要提交：
 
 ```bash
 pnpm protocol:generate
 ```
+
+```bash
+node packages/protocol/scripts/record-session.mjs
+```
+
+`record-session.mjs` 会针对当前 ollupi 编译 sidecar，用 `scripts/mock-model.mjs`（脚本化的假模型）在临时目录里跑一段完整会话。检查生成结果是否过期：
 
 ```bash
 pnpm protocol:check

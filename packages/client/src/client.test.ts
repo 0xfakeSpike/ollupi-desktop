@@ -10,7 +10,7 @@ function gateway(onMessage: (m: any, reply: (m: object) => void) => void = () =>
     send: (text) => {
       const m = JSON.parse(text)
       sent.push(m)
-      if (m.method === 'initialize') reply({ id: m.id, result: { serverInfo: { name: 'ollupi', version: '1' } } })
+      if (m.method === 'initialize') reply({ id: m.id, result: { serverInfo: { name: 'ollupi', version: '1' }, protocolSha256: 'abc' } })
       else onMessage(m, reply)
     },
     close: () => events?.close('closed'),
@@ -26,10 +26,35 @@ describe('OllupiClient', () => {
   it('initializes, then sends the initialized notification', async () => {
     const gw = gateway()
     const client = await OllupiClient.over(gw.transport, info)
-    expect(client.serverInfo.name).toBe('ollupi')
+    expect([client.serverInfo.name, client.protocolSha256]).toEqual(['ollupi', 'abc'])
     expect(gw.sent.map((m) => [m.method, 'id' in m])).toEqual([
       ['initialize', true],
       ['initialized', false],
+    ])
+  })
+
+  it('shows every message to the inspector with its method', async () => {
+    const seen: string[] = []
+    const inspector = {
+      sent: (kind: string, method: string) => seen.push(`sent ${kind} ${method}`),
+      received: (kind: string, method: string) => seen.push(`received ${kind} ${method}`),
+    }
+    const gw = gateway((m, reply) => reply({ id: m.id, result: { data: [] } }))
+    const client = await OllupiClient.over(gw.transport, info, inspector)
+    client.handle('item/toolCall/requestApproval', async () => ({ decision: 'decline' }))
+    await client.call('tool/list', {})
+    gw.reply({ method: 'thread/status/changed', params: { threadId: 't', status: 'idle' } })
+    gw.reply({ id: 9, method: 'item/toolCall/requestApproval', params: {} })
+    await settle()
+    expect(seen).toEqual([
+      'sent params initialize',
+      'received result initialize',
+      'sent notification initialized',
+      'sent params tool/list',
+      'received result tool/list',
+      'received notification thread/status/changed',
+      'received request item/toolCall/requestApproval',
+      'sent response item/toolCall/requestApproval',
     ])
   })
 

@@ -10,8 +10,9 @@ import {
   prependPage,
   questionsOf,
   refreshFromPage,
-  shellCommand,
-  shellOutput,
+  frozenCommand,
+  commandOutput,
+  subagentOf,
   timelineFromPage,
   upsertItem,
   upsertThread,
@@ -121,20 +122,27 @@ describe('threads', () => {
 describe('calls', () => {
   const call = (extra: Partial<ItemRow>) => item('c', 1, { type: 'toolCall', status: 'pending', ...extra })
 
-  it('reads the frozen command over the model arguments', () => {
+  it('reads the frozen command; before preparation there is none', () => {
     const c = call({
       tool: 'run_command',
       arguments: JSON.stringify({ program: 'ls', args: ['-la'] }),
       preparedExecution: { cwd: '/w', settingsDigest: '', argumentsDigest: '', program: 'git', args: ['commit', '-m', "it's"] },
     })
-    const cmd = shellCommand(c)!
-    expect([commandLine(cmd), cmd.workDir, cmd.prepared]).toEqual([`git commit -m 'it'\\''s'`, '/w', true])
-    expect(shellCommand({ ...c, preparedExecution: undefined })).toMatchObject({ program: 'ls', prepared: false })
+    const cmd = frozenCommand(c)!
+    expect([commandLine(cmd), cmd.cwd]).toEqual([`git commit -m 'it'\\''s'`, '/w'])
+    expect(frozenCommand({ ...c, preparedExecution: undefined })).toBeUndefined()
   })
 
-  it('reads shell output keys', () => {
-    const c = call({ tool: 'run_command', status: 'completed', result: { output: { stdout: 'ok', stderr: '', exit_code: 2, truncated: true } } })
-    expect(shellOutput(c)).toMatchObject({ stdout: 'ok', exitCode: 2, truncated: true, sandboxDenials: [] })
+  it('reads command output only when it matches the contract', () => {
+    const output = { stdout: 'ok', stderr: '', exit_code: 2, work_dir: '/w', truncated: true }
+    expect(commandOutput(call({ tool: 'run_command', status: 'completed', result: { output } }))).toEqual(output)
+    expect(commandOutput(call({ tool: 'run_command', status: 'failed', result: { output: { stdout: 'ok' } } }))).toBeUndefined()
+  })
+
+  it('refuses arguments that do not match the contract', () => {
+    expect(planOf(call({ tool: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'a', status: 'weird' }] }) }))).toBeUndefined()
+    expect(subagentOf(call({ tool: 'Agent', arguments: '{"description": 1}' }))).toBeUndefined()
+    expect(subagentOf(call({ tool: 'Agent', arguments: 'not json' }))).toBeUndefined()
   })
 
   it('waits for approval only while pending', () => {
@@ -145,8 +153,8 @@ describe('calls', () => {
   })
 
   it('pairs questions with stored answers', () => {
-    const request = { questions: [{ id: 'q', header: 'H', question: 'Which?' }] }
-    const asked = call({ tool: 'request_user_input', status: 'inProgress', await: { by: 'user', request } })
+    const args = JSON.stringify({ questions: [{ id: 'q', header: 'H', question: 'Which?' }] })
+    const asked = call({ tool: 'request_user_input', status: 'inProgress', arguments: args, await: { by: 'user', request: {} } })
     expect(waitsForAnswer(asked)).toBe(true)
     expect(questionsOf(asked)).toEqual([{ id: 'q', header: 'H', question: 'Which?', answers: undefined }])
     const answered = { ...asked, status: 'completed' as const, result: { output: { q: { answers: ['Go'] } } } }

@@ -3,8 +3,38 @@
 // Timeline, so any state container can hold it and unchanged parts keep
 // their identity.
 
-import type { ItemRow, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
+import type { ItemRow, ServerNotifications, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
 import { waitsForAnswer, waitsForApproval } from './calls'
+
+/** The notifications that change a thread's timeline. */
+export type TimelineEventName =
+  | 'turn/queued'
+  | 'turn/started'
+  | 'turn/completed'
+  | 'item/started'
+  | 'item/completed'
+  | 'item/agentMessage/delta'
+  | 'item/reasoning/textDelta'
+
+export type TimelineEvent = { [N in TimelineEventName]: { method: N; params: ServerNotifications[N] } }[TimelineEventName]
+
+/** Applies one notification to the thread's timeline: turn notifications
+ * carry the turn and the thread as stored after it, item notifications the
+ * item as stored, deltas the text streamed since. */
+export function applyEvent(t: Timeline, e: TimelineEvent): Timeline {
+  switch (e.method) {
+    case 'turn/queued':
+    case 'turn/started':
+    case 'turn/completed':
+      return upsertTurn(setThread(t, e.params.thread), e.params.turn)
+    case 'item/started':
+    case 'item/completed':
+      return upsertItem(t, e.params.item)
+    case 'item/agentMessage/delta':
+    case 'item/reasoning/textDelta':
+      return appendDelta(t, e.params.itemId, e.params.delta)
+  }
+}
 
 export interface Timeline {
   thread: ThreadRow
