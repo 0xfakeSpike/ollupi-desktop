@@ -2,11 +2,13 @@
 // approving runs exactly that program, arguments and directory.
 
 import { commandLine } from '@ollupi/core'
-import { BuiltinTool, type Decision } from '@ollupi/protocol'
+import type { BuiltinToolName, Decision } from '@ollupi/protocol'
 import { Badge, Button } from '@ollupi/ui'
 import { ShieldAlert } from 'lucide-react'
 import type { PendingRequest } from '../../domains/requests'
 import { CodeBlock } from '../common/Markdown'
+
+const SHELL: BuiltinToolName = 'run_command'
 
 const decisionLabel: Record<Decision, string> = {
   decline: 'Decline',
@@ -21,7 +23,7 @@ const order: Decision[] = ['decline', 'acceptForSession', 'accept']
 export function ApprovalCard({ request }: { request: Extract<PendingRequest, { kind: 'approval' }> }) {
   const p = request.params
   const exec = p.preparedExecution
-  const command = p.tool === BuiltinTool.Shell && exec?.program ? exec : undefined
+  const command = p.tool === SHELL && exec?.program ? exec : undefined
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-warning/40 bg-warning-soft/40 p-4">
       <div className="flex flex-wrap items-center gap-2 text-[13px] font-medium text-fg">
@@ -31,7 +33,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
       </div>
       {p.reason && <p className="text-[13px] text-fg-muted">{p.reason}</p>}
       {command ? (
-        <CodeBlock code={commandLine({ program: command.program!, args: command.args ?? [] })} label={`sh · ${command.cwd}`} />
+        <CodeBlock code={commandLine(command)} label={`sh · ${command.cwd}`} />
       ) : (
         <CodeBlock code={JSON.stringify(p.arguments, null, 2)} label={p.server ? `${p.server} · arguments` : 'arguments'} />
       )}

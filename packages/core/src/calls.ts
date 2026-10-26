@@ -1,20 +1,23 @@
-// Reading tool-call items: what a call is waiting on, and what the built-in
-// tools' arguments and results mean. Each rule mirrors the ollupi code named
-// beside it; the argument and answer types are generated from ollupi.
+// Reading tool-call items: what a call waits on, and what the built-in
+// tools' arguments and outputs say. The shapes are the contract's
+// (builtinTools); a value is read as one only after it validates against
+// the contract, since arguments are the model's own JSON text.
 
 import {
-  BuiltinTool,
+  isToolPart,
+  type BuiltinToolName,
+  type CommandOutput,
   type ItemRow,
-  type PlanArguments,
-  type SubagentArguments,
-  type UserInputAnswer,
-  type UserInputArguments,
+  type Plan,
+  type Prepared,
+  type SubagentCall,
+  type UserInputQuestion,
 } from '@ollupi/protocol'
 
-export type ToolCall = ItemRow & { type: 'toolCall' }
-
-export function isToolCall(item: ItemRow): item is ToolCall {
-  return item.type === 'toolCall'
+/** Whether the call is to the named built-in tool. The name must be one the
+ * contract lists, which the compiler checks. */
+export function isBuiltin(item: ItemRow, name: BuiltinToolName): boolean {
+  return item.type === 'toolCall' && item.tool === name
 }
 
 /** repo.ItemRow.WaitsForApproval: approval happens before a call runs, so
@@ -39,141 +42,81 @@ export function waitsForSubagent(item: ItemRow): boolean {
   return awaits(item, 'agent')
 }
 
-/** Arguments are stored as the JSON text the model produced. */
-export function parseArguments(item: Pick<ItemRow, 'arguments'>): Record<string, unknown> {
-  if (!item.arguments) return {}
+/** The model's arguments as JSON, or undefined when they do not parse. */
+export function parseArguments(item: Pick<ItemRow, 'arguments'>): unknown {
+  if (!item.arguments) return undefined
   try {
-    const v: unknown = JSON.parse(item.arguments)
-    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+    return JSON.parse(item.arguments)
   } catch {
-    return {}
+    return undefined
   }
 }
 
-export interface ShellCommand {
-  program: string
-  args: string[]
-  workDir: string | undefined
-  escalated: boolean
-  justification: string | undefined
-  /** True once ollupi froze the command for approval and execution. */
-  prepared: boolean
-}
-
-/** run_command (tools/shell). After validation the call carries the frozen
- * execution, which is exactly what runs; before that only the model's
- * arguments exist (its ToolInputSchema). */
-export function shellCommand(item: ItemRow): ShellCommand | undefined {
-  if (item.tool !== BuiltinTool.Shell) return undefined
+/** The command a run_command call runs: ollupi freezes it before approval
+ * and execution (preparedExecution), and exactly that runs. Before then the
+ * call has only the model's arguments, which the contract does not type. */
+export function frozenCommand(item: ItemRow): (Prepared & { program: string }) | undefined {
   const p = item.preparedExecution
-  if (p?.program) {
-    return { program: p.program, args: p.args ?? [], workDir: p.cwd, escalated: !!p.escalated, justification: p.justification, prepared: true }
-  }
+  return isBuiltin(item, 'run_command') && p?.program ? { ...p, program: p.program } : undefined
+}
+
+export function commandLine(p: Pick<Prepared, 'program' | 'args'>): string {
+  return [p.program ?? '', ...(p.args ?? [])].map(shellQuote).join(' ')
+}
+
+/** run_command's output, once it validates as CommandOutput. */
+export function commandOutput(item: ItemRow): CommandOutput | undefined {
+  const out = item.result?.output
+  return isBuiltin(item, 'run_command') && isToolPart('run_command', 'output', out) ? out : undefined
+}
+
+/** update_plan's arguments. */
+export function planOf(item: ItemRow): Plan | undefined {
   const a = parseArguments(item)
-  if (typeof a.program !== 'string') return undefined
-  return {
-    program: a.program,
-    args: strings(a.args),
-    workDir: str(a.work_dir),
-    escalated: a.sandbox_permissions === 'require_escalated',
-    justification: str(a.justification),
-    prepared: false,
-  }
+  return isBuiltin(item, 'update_plan') && isToolPart('update_plan', 'arguments', a) ? a : undefined
 }
 
-export function commandLine(cmd: Pick<ShellCommand, 'program' | 'args'>): string {
-  return [cmd.program, ...cmd.args].map(shellQuote).join(' ')
-}
-
-export interface ShellOutput {
-  stdout: string
-  stderr: string
-  exitCode: number | undefined
-  signal: string | undefined
-  truncated: boolean
-  sandboxDenials: string[]
-}
-
-/** The output map run_command returns (tools/shell Runner.Run). */
-export function shellOutput(item: ItemRow): ShellOutput | undefined {
-  const o = item.result?.output
-  if (item.tool !== BuiltinTool.Shell || !o || typeof o !== 'object') return undefined
-  const out = o as Record<string, unknown>
-  return {
-    stdout: str(out.stdout) ?? '',
-    stderr: str(out.stderr) ?? '',
-    exitCode: typeof out.exit_code === 'number' ? out.exit_code : undefined,
-    signal: str(out.signal),
-    truncated: out.truncated === true,
-    sandboxDenials: strings(out.sandbox_denials),
-  }
-}
-
-/** update_plan's arguments (tools/plan.Plan). */
-export function planOf(item: ItemRow): PlanArguments | undefined {
-  if (item.tool !== BuiltinTool.Plan) return undefined
-  const a = parseArguments(item)
-  return Array.isArray(a.plan) ? (a as unknown as PlanArguments) : undefined
-}
-
-export interface SubagentCall extends SubagentArguments {
+export interface SubagentTask extends SubagentCall {
   /** The thread the subagent runs in, once ollupi started it. */
   threadId: string | undefined
 }
 
-/** Agent's arguments (tools/subagent.Call) and the thread it runs in. */
-export function subagentOf(item: ItemRow): SubagentCall | undefined {
-  if (item.tool !== BuiltinTool.Subagent) return undefined
+/** Agent's arguments and the thread it runs in. */
+export function subagentOf(item: ItemRow): SubagentTask | undefined {
   const a = parseArguments(item)
-  return { description: str(a.description) ?? '', prompt: str(a.prompt) ?? '', threadId: item.await?.threadId }
+  if (!isBuiltin(item, 'Agent') || !isToolPart('Agent', 'arguments', a)) return undefined
+  return { ...a, threadId: item.await?.threadId }
 }
 
-export interface QuestionAndAnswer {
-  id: string
-  header: string
-  question: string
-  answers: string[] | undefined
+export interface QuestionAndAnswer extends UserInputQuestion {
+  /** The stored answer, once given; the contract allows null. */
+  answers: string[] | null | undefined
 }
 
-/** request_user_input: the questions (tools/userinput.Request, kept on the
- * call's await) and, once answered, the answers the agent stored as the
- * result (agent.answerUserInput). */
+/** request_user_input: its questions (the call's arguments) and, once
+ * answered, the answers ollupi stored as the result (agent.answerUserInput). */
 export function questionsOf(item: ItemRow): QuestionAndAnswer[] | undefined {
-  if (item.tool !== BuiltinTool.UserInput) return undefined
-  const request = (item.await?.request ?? parseArguments(item)) as Partial<UserInputArguments>
-  if (!Array.isArray(request.questions)) return undefined
-  const answers = (item.result?.output ?? {}) as Record<string, UserInputAnswer | undefined>
-  return request.questions.map((q) => ({ id: q.id, header: q.header, question: q.question, answers: answers[q.id]?.answers }))
+  const a = parseArguments(item)
+  if (!isBuiltin(item, 'request_user_input') || !isToolPart('request_user_input', 'arguments', a)) return undefined
+  const out = item.result?.output
+  const answers = isToolPart('request_user_input', 'output', out) ? out : undefined
+  return (a.questions ?? []).map((q) => ({ ...q, answers: answers?.[q.id]?.answers }))
 }
 
 /** A one-line label for any tool call. */
 export function toolTitle(item: ItemRow): string {
-  const cmd = shellCommand(item)
+  const cmd = frozenCommand(item)
   if (cmd) return commandLine(cmd)
-  switch (item.tool) {
-    case BuiltinTool.Plan:
-      return 'Updated the plan'
-    case BuiltinTool.UserInput:
-      return 'Asked you'
-    case BuiltinTool.Subagent:
-      return subagentOf(item)?.description || 'Subagent'
-    case BuiltinTool.ReadToolOutput:
-      return 'Read earlier tool output'
-  }
-  return item.annotations?.title ?? item.tool ?? 'tool'
+  if (isBuiltin(item, 'update_plan')) return 'Updated the plan'
+  if (isBuiltin(item, 'request_user_input')) return 'Asked you'
+  const task = subagentOf(item)
+  if (task) return task.description
+  return item.annotations?.title || item.tool || 'tool'
 }
 
 export function formatValue(value: unknown): string {
   if (value === undefined || value === null) return ''
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2)
-}
-
-function str(v: unknown): string | undefined {
-  return typeof v === 'string' && v !== '' ? v : undefined
-}
-
-function strings(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
 }
 
 function shellQuote(s: string): string {

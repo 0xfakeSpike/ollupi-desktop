@@ -1,5 +1,6 @@
-// @ollupi/protocol: the ollupi gateway's wire contract. generated.ts is
-// derived from ollupi's Go source by sidecar/cmd/protogen; wire.ts pairs the
-// method names with their params and results.
-export * from './generated'
-export type * from './wire'
+// @ollupi/protocol: ollupi's gateway contract as TypeScript. Everything in
+// generated/ comes from ollupi's gateway/protocol.schema.json
+// (scripts/generate.mjs); nothing here is written by hand.
+export type * from './generated/types'
+export * from './generated/messages'
+export * from './generated/tools'

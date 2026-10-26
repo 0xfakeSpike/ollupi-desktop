@@ -16,6 +16,9 @@ interface ConnectionStore {
   serverVersion: string
   /** True once a connection has synced at least once. */
   synced: boolean
+  /** Set when the gateway serves a different contract than the one the UI's
+   * types were generated from (initialize's protocolSha256). */
+  contractMismatch: { server: string; ui: string } | undefined
 }
 
 export const useConnection = create<ConnectionStore>()(() => ({
@@ -24,6 +27,7 @@ export const useConnection = create<ConnectionStore>()(() => ({
   lastError: undefined,
   serverVersion: '',
   synced: false,
+  contractMismatch: undefined,
 }))
 
 let client: OllupiClient | undefined

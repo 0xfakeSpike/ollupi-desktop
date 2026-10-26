@@ -33,7 +33,7 @@ function inFuture(s: number): string {
   return `in ${Math.round(s / 86400)}d`
 }
 
-export function duration(startIso: string, endIso: string | undefined, now = Date.now()): string {
+export function duration(startIso: string, endIso: string | null | undefined, now = Date.now()): string {
   const ms = (endIso ? Date.parse(endIso) : now) - Date.parse(startIso)
   if (!Number.isFinite(ms) || ms < 0) return ''
   if (ms < 1000) return `${ms}ms`

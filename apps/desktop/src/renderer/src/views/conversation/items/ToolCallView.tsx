@@ -4,20 +4,21 @@
 
 import {
   commandLine,
+  commandOutput,
   duration,
   formatValue,
+  frozenCommand,
+  isBuiltin,
   parseArguments,
   planOf,
   questionsOf,
-  shellCommand,
-  shellOutput,
   subagentOf,
   toolTitle,
   waitsForAnswer,
   waitsForApproval,
   waitsForSubagent,
 } from '@ollupi/core'
-import { BuiltinTool, type ItemRow } from '@ollupi/protocol'
+import type { ItemRow } from '@ollupi/protocol'
 import { Badge, cn, Disclosure, Spinner } from '@ollupi/ui'
 import { Ban, Bot, Check, ChevronRight, Circle, CircleCheck, CircleDot, ListChecks, MessageCircleQuestion, Terminal, Wrench, X } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -28,20 +29,14 @@ import { ApprovalCard } from '../../requests/ApprovalCard'
 import { QuestionsCard } from '../../requests/QuestionsCard'
 
 export function ToolCallView({ item }: { item: ItemRow }) {
-  switch (item.tool) {
-    case BuiltinTool.Plan:
-      return <PlanCard item={item} />
-    case BuiltinTool.Subagent:
-      return <SubagentCard item={item} />
-    case BuiltinTool.UserInput:
-      return <QuestionCall item={item} />
-    default:
-      return <GenericCall item={item} />
-  }
+  if (isBuiltin(item, 'update_plan')) return <PlanCard item={item} />
+  if (isBuiltin(item, 'Agent')) return <SubagentCard item={item} />
+  if (isBuiltin(item, 'request_user_input')) return <QuestionCall item={item} />
+  return <GenericCall item={item} />
 }
 
 function GenericCall({ item }: { item: ItemRow }) {
-  const cmd = shellCommand(item)
+  const cmd = frozenCommand(item)
   return (
     <div className="flex flex-col gap-2">
       <Disclosure
@@ -103,11 +98,11 @@ function CallState({ item }: { item: ItemRow }) {
 }
 
 function ShellDetails({ item }: { item: ItemRow }) {
-  const cmd = shellCommand(item)!
-  const out = shellOutput(item)
+  const cmd = frozenCommand(item)!
+  const out = commandOutput(item)
   return (
     <>
-      <CodeBlock code={commandLine(cmd)} label={cmd.workDir ? `sh · ${cmd.workDir}` : 'sh'} />
+      <CodeBlock code={commandLine(cmd)} label={`sh · ${cmd.cwd}`} />
       {out && (out.stdout || out.stderr) && (
         <pre className="selectable max-h-80 overflow-auto rounded-lg bg-surface px-3 py-2 font-mono text-[12px] leading-5 whitespace-pre-wrap">
           {out.stdout}
@@ -116,10 +111,10 @@ function ShellDetails({ item }: { item: ItemRow }) {
       )}
       {out && (
         <div className="flex flex-wrap gap-1.5">
-          {out.exitCode !== undefined && <Badge tone={out.exitCode === 0 ? 'success' : 'danger'}>exit {out.exitCode}</Badge>}
+          <Badge tone={out.exit_code === 0 ? 'success' : 'danger'}>exit {out.exit_code}</Badge>
           {out.signal && <Badge tone="danger">{out.signal}</Badge>}
           {out.truncated && <Badge>output truncated</Badge>}
-          {out.sandboxDenials.map((d) => (
+          {(out.sandbox_denials ?? []).map((d) => (
             <Badge key={d} tone="warning">
               sandbox: {d}
             </Badge>
@@ -132,11 +127,13 @@ function ShellDetails({ item }: { item: ItemRow }) {
 }
 
 function ArgumentsAndResult({ item }: { item: ItemRow }) {
+  // Arguments that are not valid JSON are shown as the model wrote them.
   const args = parseArguments(item)
+  const shown = args === undefined ? item.arguments : JSON.stringify(args, null, 2)
   const output = formatValue(item.result?.output)
   return (
     <>
-      {Object.keys(args).length > 0 && <CodeBlock code={JSON.stringify(args, null, 2)} label="arguments" />}
+      {shown && <CodeBlock code={shown} label="arguments" />}
       {output && <CodeBlock code={output} label="result" />}
       {item.error && <ErrorText text={item.error} />}
     </>
@@ -168,18 +165,19 @@ const stepIcon = {
 function PlanCard({ item }: { item: ItemRow }) {
   const plan = planOf(item)
   if (!plan) return <GenericCall item={item} />
-  const done = plan.plan.filter((s) => s.status === 'completed').length
+  const steps = plan.plan ?? []
+  const done = steps.filter((s) => s.status === 'completed').length
   return (
     <div className="rounded-xl border border-line bg-surface/60 px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-fg">
         <ListChecks size={14} /> Plan
         <span className="text-xs font-normal text-fg-subtle">
-          {done}/{plan.plan.length}
+          {done}/{steps.length}
         </span>
       </div>
       {plan.explanation && <p className="mb-2 text-[13px] text-fg-muted">{plan.explanation}</p>}
       <ol className="flex flex-col gap-1.5">
-        {plan.plan.map((s, i) => (
+        {steps.map((s, i) => (
           <li key={i} className="flex items-start gap-2 text-[13px]">
             <span className="mt-0.5">{stepIcon[s.status]}</span>
             <span className={s.status === 'completed' ? 'text-fg-subtle line-through' : 'text-fg'}>{s.step}</span>

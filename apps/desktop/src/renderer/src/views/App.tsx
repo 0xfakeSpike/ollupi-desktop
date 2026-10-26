@@ -19,17 +19,33 @@ export function App() {
   return (
     <>
       {synced && !failed ? (
-        <div className="flex h-full">
-          <Sidebar />
-          <main className="flex min-w-0 flex-1 flex-col bg-canvas">
-            <CurrentScreen />
-          </main>
+        <div className="flex h-full flex-col">
+          <ContractBanner />
+          <div className="flex min-h-0 flex-1">
+            <Sidebar />
+            <main className="flex min-w-0 flex-1 flex-col bg-canvas">
+              <CurrentScreen />
+            </main>
+          </div>
         </div>
       ) : (
         <BackendScreen />
       )}
       <Toasts />
     </>
+  )
+}
+
+/** The backend serves a different contract than the UI was built from, so
+ * the UI's types may not describe what it receives. */
+function ContractBanner() {
+  const mismatch = useConnection((s) => s.contractMismatch)
+  if (!mismatch) return null
+  return (
+    <div className="drag flex shrink-0 items-center justify-center gap-2 border-b border-warning/40 bg-warning-soft px-4 py-1.5 pl-24 text-xs text-warning">
+      The backend and the app were built from different ollupi protocol versions (backend {mismatch.server.slice(0, 8)}, app{' '}
+      {mismatch.ui.slice(0, 8)}). Rebuild the backend or regenerate the protocol.
+    </div>
   )
 }
 

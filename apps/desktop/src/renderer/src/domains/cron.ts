@@ -4,11 +4,14 @@
 // model's own cron tool calls, which the gateway reports only as completed
 // items from the cron provider; either way the loaded list is updated.
 
-import { ToolProvider, type CronJobRow } from '@ollupi/protocol'
+import type { CronJobRow, Provider } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
+
+/** The cron provider's id, as the contract lists it. */
+const CRON: Provider = 'cron'
 
 export const useCron = create<{ byThread: Record<string, CronJobRow[]> }>()(() => ({ byThread: {} }))
 
@@ -23,7 +26,7 @@ async function read(threadId: string): Promise<void> {
 export const cronDomain: Domain = {
   bind: (client) =>
     client.on('item/completed', ({ threadId, item }) => {
-      if (item.server === ToolProvider.Cron && threadId in useCron.getState().byThread) {
+      if (item.server === CRON && threadId in useCron.getState().byThread) {
         void run('Could not refresh scheduled tasks', () => read(threadId))
       }
     }),
