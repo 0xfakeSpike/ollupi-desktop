@@ -8,10 +8,10 @@ import { run } from '../gateway/run'
 /** Memories by scope: '' is global, any other key a workspace id. */
 export type MemoryScopes = Map<string, MemoryRow[]>
 
-/** memory/status counts active memories in every scope, but memory/list
- * reads one (a workspace's, optionally with the global ones), so each scope
- * is read on its own: the global one and every workspace, archived ones
- * included, since their memories stay. */
+/** memory/status counts active memories in every scope, while memory/list
+ * reads one, so each scope is read on its own: the global one and every
+ * workspace without the global ones, archived workspaces included, since
+ * their memories stay. */
 export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStatus; scopes: MemoryScopes } | undefined> {
   return run('Could not load memory', async () => {
     const client = gateway()
@@ -24,13 +24,6 @@ export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStat
     workspaceIds.forEach((id, i) => scopes.set(id, lists[i]!.data))
     return { status, scopes }
   })
-}
-
-/** Memories of several scopes in memory/list's order: updated_at DESC, id. */
-export function mergeScopes(scopes: MemoryScopes, keys: string[]): MemoryRow[] {
-  return keys
-    .flatMap((k) => scopes.get(k) ?? [])
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
 export function editMemory(id: string, text: string): Promise<MemoryRow | undefined> {
