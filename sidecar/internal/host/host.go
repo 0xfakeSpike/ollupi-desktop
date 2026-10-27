@@ -114,6 +114,9 @@ func New(opts Options) (_ *Host, err error) {
 		Slots:       cfg.Slots,
 		Connections: connections,
 		Providers:   providers,
+		// Rules naming a skipped server's tools stay valid; they match
+		// nothing until it connects.
+		Unavailable: connected.Unavailable(),
 		SkillsDir:   cfg.SkillsDir,
 		Memory:      h.memory,
 		DB:          db,

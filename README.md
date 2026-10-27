@@ -132,5 +132,5 @@ ollupi 只在启动时读取配置，所以界面里的配置修改（Settings �
 - `permissions`：agent 级权限（`approval` 审批策略 + `allow`/`ask`/`deny` 规则），工作区和会话在其上叠加。
 - `slots`：同时运行的会话数上限（默认 32）。
 - `shell`：`run_command` 工具与 macOS 沙箱。config.yaml 本身对命令不可读。
-- `mcp`：MCP 服务器，可在 Settings → MCP 里管理。每个要么是 stdio（`command`、`args`、`env`，子进程继承后端的环境变量），要么是 streamable HTTP（`url`、`headers`）。工具以 `<name>__<tool>` 提供给模型；连不上的服务器被跳过，后端照常启动，状态和原因由 `mcpServer/list` 报告。`env` 和 `headers` 的值可以写 `${NAME}` 引用环境变量，密钥留在 `~/.zshrc`；引用的变量没设置时配置被拒绝。`--check-config` 输出里不含 `${NAME}` 的值会被清空，界面显示为"写在 config.yaml 里"，编辑时保留。
+- `mcp`：MCP 服务器，可在 Settings → MCP 里管理。每个要么是 stdio（`command`、`args`、`env`，子进程继承后端的环境变量），要么是 streamable HTTP（`url`、`headers`）。工具以 `<name>__<tool>` 提供给模型；连不上的服务器被跳过，后端照常启动，状态和原因由 `mcpServer/list` 报告；sidecar 把这些服务器名交给 agent（`Unavailable`），指向它们工具的权限规则保留但本次不生效，新增这样的规则会被拒绝，等服务器连上再加。`env` 和 `headers` 的值可以写 `${NAME}` 引用环境变量，密钥留在 `~/.zshrc`；引用的变量没设置时配置被拒绝。`--check-config` 输出里不含 `${NAME}` 的值会被清空，界面显示为"写在 config.yaml 里"，编辑时保留。
 - `memory`：召回（`use`）/ 生成（`generate`）开关；生成需要 `model`，填某个模型的 id（`provider/name`），与该模型共用 client 和 `calls`。
