@@ -6,21 +6,17 @@ import type { MemoryRow, MemoryStatus } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, IconButton, Select, Spinner, Textarea } from '@ollupi/ui'
 import { Brain, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { editMemory, forgetMemory, mergeScopes, readMemory, type MemoryScopes } from '../../domains/memory'
+import { editMemory, forgetMemory, readMemory, type MemoryScopes } from '../../domains/memory'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { MemorySettings } from './MemorySettings'
 
-/** What the screen shows: every scope, the global one, or a workspace with
- * the global ones, as its threads recall them. */
-type Shown = { kind: 'all' } | { kind: 'global' } | { kind: 'workspace'; id: string }
-
-const ALL = '*'
+/** The scope shown: global, or a workspace id. */
 const GLOBAL = ''
 
 export function MemoryScreen() {
   const workspaces = useWorkspaces((s) => s.list)
-  const [shown, setShown] = useState<Shown>({ kind: 'all' })
+  const [scope, setScope] = useState(GLOBAL)
   const [data, setData] = useState<{ status: MemoryStatus; scopes: MemoryScopes }>()
   const [loading, setLoading] = useState(true)
   const workspaceIds = workspaces.map((w) => w.id).join('\n')
@@ -43,10 +39,10 @@ export function MemoryScreen() {
   const remove = (id: string) => update((rows) => rows.filter((e) => e.id !== id))
 
   // memory/list returns every status; only active memories are recalled.
-  const activeIn = (keys: string[]) => (data ? mergeScopes(data.scopes, keys).filter((e) => e.status === 'active') : [])
-  const keys = shown.kind === 'all' ? [...(data?.scopes.keys() ?? [])] : shown.kind === 'global' ? [GLOBAL] : [shown.id, GLOBAL]
-  const active = activeIn(keys)
-  const count = (k: string[]) => (data ? ` (${activeIn(k).length})` : '')
+  const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
+  const active = activeIn(scope)
+  const count = (key: string) => (data ? ` (${activeIn(key).length})` : '')
+  const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
   return (
     <div className="flex h-full flex-col">
@@ -55,17 +51,14 @@ export function MemoryScreen() {
         <Select
           aria-label="Scope"
           className="h-7 w-56 text-xs"
-          value={shown.kind === 'all' ? ALL : shown.kind === 'global' ? GLOBAL : shown.id}
-          onChange={(e) => {
-            const v = e.target.value
-            setShown(v === ALL ? { kind: 'all' } : v === GLOBAL ? { kind: 'global' } : { kind: 'workspace', id: v })
-          }}
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
         >
-          <option value={ALL}>All scopes{count([...(data?.scopes.keys() ?? [])])}</option>
-          <option value={GLOBAL}>Global{count([GLOBAL])}</option>
+          <option value={GLOBAL}>Global{count(GLOBAL)}</option>
           {workspaces.map((w) => (
             <option key={w.id} value={w.id}>
-              {w.name} and global{count([w.id, GLOBAL])}
+              {w.name}
+              {count(w.id)}
             </option>
           ))}
         </Select>
@@ -83,17 +76,9 @@ export function MemoryScreen() {
               <Spinner />
             </div>
           ) : active.length === 0 ? (
-            activeIn([...(data?.scopes.keys() ?? [])]).length > 0 ? (
-              <EmptyState
-                icon={<Brain size={28} />}
-                title="Nothing remembered here"
-                action={
-                  <Button size="sm" onClick={() => setShown({ kind: 'all' })}>
-                    Show all scopes
-                  </Button>
-                }
-              >
-                Memories are kept per workspace or globally; the others are in other scopes.
+            elsewhere ? (
+              <EmptyState icon={<Brain size={28} />} title="Nothing remembered in this scope">
+                Memories are kept globally or per workspace; other scopes have some. Choose one above.
               </EmptyState>
             ) : (
               <EmptyState icon={<Brain size={28} />} title="Nothing remembered yet">
