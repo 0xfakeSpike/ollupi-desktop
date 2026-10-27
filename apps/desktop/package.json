@@ -11,7 +11,10 @@
     "preview": "electron-vite preview",
     "package": "electron-vite build && electron-builder --mac --dir",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
-    "dev:renderer": "electron-vite dev --rendererOnly"
+    "dev:renderer": "electron-vite dev --rendererOnly",
+    "config:generate": "node scripts/generate-config.mjs",
+    "config:check": "node scripts/generate-config.mjs --check",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ollupi/client": "workspace:*",
@@ -25,6 +28,7 @@
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "yaml": "^2.9.1",
     "zustand": "^5.0.16"
   },
   "devDependencies": {
@@ -35,6 +39,7 @@
     "electron": "^45.0.0",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
+    "json-schema-to-typescript": "^16.0.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.5"
   }

@@ -8,6 +8,8 @@ import { Brain, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { editMemory, forgetMemory, readMemory, type MemoryScope } from '../../domains/memory'
 import { useWorkspaces } from '../../domains/workspaces'
+import { useConnection } from '../../gateway/connection'
+import { MemorySettings } from './MemorySettings'
 
 export function MemoryScreen() {
   const workspaces = useWorkspaces((s) => s.list)
@@ -15,12 +17,17 @@ export function MemoryScreen() {
   const [data, setData] = useState<{ status: MemoryStatus; entries: MemoryRow[] }>()
   const [loading, setLoading] = useState(true)
 
+  // Saving the memory settings restarts the backend: read again once the
+  // new one is connected.
+  const connected = useConnection((s) => s.gateway === 'connected')
   const reload = useCallback(async () => {
     setLoading(true)
     setData(await readMemory(scope))
     setLoading(false)
   }, [scope])
-  useEffect(() => void reload(), [reload])
+  useEffect(() => {
+    if (connected) void reload()
+  }, [reload, connected])
 
   const replace = (row: MemoryRow) => setData((d) => d && { ...d, entries: d.entries.map((e) => (e.id === row.id ? row : e)) })
   const remove = (id: string) => setData((d) => d && { ...d, entries: d.entries.filter((e) => e.id !== id) })
@@ -51,6 +58,7 @@ export function MemoryScreen() {
       </header>
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
+          <MemorySettings status={data?.status} />
           {data && <StatusLine status={data.status} />}
           {loading && !data ? (
             <div className="flex justify-center py-12 text-fg-subtle">

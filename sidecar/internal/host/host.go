@@ -28,9 +28,12 @@ import (
 )
 
 type Options struct {
-	Home   string
-	Token  string
-	Config config.Config
+	// Home is where config, scratch and skills paths resolve.
+	Home string
+	// DataHome holds the database (<DataHome>/data); empty means Home.
+	DataHome string
+	Token    string
+	Config   config.Config
 	// AllowedOrigins are WebSocket origin patterns beyond loopback, e.g. the
 	// packaged renderer's app://ollupi.
 	AllowedOrigins []string
@@ -54,7 +57,11 @@ func New(opts Options) (_ *Host, err error) {
 		}
 	}()
 
-	db, err := repo.Open(opts.Home)
+	dataHome := opts.DataHome
+	if dataHome == "" {
+		dataHome = opts.Home
+	}
+	db, err := repo.Open(dataHome)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +150,32 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	h.siblings.Wait()
 	h.agent.Wait()
 	return err
+}
+
+// Check reports whether cfg would start: it assembles the backend as New
+// does and starts the agent, which is where ollupi validates the rest
+// (permission rules against the tool registry, each model's context budget),
+// against a throwaway database, then stops it. Nothing is served and the
+// real database is not opened.
+func Check(home string, cfg config.Config) error {
+	data, err := os.MkdirTemp("", "ollupid-check-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(data)
+	h, err := New(Options{Home: home, DataHome: data, Token: "check", Config: cfg})
+	if err != nil {
+		return err
+	}
+	defer h.close()
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := h.agent.Start(ctx); err != nil {
+		cancel()
+		return err
+	}
+	cancel()
+	h.agent.Wait()
+	return nil
 }
 
 func (h *Host) close() {

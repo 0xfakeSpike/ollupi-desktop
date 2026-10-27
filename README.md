@@ -126,6 +126,8 @@ pnpm --filter @ollupi/desktop dev:renderer
 
 ## 配置（`~/.ollupi/config.yaml`）
 
+ollupi 只在启动时读取配置，所以界面里的配置修改（目前是 Memory 页的"学习"和"召回"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。配置的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
+
 - `endpoints`：OpenAI 兼容接口（`base_url`、`api_key_env` 或 `api_key`、并发上限 `calls`（同一接口下所有模型共用，默认 4）、未知模型的 `limits`）。
 - `models`：可选模型，第一个是默认。`id` 是 ollupi 的 connection，即 `turn/start` 选择模型用的唯一键；`name` 是发给接口的模型名。
 - `settings`：agent 级权限（审批策略 + allow/ask/deny 规则），工作区和会话在其上叠加。

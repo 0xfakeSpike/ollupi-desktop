@@ -2,10 +2,16 @@
 // serves its gateway on a loopback port. The Electron main process spawns it
 // with the gateway token in OLLUPI_GATEWAY_TOKEN and reads one handshake line
 // from stdout. SIGTERM, or stdin closing when the parent dies, shuts it down.
+//
+// Two other modes serve the app's config editing:
+//
+//	ollupid --check-config FILE   whether FILE would start; prints one JSON line
+//	ollupid --config-schema       the JSON Schema of config.yaml
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -22,6 +28,7 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 func main() {
@@ -30,7 +37,16 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:0", "gateway listen address")
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
+	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
+	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of config.yaml and exit")
 	flag.Parse()
+
+	switch {
+	case *configSchema:
+		os.Exit(printSchema())
+	case *checkConfig != "":
+		os.Exit(check(*checkConfig, *home))
+	}
 
 	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
 		handshake.Fatal(err, filepath.Join(*home, config.FileName))
@@ -79,6 +95,47 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	return h.Serve(ctx, ln)
 }
 
+// checkResult is --check-config's output: the config as the backend decodes
+// it (defaults applied, paths resolved), or why it would not start.
+type checkResult struct {
+	OK     bool           `json:"ok"`
+	Config *config.Config `json:"config,omitempty"`
+	Error  string         `json:"error,omitempty"`
+}
+
+func check(path, home string) int {
+	cfg, err := config.LoadFile(path, home)
+	if err == nil {
+		err = host.Check(home, cfg)
+	}
+	out := checkResult{Error: errorText(err)}
+	if err == nil {
+		// The result goes to the app's UI, which has no use for keys.
+		for name, e := range cfg.Endpoints {
+			e.APIKey = ""
+			cfg.Endpoints[name] = e
+		}
+		out = checkResult{OK: true, Config: &cfg}
+	}
+	line, _ := json.Marshal(out)
+	fmt.Println(string(line))
+	if err != nil {
+		return 1
+	}
+	return 0
+}
+
+func printSchema() int {
+	s, err := jsonschema.For[config.Config](nil)
+	if err != nil {
+		log.Printf("ollupid: %v", err)
+		return 1
+	}
+	out, _ := json.MarshalIndent(s, "", "  ")
+	fmt.Println(string(out))
+	return 0
+}
+
 func defaultHome() string {
 	if v := os.Getenv("OLLUPI_HOME"); v != "" {
 		return v
@@ -105,4 +162,11 @@ func version() string {
 		return info.Main.Version
 	}
 	return "dev"
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
