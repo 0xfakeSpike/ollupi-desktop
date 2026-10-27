@@ -5,22 +5,32 @@ import type { MemoryRow, MemoryStatus } from '@ollupi/protocol'
 import { gateway } from '../gateway/connection'
 import { run } from '../gateway/run'
 
-/** repo.Memories: a workspace's memories, optionally with the global ones;
- * without a workspace, only the global ones. */
-export interface MemoryScope {
-  workspaceId: string | undefined
-  includeGlobal: boolean
-}
+/** Memories by scope: '' is global, any other key a workspace id. */
+export type MemoryScopes = Map<string, MemoryRow[]>
 
-export function readMemory(scope: MemoryScope): Promise<{ status: MemoryStatus; entries: MemoryRow[] } | undefined> {
+/** memory/status counts active memories in every scope, but memory/list
+ * reads one (a workspace's, optionally with the global ones), so each scope
+ * is read on its own: the global one and every workspace, archived ones
+ * included, since their memories stay. */
+export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStatus; scopes: MemoryScopes } | undefined> {
   return run('Could not load memory', async () => {
     const client = gateway()
-    const [status, list] = await Promise.all([
+    const [status, global, ...lists] = await Promise.all([
       client.call('memory/status', {}),
-      client.call('memory/list', scope.workspaceId ? { workspaceId: scope.workspaceId, includeGlobal: scope.includeGlobal } : {}),
+      client.call('memory/list', {}),
+      ...workspaceIds.map((workspaceId) => client.call('memory/list', { workspaceId, includeGlobal: false })),
     ])
-    return { status, entries: list.data }
+    const scopes: MemoryScopes = new Map([['', global.data]])
+    workspaceIds.forEach((id, i) => scopes.set(id, lists[i]!.data))
+    return { status, scopes }
   })
+}
+
+/** Memories of several scopes in memory/list's order: updated_at DESC, id. */
+export function mergeScopes(scopes: MemoryScopes, keys: string[]): MemoryRow[] {
+  return keys
+    .flatMap((k) => scopes.get(k) ?? [])
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
 export function editMemory(id: string, text: string): Promise<MemoryRow | undefined> {
