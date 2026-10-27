@@ -1,7 +1,8 @@
 // The context window as the thread's model calls used it, from the stats
 // ollupi records on each call: how full the last prompt was and what filled
-// it, where compaction starts, what that call cost, the memory snapshot it
-// carried, and how the prompt grew call by call.
+// it (a part opens into its details where ollupi reports them, as for the
+// memory snapshot), where compaction starts, what that call cost, and how
+// the prompt grew call by call.
 
 import {
   contextUse,
@@ -12,11 +13,12 @@ import {
   type ContextUse,
   type MemorySection,
   type ModelCall,
+  type PromptMemory,
   type Timeline,
 } from '@ollupi/core'
 import { cn, IconButton } from '@ollupi/ui'
-import { X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ChevronRight, X } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { toggleContextPanel } from '../../domains/navigation'
 
 const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; label: string; color: string }[] = [
@@ -29,6 +31,7 @@ const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; label: string; c
 export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
   const calls = timeline ? modelCalls(timeline) : []
   const latest = latestContextCall(calls)
+  const memory = timeline && latest ? promptMemory(timeline, latest) : undefined
   const connection = (c: ModelCall) => timeline?.turns.find((t) => t.id === c.turnId)?.model.connection ?? c.stats.model ?? ''
 
   return (
@@ -44,9 +47,12 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
           <p className="text-xs text-fg-subtle">No model calls yet. The context shows here after the first one.</p>
         ) : (
           <div className="flex flex-col gap-6">
-            <Overview use={contextUse(latest.stats)} connection={connection(latest)} />
+            <Overview
+              use={contextUse(latest.stats)}
+              connection={connection(latest)}
+              details={{ memory: memory && <MemoryDetails memory={memory} /> }}
+            />
             {latest.usage && <LastCall call={latest} />}
-            <Memories timeline={timeline!} call={latest} />
             <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
           </div>
         )}
@@ -67,7 +73,9 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 
 const percent = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
 
-function Overview({ use, connection }: { use: ContextUse; connection: string }) {
+type Part = (typeof parts)[number]['key']
+
+function Overview({ use, connection, details }: { use: ContextUse; connection: string; details: Partial<Record<Part, ReactNode>> }) {
   return (
     <Section
       title="Last prompt"
@@ -104,12 +112,7 @@ function Overview({ use, connection }: { use: ContextUse; connection: string }) 
       <ul className="flex flex-col gap-1">
         {parts.map((p) =>
           p.key === 'memory' && use.memory === 0 ? null : (
-            <li key={p.key} className="flex items-center gap-2 text-xs">
-              <span className={cn('size-2 rounded-sm', p.color)} />
-              <span className="flex-1 text-fg-muted">{p.label}</span>
-              <span className="text-fg tabular-nums">{formatTokens(use[p.key])}</span>
-              <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(use[p.key], use.budget)}%</span>
-            </li>
+            <PartRow key={p.key} label={p.label} color={p.color} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
           ),
         )}
         <li className="flex items-center gap-2 text-xs">
@@ -118,18 +121,38 @@ function Overview({ use, connection }: { use: ContextUse; connection: string }) 
           <span className="text-fg tabular-nums">{formatTokens(Math.max(0, use.budget - use.used))}</span>
           <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(Math.max(0, use.budget - use.used), use.budget)}%</span>
         </li>
-        {use.compactAt && (
-          <li className="flex items-center gap-2 text-xs">
-            <span className="flex size-2 justify-center">
-              <span className="h-2.5 w-0.5 rounded-full bg-fg-muted" />
-            </span>
-            <span className="flex-1 text-fg-muted">Auto-compact at</span>
-            <span className="text-fg tabular-nums">{formatTokens(use.compactAt)}</span>
-            <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(use.compactAt, use.budget)}%</span>
-          </li>
-        )}
       </ul>
     </Section>
+  )
+}
+
+/** One part of the prompt; with details, a click opens them under it. */
+function PartRow({ label, color, tokens, budget, details }: { label: string; color: string; tokens: number; budget: number; details: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const row = (
+    <>
+      <span className={cn('size-2 shrink-0 rounded-sm', color)} />
+      <span className="flex flex-1 items-center gap-1 text-fg-muted">
+        {label}
+        {details && <ChevronRight size={12} className={cn('text-fg-subtle transition-transform', open && 'rotate-90')} />}
+      </span>
+      <span className="text-fg tabular-nums">{formatTokens(tokens)}</span>
+      <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(tokens, budget)}%</span>
+    </>
+  )
+  if (!details) return <li className="flex items-center gap-2 text-xs">{row}</li>
+  return (
+    <li className="flex flex-col">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="-mx-1.5 flex items-center gap-2 rounded-md px-1.5 text-left text-xs hover:bg-hover"
+      >
+        {row}
+      </button>
+      {open && <div className="mt-1.5 mb-2 flex flex-col gap-3 border-l-2 border-line pl-3 ml-0.5">{details}</div>}
+    </li>
   )
 }
 
@@ -151,17 +174,16 @@ function LastCall({ call }: { call: ModelCall }) {
   )
 }
 
-function Memories({ timeline, call }: { timeline: Timeline; call: ModelCall }) {
-  const memory = promptMemory(timeline, call)
-  if (!memory) return null
+/** The memory snapshot the call carried, by section. */
+function MemoryDetails({ memory }: { memory: PromptMemory }) {
   return (
-    <Section
-      title="Memory in this prompt"
-      hint="Loaded when the conversation started and again after each compaction. The agent searches the rest with memory_search."
-    >
+    <>
       {memory.global && <MemoryList title="Global" section={memory.global} />}
       {memory.workspace && <MemoryList title="This workspace" section={memory.workspace} />}
-    </Section>
+      <p className="text-[11px] leading-4 text-fg-subtle">
+        Loaded when the conversation started and again after each compaction. The agent searches the rest with memory_search.
+      </p>
+    </>
   )
 }
 
