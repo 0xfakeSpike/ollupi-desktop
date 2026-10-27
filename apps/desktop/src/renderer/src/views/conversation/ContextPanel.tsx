@@ -22,14 +22,17 @@ import { useState, type ReactNode } from 'react'
 import { toggleContextPanel } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 
-// Labels are the catalog's context.parts, by key. Each part keeps its own
-// chart colour whatever its size or place; one holding less than
-// COLOURED_SHARE of the prompt is too thin to find in the bar and shows gray.
+// Labels are the catalog's context.parts, by key, in the order ollupi builds
+// the prompt: the system prompt, the tool definitions sent with it, then the
+// messages, which open with the memory snapshot. Each part keeps its own
+// chart colour, assigned so neighbours in this order stay apart for
+// colour-blind readers; one holding less than COLOURED_SHARE of the prompt
+// is too thin to find in the bar and shows gray.
 const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; color: string }[] = [
-  { key: 'messages', color: 'bg-chart-1' },
-  { key: 'tools', color: 'bg-chart-2' },
-  { key: 'system', color: 'bg-chart-3' },
+  { key: 'system', color: 'bg-chart-2' },
+  { key: 'tools', color: 'bg-chart-3' },
   { key: 'memory', color: 'bg-chart-4' },
+  { key: 'messages', color: 'bg-chart-1' },
 ]
 const COLOURED_SHARE = 0.05
 const SMALL = 'bg-fg/30'
@@ -57,7 +60,6 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
           <div className="flex flex-col gap-6">
             <Overview
               use={contextUse(latest.stats)}
-              connection={connection(latest)}
               details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
             />
             {latest.usage && <LastCall call={latest} />}
@@ -85,10 +87,34 @@ const share = (n: number, of: number) => `${of > 0 ? ((n / of) * 100).toFixed(1)
 
 type Part = (typeof parts)[number]['key']
 
-function Overview({ use, connection, details }: { use: ContextUse; connection: string; details: Partial<Record<Part, ReactNode>> }) {
+interface Segment {
+  key: string
+  label: string
+  tokens: number
+  color: string
+}
+
+/** Parts of one total as a bar, in order; `rest` fills what is left. The
+ * segments sit 2px apart so neighbours read apart without relying on hue. */
+function Segments({ segments, of, label, rest }: { segments: Segment[]; of: number; label: string; rest?: Segment }) {
+  return (
+    <div className="flex h-2 gap-0.5" role="img" aria-label={label}>
+      {segments.map((s) => (
+        <div
+          key={s.key}
+          title={`${s.label} · ${formatTokens(s.tokens)}`}
+          className={cn('min-w-0.5 rounded-sm', s.color)}
+          style={{ width: `${(s.tokens / of) * 100}%` }}
+        />
+      ))}
+      {rest && rest.tokens > 0 && <div title={`${rest.label} · ${formatTokens(rest.tokens)}`} className={cn('min-w-0 flex-1 rounded-sm', rest.color)} />}
+    </div>
+  )
+}
+
+function Overview({ use, details }: { use: ContextUse; details: Partial<Record<Part, ReactNode>> }) {
   const t = useT().conversation.context
-  // Largest first, in the bar and its legend alike.
-  const present = parts.filter((p) => use[p.key] > 0).sort((a, b) => use[b.key] - use[a.key])
+  const present = parts.filter((p) => use[p.key] > 0)
   const colorOf = (p: (typeof parts)[number]) => (use[p.key] >= use.used * COLOURED_SHARE ? p.color : SMALL)
   const free = Math.max(0, use.budget - use.used)
   return (
@@ -100,18 +126,12 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
         </span>
       </div>
       <div className="relative">
-        {/* Segments sit 2px apart so neighbours read apart without relying on hue. */}
-        <div className="flex h-2 gap-0.5" role="img" aria-label={t.windowUsed(percent(use.used, use.budget))}>
-          {present.map((p) => (
-            <div
-              key={p.key}
-              title={`${t.parts[p.key]} · ${formatTokens(use[p.key])}`}
-              className={cn('min-w-0.5 rounded-sm', colorOf(p))}
-              style={{ width: `${(use[p.key] / Math.max(use.budget, use.used)) * 100}%` }}
-            />
-          ))}
-          {free > 0 && <div title={`${t.free} · ${formatTokens(free)}`} className={cn('min-w-0 flex-1 rounded-sm', FREE)} />}
-        </div>
+        <Segments
+          segments={present.map((p) => ({ key: p.key, label: t.parts[p.key], tokens: use[p.key], color: colorOf(p) }))}
+          of={Math.max(use.budget, use.used)}
+          label={t.windowUsed(percent(use.used, use.budget))}
+          rest={{ key: 'free', label: t.free, tokens: free, color: FREE }}
+        />
         <CompactMark at={use.compactAt} of={use.budget} className="-top-1 h-4" />
       </div>
       <div className="relative h-3.5">
@@ -125,7 +145,6 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
           {t.autoCompact}
         </span>
       </div>
-      <div className="selectable font-mono text-small text-fg-subtle">{connection}</div>
       <ul className="flex flex-col">
         {present.map((p) => (
           <PartRow key={p.key} label={t.parts[p.key]} color={colorOf(p)} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
@@ -166,21 +185,29 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
   )
 }
 
+/** What the call sent and got back, as the API reported it. The cached
+ * input is the prompt's leading part, so it comes first, in a lighter step
+ * of the input's colour. */
 function LastCall({ call }: { call: ModelCall }) {
   const u = call.usage!
   const t = useT().conversation.context
+  const segments: Segment[] = [
+    { key: 'cached', label: t.cachedInput, tokens: u.cachedInputTokens, color: 'bg-chart-1/45' },
+    { key: 'uncached', label: t.uncachedInput, tokens: Math.max(0, u.inputTokens - u.cachedInputTokens), color: 'bg-chart-1' },
+    { key: 'output', label: t.output, tokens: u.outputTokens, color: 'bg-chart-2' },
+  ].filter((s) => s.tokens > 0)
   return (
     <Section title={t.lastCall} hint={t.lastCallHint}>
-      <dl className="grid grid-cols-[1fr_auto] gap-y-1 text-small">
-        <dt className="text-fg-muted">{t.input}</dt>
-        <dd className="text-right text-fg tabular-nums">{formatTokens(u.inputTokens)}</dd>
-        <dt className="pl-3 text-fg-subtle">{t.cached}</dt>
-        <dd className="text-right text-fg-subtle tabular-nums">
-          {formatTokens(u.cachedInputTokens)} · {percent(u.cachedInputTokens, u.inputTokens)}%
-        </dd>
-        <dt className="text-fg-muted">{t.output}</dt>
-        <dd className="text-right text-fg tabular-nums">{formatTokens(u.outputTokens)}</dd>
-      </dl>
+      <Segments segments={segments} of={u.inputTokens + u.outputTokens} label={segments.map((s) => `${s.label} ${formatTokens(s.tokens)}`).join(', ')} />
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-small">
+        {segments.map((s) => (
+          <li key={s.key} className="flex items-center gap-1.5">
+            <span className={cn('size-3 shrink-0 rounded-sm', s.color)} />
+            <span className="text-fg-muted">{s.label}</span>
+            <span className="text-fg tabular-nums">{formatTokens(s.tokens)}</span>
+          </li>
+        ))}
+      </ul>
     </Section>
   )
 }
