@@ -4,6 +4,33 @@
    classes. The resets below remove Tailwind's defaults: a class outside
    these scales produces no style. See docs/design-guidelines.md. */
 
+/* Inter for the interface and prose, JetBrains Mono for code, both bundled
+   (OFL); Chinese falls through to the system's PingFang. */
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* Chinese text wants full-width punctuation, which Inter would otherwise
+   draw: under a Chinese interface the quotes, the em dash and the ellipsis
+   come from PingFang. */
+@font-face {
+  font-family: 'CJK Punctuation';
+  src: local('PingFangSC-Regular'), local('PingFang SC Regular');
+  font-weight: 400;
+  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+@font-face {
+  font-family: 'CJK Punctuation';
+  src: local('PingFangSC-Medium'), local('PingFang SC Medium');
+  font-weight: 500;
+  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+@font-face {
+  font-family: 'CJK Punctuation';
+  src: local('PingFangSC-Semibold'), local('PingFang SC Semibold');
+  font-weight: 600;
+  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+
 @theme inline {
   --color-*: initial;
   --color-canvas: var(--ol-canvas);
@@ -33,8 +60,8 @@
   --color-danger-fg: var(--ol-danger-fg);
   --color-danger-soft: var(--ol-danger-soft);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
+  --font-sans: var(--ol-font-sans);
+  --font-mono: var(--ol-font-mono);
 
   --text-*: initial;
   --text-caption: 11px;
@@ -102,6 +129,16 @@
   --container-thread: 720px;
   --container-dialog: 480px;
   --container-dialog-wide: 640px;
+}
+
+/* Font stacks, as variables so the Chinese interface can put full-width
+   punctuation first. */
+:root {
+  --ol-font-sans: 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
+  --ol-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
+}
+:root:lang(zh) {
+  --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
 /* Palettes. Each sets only its base colours; everything else is derived

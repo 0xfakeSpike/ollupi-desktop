@@ -58,6 +58,33 @@
    classes. The resets below remove Tailwind's defaults: a class outside
    these scales produces no style. See docs/design-guidelines.md. */
 
+/* Inter for the interface and prose, JetBrains Mono for code, both bundled
+   (OFL); Chinese falls through to the system's PingFang. */
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* Chinese text wants full-width punctuation, which Inter would otherwise
+   draw: under a Chinese interface the quotes, the em dash and the ellipsis
+   come from PingFang. */
+@font-face {
+  font-family: 'CJK Punctuation';
+  src: local('PingFangSC-Regular'), local('PingFang SC Regular');
+  font-weight: 400;
+  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+@font-face {
+  font-family: 'CJK Punctuation';
+  src: local('PingFangSC-Medium'), local('PingFang SC Medium');
+  font-weight: 500;
+  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+@font-face {
+  font-family: 'CJK Punctuation';
+  src: local('PingFangSC-Semibold'), local('PingFang SC Semibold');
+  font-weight: 600;
+  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+
 @theme inline {
   --color-*: initial;
   --color-canvas: var(--ol-canvas);
@@ -87,8 +114,8 @@
   --color-danger-fg: var(--ol-danger-fg);
   --color-danger-soft: var(--ol-danger-soft);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
+  --font-sans: var(--ol-font-sans);
+  --font-mono: var(--ol-font-mono);
 
   --text-*: initial;
   --text-caption: 11px;
@@ -156,6 +183,16 @@
   --container-thread: 720px;
   --container-dialog: 480px;
   --container-dialog-wide: 640px;
+}
+
+/* Font stacks, as variables so the Chinese interface can put full-width
+   punctuation first. */
+:root {
+  --ol-font-sans: 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
+  --ol-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
+}
+:root:lang(zh) {
+  --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
 /* Palettes. Each sets only its base colours; everything else is derived
@@ -458,8 +495,10 @@
 
 - 字重只用 `font-normal`、`font-medium`、`font-semibold`。`caption`、`title`、`display` 自带字重，不再叠加。
 - Markdown 里的标题相对正文放大（h1 1.35em、h2 1.2em、h3 1.05em，600），不使用上面的阶梯，因为它们属于内容，不属于界面。
+- **字体**：英文、数字和标点用 Inter（`Inter Variable`），中文落到系统的苹方，代码用 JetBrains Mono（`JetBrains Mono Variable`）。两款都通过 `@fontsource-variable/*` 打包进应用（OFL），离线可用，只加载用到的字符区段。字体栈在 theme.css 的 `--ol-font-sans` / `--ol-font-mono`，组件只用 `font-sans` / `font-mono`。
+- **中文标点**：界面语言是中文时（`<html lang="zh-CN">`），字体栈最前面是 `CJK Punctuation`：弯引号、破折号、省略号改用苹方的字形，不让 Inter 画成西文的窄标点。英文界面不受影响。
 - **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。
-- **等宽**：命令、路径、文件名、模型 ID、环境变量、退出码用 `font-mono`。对话流的工具行里用 12px（`text-small`），代码块和输出用 13px（`text-ui`），Markdown 行内代码 0.88em。`--font-mono` 末尾带 PingFang SC，代码里的中文有回退。
+- **等宽**：命令、路径、文件名、模型 ID、环境变量、退出码用 `font-mono`。对话流的工具行里用 12px（`text-small`），代码块和输出用 13px（`text-ui`），Markdown 行内代码 0.88em。等宽字体栈末尾带苹方，代码里的中文有回退。
 - **数字**：表格、Context 面板、时长、token 数一律 `tabular-nums`。
 - **对话列宽**：`max-w-thread`（720px）居中，左右至少 24px 留白。
 
