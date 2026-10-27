@@ -20,32 +20,34 @@ import { cn, IconButton } from '@ollupi/ui'
 import { ChevronRight, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toggleContextPanel } from '../../domains/navigation'
-import { scopeTitle } from './items/SystemItems'
+import { useLocale, useT } from '../../i18n'
 
-const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; label: string; color: string }[] = [
-  { key: 'system', label: 'System prompt', color: 'bg-fg-subtle' },
-  { key: 'tools', label: 'Tool definitions', color: 'bg-accent/45' },
-  { key: 'messages', label: 'Messages', color: 'bg-accent' },
-  { key: 'memory', label: 'Memory', color: 'bg-warning' },
+// Labels are the catalog's context.parts, by key.
+const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; color: string }[] = [
+  { key: 'system', color: 'bg-fg-subtle' },
+  { key: 'tools', color: 'bg-accent/45' },
+  { key: 'messages', color: 'bg-accent' },
+  { key: 'memory', color: 'bg-warning' },
 ]
 
 export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
   const calls = timeline ? modelCalls(timeline) : []
   const latest = latestContextCall(calls)
   const memory = timeline && latest ? promptMemory(timeline, latest) : undefined
+  const t = useT().conversation.context
   const connection = (c: ModelCall) => timeline?.turns.find((t) => t.id === c.turnId)?.model.connection ?? c.stats.model ?? ''
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-canvas">
       <div className="flex h-11 shrink-0 items-center justify-between border-b border-line pr-2 pl-4">
-        <h2 className="text-[13px] font-semibold">Context</h2>
-        <IconButton label="Close context" size="sm" onClick={toggleContextPanel}>
+        <h2 className="text-[13px] font-semibold">{t.title}</h2>
+        <IconButton label={t.close} size="sm" onClick={toggleContextPanel}>
           <X size={14} />
         </IconButton>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {!latest ? (
-          <p className="text-xs text-fg-subtle">No model calls yet. The context shows here after the first one.</p>
+          <p className="text-xs text-fg-subtle">{t.empty}</p>
         ) : (
           <div className="flex flex-col gap-6">
             <Overview
@@ -77,11 +79,9 @@ const percent = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) 
 type Part = (typeof parts)[number]['key']
 
 function Overview({ use, connection, details }: { use: ContextUse; connection: string; details: Partial<Record<Part, ReactNode>> }) {
+  const t = useT().conversation.context
   return (
-    <Section
-      title="Last prompt"
-      hint={`Estimated by ollupi${use.calibrated ? ', calibrated to the token count the API reported' : ''}. Above auto-compact, ollupi summarizes earlier context when it can.`}
-    >
+    <Section title={t.lastPrompt} hint={t.lastPromptHint(use.calibrated)}>
       <div className="flex items-baseline justify-between">
         <span className="text-2xl font-semibold text-fg tabular-nums">{percent(use.used, use.budget)}%</span>
         <span className="text-xs text-fg-muted tabular-nums">
@@ -89,7 +89,7 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
         </span>
       </div>
       <div className="relative">
-        <div className="flex h-2 overflow-hidden rounded-full bg-hover" role="img" aria-label={`${percent(use.used, use.budget)}% of the context window`}>
+        <div className="flex h-2 overflow-hidden rounded-full bg-hover" role="img" aria-label={t.windowUsed(percent(use.used, use.budget))}>
           {parts.map((p) => (
             <div key={p.key} className={p.color} style={{ width: `${(use[p.key] / Math.max(use.budget, use.used)) * 100}%` }} />
           ))}
@@ -104,19 +104,19 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
             transform: use.compactAt / use.budget > 0.85 ? 'translateX(-100%)' : 'translateX(-50%)',
           }}
         >
-          Auto-compact
+          {t.autoCompact}
         </span>
       </div>
       <div className="selectable font-mono text-[11px] text-fg-subtle">{connection}</div>
       <ul className="flex flex-col gap-1">
         {parts.map((p) =>
           p.key === 'memory' && use.memory === 0 ? null : (
-            <PartRow key={p.key} label={p.label} color={p.color} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
+            <PartRow key={p.key} label={t.parts[p.key]} color={p.color} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
           ),
         )}
         <li className="flex items-center gap-2 text-xs">
           <span className="size-2 rounded-sm bg-hover" />
-          <span className="flex-1 text-fg-muted">Free</span>
+          <span className="flex-1 text-fg-muted">{t.free}</span>
           <span className="text-fg tabular-nums">{formatTokens(Math.max(0, use.budget - use.used))}</span>
           <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(Math.max(0, use.budget - use.used), use.budget)}%</span>
         </li>
@@ -157,16 +157,17 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
 
 function LastCall({ call }: { call: ModelCall }) {
   const u = call.usage!
+  const t = useT().conversation.context
   return (
-    <Section title="Last call" hint="As the API reported it. Cached input is the part served from the provider's prompt cache.">
+    <Section title={t.lastCall} hint={t.lastCallHint}>
       <dl className="grid grid-cols-[1fr_auto] gap-y-1 text-xs">
-        <dt className="text-fg-muted">Input</dt>
+        <dt className="text-fg-muted">{t.input}</dt>
         <dd className="text-fg tabular-nums">{formatTokens(u.inputTokens)}</dd>
-        <dt className="pl-3 text-fg-subtle">cached</dt>
+        <dt className="pl-3 text-fg-subtle">{t.cached}</dt>
         <dd className="text-fg-subtle tabular-nums">
           {formatTokens(u.cachedInputTokens)} · {percent(u.cachedInputTokens, u.inputTokens)}%
         </dd>
-        <dt className="text-fg-muted">Output</dt>
+        <dt className="text-fg-muted">{t.output}</dt>
         <dd className="text-fg tabular-nums">{formatTokens(u.outputTokens)}</dd>
       </dl>
     </Section>
@@ -176,12 +177,13 @@ function LastCall({ call }: { call: ModelCall }) {
 /** The memory snapshot the call carried, by section: global, and the
  * thread's own scope, its workspace or general without one. */
 function MemoryDetails({ memory, inWorkspace }: { memory: PromptMemory; inWorkspace: boolean }) {
+  const m = useT().conversation
   return (
     <>
-      {memory.global && <MemoryList title={scopeTitle.global} section={memory.global} />}
-      {memory.local && <MemoryList title={scopeTitle[inWorkspace ? 'workspace' : 'general']} section={memory.local} />}
+      {memory.global && <MemoryList title={m.memoryScope.global} section={memory.global} />}
+      {memory.local && <MemoryList title={m.memoryScope[inWorkspace ? 'workspace' : 'general']} section={memory.local} />}
       <p className="text-[11px] leading-4 text-fg-subtle">
-        Loaded when the conversation started and again after each compaction. The agent searches the rest with memory_search.
+        {m.context.memoryNote}
       </p>
     </>
   )
@@ -189,6 +191,7 @@ function MemoryDetails({ memory, inWorkspace }: { memory: PromptMemory; inWorksp
 
 function MemoryList({ title, section }: { title: string; section: MemorySection }) {
   const n = section.ids.length
+  const t = useT().conversation.context
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between text-[11px] text-fg-subtle">
@@ -207,15 +210,17 @@ function MemoryList({ title, section }: { title: string; section: MemorySection 
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-fg-subtle">Loaded in an earlier part of the conversation; scroll up to load it.</p>
+        <p className="text-xs text-fg-subtle">{t.memoryUnloaded}</p>
       )}
     </div>
   )
 }
 
 function History({ calls, connection, partial }: { calls: ModelCall[]; connection(c: ModelCall): string; partial: boolean }) {
+  const t = useT().conversation.context
+  const locale = useLocale((s) => s.locale)
   return (
-    <Section title={`Model calls · ${calls.length}`} hint={partial ? 'Only calls in the loaded part of the thread are listed.' : undefined}>
+    <Section title={t.modelCalls(calls.length)} hint={partial ? t.partial : undefined}>
       <ol className="flex flex-col gap-1.5">
         {calls
           .slice()
@@ -225,9 +230,9 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
             return (
               <li key={c.itemId} className="flex flex-col gap-1">
                 <div className="flex items-center gap-2 text-[11px]">
-                  <span className="text-fg-subtle tabular-nums">{new Date(c.startedAt).toLocaleTimeString()}</span>
+                  <span className="text-fg-subtle tabular-nums">{new Date(c.startedAt).toLocaleTimeString(locale)}</span>
                   <span className={cn('min-w-0 flex-1 truncate', c.kind === 'failed' ? 'text-danger' : 'text-fg-muted')}>
-                    {c.kind === 'compaction' ? 'Summarized earlier context' : c.kind === 'failed' ? 'Failed' : connection(c)}
+                    {c.kind === 'compaction' ? t.compaction : c.kind === 'failed' ? t.failed : connection(c)}
                   </span>
                   <span className="text-fg tabular-nums">{formatTokens(use.used)}</span>
                   <span className="w-8 text-right text-fg-subtle tabular-nums">{percent(use.used, use.budget)}%</span>
@@ -251,9 +256,10 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
 
 /** Where compaction starts on a bar of the input budget. */
 function CompactMark({ at, of, className }: { at: number; of: number; className: string }) {
+  const t = useT().conversation.context
   return (
     <div
-      title={`Auto-compact at ${formatTokens(at)}`}
+      title={t.autoCompactAt(formatTokens(at))}
       className={cn('absolute w-0.5 -translate-x-1/2 rounded-full bg-fg-muted', className)}
       style={{ left: `${Math.min(100, (at / of) * 100)}%` }}
     />

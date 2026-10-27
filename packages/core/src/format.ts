@@ -8,36 +8,36 @@ export function formatTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`
 }
 
-export function usageLine(u: Usage): string {
-  if (u.inputTokens + u.outputTokens === 0) return ''
-  const cached = u.cachedInputTokens ? ` (${formatTokens(u.cachedInputTokens)} cached)` : ''
-  return `${formatTokens(u.inputTokens)} in${cached} · ${formatTokens(u.outputTokens)} out`
-}
+/** How long ago (or until) a time is, at the precision a list shows:
+ * the language-neutral part of "5m", "in 2h" or a date. */
+export type Elapsed =
+  | { unit: 'now' }
+  | { unit: 'soon' }
+  | { unit: 'minute' | 'hour' | 'day'; n: number; future: boolean }
+  | { unit: 'date'; at: number }
 
-export function relativeTime(iso: string, now = Date.now()): string {
+export function elapsed(iso: string, now = Date.now()): Elapsed | undefined {
   const t = Date.parse(iso)
-  if (Number.isNaN(t)) return ''
+  if (Number.isNaN(t)) return undefined
   const s = Math.round((now - t) / 1000)
-  if (s < 0) return inFuture(-s)
-  if (s < 60) return 'just now'
-  if (s < 3600) return `${Math.round(s / 60)}m`
-  if (s < 86400) return `${Math.round(s / 3600)}h`
-  if (s < 30 * 86400) return `${Math.round(s / 86400)}d`
-  return new Date(t).toLocaleDateString()
+  const future = s < 0
+  const abs = Math.abs(s)
+  if (abs < 60) return future ? { unit: 'soon' } : { unit: 'now' }
+  if (abs < 3600) return { unit: 'minute', n: Math.round(abs / 60), future }
+  if (abs < 86400) return { unit: 'hour', n: Math.round(abs / 3600), future }
+  if (future || abs < 30 * 86400) return { unit: 'day', n: Math.round(abs / 86400), future }
+  return { unit: 'date', at: t }
 }
 
-function inFuture(s: number): string {
-  if (s < 60) return 'in under a minute'
-  if (s < 3600) return `in ${Math.round(s / 60)}m`
-  if (s < 86400) return `in ${Math.round(s / 3600)}h`
-  return `in ${Math.round(s / 86400)}d`
-}
+/** A duration split the way it is shown: milliseconds under a second,
+ * seconds (one decimal under ten) under a minute, else minutes and seconds. */
+export type Span = { ms: number } | { s: number; digits: 0 | 1 } | { m: number; s: number }
 
-export function duration(startIso: string, endIso: string | null | undefined, now = Date.now()): string {
+export function span(startIso: string, endIso: string | null | undefined, now = Date.now()): Span | undefined {
   const ms = (endIso ? Date.parse(endIso) : now) - Date.parse(startIso)
-  if (!Number.isFinite(ms) || ms < 0) return ''
-  if (ms < 1000) return `${ms}ms`
+  if (!Number.isFinite(ms) || ms < 0) return undefined
+  if (ms < 1000) return { ms }
   const s = ms / 1000
-  if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)}s`
-  return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`
+  if (s < 60) return { s, digits: s < 10 ? 1 : 0 }
+  return { m: Math.floor(s / 60), s: Math.round(s % 60) }
 }

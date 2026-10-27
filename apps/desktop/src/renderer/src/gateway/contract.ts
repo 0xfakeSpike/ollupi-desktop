@@ -9,6 +9,7 @@ import contract from '@ollupi/protocol/protocol.schema.json'
 import Ajv2020, { type ValidateFunction } from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { notify } from '../domains/notices'
+import { t } from '../i18n'
 
 type Section = 'methods' | 'notifications' | 'serverRequests' | 'clientNotifications'
 type Ref = { $ref: string }
@@ -44,7 +45,7 @@ function report(where: string, problem: string, payload?: unknown): void {
   if (reported.has(key)) return
   reported.add(key)
   console.warn(`[contract] ${key}`, payload)
-  notify(`Contract mismatch: ${where} ${problem}`)
+  notify(t().errors.contractMismatch(where, problem))
 }
 
 export function contractInspector(): Inspector {

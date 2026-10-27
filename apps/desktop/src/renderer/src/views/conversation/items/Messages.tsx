@@ -1,6 +1,7 @@
-import { duration } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { Disclosure } from '@ollupi/ui'
+import { useT } from '../../../i18n'
+import { duration } from '../../../i18n/format'
 import { Markdown } from '../../common/Markdown'
 
 export function UserMessage({ item }: { item: ItemRow }) {
@@ -23,12 +24,13 @@ export function AgentMessage({ item }: { item: ItemRow }) {
 
 export function Reasoning({ item }: { item: ItemRow }) {
   const thinking = item.status === 'inProgress'
+  const m = useT()
   if (!thinking && !item.text) return null
   return (
     <Disclosure
       summary={
         <span className={thinking ? 'shimmer text-[13px]' : 'text-[13px]'}>
-          {thinking ? 'Thinking' : `Thought for ${duration(item.startedAt, item.completedAt)}`}
+          {thinking ? m.conversation.items.thinking : m.conversation.items.thoughtFor(duration(m, item.startedAt, item.completedAt))}
         </span>
       }
     >

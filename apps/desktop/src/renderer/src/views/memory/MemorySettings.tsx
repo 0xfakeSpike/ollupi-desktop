@@ -8,9 +8,11 @@ import { Button, Callout, Field, Select, Switch } from '@ollupi/ui'
 import { RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 
 export function MemorySettings({ status }: { status: MemoryStatus | undefined }) {
+  const m = useT()
   const [checked, setChecked] = useState<CheckedConfig>()
   const [error, setError] = useState<string>()
   const [generate, setGenerate] = useState(false)
@@ -29,7 +31,9 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
   }, [])
 
   if (error) {
-    return <Callout tone="danger">config.yaml cannot be read: {error}</Callout>
+    return <Callout tone="danger">
+        {m.memory.settings.unreadable} {error}
+      </Callout>
   }
   if (!checked) return null
 
@@ -55,18 +59,18 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-line px-4 py-4">
       <Row
-        title="Learn from conversations"
-        hint="After each finished turn, a model distills what is worth remembering. This uses the model's tokens."
-        control={<Switch label="Learn from conversations" checked={generate} onChange={setGenerate} />}
+        title={m.memory.settings.learn}
+        hint={m.memory.settings.learnHint}
+        control={<Switch label={m.memory.settings.learn} checked={generate} onChange={setGenerate} />}
       />
       {generate && (
         <div className="pl-0.5">
-          <Field label="Model that extracts memories" hint={needsModel ? 'Choose a model to turn learning on.' : undefined}>
+          <Field label={m.memory.settings.model} hint={needsModel ? m.memory.settings.modelNeeded : undefined}>
             <Select className="max-w-72" value={chosen?.id ?? ''} onChange={(e) => setModelId(e.target.value)}>
-              {!chosen && <option value="">Choose a model</option>}
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id}
+              {!chosen && <option value="">{m.memory.settings.chooseModel}</option>}
+              {models.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.id}
                 </option>
               ))}
             </Select>
@@ -74,22 +78,22 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
         </div>
       )}
       <Row
-        title="Use memories in conversations"
-        hint="Each conversation starts with the memories that fit in its context, and the agent can search the rest."
-        control={<Switch label="Use memories in conversations" checked={use} onChange={setUse} />}
+        title={m.memory.settings.use}
+        hint={m.memory.settings.useHint}
+        control={<Switch label={m.memory.settings.use} checked={use} onChange={setUse} />}
       />
       {(changed || stale) && (
         <div className="flex items-center justify-end gap-3 border-t border-line pt-3">
           <span className="text-xs text-fg-subtle">
-            {changed ? 'Saving restarts the backend, which reads these at start.' : 'config.yaml differs from what the backend is using.'}
+            {changed ? m.memory.settings.restarts : m.memory.settings.stale}
           </span>
           {changed ? (
             <Button size="sm" variant="primary" disabled={needsModel} loading={saving} onClick={() => void save()}>
-              Save and restart
+              {m.memory.settings.saveAndRestart}
             </Button>
           ) : (
             <Button size="sm" icon={<RotateCw size={13} />} onClick={() => void desktop.backend.restart()}>
-              Restart backend
+              {m.common.restartBackend}
             </Button>
           )}
         </div>

@@ -9,10 +9,12 @@ export interface DialogProps {
   children: ReactNode
   footer?: ReactNode
   width?: number
+  /** The close button's accessible label, in the app's language. */
+  closeLabel: string
 }
 
 /** A modal; render it only while open. Escape and the backdrop close it. */
-export function Dialog({ title, onClose, children, footer, width = 440 }: DialogProps) {
+export function Dialog({ title, onClose, children, footer, width = 440, closeLabel }: DialogProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -30,7 +32,7 @@ export function Dialog({ title, onClose, children, footer, width = 440 }: Dialog
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-sm font-semibold text-fg">{title}</h2>
-          <IconButton label="Close" size="sm" onClick={onClose}>
+          <IconButton label={closeLabel} size="sm" onClick={onClose}>
             <X size={14} />
           </IconButton>
         </div>

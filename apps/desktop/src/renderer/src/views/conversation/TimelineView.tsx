@@ -3,11 +3,9 @@
 
 import {
   activeTurn,
-  duration,
   groupByTurn,
   needsUser,
   queuedTurns,
-  usageLine,
   waitingOnUser,
   type Timeline,
   type TurnGroup,
@@ -19,6 +17,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadOlder } from '../../domains/conversation'
 import { loadJobs, useThreadJobs } from '../../domains/cron'
 import { useThreadSummary } from '../../domains/threads'
+import { useT } from '../../i18n'
+import { duration, usageLine } from '../../i18n/format'
 import { ItemView } from './items/ItemView'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
@@ -31,11 +31,12 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   // thread's status reports) in one of its subagents.
   const working = !!running && !waitingOnUser(timeline) && !needsUser(summary?.status)
   const jobNames = useJobNames(threadId, timeline)
+  const m = useT()
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pt-6 pb-10">
       {timeline.hasMore && <LoadOlder threadId={threadId} />}
-      {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-sm text-fg-subtle">No messages yet.</div>}
+      {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-sm text-fg-subtle">{m.conversation.timeline.empty}</div>}
       {groups.map((g) => (
         <TurnSection key={g.turn.id} group={g} working={working && g.turn.id === running?.id} jobName={jobNames(g.turn)} />
       ))}
@@ -51,14 +52,16 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
 function useJobNames(threadId: string, timeline: Timeline): (turn: TurnRow) => string | undefined {
   const jobs = useThreadJobs(threadId)
   const scheduled = timeline.turns.some((t) => t.cronJobId)
+  const someJob = useT().conversation.timeline.someJob
   useEffect(() => {
     if (scheduled && !jobs) void loadJobs(threadId)
   }, [scheduled, jobs, threadId])
-  return (turn) => (turn.cronJobId ? (jobs?.find((j) => j.id === turn.cronJobId)?.name ?? 'a scheduled task') : undefined)
+  return (turn) => (turn.cronJobId ? (jobs?.find((j) => j.id === turn.cronJobId)?.name ?? someJob) : undefined)
 }
 
 function LoadOlder({ threadId }: { threadId: string }) {
   const [loading, setLoading] = useState(false)
+  const m = useT()
   return (
     <div className="flex justify-center">
       <Button
@@ -70,7 +73,7 @@ function LoadOlder({ threadId }: { threadId: string }) {
           void loadOlder(threadId).finally(() => setLoading(false))
         }}
       >
-        Load earlier messages
+        {m.conversation.timeline.loadOlder}
       </Button>
     </div>
   )
@@ -78,22 +81,24 @@ function LoadOlder({ threadId }: { threadId: string }) {
 
 function TurnSection({ group, working, jobName }: { group: TurnGroup; working: boolean; jobName: string | undefined }) {
   const { turn, items } = group
+  const m = useT()
   return (
     <section className="flex flex-col gap-3">
       {jobName && <ScheduledBy name={jobName} />}
       {items.map((item) => (
         <ItemView key={item.id} item={item} />
       ))}
-      {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-[13px]">Working…</div>}
+      {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-[13px]">{m.conversation.timeline.working}</div>}
       <TurnOutcome turn={turn} />
     </section>
   )
 }
 
 function ScheduledBy({ name }: { name: string }) {
+  const m = useT()
   return (
     <div className="flex items-center justify-end gap-1.5 text-[11px] text-fg-subtle">
-      <CalendarClock size={12} /> Sent by {name}
+      <CalendarClock size={12} /> {m.conversation.timeline.sentBy(name)}
     </div>
   )
 }
@@ -103,25 +108,26 @@ function streaming(item: ItemRow | undefined): boolean {
 }
 
 function TurnOutcome({ turn }: { turn: TurnRow }) {
+  const m = useT()
   switch (turn.status) {
     case 'failed':
       return (
         <Callout tone="danger" icon={<TriangleAlert size={14} />}>
-          <span className="selectable">{turn.error || 'The turn failed.'}</span>
+          <span className="selectable">{turn.error || m.conversation.timeline.failed}</span>
         </Callout>
       )
     case 'interrupted':
       return (
         <div className="flex items-center gap-1.5 text-xs text-fg-subtle">
-          <OctagonX size={12} /> Stopped{turn.error ? `: ${turn.error}` : ''}
+          <OctagonX size={12} /> {m.conversation.timeline.stopped(turn.error)}
         </div>
       )
     case 'completed': {
-      const usage = usageLine(turn.usage)
+      const usage = usageLine(m, turn.usage)
       return (
         <div className="flex gap-2 text-[11px] text-fg-subtle">
           <span>{turn.model.connection}</span>
-          {turn.completedAt && <span>· {duration(turn.startedAt, turn.completedAt)}</span>}
+          {turn.completedAt && <span>· {duration(m, turn.startedAt, turn.completedAt)}</span>}
           {usage && <span>· {usage}</span>}
         </div>
       )
@@ -134,12 +140,13 @@ function TurnOutcome({ turn }: { turn: TurnRow }) {
 
 /** A queued turn's input is on the turn row until it starts. */
 function QueuedTurn({ turn, jobName }: { turn: TurnRow; jobName: string | undefined }) {
+  const m = useT()
   return (
     <div className="flex flex-col items-end gap-1">
       {jobName && <ScheduledBy name={jobName} />}
       <div className="max-w-[80%] rounded-2xl border border-dashed border-line-strong px-4 py-2 text-sm whitespace-pre-wrap text-fg-muted">{turn.input}</div>
       <span className="flex items-center gap-1 text-[11px] text-fg-subtle">
-        <Clock size={11} /> Queued
+        <Clock size={11} /> {m.conversation.timeline.queued}
       </span>
     </div>
   )

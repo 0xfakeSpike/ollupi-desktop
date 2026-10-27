@@ -5,6 +5,7 @@ import type { Annotations, ToolDescriptor } from '@ollupi/protocol'
 import { Badge } from '@ollupi/ui'
 import { useMemo } from 'react'
 import { useTools } from '../../domains/tools'
+import { useT } from '../../i18n'
 
 export function ToolsSection() {
   const tools = useTools((s) => s.list)
@@ -38,11 +39,12 @@ export function ToolsSection() {
 
 /** tools.OpenWorld: a tool reaches outside unless it says it does not. */
 function Hints({ annotations: a }: { annotations: Annotations }) {
+  const m = useT()
   return (
     <>
-      {a.readOnlyHint && <Badge tone="success">read-only</Badge>}
-      {a.destructiveHint && <Badge tone="danger">destructive</Badge>}
-      {(a.openWorldHint ?? true) && <Badge>external</Badge>}
+      {a.readOnlyHint && <Badge tone="success">{m.settings.tools.readOnly}</Badge>}
+      {a.destructiveHint && <Badge tone="danger">{m.settings.tools.destructive}</Badge>}
+      {(a.openWorldHint ?? true) && <Badge>{m.settings.tools.external}</Badge>}
     </>
   )
 }

@@ -11,16 +11,15 @@ import { run } from '../gateway/run'
 export type McpServer = NonNullable<BackendConfig['mcp']>[number]
 
 export function readMcpStatus(): Promise<ServerStatus[] | undefined> {
-  return run('Could not read the MCP servers', async () => (await gateway().call('mcpServer/list', {})).data)
+  return run((e) => e.config.mcpStatus, async () => (await gateway().call('mcpServer/list', {})).data)
 }
 
 /** ollupi's rule for a server name (mcp.Connect): it prefixes the server's
- * tool names as <name>__<tool>. */
-export function nameError(name: string, taken: string[]): string | undefined {
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/.test(name) || name.includes('__')) {
-    return "1 to 32 letters, digits, '-' or '_', starting with a letter or digit, without '__'."
-  }
-  if (taken.includes(name)) return 'Another server has this name.'
+ * tool names as <name>__<tool>. Says what is wrong: the format, or another
+ * server has the name. */
+export function nameError(name: string, taken: string[]): 'format' | 'taken' | undefined {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/.test(name) || name.includes('__')) return 'format'
+  if (taken.includes(name)) return 'taken'
   return undefined
 }
 

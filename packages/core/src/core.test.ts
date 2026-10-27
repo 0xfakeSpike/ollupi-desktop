@@ -24,7 +24,9 @@ import {
   upsertTurn,
   waitsForAnswer,
   waitsForApproval,
-  toolTitle,
+  toolLabel,
+  elapsed,
+  span,
 } from './index'
 
 const thread = (extra: Partial<ThreadRow> = {}): ThreadRow => ({
@@ -181,7 +183,7 @@ describe('memory_search', () => {
     const found = { memories: [{ id: 'x', scope: 'workspace', workspaceId: 'w', text: 'uses tabs' }] }
     const c = call({ tool: 'memory_search', arguments: JSON.stringify({ query: 'tabs' }), status: 'completed', result: { output: found } })
     expect(memorySearchOf(c)).toEqual({ query: 'tabs', memories: found.memories })
-    expect(toolTitle(c)).toBe('Searched memory for “tabs”')
+    expect(toolLabel(c)).toEqual({ kind: 'memorySearch', query: 'tabs' })
     expect(memorySearchOf(call({ tool: 'memory_search', arguments: '{', status: 'inProgress' }))).toEqual({ query: undefined, memories: undefined })
     expect(memorySearchOf(call({ tool: 'mock__echo' }))).toBeUndefined()
   })
@@ -244,5 +246,29 @@ describe('context', () => {
     // The snapshot is in a part of the thread not loaded.
     const tail = { ...t, items: t.items.slice(1, 2), hasMore: true }
     expect(promptMemory(tail, modelCalls(tail)[0]!)?.global?.entries).toBeUndefined()
+  })
+})
+
+describe('elapsed and span', () => {
+  const now = Date.parse('2026-10-27T12:00:00Z')
+  const at = (s: number) => new Date(now - s * 1000).toISOString()
+  it('rounds to the unit a list shows, into the past or the future', () => {
+    expect(elapsed(at(30), now)).toEqual({ unit: 'now' })
+    expect(elapsed(at(-30), now)).toEqual({ unit: 'soon' })
+    expect(elapsed(at(300), now)).toEqual({ unit: 'minute', n: 5, future: false })
+    expect(elapsed(at(-7200), now)).toEqual({ unit: 'hour', n: 2, future: true })
+    expect(elapsed(at(3 * 86400), now)).toEqual({ unit: 'day', n: 3, future: false })
+    expect(elapsed(at(-60 * 86400), now)).toEqual({ unit: 'day', n: 60, future: true })
+    expect(elapsed(at(60 * 86400), now)).toEqual({ unit: 'date', at: now - 60 * 86400 * 1000 })
+    expect(elapsed('not a time', now)).toBeUndefined()
+  })
+  it('splits a duration the way it is shown', () => {
+    const start = new Date(now).toISOString()
+    const end = (ms: number) => new Date(now + ms).toISOString()
+    expect(span(start, end(250))).toEqual({ ms: 250 })
+    expect(span(start, end(3400))).toEqual({ s: 3.4, digits: 1 })
+    expect(span(start, end(42_000))).toEqual({ s: 42, digits: 0 })
+    expect(span(start, end(74_000))).toEqual({ m: 1, s: 14 })
+    expect(span(start, end(-1))).toBeUndefined()
   })
 })

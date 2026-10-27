@@ -1,12 +1,14 @@
 import type { ItemRow, MemoryReference, MemoryScope } from '@ollupi/protocol'
 import { Callout, Disclosure } from '@ollupi/ui'
 import { Brain, TriangleAlert } from 'lucide-react'
+import { useT } from '../../../i18n'
 
 export function CompactionMarker() {
+  const m = useT()
   return (
     <div className="flex items-center gap-3 text-[11px] text-fg-subtle">
       <div className="h-px flex-1 bg-line" />
-      Earlier context was summarized
+      {m.conversation.items.compacted}
       <div className="h-px flex-1 bg-line" />
     </div>
   )
@@ -16,12 +18,13 @@ export function CompactionMarker() {
  * next compaction: the global memories and its own scope's. */
 export function MemoryContext({ item }: { item: ItemRow }) {
   const memories = item.memory ?? []
+  const m = useT()
   if (memories.length === 0) return null
   return (
     <Disclosure
       summary={
         <span className="flex items-center gap-1.5 text-[13px]">
-          <Brain size={13} /> Loaded {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
+          <Brain size={13} /> {m.conversation.items.memoryLoaded(memories.length)}
         </span>
       }
     >
@@ -32,19 +35,16 @@ export function MemoryContext({ item }: { item: ItemRow }) {
   )
 }
 
-/** How a conversation names a scope of its memories: global, and its own,
- * which is its workspace or general without one. */
-export const scopeTitle: Record<MemoryScope, string> = {
-  global: 'Global',
-  general: 'Outside workspaces',
-  workspace: 'This workspace',
-}
+/** The scopes in the order a conversation lists them (see the catalog's
+ * memoryScope for their names). */
+const scopes: MemoryScope[] = ['global', 'general', 'workspace']
 
 /** Memories a conversation sees, by the scope each carries. */
 export function MemoryGroups({ memories }: { memories: MemoryReference[] }) {
-  return (Object.keys(scopeTitle) as MemoryScope[]).map((scope) => {
-    const inScope = memories.filter((m) => m.scope === scope)
-    return inScope.length > 0 && <MemoryGroup key={scope} title={scopeTitle[scope]} memories={inScope} />
+  const m = useT()
+  return scopes.map((scope) => {
+    const inScope = memories.filter((r) => r.scope === scope)
+    return inScope.length > 0 && <MemoryGroup key={scope} title={m.conversation.memoryScope[scope]} memories={inScope} />
   })
 }
 

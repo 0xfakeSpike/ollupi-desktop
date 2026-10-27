@@ -5,6 +5,7 @@
 import { isWorking } from '@ollupi/core'
 import type { BackendConfig, ConfigChange, ConfigCheck, ConfigModel } from '../../../shared/ipc'
 import { run } from '../gateway/run'
+import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
 import { notify } from './notices'
 import { useThreads } from './threads'
@@ -15,7 +16,7 @@ export type { BackendConfig, ConfigModel }
 export type CheckedConfig = Extract<ConfigCheck, { ok: true }>
 
 export function readConfig(): Promise<ConfigCheck | undefined> {
-  return run('Could not read config.yaml', () => desktop.config.read())
+  return run((e) => e.config.read, () => desktop.config.read())
 }
 
 /** Applies changes and restarts the backend. A restart stops commands that
@@ -27,10 +28,10 @@ export async function applyConfig(changes: ConfigChange[]): Promise<CheckedConfi
   if (running && !confirm(`${running} thread${running === 1 ? ' is' : 's are'} running. Restarting the backend stops commands they are executing. Continue?`)) {
     return undefined
   }
-  const result = await run('Could not save config.yaml', () => desktop.config.apply(changes))
+  const result = await run((e) => e.config.save, () => desktop.config.apply(changes))
   if (!result) return undefined
   if (!result.ok) {
-    notify(`config.yaml was not changed: ${result.error}`)
+    notify(t().errors.configUnchanged(result.error))
     return undefined
   }
   return result

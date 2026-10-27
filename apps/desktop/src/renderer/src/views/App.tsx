@@ -3,6 +3,7 @@
 
 import { useConnection } from '../gateway/connection'
 import { useNavigation } from '../domains/navigation'
+import { useT } from '../i18n'
 import { BackendScreen } from './backend/BackendScreen'
 import { Toasts } from './common/Toasts'
 import { ConversationScreen } from './conversation/ConversationScreen'
@@ -40,11 +41,11 @@ export function App() {
  * the UI's types may not describe what it receives. */
 function ContractBanner() {
   const mismatch = useConnection((s) => s.contractMismatch)
+  const m = useT()
   if (!mismatch) return null
   return (
     <div className="drag flex shrink-0 items-center justify-center gap-2 border-b border-warning/40 bg-warning-soft px-4 py-1.5 pl-24 text-xs text-warning">
-      The backend and the app were built from different ollupi protocol versions (backend {mismatch.server.slice(0, 8)}, app{' '}
-      {mismatch.ui.slice(0, 8)}). Rebuild the backend or regenerate the protocol.
+      {m.shell.contractBanner(mismatch.server.slice(0, 8), mismatch.ui.slice(0, 8))}
     </div>
   )
 }

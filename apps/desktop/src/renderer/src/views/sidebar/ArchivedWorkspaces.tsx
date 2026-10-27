@@ -3,11 +3,13 @@ import { cn, IconButton } from '@ollupi/ui'
 import { ArchiveRestore, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { setArchived } from '../../domains/workspaces'
+import { useT } from '../../i18n'
 
 /** Archived workspaces, hidden with their threads until restored: ollupi
  * starts no new work in them. */
 export function ArchivedWorkspaces({ workspaces }: { workspaces: WorkspaceRow[] }) {
   const [open, setOpen] = useState(false)
+  const m = useT().shell.sidebar
   if (workspaces.length === 0) return null
   return (
     <section className="mt-3">
@@ -17,7 +19,7 @@ export function ArchivedWorkspaces({ workspaces }: { workspaces: WorkspaceRow[] 
         className="flex h-7 w-full items-center gap-1.5 pl-2 text-[12px] font-medium text-fg-subtle hover:text-fg-muted"
       >
         <ChevronRight size={12} className={cn('shrink-0 transition-transform', open && 'rotate-90')} />
-        Archived · {workspaces.length}
+        {m.archived(workspaces.length)}
       </button>
       {open && (
         <ul className="mt-0.5 flex flex-col gap-px">
@@ -26,7 +28,7 @@ export function ArchivedWorkspaces({ workspaces }: { workspaces: WorkspaceRow[] 
               <span className="min-w-0 flex-1 truncate" title={w.rootPath}>
                 {w.name}
               </span>
-              <IconButton label={`Restore ${w.name}`} size="sm" className="opacity-0 group-hover:opacity-100" onClick={() => void setArchived(w.id, false)}>
+              <IconButton label={m.restore(w.name)} size="sm" className="opacity-0 group-hover:opacity-100" onClick={() => void setArchived(w.id, false)}>
                 <ArchiveRestore size={13} />
               </IconButton>
             </li>
