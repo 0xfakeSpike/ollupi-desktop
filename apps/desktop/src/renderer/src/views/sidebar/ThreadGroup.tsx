@@ -1,7 +1,7 @@
 import { isWorking, needsUser } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
-import { Archive, ChevronRight, Folder, FolderOpen, Plus, Settings2 } from 'lucide-react'
+import { Archive, ChevronRight, Folder, FolderOpen, MessagesSquare, Plus, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { go, useOpenThreadId } from '../../domains/navigation'
@@ -24,27 +24,34 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
 
   return (
     <section className="mt-3">
-      <div className="group flex h-7 items-center gap-1 pr-1 pl-2">
+      <div className="group flex h-7 items-center gap-1 rounded-md pr-0.5 pl-2">
         <button
           type="button"
           onClick={() => setOpen(!open)}
+          aria-expanded={open}
           title={workspace?.rootPath}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-fg-subtle hover:text-fg-muted"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left text-small font-medium text-fg-subtle transition-colors duration-100 ease-standard hover:text-fg-muted"
         >
-          <ChevronRight size={12} className={cn('shrink-0 transition-transform', open && 'rotate-90')} />
-          {workspace && <Folder size={13} className="shrink-0" />}
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            {workspace ? <Folder size={14} /> : <MessagesSquare size={14} />}
+          </span>
           <span className="truncate">{workspace ? workspace.name : m.threads}</span>
+          <ChevronRight
+            size={14}
+            aria-hidden
+            className={cn('shrink-0 opacity-0 transition duration-160 ease-standard group-hover:opacity-100', open && 'rotate-90')}
+          />
         </button>
         {workspace && (
-          <div className="flex opacity-0 transition group-hover:opacity-100">
+          <div className="flex opacity-0 transition-opacity duration-100 ease-standard group-focus-within:opacity-100 group-hover:opacity-100">
             <IconButton label={m.revealFolder} size="sm" onClick={() => void desktop.openPath(workspace.rootPath)}>
-              <FolderOpen size={13} />
+              <FolderOpen size={14} />
             </IconButton>
             <IconButton label={m.workspaceSettings} size="sm" onClick={() => setSettings(true)}>
-              <Settings2 size={13} />
+              <Settings2 size={14} />
             </IconButton>
             <IconButton label={m.archive(workspace.name)} size="sm" onClick={() => void setArchived(workspace.id, true)}>
-              <Archive size={13} />
+              <Archive size={14} />
             </IconButton>
             <IconButton label={m.newThreadIn(workspace.name)} size="sm" onClick={() => go({ kind: 'draft', workspaceId: workspace.id })}>
               <Plus size={14} />
@@ -53,14 +60,14 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
         )}
       </div>
       {open && (
-        <ul className="mt-0.5 flex flex-col gap-px">
+        <ul className="flex flex-col gap-0.5">
           {visible.map((t) => (
             <ThreadEntry key={t.id} thread={t} />
           ))}
-          {workspace && threads.length === 0 && <li className="py-1 pl-8 text-[12px] text-fg-subtle">{m.noThreads}</li>}
+          {workspace && threads.length === 0 && <li className="flex h-7 items-center pl-8 text-small text-fg-subtle">{m.noThreads}</li>}
           {threads.length > SHOWN && (
             <li>
-              <button type="button" onClick={() => setAll(!all)} className="py-1 pl-8 text-[12px] text-fg-subtle hover:text-fg-muted">
+              <button type="button" onClick={() => setAll(!all)} className="flex h-7 items-center pl-8 text-small text-fg-subtle hover:text-fg-muted">
                 {all ? m.showLess : m.showMore(threads.length - SHOWN)}
               </button>
             </li>
@@ -82,17 +89,18 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
         type="button"
         onClick={() => void openThread(thread.id)}
         className={cn(
-          'flex h-8 w-full items-center gap-2 rounded-md pr-2 pl-8 text-left text-[13px] transition',
-          active ? 'bg-hover text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
+          'flex h-7 w-full items-center gap-2 rounded-md pr-2 pl-8 text-left text-ui transition-colors duration-100 ease-standard',
+          'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+          active ? 'bg-selected font-medium text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
         )}
       >
         <span className="min-w-0 flex-1 truncate">{threadTitle(m, thread)}</span>
         {needsUser(thread.status) ? (
-          <span className="size-2 shrink-0 rounded-full bg-warning" title={m.shell.sidebar.waiting} />
+          <span className="size-1.5 shrink-0 rounded-full bg-accent" title={m.shell.sidebar.waiting} />
         ) : isWorking(thread.status) ? (
-          <Spinner size={12} className="shrink-0 text-fg-subtle" />
+          <Spinner size={14} className="shrink-0 text-fg-subtle" />
         ) : (
-          <span className="shrink-0 text-[11px] text-fg-subtle">{relativeTime(m, locale, thread.updatedAt)}</span>
+          <span className="shrink-0 text-small font-normal text-fg-subtle tabular-nums">{relativeTime(m, locale, thread.updatedAt)}</span>
         )}
       </button>
     </li>

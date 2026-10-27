@@ -1,7 +1,7 @@
 // The message box. It knows nothing about threads: the screen decides what
 // submitting means and whether a turn is running.
 
-import { AutoTextarea, cn, IconButton, Kbd } from '@ollupi/ui'
+import { AutoTextarea, IconButton, Kbd } from '@ollupi/ui'
 import { ArrowUp, Square } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { SendMode } from '../../domains/conversation'
@@ -45,8 +45,8 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 pb-4">
-      <div className="rounded-2xl border border-line-strong bg-raised shadow-sm transition focus-within:border-accent/60 focus-within:ring-4 focus-within:ring-accent/10">
+    <div className="mx-auto w-full max-w-thread px-6 pb-3">
+      <div className="rounded-2xl border border-line bg-raised shadow-sm transition duration-160 ease-standard focus-within:border-line-strong focus-within:shadow-md">
         <div className="px-4 pt-3">
           <AutoTextarea
             ref={input}
@@ -57,10 +57,10 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
             onKeyDown={onKeyDown}
           />
         </div>
-        <div className="flex items-center gap-2 px-2.5 pt-1 pb-2.5">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">{toolbar}</div>
+        <div className="flex items-center gap-2 px-2 pt-1 pb-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1">{toolbar}</div>
           {running && onStop && (
-            <IconButton label={m.conversation.composer.stop} onClick={onStop} className="rounded-full border border-line-strong">
+            <IconButton label={m.conversation.composer.stop} onClick={onStop} className="size-8 rounded-full border border-line-strong">
               <Square size={12} fill="currentColor" />
             </IconButton>
           )}
@@ -70,13 +70,13 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
             title={running ? m.conversation.composer.addToTurn : m.conversation.composer.send}
             disabled={!text.trim() || sending || disabled}
             onClick={() => void submit('steer')}
-            className={cn('flex size-8 items-center justify-center rounded-full bg-fg text-canvas transition hover:opacity-85 disabled:opacity-25')}
+            className="flex size-8 items-center justify-center rounded-full bg-ink text-ink-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
           >
             <ArrowUp size={16} strokeWidth={2.5} />
           </button>
         </div>
       </div>
-      <div className="mt-1.5 flex justify-center gap-3 text-[11px] text-fg-subtle">
+      <div className="mt-2 flex justify-center gap-3 text-small text-fg-subtle">
         {running ? (
           <>
             <span>{m.conversation.composer.addsToTurn(<Kbd>Enter</Kbd>)}</span>

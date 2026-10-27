@@ -20,10 +20,10 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
   const unavailable = !models.some((m) => m.connection === shown)
   if (models.length === 0) return null
   return (
-    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg">
-      <Cpu size={13} />
+    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg">
+      <Cpu size={14} />
       <span className={cn('max-w-72 truncate', unavailable && 'text-warning')}>{unavailable ? t.unavailable(shown) : shown}</span>
-      <ChevronDown size={12} />
+      <ChevronDown size={14} />
       <select aria-label={t.label} className="absolute inset-0 cursor-pointer opacity-0" value={shown} onChange={(e) => chooseModel(e.target.value)}>
         {unavailable && (
           <option value={shown} disabled>

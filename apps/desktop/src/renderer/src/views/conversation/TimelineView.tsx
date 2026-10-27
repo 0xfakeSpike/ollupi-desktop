@@ -34,9 +34,9 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   const m = useT()
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pt-6 pb-10">
+    <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-6 pb-10">
       {timeline.hasMore && <LoadOlder threadId={threadId} />}
-      {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-sm text-fg-subtle">{m.conversation.timeline.empty}</div>}
+      {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
       {groups.map((g) => (
         <TurnSection key={g.turn.id} group={g} working={working && g.turn.id === running?.id} jobName={jobNames(g.turn)} />
       ))}
@@ -88,7 +88,7 @@ function TurnSection({ group, working, jobName }: { group: TurnGroup; working: b
       {items.map((item) => (
         <ItemView key={item.id} item={item} />
       ))}
-      {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-[13px]">{m.conversation.timeline.working}</div>}
+      {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-ui">{m.conversation.timeline.working}</div>}
       <TurnOutcome turn={turn} />
     </section>
   )
@@ -97,8 +97,8 @@ function TurnSection({ group, working, jobName }: { group: TurnGroup; working: b
 function ScheduledBy({ name }: { name: string }) {
   const m = useT()
   return (
-    <div className="flex items-center justify-end gap-1.5 text-[11px] text-fg-subtle">
-      <CalendarClock size={12} /> {m.conversation.timeline.sentBy(name)}
+    <div className="flex items-center justify-end gap-1.5 text-small text-fg-subtle">
+      <CalendarClock size={14} /> {m.conversation.timeline.sentBy(name)}
     </div>
   )
 }
@@ -118,19 +118,14 @@ function TurnOutcome({ turn }: { turn: TurnRow }) {
       )
     case 'interrupted':
       return (
-        <div className="flex items-center gap-1.5 text-xs text-fg-subtle">
-          <OctagonX size={12} /> {m.conversation.timeline.stopped(turn.error)}
+        <div className="flex items-center gap-1.5 text-small text-fg-subtle">
+          <OctagonX size={14} /> {m.conversation.timeline.stopped(turn.error)}
         </div>
       )
     case 'completed': {
       const usage = usageLine(m, turn.usage)
-      return (
-        <div className="flex gap-2 text-[11px] text-fg-subtle">
-          <span>{turn.model.connection}</span>
-          {turn.completedAt && <span>· {duration(m, turn.startedAt, turn.completedAt)}</span>}
-          {usage && <span>· {usage}</span>}
-        </div>
-      )
+      const facts = [turn.model.connection, turn.completedAt && duration(m, turn.startedAt, turn.completedAt), usage].filter(Boolean)
+      return <div className="text-small text-fg-subtle tabular-nums">{facts.join(' · ')}</div>
     }
     case 'queued':
     case 'inProgress':
@@ -144,9 +139,9 @@ function QueuedTurn({ turn, jobName }: { turn: TurnRow; jobName: string | undefi
   return (
     <div className="flex flex-col items-end gap-1">
       {jobName && <ScheduledBy name={jobName} />}
-      <div className="max-w-[80%] rounded-2xl border border-dashed border-line-strong px-4 py-2 text-sm whitespace-pre-wrap text-fg-muted">{turn.input}</div>
-      <span className="flex items-center gap-1 text-[11px] text-fg-subtle">
-        <Clock size={11} /> {m.conversation.timeline.queued}
+      <div className="max-w-4/5 rounded-2xl border border-dashed border-line-strong px-4 py-2 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
+      <span className="flex items-center gap-1 text-small text-fg-subtle">
+        <Clock size={14} /> {m.conversation.timeline.queued}
       </span>
     </div>
   )

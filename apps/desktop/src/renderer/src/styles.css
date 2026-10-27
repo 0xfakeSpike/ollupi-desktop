@@ -42,6 +42,13 @@ input {
   -webkit-app-region: no-drag;
 }
 
+/* A scroll area whose content is centred: the scrollbar's gutter is kept on
+   both sides, so the column lines up with what sits outside the scroll area
+   (the composer under a conversation). */
+.scroll-centered {
+  scrollbar-gutter: stable both-edges;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

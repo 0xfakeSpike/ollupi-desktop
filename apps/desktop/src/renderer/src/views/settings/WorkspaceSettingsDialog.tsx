@@ -20,8 +20,8 @@ export function WorkspaceSettingsDialog({ workspace, onClose }: { workspace: Wor
           <Input value={name} className="max-w-60" onChange={(e) => setName(e.target.value)} onBlur={rename} onKeyDown={(e) => e.key === 'Enter' && rename()} />
         </Field>
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-medium text-fg-muted">{m.settings.permissions.workspace.permissions}</h3>
-          <p className="text-xs text-fg-muted">{m.settings.permissions.workspace.intro}</p>
+          <h3 className="text-small font-medium text-fg-muted">{m.settings.permissions.workspace.permissions}</h3>
+          <p className="text-small text-fg-muted">{m.settings.permissions.workspace.intro}</p>
           <PermissionEditor value={workspace.settings} inheritFrom={m.settings.permissions.fromAgent} onSave={(s) => updateWorkspacePermissions(workspace.id, s)} />
         </div>
       </div>

@@ -7,7 +7,7 @@
 @theme inline {
   --color-*: initial;
   --color-canvas: var(--ol-canvas);
-  --color-sidebar: var(--ol-sidebar);
+  --color-ground: var(--ol-ground);
   --color-surface: var(--ol-surface);
   --color-raised: var(--ol-raised);
   --color-hover: var(--ol-hover);
@@ -19,6 +19,8 @@
   --color-fg: var(--ol-fg);
   --color-fg-muted: var(--ol-fg-muted);
   --color-fg-subtle: var(--ol-fg-subtle);
+  --color-ink: var(--ol-ink);
+  --color-ink-fg: var(--ol-ink-fg);
   --color-accent: var(--ol-accent);
   --color-accent-fg: var(--ol-accent-fg);
   --color-accent-soft: var(--ol-accent-soft);
@@ -42,8 +44,8 @@
   --text-small--line-height: 18px;
   --text-ui: 13px;
   --text-ui--line-height: 20px;
-  --text-body: 14px;
-  --text-body--line-height: 23px;
+  --text-body: 15px;
+  --text-body--line-height: 24px;
   --text-title: 15px;
   --text-title--line-height: 22px;
   --text-title--font-weight: 600;
@@ -63,6 +65,7 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+  --radius-2xl: 16px;
 
   --shadow-*: initial;
   --shadow-sm: var(--ol-shadow-sm);
@@ -101,65 +104,73 @@
   --container-dialog-wide: 640px;
 }
 
+/* Neutrals lean warm; text steps down from near-black. Primary actions are
+   ink, so the accent stays rare: links, focus, selected controls, and what
+   waits on the user. */
 :root {
   color-scheme: light dark;
+  --ol-ground: #f7f6f3;
   --ol-canvas: #ffffff;
-  --ol-sidebar: #f7f7f6;
-  --ol-surface: #f4f4f2;
+  --ol-surface: #f4f3f0;
   --ol-raised: #ffffff;
-  --ol-hover: rgb(0 0 0 / 0.045);
-  --ol-selected: rgb(0 0 0 / 0.075);
-  --ol-line: rgb(0 0 0 / 0.08);
-  --ol-line-strong: rgb(0 0 0 / 0.14);
-  --ol-scrim: rgb(0 0 0 / 0.3);
+  --ol-hover: rgb(28 26 22 / 0.045);
+  --ol-selected: rgb(28 26 22 / 0.07);
+  --ol-line: rgb(28 26 22 / 0.08);
+  --ol-line-strong: rgb(28 26 22 / 0.13);
+  --ol-scrim: rgb(20 18 15 / 0.32);
   --ol-knob: #ffffff;
-  --ol-fg: #1b1b1a;
-  --ol-fg-muted: #5f5f5c;
-  --ol-fg-subtle: #8a8a85;
-  --ol-accent: #1f6feb;
+  --ol-fg: #1c1b19;
+  --ol-fg-muted: #5f5d59;
+  --ol-fg-subtle: #8d8b86;
+  --ol-ink: #1c1b19;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #1f74f0;
   --ol-accent-fg: #ffffff;
-  --ol-accent-soft: rgb(31 111 235 / 0.1);
-  --ol-focus: rgb(31 111 235 / 0.35);
-  --ol-success: #1a7f37;
-  --ol-success-soft: rgb(26 127 55 / 0.1);
-  --ol-warning: #9a6700;
-  --ol-warning-soft: rgb(212 167 44 / 0.15);
-  --ol-danger: #cf222e;
+  --ol-accent-soft: rgb(31 116 240 / 0.1);
+  --ol-focus: rgb(31 116 240 / 0.3);
+  --ol-success: #1b7f3c;
+  --ol-success-soft: rgb(27 127 60 / 0.1);
+  --ol-warning: #a86400;
+  --ol-warning-soft: rgb(222 150 20 / 0.14);
+  --ol-danger: #d8323d;
   --ol-danger-fg: #ffffff;
-  --ol-danger-soft: rgb(207 34 46 / 0.08);
-  --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
-  --ol-shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.06);
-  --ol-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
+  --ol-danger-soft: rgb(216 50 61 / 0.08);
+  --ol-shadow-sm: 0 1px 2px rgb(28 26 22 / 0.04), 0 4px 12px -4px rgb(28 26 22 / 0.08);
+  --ol-shadow-md: 0 2px 6px rgb(28 26 22 / 0.05), 0 12px 28px -8px rgb(28 26 22 / 0.14);
+  --ol-shadow-lg: 0 4px 12px rgb(28 26 22 / 0.06), 0 24px 56px -12px rgb(28 26 22 / 0.24);
 }
 
+/* The panel sits darker than the ground around it. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ol-canvas: #161616;
-    --ol-sidebar: #1c1c1c;
-    --ol-surface: #212121;
-    --ol-raised: #262626;
-    --ol-hover: rgb(255 255 255 / 0.06);
-    --ol-selected: rgb(255 255 255 / 0.1);
-    --ol-line: rgb(255 255 255 / 0.08);
-    --ol-line-strong: rgb(255 255 255 / 0.15);
-    --ol-scrim: rgb(0 0 0 / 0.5);
-    --ol-knob: #e8e8e6;
-    --ol-fg: #ececea;
-    --ol-fg-muted: #a5a5a0;
-    --ol-fg-subtle: #75756f;
-    --ol-accent: #4c8dff;
+    --ol-ground: #1a1a19;
+    --ol-canvas: #131312;
+    --ol-surface: #1e1e1d;
+    --ol-raised: #242423;
+    --ol-hover: rgb(255 255 255 / 0.055);
+    --ol-selected: rgb(255 255 255 / 0.085);
+    --ol-line: rgb(255 255 255 / 0.075);
+    --ol-line-strong: rgb(255 255 255 / 0.13);
+    --ol-scrim: rgb(0 0 0 / 0.55);
+    --ol-knob: #e8e7e4;
+    --ol-fg: #e2e1dd;
+    --ol-fg-muted: #9a9894;
+    --ol-fg-subtle: #6f6e6a;
+    --ol-ink: #e8e7e4;
+    --ol-ink-fg: #131312;
+    --ol-accent: #3f8cff;
     --ol-accent-fg: #ffffff;
-    --ol-accent-soft: rgb(76 141 255 / 0.14);
-    --ol-focus: rgb(76 141 255 / 0.45);
-    --ol-success: #3fb950;
-    --ol-success-soft: rgb(63 185 80 / 0.14);
-    --ol-warning: #d29922;
-    --ol-warning-soft: rgb(210 153 34 / 0.16);
-    --ol-danger: #f85149;
+    --ol-accent-soft: rgb(63 140 255 / 0.15);
+    --ol-focus: rgb(63 140 255 / 0.4);
+    --ol-success: #43b85c;
+    --ol-success-soft: rgb(67 184 92 / 0.14);
+    --ol-warning: #e0a237;
+    --ol-warning-soft: rgb(224 162 55 / 0.15);
+    --ol-danger: #f2615f;
     --ol-danger-fg: #ffffff;
-    --ol-danger-soft: rgb(248 81 73 / 0.12);
-    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-    --ol-shadow-md: 0 4px 16px rgb(0 0 0 / 0.45);
-    --ol-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.6);
+    --ol-danger-soft: rgb(242 97 95 / 0.13);
+    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
+    --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
+    --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
   }
 }

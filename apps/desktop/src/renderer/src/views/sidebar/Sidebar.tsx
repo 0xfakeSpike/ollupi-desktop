@@ -18,13 +18,14 @@ export function Sidebar() {
   const groups = useMemo(() => groupByWorkspace(workspaces, threads), [workspaces, threads])
 
   return (
-    <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-sidebar">
-      <div className="drag h-[52px] shrink-0" />
+    <aside className="flex w-65 shrink-0 flex-col">
+      {/* Level with the screen panel's header: its 8px inset and 40px height. */}
+      <div className="drag h-12 shrink-0" />
       <nav className="flex flex-col gap-0.5 px-2 pb-2">
-        <NavButton icon={<SquarePen size={15} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
+        <NavButton icon={<SquarePen size={16} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
           {m.newThread}
         </NavButton>
-        <NavButton icon={<FolderPlus size={15} />} onClick={() => void addWorkspace()}>
+        <NavButton icon={<FolderPlus size={16} />} onClick={() => void addWorkspace()}>
           {m.addWorkspace}
         </NavButton>
       </nav>
@@ -34,11 +35,11 @@ export function Sidebar() {
         ))}
         <ArchivedWorkspaces workspaces={workspaces.filter((w) => w.archivedAt)} />
       </div>
-      <div className="flex flex-col gap-0.5 border-t border-line px-2 py-2">
-        <NavButton icon={<Brain size={15} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
+      <div className="flex flex-col gap-0.5 px-2 pt-2 pb-3">
+        <NavButton icon={<Brain size={16} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
           {m.memory}
         </NavButton>
-        <NavButton icon={<Settings size={15} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
+        <NavButton icon={<Settings size={16} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
           {m.settings}
         </NavButton>
         <ConnectionStatus />
@@ -47,17 +48,19 @@ export function Sidebar() {
   )
 }
 
+/** Sidebar rows share one grid: a 16px icon slot at 8px, the label at 32px. */
 function NavButton({ icon, active, onClick, children }: { icon: ReactNode; active?: boolean; onClick(): void; children: ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex h-8 items-center gap-2.5 rounded-md px-2 text-left text-[13px] transition',
-        active ? 'bg-hover font-medium text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
+        'flex h-7 items-center gap-2 rounded-md px-2 text-left text-ui transition-colors duration-100 ease-standard',
+        'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+        active ? 'bg-selected font-medium text-fg' : 'text-fg hover:bg-hover',
       )}
     >
-      <span className="text-fg-muted">{icon}</span>
+      <span className="flex size-4 shrink-0 items-center justify-center text-fg-muted">{icon}</span>
       {children}
     </button>
   )

@@ -22,11 +22,11 @@ export function CronDialog({ threadId, onClose }: { threadId: string; onClose():
             <Spinner />
           </div>
         ) : jobs.length === 0 ? (
-          <EmptyState icon={<CalendarClock size={24} />} title={m.requests.cron.empty}>
+          <EmptyState icon={<CalendarClock size={20} />} title={m.requests.cron.empty}>
             {m.requests.cron.emptyHint}
           </EmptyState>
         ) : (
-          <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
+          <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
             {jobs.map((j) => (
               <Job key={j.id} job={j} />
             ))}
@@ -44,12 +44,12 @@ function Job({ job }: { job: CronJobRow }) {
   return (
     <li className="flex items-start gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-[13px]">
+        <div className="flex items-center gap-2 text-ui">
           <span className="font-medium text-fg">{job.name}</span>
-          <code className="selectable font-mono text-xs text-fg-muted">{job.spec}</code>
+          <code className="selectable font-mono text-small text-fg-muted">{job.spec}</code>
         </div>
-        <p className="selectable mt-0.5 line-clamp-2 text-xs text-fg-muted">{job.prompt}</p>
-        <p className="mt-1 text-[11px] text-fg-subtle">
+        <p className="selectable mt-0.5 line-clamp-2 text-small text-fg-muted">{job.prompt}</p>
+        <p className="mt-1 text-small text-fg-subtle">
           {job.paused
             ? m.requests.cron.paused
             : m.requests.cron.next(relativeTime(m, locale, job.nextRunAt), new Date(job.nextRunAt).toLocaleString(locale))}
@@ -63,7 +63,7 @@ function Job({ job }: { job: CronJobRow }) {
           if (confirm(m.requests.cron.deleteConfirm(job.name))) void deleteJob(job.threadId, job.name)
         }}
       >
-        <Trash2 size={13} />
+        <Trash2 size={14} />
       </IconButton>
     </li>
   )
@@ -88,8 +88,8 @@ function NewJob({ threadId }: { threadId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-dashed border-line-strong p-4">
-      <div className="text-xs font-medium text-fg-muted">{m.requests.cron.newTask}</div>
+    <div className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong p-4">
+      <div className="text-small font-medium text-fg-muted">{m.requests.cron.newTask}</div>
       <div className="grid grid-cols-2 gap-3">
         <Field label={m.requests.cron.name} hint={m.requests.cron.nameHint}>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="daily-summary" />

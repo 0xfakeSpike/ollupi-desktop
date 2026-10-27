@@ -69,18 +69,19 @@ export function MemoryScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line px-6">
-        <h1 className="text-[13px] font-semibold">{m.memory.screen.title}</h1>
+      <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
+        <h1 className="text-ui font-semibold">{m.memory.screen.title}</h1>
         <div className="flex-1" />
-        <IconButton label={m.common.reload} size="sm" onClick={() => void reload()}>
-          <RotateCw size={13} />
+        <IconButton label={m.common.reload} onClick={() => void reload()}>
+          <RotateCw size={16} />
         </IconButton>
       </header>
       <div className="flex min-h-0 flex-1">
-        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-3">
+        {/* Its labels start under the header's title. */}
+        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-2">
           <Tabs label={m.memory.screen.scope} orientation="vertical" tabs={scopes} value={scope} onChange={setScope} />
         </nav>
-        <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="flex-1 overflow-y-auto">
+        <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
             <MemorySettings status={data?.status} />
             {data && <StatusLine status={data.status} />}
@@ -90,16 +91,16 @@ export function MemoryScreen() {
               </div>
             ) : active.length === 0 ? (
               elsewhere ? (
-                <EmptyState icon={<Brain size={28} />} title={m.memory.screen.emptyHere}>
+                <EmptyState icon={<Brain size={20} />} title={m.memory.screen.emptyHere}>
                   {m.memory.screen.emptyHereHint}
                 </EmptyState>
               ) : (
-                <EmptyState icon={<Brain size={28} />} title={m.memory.screen.emptyYet}>
+                <EmptyState icon={<Brain size={20} />} title={m.memory.screen.emptyYet}>
                   {m.memory.screen.emptyYetHint}
                 </EmptyState>
               )
             ) : (
-              <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
+              <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
                 {active.map((e) => (
                   <Entry
                     key={e.id}
@@ -122,9 +123,9 @@ export function MemoryScreen() {
 function StatusLine({ status }: { status: MemoryStatus }) {
   const m = useT()
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-      <Badge tone={status.useEnabled ? 'success' : 'neutral'}>{status.useEnabled ? m.memory.status.used : m.memory.status.notUsed}</Badge>
-      <Badge tone={status.generationEnabled ? 'success' : 'neutral'}>{status.generationEnabled ? m.memory.status.learningOn : m.memory.status.learningOff}</Badge>
+    <div className="flex flex-wrap items-center gap-2 text-small text-fg-muted">
+      <Badge>{status.useEnabled ? m.memory.status.used : m.memory.status.notUsed}</Badge>
+      <Badge>{status.generationEnabled ? m.memory.status.learningOn : m.memory.status.learningOff}</Badge>
       <span>{m.memory.status.active(status.active)}</span>
       {status.generationEnabled && status.pending > 0 && <span>· {m.memory.status.pending(status.pending)}</span>}
       {status.lastError && <span className="text-danger">· {status.lastError}</span>}
@@ -165,7 +166,7 @@ function Entry({
 
   return (
     <li className="group flex flex-col gap-1.5 px-4 py-3">
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-2 text-small">
         <span className="font-medium text-fg">{entry.topic}</span>
         <Badge>{kindLabel(m, entry.kind)}</Badge>
         {entry.userEdited && <Badge tone="success">{m.memory.entry.editedByYou}</Badge>}
@@ -174,10 +175,10 @@ function Entry({
         {!editing && !moving && (
           <div className="flex opacity-0 transition group-hover:opacity-100">
             <IconButton label={m.common.edit} size="sm" onClick={() => setEditing(true)}>
-              <Pencil size={12} />
+              <Pencil size={14} />
             </IconButton>
             <IconButton label={m.memory.entry.move} size="sm" onClick={() => setMoving(true)}>
-              <ArrowRightLeft size={12} />
+              <ArrowRightLeft size={14} />
             </IconButton>
             <IconButton
               label={m.memory.entry.forget}
@@ -186,7 +187,7 @@ function Entry({
                 if (confirm(m.memory.entry.forgetConfirm)) void forgetMemory(entry.id).then((ok) => ok && onForgotten())
               }}
             >
-              <Trash2 size={12} />
+              <Trash2 size={14} />
             </IconButton>
           </div>
         )}
@@ -214,7 +215,7 @@ function Entry({
           </div>
         </div>
       ) : (
-        <p className="selectable text-[13px] leading-6 whitespace-pre-wrap text-fg-muted">{entry.text}</p>
+        <p className="selectable text-ui leading-6 whitespace-pre-wrap text-fg-muted">{entry.text}</p>
       )}
     </li>
   )
@@ -236,8 +237,8 @@ function MoveTo({
   const target = places.find((p) => placeKey(p.place) === to)
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-fg-muted">{m.memory.moveTo.label}</span>
-      <Select aria-label={m.memory.moveTo.select} className="h-7 w-56 text-xs" value={to} onChange={(e) => setTo(e.target.value)}>
+      <span className="text-small text-fg-muted">{m.memory.moveTo.label}</span>
+      <Select aria-label={m.memory.moveTo.select} className="h-7 w-56 text-small" value={to} onChange={(e) => setTo(e.target.value)}>
         {places.map((p) => (
           <option key={placeKey(p.place)} value={placeKey(p.place)}>
             {p.label}

@@ -26,7 +26,8 @@
 
 ### 1.3 克制与强调
 
-- **强调色（accent）只用于 5 处**：一个区域里唯一的主按钮、焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
+- **主按钮是墨色（ink）**：浅色主题里近黑、深色主题里近白。颜色不承担"这是主操作"的意思，位置和墨色承担。
+- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户的信号（侧栏圆点、顶栏徽标、提问块色条）。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
 - **成功是常态，不着色。** 工具成功、任务完成不显示绿色；只有失败、等待、被拒才有标记。例外：diff 的 `+12 −3`。
 - **粗体（600）** 只给标题和按钮。正文里的强调交给 Markdown 本身。500 用于导航选中项、标签、列表行的主名称。
 - **底色** 只表示"这是一块独立的内容"（代码、输出、用户消息、设置列表），不表示状态。
@@ -36,6 +37,14 @@
 ---
 
 ## 2. 设计语言
+
+### 2.0 窗口布局
+
+- 窗口底色是 `ground`。侧栏直接画在 ground 上，没有边框。
+- 当前屏幕（对话、Memory、Settings、新会话）是一块面板：距窗口上、右、下 8px，`rounded-xl border border-line bg-canvas`。深色主题里面板比 ground 更暗，浅色主题里面板是纯白。
+- 屏幕面板的标题栏高 40px，也是窗口的拖动区；macOS 红绿灯按钮垂直居中在这一行上（`trafficLightPosition` y 21）。侧栏顶部留出同样的 48px（8 + 40），第一项落在标题栏下沿。
+- **侧栏网格**：每行高 28px，`px-2`；行首 16px 图标槽，图标与文字间距 8px。所以新会话、分组名、会话标题、底部导航的文字都从行内 32px 处开始。会话行没有图标，用 `pl-8` 对齐到同一处。
+- **居中的列**：对话、Settings、Memory 的内容是 `mx-auto max-w-* px-6` 的列。所在的滚动区加 `scroll-centered`（两侧都留滚动条位），列才与滚动区外的东西（对话下面的输入框）对齐。Settings 的标签页放在同一条列里。
 
 ### 2.1 Token：直接替换 `packages/ui/src/theme.css`
 
@@ -51,7 +60,7 @@
 @theme inline {
   --color-*: initial;
   --color-canvas: var(--ol-canvas);
-  --color-sidebar: var(--ol-sidebar);
+  --color-ground: var(--ol-ground);
   --color-surface: var(--ol-surface);
   --color-raised: var(--ol-raised);
   --color-hover: var(--ol-hover);
@@ -63,6 +72,8 @@
   --color-fg: var(--ol-fg);
   --color-fg-muted: var(--ol-fg-muted);
   --color-fg-subtle: var(--ol-fg-subtle);
+  --color-ink: var(--ol-ink);
+  --color-ink-fg: var(--ol-ink-fg);
   --color-accent: var(--ol-accent);
   --color-accent-fg: var(--ol-accent-fg);
   --color-accent-soft: var(--ol-accent-soft);
@@ -86,8 +97,8 @@
   --text-small--line-height: 18px;
   --text-ui: 13px;
   --text-ui--line-height: 20px;
-  --text-body: 14px;
-  --text-body--line-height: 23px;
+  --text-body: 15px;
+  --text-body--line-height: 24px;
   --text-title: 15px;
   --text-title--line-height: 22px;
   --text-title--font-weight: 600;
@@ -107,6 +118,7 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+  --radius-2xl: 16px;
 
   --shadow-*: initial;
   --shadow-sm: var(--ol-shadow-sm);
@@ -145,66 +157,74 @@
   --container-dialog-wide: 640px;
 }
 
+/* Neutrals lean warm; text steps down from near-black. Primary actions are
+   ink, so the accent stays rare: links, focus, selected controls, and what
+   waits on the user. */
 :root {
   color-scheme: light dark;
+  --ol-ground: #f7f6f3;
   --ol-canvas: #ffffff;
-  --ol-sidebar: #f7f7f6;
-  --ol-surface: #f4f4f2;
+  --ol-surface: #f4f3f0;
   --ol-raised: #ffffff;
-  --ol-hover: rgb(0 0 0 / 0.045);
-  --ol-selected: rgb(0 0 0 / 0.075);
-  --ol-line: rgb(0 0 0 / 0.08);
-  --ol-line-strong: rgb(0 0 0 / 0.14);
-  --ol-scrim: rgb(0 0 0 / 0.3);
+  --ol-hover: rgb(28 26 22 / 0.045);
+  --ol-selected: rgb(28 26 22 / 0.07);
+  --ol-line: rgb(28 26 22 / 0.08);
+  --ol-line-strong: rgb(28 26 22 / 0.13);
+  --ol-scrim: rgb(20 18 15 / 0.32);
   --ol-knob: #ffffff;
-  --ol-fg: #1b1b1a;
-  --ol-fg-muted: #5f5f5c;
-  --ol-fg-subtle: #8a8a85;
-  --ol-accent: #1f6feb;
+  --ol-fg: #1c1b19;
+  --ol-fg-muted: #5f5d59;
+  --ol-fg-subtle: #8d8b86;
+  --ol-ink: #1c1b19;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #1f74f0;
   --ol-accent-fg: #ffffff;
-  --ol-accent-soft: rgb(31 111 235 / 0.1);
-  --ol-focus: rgb(31 111 235 / 0.35);
-  --ol-success: #1a7f37;
-  --ol-success-soft: rgb(26 127 55 / 0.1);
-  --ol-warning: #9a6700;
-  --ol-warning-soft: rgb(212 167 44 / 0.15);
-  --ol-danger: #cf222e;
+  --ol-accent-soft: rgb(31 116 240 / 0.1);
+  --ol-focus: rgb(31 116 240 / 0.3);
+  --ol-success: #1b7f3c;
+  --ol-success-soft: rgb(27 127 60 / 0.1);
+  --ol-warning: #a86400;
+  --ol-warning-soft: rgb(222 150 20 / 0.14);
+  --ol-danger: #d8323d;
   --ol-danger-fg: #ffffff;
-  --ol-danger-soft: rgb(207 34 46 / 0.08);
-  --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
-  --ol-shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.06);
-  --ol-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
+  --ol-danger-soft: rgb(216 50 61 / 0.08);
+  --ol-shadow-sm: 0 1px 2px rgb(28 26 22 / 0.04), 0 4px 12px -4px rgb(28 26 22 / 0.08);
+  --ol-shadow-md: 0 2px 6px rgb(28 26 22 / 0.05), 0 12px 28px -8px rgb(28 26 22 / 0.14);
+  --ol-shadow-lg: 0 4px 12px rgb(28 26 22 / 0.06), 0 24px 56px -12px rgb(28 26 22 / 0.24);
 }
 
+/* The panel sits darker than the ground around it. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ol-canvas: #161616;
-    --ol-sidebar: #1c1c1c;
-    --ol-surface: #212121;
-    --ol-raised: #262626;
-    --ol-hover: rgb(255 255 255 / 0.06);
-    --ol-selected: rgb(255 255 255 / 0.1);
-    --ol-line: rgb(255 255 255 / 0.08);
-    --ol-line-strong: rgb(255 255 255 / 0.15);
-    --ol-scrim: rgb(0 0 0 / 0.5);
-    --ol-knob: #e8e8e6;
-    --ol-fg: #ececea;
-    --ol-fg-muted: #a5a5a0;
-    --ol-fg-subtle: #75756f;
-    --ol-accent: #4c8dff;
+    --ol-ground: #1a1a19;
+    --ol-canvas: #131312;
+    --ol-surface: #1e1e1d;
+    --ol-raised: #242423;
+    --ol-hover: rgb(255 255 255 / 0.055);
+    --ol-selected: rgb(255 255 255 / 0.085);
+    --ol-line: rgb(255 255 255 / 0.075);
+    --ol-line-strong: rgb(255 255 255 / 0.13);
+    --ol-scrim: rgb(0 0 0 / 0.55);
+    --ol-knob: #e8e7e4;
+    --ol-fg: #e2e1dd;
+    --ol-fg-muted: #9a9894;
+    --ol-fg-subtle: #6f6e6a;
+    --ol-ink: #e8e7e4;
+    --ol-ink-fg: #131312;
+    --ol-accent: #3f8cff;
     --ol-accent-fg: #ffffff;
-    --ol-accent-soft: rgb(76 141 255 / 0.14);
-    --ol-focus: rgb(76 141 255 / 0.45);
-    --ol-success: #3fb950;
-    --ol-success-soft: rgb(63 185 80 / 0.14);
-    --ol-warning: #d29922;
-    --ol-warning-soft: rgb(210 153 34 / 0.16);
-    --ol-danger: #f85149;
+    --ol-accent-soft: rgb(63 140 255 / 0.15);
+    --ol-focus: rgb(63 140 255 / 0.4);
+    --ol-success: #43b85c;
+    --ol-success-soft: rgb(67 184 92 / 0.14);
+    --ol-warning: #e0a237;
+    --ol-warning-soft: rgb(224 162 55 / 0.15);
+    --ol-danger: #f2615f;
     --ol-danger-fg: #ffffff;
-    --ol-danger-soft: rgb(248 81 73 / 0.12);
-    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-    --ol-shadow-md: 0 4px 16px rgb(0 0 0 / 0.45);
-    --ol-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.6);
+    --ol-danger-soft: rgb(242 97 95 / 0.13);
+    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
+    --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
+    --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
   }
 }
 ```
@@ -218,8 +238,8 @@
 | token | 用于 | 不用于 |
 |---|---|---|
 | `canvas` | 主画布（对话页、Memory、Settings 内容区） | — |
-| `sidebar` | 侧栏、Context 面板 | 对话框 |
-| `surface` | 代码块、工具输出、用户消息气泡、计划、设置列表卡片、表头 | 浮层 |
+| `ground` | 窗口底色：侧栏、后端启动页，以及屏幕面板四周露出的部分 | 屏幕面板里的任何东西 |
+| `surface` | 代码块、工具输出、用户消息气泡、计划、表头 | 浮层、设置列表卡片 |
 | `raised` | 对话框、菜单、toast、气泡提示、**需要用户行动的块** | 流里的普通块 |
 | `hover` | 悬停底色；行内代码底色 | 选中态 |
 | `selected` | 侧栏项、竖排子标签、菜单的选中项 | 表单控件（用 accent） |
@@ -240,7 +260,8 @@
 
 | token | 用于 |
 |---|---|
-| `accent` / `accent-fg` | 主按钮；表单控件选中态；链接；进度填充；提问块的色条和图标；"等待你"的圆点 |
+| `ink` / `ink-fg` | 主按钮、发送按钮 |
+| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；用量条里的对话部分；提问块的色条和图标；"等待你"的圆点和徽标 |
 | `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
 | `success` | diff 的 `+n`；用量条之外几乎不用。成功默认不着色 |
@@ -255,7 +276,7 @@
 | `text-caption` | 11 / 16 / 500 | 徽标、快捷键提示（`↵`、`⌘K`） |
 | `text-small` | 12 / 18 / 400 | 元信息、时间、辅助说明、错误提示、系统信息、分组标题、Context 面板的数据行 |
 | `text-ui` | 13 / 20 / 400 | **界面默认**：侧栏、按钮、表单、工具调用行、列表、设置行 |
-| `text-body` | 14 / 23 / 400 | 对话正文（用户消息、agent 回复的 Markdown） |
+| `text-body` | 15 / 24 / 400 | 对话正文（用户消息、agent 回复的 Markdown） |
 | `text-title` | 15 / 22 / 600 | 顶栏标题、对话框标题、设置分区标题、页面标题（Memory、Settings） |
 | `text-display` | 20 / 28 / 600 | 新会话页标题、整页空状态和整页错误 |
 
@@ -297,8 +318,9 @@
 |---|---|---|
 | `rounded-sm` | 4 | 徽标、行内代码、复选框、快捷键提示 |
 | `rounded-md` | 6 | 按钮、输入框、下拉框、侧栏项、菜单项、子标签 |
-| `rounded-lg` | 8 | 对话流里的块（代码块、工具输出、计划、行动块）、设置列表卡片 |
-| `rounded-xl` | 12 | 对话框、菜单浮层、toast、输入框外壳（Composer）、用户消息气泡 |
+| `rounded-lg` | 8 | 对话流里的块（代码块、工具输出、计划、行动块）、列表卡片 |
+| `rounded-xl` | 12 | 屏幕面板、对话框、菜单浮层、toast |
+| `rounded-2xl` | 16 | 输入框外壳（Composer）、用户消息气泡、排队中的消息 |
 | `rounded-full` | — | 圆点、开关、用量条、头像 |
 
 - 嵌套时，内圆角 = 外圆角 − 内边距；内边距 ≥ 外圆角时内层可以是直角。
@@ -450,7 +472,7 @@ L2  ┃ ? Which branch should I base this on? │   raised 底 + 阴影 + 色条
 
 | 种类 | 样式 | 用途 |
 |---|---|---|
-| **主要** | `bg-accent text-accent-fg`，悬停 `brightness-110` | 区域里最推荐的那一个动作。一个区域（一张卡片、一个对话框、一个设置分区、一个空状态）**最多 1 个** |
+| **主要** | `bg-ink text-ink-fg`，悬停 `opacity-85` | 区域里最推荐的那一个动作。一个区域（一张卡片、一个对话框、一个设置分区、一个空状态）**最多 1 个** |
 | **次要** | `bg-raised border border-line-strong text-fg`，悬停 `bg-hover` | 其它正向动作、Cancel |
 | **幽灵** | 透明，`text-fg-muted`，悬停 `bg-hover text-fg` | 工具栏、图标按钮、第三选项、`Deny` |
 | **危险** | `bg-danger text-danger-fg` | 只用于"确认执行破坏性动作"的那一下（对话框里的 `Delete`、沙箱外的 `Run outside sandbox`） |
@@ -472,7 +494,7 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 - **输入框 / 下拉框 / 多行文本**：`bg-transparent`（取所在表面的颜色：页面上是 canvas，对话框里是 raised）+ `border border-line-strong` + `rounded-md` + `px-2.5` + `text-ui`。占位符 `fg-subtle`。聚焦：边框 `accent` + `ring-3 ring-focus`。命令、路径、JSON 类的输入用 `font-mono`。
 - **错误**：通过 `Field` 的 `error`（不要塞进 `hint`），边框变 `danger`，提示换成 `text-small text-danger` 的错误文字，说清楚哪里不对、怎么改（"Must be a URL starting with http:// or https://"）。在失焦或提交时校验，不在输入过程中报错。
 - **开关 vs 复选框**：立即生效的设置用开关，没有保存按钮；需要统一保存的表单里用复选框。
-- **设置行**（macOS 系统设置的写法）：左边标签（`text-ui` `fg`）+ 说明（`text-small` `fg-muted`），右边控件，行高至少 44、`px-3 py-2.5`。多行组成一张 `bg-surface rounded-lg` 卡片，行之间 `border-t border-line`。
+- **设置行**（macOS 系统设置的写法）：左边标签（`text-ui` `fg`）+ 说明（`text-small` `fg-muted`），右边控件，行高至少 44、`px-3 py-2.5`。多行组成一张列表卡片：`rounded-lg border border-line`，行之间 `divide-y divide-line`。在页面上和对话框里都用这一种。
 - **必填** 不打星号；可选字段在标签后写 "(optional)"，`fg-subtle`。
 
 ### 3.6 列表与导航
@@ -601,7 +623,7 @@ rg -n 'uppercase|font-bold|tracking-' apps packages --glob '!**/node_modules/**'
 ```
 
 ```bash
-# 强调色铺底：逐个确认只出现在主按钮、选中控件、进度填充上
+# 强调色铺底：逐个确认只出现在选中控件、进度填充、等待用户的信号上
 rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 ```
 
@@ -618,11 +640,11 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 | 界面 | 主要用到 |
 |---|---|
 | 侧边栏 | 3.6 列表与导航（新建会话、添加 workspace 为幽灵按钮；分组、悬停操作、已归档分组）、3.3 圆点、底部连接状态 |
-| 新会话页 | `text-display` 标题、workspace 与模型的选择浮层（3.7）、输入框外壳（`rounded-xl shadow-sm`）、lg 主按钮 |
+| 新会话页 | `text-display` 标题、workspace 与模型的选择浮层（3.7）、输入框外壳（`rounded-2xl shadow-sm`） |
 | 对话页顶栏 | `text-title` 标题 + `text-small fg-subtle` 的 workspace；状态徽标（3.3）；定时任务、权限、Context 面板开关为 md 图标按钮（开启时 `active`） |
 | 对话流 | 3.1、3.2 |
-| 输入框 | `bg-raised border-line-strong rounded-xl shadow-sm`；运行中右侧主按钮变为 `Stop`（次要样式 + square 图标），输入内容时为 `Send`（追加）；等待用户时上方提示 |
-| Context 面板 | `bg-sidebar`，3.9 |
+| 输入框 | `bg-raised border-line rounded-2xl shadow-sm`，聚焦时 `border-line-strong shadow-md`（不用强调色）；宽度与对话列相同（`max-w-thread px-6`）；运行中右侧主按钮变为 `Stop`（次要样式 + square 图标），输入内容时为 `Send`（追加）；等待用户时上方提示 |
+| Context 面板 | 屏幕面板内右侧，`bg-canvas border-l`，40px 标题栏，3.9 |
 | Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
 | Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |
 | 对话框 | 3.7 对话框 + 3.5 表单：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方 |
