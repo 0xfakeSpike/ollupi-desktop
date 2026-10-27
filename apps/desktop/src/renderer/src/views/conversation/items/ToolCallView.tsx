@@ -26,7 +26,7 @@ import type { ReactNode } from 'react'
 import { openThread } from '../../../domains/conversation'
 import { usePendingRequest, useThreadRequests, type PendingRequest } from '../../../domains/requests'
 import { CodeBlock } from '../../common/Markdown'
-import { MemoryGroup } from './SystemItems'
+import { MemoryGroups } from './SystemItems'
 import { ApprovalCard } from '../../requests/ApprovalCard'
 import { QuestionsCard } from '../../requests/QuestionsCard'
 
@@ -137,18 +137,10 @@ function ShellDetails({ item }: { item: ItemRow }) {
   )
 }
 
-/** What memory_search found, by scope: each memory carries its workspace,
- * or none if global. */
+/** What memory_search found, by the scope each memory carries. */
 function SearchResults({ memories }: { memories: MemoryReference[] }) {
   if (memories.length === 0) return <div className="text-xs text-fg-subtle">No memories matched.</div>
-  const global = memories.filter((m) => !m.workspaceId)
-  const workspace = memories.filter((m) => m.workspaceId)
-  return (
-    <>
-      {global.length > 0 && <MemoryGroup title="Global" memories={global} />}
-      {workspace.length > 0 && <MemoryGroup title="This workspace" memories={workspace} />}
-    </>
-  )
+  return <MemoryGroups memories={memories} />
 }
 
 function ArgumentsAndResult({ item }: { item: ItemRow }) {

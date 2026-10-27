@@ -1,4 +1,4 @@
-import type { ItemRow, MemoryReference } from '@ollupi/protocol'
+import type { ItemRow, MemoryReference, MemoryScope } from '@ollupi/protocol'
 import { Callout, Disclosure } from '@ollupi/ui'
 import { Brain, TriangleAlert } from 'lucide-react'
 
@@ -13,12 +13,10 @@ export function CompactionMarker() {
 }
 
 /** The memory snapshot the conversation works with from here until its
- * next compaction: the global memories and the workspace's. */
+ * next compaction: the global memories and its own scope's. */
 export function MemoryContext({ item }: { item: ItemRow }) {
   const memories = item.memory ?? []
   if (memories.length === 0) return null
-  const global = memories.filter((m) => !m.workspaceId)
-  const workspace = memories.filter((m) => m.workspaceId)
   return (
     <Disclosure
       summary={
@@ -28,14 +26,29 @@ export function MemoryContext({ item }: { item: ItemRow }) {
       }
     >
       <div className="flex flex-col gap-3 border-l-2 border-line pl-3">
-        {global.length > 0 && <MemoryGroup title="Global" memories={global} />}
-        {workspace.length > 0 && <MemoryGroup title="This workspace" memories={workspace} />}
+        <MemoryGroups memories={memories} />
       </div>
     </Disclosure>
   )
 }
 
-export function MemoryGroup({ title, memories }: { title: string; memories: MemoryReference[] }) {
+/** How a conversation names a scope of its memories: global, and its own,
+ * which is its workspace or general without one. */
+export const scopeTitle: Record<MemoryScope, string> = {
+  global: 'Global',
+  general: 'Outside workspaces',
+  workspace: 'This workspace',
+}
+
+/** Memories a conversation sees, by the scope each carries. */
+export function MemoryGroups({ memories }: { memories: MemoryReference[] }) {
+  return (Object.keys(scopeTitle) as MemoryScope[]).map((scope) => {
+    const inScope = memories.filter((m) => m.scope === scope)
+    return inScope.length > 0 && <MemoryGroup key={scope} title={scopeTitle[scope]} memories={inScope} />
+  })
+}
+
+function MemoryGroup({ title, memories }: { title: string; memories: MemoryReference[] }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="text-[11px] text-fg-subtle">{title}</div>
