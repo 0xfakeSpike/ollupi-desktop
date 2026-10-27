@@ -19,7 +19,7 @@
 
 从上到下越来越安静：
 
-1. **需要你**：审批、提问。全界面唯一"浮起来"的东西（阴影 + 状态色条）。同时在对话流之外有回响：侧栏会话圆点、顶栏徽标、输入框提示 "Waiting for your answer"。
+1. **需要你**：审批、提问。全界面唯一"浮起来"的东西（阴影 + 一圈淡淡的状态色描边）。同时在对话流之外有回响：侧栏会话圆点、顶栏徽标、输入框提示 "Waiting for your answer"。
 2. **对话内容**：用户消息、agent 的最终回复。`fg`、`text-body`，是页面的主体。
 3. **过程**：推理、工具调用、子代理、计划。`fg-muted`、`text-ui`，每项一行，默认折叠。一轮结束后整段过程收成一行摘要（"Worked for 42s · 6 commands · 2 files changed"），展开见全部；运行中保持展开，让人看到当前在做什么。
 4. **系统**：压缩、记忆载入。`fg-subtle`、`text-small`，一行或一条分隔线。token 用量不进对话流，只在 Context 面板。
@@ -27,11 +27,12 @@
 ### 1.3 克制与强调
 
 - **主按钮是墨色（ink）**：浅色主题里近黑、深色主题里近白。颜色不承担"这是主操作"的意思，位置和墨色承担。
-- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户的信号（侧栏圆点、顶栏徽标、提问块色条）。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
+- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户的信号（侧栏圆点、顶栏徽标、提问块描边）。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
 - **成功是常态，不着色。** 工具成功、任务完成不显示绿色；只有失败、等待、被拒才有标记。例外：diff 的 `+12 −3`。
 - **粗体（600）** 只给标题和按钮。正文里的强调交给 Markdown 本身。500 用于导航选中项、标签、列表行的主名称。
 - **底色** 只表示"这是一块独立的内容"（代码、输出、用户消息、设置列表），不表示状态。
-- **状态色** 只出现在图标、文字、2px 色条和 soft 徽标上，不做块的整体底色或边框。
+- **状态色** 只出现在图标、文字、行动块的淡色描边和 soft 徽标上，不做块的底色。
+- **不用单侧色条**：圆角卡片上的左侧（或顶部）色条会被圆角裁成弧形，又和图标重复表达同一件事。单侧的线只用作结构线（引用块、展开内容的引导线），直角、中性色。
 - **边框** 一律 1px：`line` 做分隔和普通轮廓，`line-strong` 做输入框和需要用户行动的块。
 
 ---
@@ -436,11 +437,11 @@
 | token | 用于 |
 |---|---|
 | `ink` / `ink-fg` | 主按钮、发送按钮 |
-| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；用量条里的对话部分；提问块的色条和图标；"等待你"的圆点和徽标 |
+| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；用量条里的对话部分；提问块的描边和图标；"等待你"的圆点和徽标 |
 | `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
 | `success` | diff 的 `+n`；用量条之外几乎不用。成功默认不着色 |
-| `warning` | 普通审批的色条和图标；用量接近自动压缩点；可恢复的提醒 |
+| `warning` | 普通审批的描边和图标；用量接近自动压缩点；可恢复的提醒 |
 | `danger` / `danger-fg` | 失败（图标、退出码、错误文字）；沙箱外/不可逆审批；危险按钮；diff 的 `−m` |
 | `*-soft` | 只做徽标的底，或 toast/错误块里图标后面的小块底，面积不超过一行 |
 
@@ -555,7 +556,7 @@ agent 产出的每一块都用同一个骨架：
 |---|---|---|
 | **L0 行** | 无底无框；`text-ui` `fg-muted`；悬停时整行 `hover` 底、`rounded-md`；可点击展开 | 推理、工具调用、文件改动、子代理、记忆载入、一轮的过程摘要 |
 | **L1 块** | `bg-surface` `rounded-lg` `p-3`，无边框无阴影 | 代码块、展开后的工具输出、计划、Markdown 表格、用户消息气泡（`rounded-xl`） |
-| **L2 行动** | `bg-raised` `border border-line-strong` `rounded-lg` `shadow-sm` `p-3`，左侧 2px 状态色条（`border-l-2` 用状态色或内嵌一条绝对定位的色条） | 审批、提问 |
+| **L2 行动** | `bg-raised` `rounded-lg` `shadow-sm` `p-3`，1px 整圈描边用状态色的 45%（`border-accent/45`、`border-warning/45`、`border-danger/45`） | 审批、提问 |
 
 ```
 L0  ⌄ Thought for 3.8s
@@ -568,9 +569,11 @@ L1  ┌────────────────────────�
     │ FAIL src/foo.test.ts …               │
     └──────────────────────────────────────┘
 
-L2  ┃ ? Which branch should I base this on? │   raised 底 + 阴影 + 色条
-    ┃   ○ main                              │
-    ┃   ● release/1.4                       │
+L2  ╭──────────────────────────────────────╮
+    │ ? Which branch should I base this on?│   raised 底 + 阴影 + 淡色描边
+    │   ○ main                             │
+    │   ● release/1.4                      │
+    ╰──────────────────────────────────────╯
 ```
 
 | 内容 | 形态 | 折叠时 | 展开后 |
@@ -592,9 +595,9 @@ L2  ┃ ? Which branch should I base this on? │   raised 底 + 阴影 + 色条
 
 ### 3.2 需要用户行动的块
 
-醒目靠"浮起来"，不靠满底颜色。色条和图标的颜色就是危险分级：
+醒目靠"浮起来"，不靠满底颜色。描边和图标的颜色就是危险分级：
 
-| 级别 | 色条 / 图标 | 标题 | 按钮（从右到左） |
+| 级别 | 描边 / 图标 | 标题 | 按钮（从右到左） |
 |---|---|---|---|
 | 提问 | accent | 问题本身 | `Submit`（主） |
 | 普通审批：写文件、跑命令、调用 MCP | warning | "Run this command?" / "Edit 3 files?" / "Call `github.create_issue`?" | `Allow once`（主）· `Allow for this session`（次）· `Deny`（幽灵） |
@@ -630,7 +633,7 @@ L2  ┃ ? Which branch should I base this on? │   raised 底 + 阴影 + 色条
 | 状态 | 表达 |
 |---|---|
 | 进行中 | shimmer 文字或 14px spinner，`fg-subtle`，**不着色**；侧栏里 spinner 代替时间 |
-| 等待用户 | accent（圆点、徽标、色条）；普通审批的块用 warning 色条，但侧栏圆点和顶栏徽标统一用 accent，表示"轮到你了" |
+| 等待用户 | accent（圆点、徽标、描边）；普通审批的块用 warning 描边，但侧栏圆点和顶栏徽标统一用 accent，表示"轮到你了" |
 | 完成 | 默认无标记 |
 | 失败 | danger（图标、文字、圆点） |
 | 被拒绝 | ban 图标 + "Denied"，`fg-muted`。拒绝是用户的选择，不是错误，**不用红色** |
@@ -767,8 +770,8 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | `Callout icon={…}` | 去掉：图标由 `tone` 决定 |
 | Switch 圆钮 `bg-white` | `bg-knob` |
 | 侧栏选中的 `bg-hover` | `bg-selected` |
-| 提问卡片 `border-accent/30 bg-accent-soft/40` | L2：`bg-raised border-line-strong shadow-sm` + accent 色条 |
-| 审批卡片的黄色底 | L2 + warning 色条（沙箱外为 danger） |
+| 提问卡片 `border-accent/30 bg-accent-soft/40` | L2：`bg-raised shadow-sm` + accent 淡色描边 |
+| 审批卡片的黄色底 | L2 + warning 淡色描边（沙箱外为 danger） |
 | Button `sm` `h-7` / `md` `h-8` | `sm` `h-6` / `md` `h-7` / 新增 `lg` `h-8` |
 | IconButton `size-6` / `size-8` | `size-6` / `size-7` |
 | `apps/desktop/src/renderer/src/styles.css` 里 `body { font-size: 14px }` | 改为 13px，行高 20px（界面默认是 `text-ui`）；`.markdown` 加 `font-size: 14px; line-height: 23px` |

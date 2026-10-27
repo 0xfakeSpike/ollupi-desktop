@@ -109,7 +109,7 @@ export function Block({ label, actions, children, className }: BlockProps) {
 /** accent asks, warning confirms a change, danger crosses a safety line. */
 export type ActionTone = 'accent' | 'warning' | 'danger'
 
-const strips: Record<ActionTone, string> = { accent: 'bg-accent', warning: 'bg-warning', danger: 'bg-danger' }
+const outlines: Record<ActionTone, string> = { accent: 'border-accent/45', warning: 'border-warning/45', danger: 'border-danger/45' }
 const icons: Record<ActionTone, string> = { accent: 'text-accent', warning: 'text-warning', danger: 'text-danger' }
 
 export interface ActionCardProps {
@@ -127,18 +127,18 @@ export interface ActionCardProps {
 }
 
 /** What waits on the user. The only thing in the flow that floats: raised,
- * shadowed, with the tone as a strip down its left edge. */
+ * shadowed, outlined in a tint of its tone. */
 export function ActionCard({ tone, icon, title, children, actions, status, className }: ActionCardProps) {
   const titleId = useId()
   return (
     <section
       aria-labelledby={titleId}
       className={cn(
-        'relative flex animate-enter flex-col gap-3 overflow-hidden rounded-lg border border-line-strong bg-raised p-3 pl-4 shadow-sm motion-reduce:animate-fade',
+        'flex animate-enter flex-col gap-3 rounded-lg border bg-raised p-3 shadow-sm motion-reduce:animate-fade',
+        outlines[tone],
         className,
       )}
     >
-      <span aria-hidden className={cn('absolute inset-y-0 left-0 w-0.5', strips[tone])} />
       <div className="flex items-start gap-2">
         <span className={cn('mt-0.5 flex shrink-0', icons[tone])}>{icon}</span>
         <h3 id={titleId} className="min-w-0 flex-1 text-ui font-medium text-fg">
