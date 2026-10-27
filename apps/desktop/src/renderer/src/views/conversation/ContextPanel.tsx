@@ -22,15 +22,18 @@ import { useState, type ReactNode } from 'react'
 import { toggleContextPanel } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 
-// Labels are the catalog's context.parts, by key. Steps of ink tell the
-// fixed parts apart; the conversation itself, the part that grows, is the
-// one in accent.
+// Labels are the catalog's context.parts, by key. Each part keeps its own
+// chart colour whatever its size or place; one holding less than
+// COLOURED_SHARE of the prompt is too thin to find in the bar and shows gray.
 const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; color: string }[] = [
-  { key: 'system', color: 'bg-fg/25' },
-  { key: 'tools', color: 'bg-fg/45' },
-  { key: 'messages', color: 'bg-accent' },
-  { key: 'memory', color: 'bg-fg/70' },
+  { key: 'messages', color: 'bg-chart-1' },
+  { key: 'tools', color: 'bg-chart-2' },
+  { key: 'system', color: 'bg-chart-3' },
+  { key: 'memory', color: 'bg-chart-4' },
 ]
+const COLOURED_SHARE = 0.05
+const SMALL = 'bg-fg/30'
+const FREE = 'bg-fg/10'
 
 export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
   const calls = timeline ? modelCalls(timeline) : []
@@ -77,11 +80,17 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 const percent = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
+/** A share to one decimal, for the parts of a prompt. */
+const share = (n: number, of: number) => `${of > 0 ? ((n / of) * 100).toFixed(1) : '0.0'}%`
 
 type Part = (typeof parts)[number]['key']
 
 function Overview({ use, connection, details }: { use: ContextUse; connection: string; details: Partial<Record<Part, ReactNode>> }) {
   const t = useT().conversation.context
+  // Largest first, in the bar and its legend alike.
+  const present = parts.filter((p) => use[p.key] > 0).sort((a, b) => use[b.key] - use[a.key])
+  const colorOf = (p: (typeof parts)[number]) => (use[p.key] >= use.used * COLOURED_SHARE ? p.color : SMALL)
+  const free = Math.max(0, use.budget - use.used)
   return (
     <Section title={t.lastPrompt} hint={t.lastPromptHint(use.calibrated)}>
       <div className="flex items-baseline justify-between">
@@ -91,10 +100,17 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
         </span>
       </div>
       <div className="relative">
-        <div className="flex h-2 overflow-hidden rounded-full bg-hover" role="img" aria-label={t.windowUsed(percent(use.used, use.budget))}>
-          {parts.map((p) => (
-            <div key={p.key} className={p.color} style={{ width: `${(use[p.key] / Math.max(use.budget, use.used)) * 100}%` }} />
+        {/* Segments sit 2px apart so neighbours read apart without relying on hue. */}
+        <div className="flex h-2 gap-0.5" role="img" aria-label={t.windowUsed(percent(use.used, use.budget))}>
+          {present.map((p) => (
+            <div
+              key={p.key}
+              title={`${t.parts[p.key]} · ${formatTokens(use[p.key])}`}
+              className={cn('min-w-0.5 rounded-sm', colorOf(p))}
+              style={{ width: `${(use[p.key] / Math.max(use.budget, use.used)) * 100}%` }}
+            />
           ))}
+          {free > 0 && <div title={`${t.free} · ${formatTokens(free)}`} className={cn('min-w-0 flex-1 rounded-sm', FREE)} />}
         </div>
         <CompactMark at={use.compactAt} of={use.budget} className="-top-1 h-4" />
       </div>
@@ -110,18 +126,11 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
         </span>
       </div>
       <div className="selectable font-mono text-small text-fg-subtle">{connection}</div>
-      <ul className="flex flex-col gap-1">
-        {parts.map((p) =>
-          p.key === 'memory' && use.memory === 0 ? null : (
-            <PartRow key={p.key} label={t.parts[p.key]} color={p.color} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
-          ),
-        )}
-        <li className="flex items-center gap-2 text-small">
-          <span className="size-2 rounded-sm bg-hover" />
-          <span className="flex-1 text-fg-muted">{t.free}</span>
-          <span className="text-fg tabular-nums">{formatTokens(Math.max(0, use.budget - use.used))}</span>
-          <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(Math.max(0, use.budget - use.used), use.budget)}%</span>
-        </li>
+      <ul className="flex flex-col">
+        {present.map((p) => (
+          <PartRow key={p.key} label={t.parts[p.key]} color={colorOf(p)} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
+        ))}
+        <PartRow label={t.free} color={FREE} tokens={free} budget={use.budget} details={undefined} />
       </ul>
     </Section>
   )
@@ -132,23 +141,23 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
   const [open, setOpen] = useState(false)
   const row = (
     <>
-      <span className={cn('size-2 shrink-0 rounded-sm', color)} />
-      <span className="flex flex-1 items-center gap-1 text-fg-muted">
+      <span className={cn('size-3.5 shrink-0 rounded-sm', color)} />
+      <span className="flex flex-1 items-center gap-1 text-fg">
         {label}
         {details && <ChevronRight size={14} className={cn('text-fg-subtle transition-transform duration-160 ease-standard', open && 'rotate-90')} />}
       </span>
-      <span className="text-fg tabular-nums">{formatTokens(tokens)}</span>
-      <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(tokens, budget)}%</span>
+      <span className="text-fg-subtle tabular-nums">{formatTokens(tokens)}</span>
+      <span className="w-12 text-right text-fg tabular-nums">{share(tokens, budget)}</span>
     </>
   )
-  if (!details) return <li className="flex items-center gap-2 text-small">{row}</li>
+  if (!details) return <li className="flex h-7 items-center gap-2 text-ui">{row}</li>
   return (
     <li className="flex flex-col">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="-mx-1.5 flex items-center gap-2 rounded-md px-1.5 text-left text-small transition-colors duration-100 ease-standard hover:bg-hover"
+        className="-mx-1.5 flex h-7 items-center gap-2 rounded-md px-1.5 text-left text-ui transition-colors duration-100 ease-standard hover:bg-hover"
       >
         {row}
       </button>

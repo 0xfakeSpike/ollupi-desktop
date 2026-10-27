@@ -113,6 +113,10 @@
   --color-danger: var(--ol-danger);
   --color-danger-fg: var(--ol-danger-fg);
   --color-danger-soft: var(--ol-danger-soft);
+  --color-chart-1: var(--ol-chart-1);
+  --color-chart-2: var(--ol-chart-2);
+  --color-chart-3: var(--ol-chart-3);
+  --color-chart-4: var(--ol-chart-4);
 
   --font-sans: var(--ol-font-sans);
   --font-mono: var(--ol-font-mono);
@@ -406,6 +410,13 @@
   --ol-danger: #d8323d;
   --ol-danger-fg: #ffffff;
   --ol-danger-soft: rgb(216 50 61 / 0.08);
+  /* Categorical chart colours, in this order: the dataviz reference palette's
+     first four slots (blue, orange, aqua, yellow), validated for colour-blind
+     separation on the light and dark canvas. Shared by every palette. */
+  --ol-chart-1: #2a78d6;
+  --ol-chart-2: #eb6834;
+  --ol-chart-3: #1baf7a;
+  --ol-chart-4: #eda100;
 }
 
 /* In the dark the panel sits darker than the ground around it, and the
@@ -430,6 +441,10 @@
     --ol-danger: #f2615f;
     --ol-danger-fg: #ffffff;
     --ol-danger-soft: rgb(242 97 95 / 0.13);
+    --ol-chart-1: #3987e5;
+    --ol-chart-2: #d95926;
+    --ol-chart-3: #199e70;
+    --ol-chart-4: #c98500;
   }
 }
 ```
@@ -474,12 +489,13 @@
 | token | 用于 |
 |---|---|
 | `ink` / `ink-fg` | 主按钮、发送按钮 |
-| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；用量条里的对话部分；提问块的描边和图标；"等待你"的圆点和徽标 |
+| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"的圆点和徽标 |
 | `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
 | `success` | diff 的 `+n`；用量条之外几乎不用。成功默认不着色 |
 | `warning` | 普通审批的描边和图标；用量接近自动压缩点；可恢复的提醒 |
 | `danger` / `danger-fg` | 失败（图标、退出码、错误文字）；沙箱外/不可逆审批；危险按钮；diff 的 `−m` |
+| `chart-1`…`chart-4` | 图表的分类色（Context 面板的组成部分），见 3.9；不用于界面状态 |
 | `*-soft` | 只做徽标的底，或 toast/错误块里图标后面的小块底，面积不超过一行 |
 
 ### 2.3 字号
@@ -536,7 +552,7 @@
 | `rounded-lg` | 8 | 对话流里的块（代码块、工具输出、计划、行动块）、列表卡片 |
 | `rounded-xl` | 12 | 屏幕面板、对话框、菜单浮层、toast |
 | `rounded-2xl` | 16 | 输入框外壳（Composer）、用户消息气泡、排队中的消息 |
-| `rounded-full` | — | 圆点、开关、用量条、头像 |
+| `rounded-full` | — | 圆点、开关、头像 |
 
 - 嵌套时，内圆角 = 外圆角 − 内边距；内边距 ≥ 外圆角时内层可以是直角。
 - 不用无后缀的 `rounded`。
@@ -755,7 +771,9 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 
 - **数字**：`tabular-nums`，列内右对齐。主值 `fg`，单位和分母 `fg-subtle`：`182.4k` `/ 200k`。
 - **键值行**：左边标签 `text-small fg-muted`，右边值 `text-small fg`，行距 6，不画分隔线。分组之间用 `border-t border-line` + 16 间距，组标题 `text-small font-medium fg-subtle`。
-- **用量条**：高 6、`rounded-full`、底色 `hover`。组成部分用中性灰的几级（`fg` 不同透明度：60% / 40% / 25% / 15%）区分，**不用彩虹色**；只有"本次调用"之类需要突出的部分用 accent。自动压缩点画成一根 1px 的竖刻度（`fg-subtle`）。用量超过压缩点的 80% 时，填充变成 warning。图例在条下方：色块 8px `rounded-sm` + 名称 + 数值。
+- **用量条**：高 8，各段 `rounded-sm`、彼此隔 2px（不靠颜色也能分开），按大小从左到右排，剩余空间是最后一段 `fg` 10%。自动压缩点画成一根竖刻度（`fg-muted`）。
+- **组成部分的颜色**：分类色 `chart-1`…`chart-4`（蓝、橙、青、黄；dataviz 参考色板的前四位，浅色、深色各自验证过色盲区分），所有配色方案共用，不跟随主题色。颜色跟着部分走、不跟名次：消息 `chart-1`、工具定义 `chart-2`、系统提示词 `chart-3`、记忆 `chart-4`。占本次提示词不到 5% 的部分细得在条上找不到，改用中性灰（`fg` 30%），所以醒目的颜色只留给占比大的部分。
+- **图例**：条下方每部分一行，高 28、`text-ui`：14px 方块色块（`size-3.5 rounded-sm`，不用圆点）、名称 `fg`、token 数 `fg-subtle`、占比 `fg` 保留一位小数。顺序与条一致。浅色模式里青、黄对白底不足 3:1，所以图例的文字和数值必须一直显示。
 - **格式**
   - token：`950`、`1.2k`、`182k`、`1.2M`（≥10k 不留小数）
   - 时长：`820ms`、`3.8s`、`1m 12s`

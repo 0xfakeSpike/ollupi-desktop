@@ -59,6 +59,10 @@
   --color-danger: var(--ol-danger);
   --color-danger-fg: var(--ol-danger-fg);
   --color-danger-soft: var(--ol-danger-soft);
+  --color-chart-1: var(--ol-chart-1);
+  --color-chart-2: var(--ol-chart-2);
+  --color-chart-3: var(--ol-chart-3);
+  --color-chart-4: var(--ol-chart-4);
 
   --font-sans: var(--ol-font-sans);
   --font-mono: var(--ol-font-mono);
@@ -352,6 +356,13 @@
   --ol-danger: #d8323d;
   --ol-danger-fg: #ffffff;
   --ol-danger-soft: rgb(216 50 61 / 0.08);
+  /* Categorical chart colours, in this order: the dataviz reference palette's
+     first four slots (blue, orange, aqua, yellow), validated for colour-blind
+     separation on the light and dark canvas. Shared by every palette. */
+  --ol-chart-1: #2a78d6;
+  --ol-chart-2: #eb6834;
+  --ol-chart-3: #1baf7a;
+  --ol-chart-4: #eda100;
 }
 
 /* In the dark the panel sits darker than the ground around it, and the
@@ -376,5 +387,9 @@
     --ol-danger: #f2615f;
     --ol-danger-fg: #ffffff;
     --ol-danger-soft: rgb(242 97 95 / 0.13);
+    --ol-chart-1: #3987e5;
+    --ol-chart-2: #d95926;
+    --ol-chart-3: #199e70;
+    --ol-chart-4: #c98500;
   }
 }
