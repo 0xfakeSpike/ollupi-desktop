@@ -2,9 +2,9 @@
 // may use. Handlers validate their input; the renderer gets no general shell
 // access.
 
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { isAbsolute, join } from 'node:path'
-import { IpcChannel, type AppInfo, type BackendState, type ConfigChange } from '../shared/ipc'
+import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type ColorScheme, type ConfigChange } from '../shared/ipc'
 import type { BackendConfig } from './backend/config'
 import type { BackendSupervisor } from './backend/supervisor'
 
@@ -25,6 +25,10 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, h
     if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('expected an absolute path')
     const err = await shell.openPath(path)
     if (err) throw new Error(err)
+  })
+  ipcMain.handle(IpcChannel.SetColorScheme, (_event, scheme: unknown) => {
+    if (!colorSchemes.includes(scheme as ColorScheme)) throw new Error('expected system, light or dark')
+    nativeTheme.themeSource = scheme as ColorScheme
   })
 
   backend.on('state', (state: BackendState) => {
