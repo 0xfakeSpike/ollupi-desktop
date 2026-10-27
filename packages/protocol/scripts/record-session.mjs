@@ -2,8 +2,9 @@
 // tests. It builds the sidecar against the current ollupi, starts it with
 // the scripted mock model on a throwaway home, and drives one session that
 // exercises every message kind the UI handles: streaming, an approval, a
-// question, a plan, a scheduled task created by the model, a subagent,
-// queued turns, the cron, workspace, memory and permission methods, and an
+// question, a plan, a scheduled task created by the model, a subagent, an
+// MCP tool call (mock-mcp.mjs, beside a server that cannot start), queued
+// turns, the cron, workspace, memory, MCP and permission methods, and an
 // error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
 // with its direction.
@@ -57,6 +58,12 @@ permissions:
 shell:
   enabled: true
   sandbox_mode: workspace-write
+mcp:
+  - name: mock
+    command: node
+    args: [${JSON.stringify(join(here, 'mock-mcp.mjs'))}]
+  - name: broken
+    command: ollupi-no-such-mcp-command
 memory:
   use: true
   generate: false
@@ -133,6 +140,7 @@ await call('initialize', { clientInfo: { name: 'record-session', version: '0' } 
 send({ jsonrpc: '2.0', method: 'initialized', params: {} })
 await call('model/list', {})
 await call('tool/list', {})
+await call('mcpServer/list', {})
 const { workspace: ws1 } = await call('workspace/add', { path: workspace })
 await call('workspace/rename', { workspaceId: ws1.id, name: 'Demo' })
 await call('workspace/list', {})
@@ -144,6 +152,7 @@ await turn(thread.id, 'please ask me which language')
 await turn(thread.id, 'make a plan')
 await turn(thread.id, 'please schedule a morning brief')
 await turn(thread.id, 'delegate the weather check')
+await turn(thread.id, 'use the mcp echo tool')
 
 // Two messages at once: the second waits as a queued turn.
 const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of two' }] })

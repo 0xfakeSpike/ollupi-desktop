@@ -1,7 +1,7 @@
 // Package config is the backend's configuration file, <home>/config.yaml:
 // the agent-level settings ollupi takes once at start (models and the APIs
-// that serve them, default permissions, the shell tool, memory, slots). It
-// only describes; host turns it into running components.
+// that serve them, default permissions, the shell tool, MCP servers, memory,
+// slots). It only describes; host turns it into running components.
 package config
 
 import (
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
@@ -31,10 +32,13 @@ type Config struct {
 	Tools       []string    `json:"tools,omitempty"`
 	Permissions Permissions `json:"permissions"`
 	// Slots caps how many threads run at once; 0 uses ollupi's default.
-	Slots     int    `json:"slots,omitempty"`
-	Shell     Shell  `json:"shell"`
-	Memory    Memory `json:"memory"`
-	SkillsDir string `json:"skills_dir,omitempty"`
+	Slots int   `json:"slots,omitempty"`
+	Shell Shell `json:"shell"`
+	// MCP are the MCP servers whose tools the agent gets, as
+	// <name>__<tool>. One that cannot start is skipped.
+	MCP       []MCPServer `json:"mcp,omitempty"`
+	Memory    Memory      `json:"memory"`
+	SkillsDir string      `json:"skills_dir,omitempty"`
 }
 
 // Provider is one OpenAI-compatible API and the models it serves. Its name
@@ -132,6 +136,63 @@ type Memory struct {
 	// Model is the ID of the model that extracts memories; required when
 	// Generate is on. It shares that model's client and Calls.
 	Model string `json:"model,omitempty"`
+}
+
+// MCPServer is one MCP server: a command run over stdio, or a streamable
+// HTTP URL. ollupi validates the rest (the name, one transport) and skips a
+// server it cannot use. Env and header values may name environment
+// variables as ${NAME}, so secrets stay out of this file; a command also
+// inherits the backend's environment.
+type MCPServer struct {
+	Name    string            `json:"name"`
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	URL     string            `json:"url,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
+
+var variable = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+// Expand replaces each ${NAME} in s with that environment variable, which
+// must be set.
+func Expand(s string) (string, error) {
+	var missing string
+	out := variable.ReplaceAllStringFunc(s, func(ref string) string {
+		name := variable.FindStringSubmatch(ref)[1]
+		v, ok := os.LookupEnv(name)
+		if !ok && missing == "" {
+			missing = name
+		}
+		return v
+	})
+	if missing != "" {
+		return "", fmt.Errorf("environment variable %s is not set", missing)
+	}
+	return out, nil
+}
+
+// Redacted is the server without values that may be secrets: an env or
+// header value that names no variable is written in the file, so it is
+// emptied. One built from ${NAME} references stays, since it names where
+// the secret is, not the secret.
+func (s MCPServer) Redacted() MCPServer {
+	redact := func(m map[string]string) map[string]string {
+		if m == nil {
+			return nil
+		}
+		out := make(map[string]string, len(m))
+		for k, v := range m {
+			if variable.MatchString(v) {
+				out[k] = v
+			} else {
+				out[k] = ""
+			}
+		}
+		return out
+	}
+	s.Env, s.Headers = redact(s.Env), redact(s.Headers)
+	return s
 }
 
 // Key resolves the provider's API key: the literal value, else the named

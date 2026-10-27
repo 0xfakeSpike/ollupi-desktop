@@ -50,6 +50,20 @@ export interface ConfigCheck {
       env_passthrough?: null | string[];
       max_output_bytes?: number;
     };
+    mcp?:
+      | null
+      | {
+          name: string;
+          command?: string;
+          args?: null | string[];
+          env?: {
+            [k: string]: string | undefined;
+          };
+          url?: string;
+          headers?: {
+            [k: string]: string | undefined;
+          };
+        }[];
     memory: {
       use: boolean;
       generate: boolean;

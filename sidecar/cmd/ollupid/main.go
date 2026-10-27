@@ -67,7 +67,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err != nil {
 		return err
 	}
-	h, err := host.New(host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins})
+	h, err := host.New(host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Version: version()})
 	if err != nil {
 		return err
 	}
@@ -96,9 +96,9 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 }
 
 // checkResult is --check-config's output: the config as the backend decodes
-// it (defaults applied, paths resolved, API keys left out) with its models
-// as the app selects them and where each provider's key comes from, or why
-// it would not start.
+// it (defaults applied, paths resolved, API keys and the MCP env and header
+// values written in the file left out) with its models as the app selects
+// them and where each provider's key comes from, or why it would not start.
 type checkResult struct {
 	OK     bool              `json:"ok"`
 	Config *config.Config    `json:"config,omitempty"`
@@ -118,6 +118,9 @@ func check(path, home string) int {
 		keys := cfg.KeyRefs()
 		for i := range cfg.Models {
 			cfg.Models[i].APIKey = ""
+		}
+		for i := range cfg.MCP {
+			cfg.MCP[i] = cfg.MCP[i].Redacted()
 		}
 		out = checkResult{OK: true, Config: &cfg, Models: cfg.ModelRefs(), Keys: keys}
 	}

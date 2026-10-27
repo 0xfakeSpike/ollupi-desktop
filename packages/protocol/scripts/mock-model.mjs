@@ -3,7 +3,8 @@
 // testing). The last user message picks the reply: "run ..." asks for an
 // escalated run_command (needs approval), "ask" calls request_user_input,
 // "plan" calls update_plan, "schedule" creates a scheduled task, "delegate"
-// starts a subagent; anything else streams markdown. After a tool result it
+// starts a subagent, "mcp" calls the mock MCP server's echo tool
+// (mock-mcp.mjs); anything else streams markdown. After a tool result it
 // streams a short summary.
 //
 //   PORT=18080 node scripts/mock-model.mjs
@@ -83,6 +84,9 @@ http
     } else if (/delegate/i.test(userText)) {
       await stream('content', 'Handing this to a subagent.')
       await call('Agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })
+    } else if (/mcp/i.test(userText)) {
+      await stream('content', 'Asking the MCP server.')
+      await call('mock__echo', { text: 'hello from the MCP server' })
     } else if (/plan/i.test(userText)) {
       await call('update_plan', {
         explanation: 'Breaking the work down.',

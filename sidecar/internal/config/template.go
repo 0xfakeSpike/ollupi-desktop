@@ -47,6 +47,18 @@ shell:
   command_timeout_sec: 60
   network: false
 
+# MCP servers: a command run over stdio, or an HTTP URL. Their tools appear
+# as <name>__<tool>; a server that cannot start is skipped. Write secrets in
+# env and header values as ${NAME}, a variable from your login shell; a
+# command also inherits that environment.
+# mcp:
+#   - name: filesystem
+#     command: npx
+#     args: [-y, "@modelcontextprotocol/server-filesystem", /path/to/dir]
+#   - name: github
+#     url: https://api.githubcopilot.com/mcp/
+#     headers: { Authorization: "Bearer ${GITHUB_TOKEN}" }
+
 # Learning extracts memories from finished turns with one of the models
 # above (provider/name), sharing its calls; recall puts them in context.
 memory:

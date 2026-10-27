@@ -1,6 +1,7 @@
 // Package host assembles one ollupi backend from a Config, following the
 // assembly ollupi's README describes: the database, one model client per
-// endpoint, the tool providers, memory, cron, the agent and the gateway. It
+// model, the tool providers (cron, shell, MCP servers), memory, the agent and
+// the gateway. It
 // owns their lifetimes: New builds everything without starting anything,
 // Start starts the agent and its sibling goroutines, Serve serves the gateway
 // until the context ends and then waits for every component to stop.
@@ -25,6 +26,7 @@ import (
 	"github.com/0xfakeSpike/ollupi/repo"
 	"github.com/0xfakeSpike/ollupi/tools"
 	"github.com/0xfakeSpike/ollupi/tools/cron"
+	"github.com/0xfakeSpike/ollupi/tools/mcp"
 	"github.com/0xfakeSpike/ollupi/tools/shell"
 )
 
@@ -38,6 +40,8 @@ type Options struct {
 	// AllowedOrigins are WebSocket origin patterns beyond loopback, e.g. the
 	// packaged renderer's app://ollupi.
 	AllowedOrigins []string
+	// Version is the backend's, which MCP servers see as the client's.
+	Version string
 }
 
 type Host struct {
@@ -86,6 +90,16 @@ func New(opts Options) (_ *Host, err error) {
 		providers = append(providers, runner)
 	}
 
+	servers, err := mcpServers(cfg.MCP)
+	if err != nil {
+		return nil, err
+	}
+	// Each server connects and lists its tools now; one that cannot is
+	// skipped, and the gateway reports why (mcpServer/list).
+	connected := mcp.Connect(context.Background(), mcp.Client{Name: "ollupi-desktop", Version: opts.Version}, servers)
+	h.closers = append(h.closers, connected.Close)
+	providers = append(providers, connected.Providers()...)
+
 	if h.memory, err = memoryManager(db, models, connections, cfg.Memory); err != nil {
 		return nil, err
 	}
@@ -110,6 +124,7 @@ func New(opts Options) (_ *Host, err error) {
 		AllowedOrigins: opts.AllowedOrigins,
 		Memory:         h.memory,
 		Jobs:           h.jobs,
+		MCP:            connected,
 	})
 	if err != nil {
 		return nil, err
@@ -148,17 +163,17 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 }
 
 // Check reports whether cfg would start: it assembles the backend as New
-// does and starts the agent, which is where ollupi validates the rest
-// (permission rules against the tool registry, each model's context budget),
-// against a throwaway database, then stops it. Nothing is served and the
-// real database is not opened.
+// does, MCP servers included, and starts the agent, which is where ollupi
+// validates the rest (permission rules against the tool registry, each
+// model's context budget), against a throwaway database, then stops it.
+// Nothing is served and the real database is not opened.
 func Check(home string, cfg config.Config) error {
 	data, err := os.MkdirTemp("", "ollupid-check-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(data)
-	h, err := New(Options{Home: home, DataHome: data, Token: "check", Config: cfg})
+	h, err := New(Options{Home: home, DataHome: data, Token: "check", Config: cfg, Version: "check"})
 	if err != nil {
 		return err
 	}
@@ -204,6 +219,39 @@ func modelClients(providers []config.Provider) ([]llm.Model, map[string]*llm.Ope
 		}
 	}
 	return models, clients, nil
+}
+
+// mcpServers resolves the ${NAME} references in env and header values. A
+// reference to a variable that is not set refuses the config, as an unset
+// api_key_env does: the server would otherwise run without its secret.
+func mcpServers(list []config.MCPServer) ([]mcp.Server, error) {
+	out := make([]mcp.Server, 0, len(list))
+	for _, s := range list {
+		expand := func(m map[string]string) (map[string]string, error) {
+			if m == nil {
+				return nil, nil
+			}
+			res := make(map[string]string, len(m))
+			for k, v := range m {
+				x, err := config.Expand(v)
+				if err != nil {
+					return nil, fmt.Errorf("mcp server %s: %s: %w", s.Name, k, err)
+				}
+				res[k] = x
+			}
+			return res, nil
+		}
+		env, err := expand(s.Env)
+		if err != nil {
+			return nil, err
+		}
+		headers, err := expand(s.Headers)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, mcp.Server{Name: s.Name, Command: s.Command, Args: s.Args, Env: env, URL: s.URL, Headers: headers})
+	}
+	return out, nil
 }
 
 func shellRunner(home string, cfg config.Config) (*shell.Runner, error) {

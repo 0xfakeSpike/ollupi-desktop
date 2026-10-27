@@ -6,11 +6,12 @@ import type { AppInfo } from '../../../../shared/ipc'
 import { renameWorkspace, setArchived, updateWorkspacePermissions, useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { desktop } from '../../platform/desktop'
+import { McpSection } from './McpSection'
 import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
 import { ToolsSection } from './ToolsSection'
 
-type Tab = 'general' | 'models' | 'tools' | 'workspaces'
+type Tab = 'general' | 'models' | 'mcp' | 'tools' | 'workspaces'
 
 const tabs: { id: Tab; label: string; description: string }[] = [
   { id: 'general', label: 'General', description: 'The ollupi backend the app runs, and where its data and config.yaml live.' },
@@ -18,6 +19,11 @@ const tabs: { id: Tab; label: string; description: string }[] = [
     id: 'models',
     label: 'Models',
     description: 'Grouped by the API that serves them; a model is selected as provider/name. Saving checks the change with the backend, then restarts it.',
+  },
+  {
+    id: 'mcp',
+    label: 'MCP',
+    description: 'MCP servers give the agent their tools as <name>__<tool>. The backend connects them at start and skips one it cannot use.',
   },
   { id: 'tools', label: 'Tools', description: 'What the agent can call. Permission rules name these tools.' },
   { id: 'workspaces', label: 'Workspaces', description: 'Project folders threads run in. Their permissions add to the agent defaults.' },
@@ -37,6 +43,7 @@ export function SettingsScreen() {
           <p className="text-xs text-fg-muted">{current.description}</p>
           {tab === 'general' && <General />}
           {tab === 'models' && <ModelsSection />}
+          {tab === 'mcp' && <McpSection />}
           {tab === 'tools' && <ToolsSection />}
           {tab === 'workspaces' && <Workspaces />}
         </section>
