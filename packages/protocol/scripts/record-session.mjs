@@ -55,6 +55,8 @@ models:
         limits: { context: 128000, output: 8000 }
 permissions:
   approval: on-request
+  # broken does not connect: the rule is kept and matches nothing.
+  deny: [broken__delete_everything]
 shell:
   enabled: true
   sandbox_mode: workspace-write
@@ -166,6 +168,8 @@ await call('cron/pause', { threadId: thread.id, name: 'hourly-check', paused: tr
 await call('cron/delete', { threadId: thread.id, name: 'hourly-check' })
 await call('thread/updatePermissions', { threadId: thread.id, approvalPolicy: 'never', permissions: { deny: ['run_command(rm:*)'] } })
 await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { ask: ['run_command'] } })
+// A new rule for a server that did not connect cannot be checked: refused.
+await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { ask: ['run_command', 'broken__new_tool'] } }).catch(() => {})
 await call('memory/status', {})
 await call('memory/list', {})
 await call('thread/list', { limit: 100 })
