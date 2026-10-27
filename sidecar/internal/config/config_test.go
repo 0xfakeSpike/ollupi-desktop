@@ -48,6 +48,30 @@ func TestKeyRefs(t *testing.T) {
 	}
 }
 
+func TestMCPServers(t *testing.T) {
+	t.Setenv("MCP_TEST_TOKEN", "s3cret")
+	raw := "name: x\nmodels: [{provider: p, names: [{name: m}]}]\nmcp:\n" +
+		"  - {name: fs, command: npx, args: [-y, server], env: {ROOT: /tmp, KEY: '${MCP_TEST_TOKEN}'}}\n" +
+		"  - {name: gh, url: 'https://example.test/mcp', headers: {Authorization: 'Bearer ${MCP_TEST_TOKEN}', X-Team: literal}}\n"
+	cfg, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Expand(cfg.MCP[1].Headers["Authorization"]); err != nil || got != "Bearer s3cret" {
+		t.Fatalf("Expand = %q, %v", got, err)
+	}
+	if _, err := Expand("${MCP_TEST_UNSET_VARIABLE}"); err == nil {
+		t.Fatal("expected an unset variable to be refused")
+	}
+	fs, gh := cfg.MCP[0].Redacted(), cfg.MCP[1].Redacted()
+	if fs.Env["ROOT"] != "" || fs.Env["KEY"] != "${MCP_TEST_TOKEN}" || gh.Headers["X-Team"] != "" || gh.Headers["Authorization"] != "Bearer ${MCP_TEST_TOKEN}" {
+		t.Fatalf("Redacted = %+v %+v", fs, gh)
+	}
+	if cfg.MCP[0].Env["ROOT"] != "/tmp" {
+		t.Fatal("Redacted changed the config it was called on")
+	}
+}
+
 func TestValidateRejects(t *testing.T) {
 	one := "models: [{provider: p, names: [{name: m}]}]\n"
 	cases := map[string]string{
