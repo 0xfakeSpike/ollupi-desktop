@@ -49,8 +49,8 @@ export interface ContextUse {
   used: number
   budget: number
   /** The size above which a turn compacts earlier context, when there is
-   * enough of it; undefined for calls recorded before ollupi reported it. */
-  compactAt: number | undefined
+   * enough of it. */
+  compactAt: number
   system: number
   tools: number
   /** Messages other than the memory snapshot. */
@@ -74,7 +74,7 @@ export function contextUse(s: ContextStats): ContextUse {
   return {
     used,
     budget: s.budgetTokens,
-    compactAt: s.compactAtTokens || undefined,
+    compactAt: s.compactAtTokens,
     system,
     tools,
     messages: Math.max(0, used - system - tools - memory),

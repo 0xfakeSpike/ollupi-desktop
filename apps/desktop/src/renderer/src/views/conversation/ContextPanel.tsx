@@ -79,7 +79,7 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
   return (
     <Section
       title="Last prompt"
-      hint={`Estimated by ollupi${use.calibrated ? ', calibrated to the token count the API reported' : ''}.${use.compactAt ? ' Above auto-compact, ollupi summarizes earlier context when it can.' : ''}`}
+      hint={`Estimated by ollupi${use.calibrated ? ', calibrated to the token count the API reported' : ''}. Above auto-compact, ollupi summarizes earlier context when it can.`}
     >
       <div className="flex items-baseline justify-between">
         <span className="text-2xl font-semibold text-fg tabular-nums">{percent(use.used, use.budget)}%</span>
@@ -93,21 +93,19 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
             <div key={p.key} className={p.color} style={{ width: `${(use[p.key] / Math.max(use.budget, use.used)) * 100}%` }} />
           ))}
         </div>
-        {use.compactAt && <CompactMark at={use.compactAt} of={use.budget} className="-top-1 h-4" />}
+        <CompactMark at={use.compactAt} of={use.budget} className="-top-1 h-4" />
       </div>
-      {use.compactAt && (
-        <div className="relative h-3.5">
-          <span
-            className="absolute text-[10px] whitespace-nowrap text-fg-subtle"
-            style={{
-              left: `${Math.min(100, (use.compactAt / use.budget) * 100)}%`,
-              transform: use.compactAt / use.budget > 0.85 ? 'translateX(-100%)' : 'translateX(-50%)',
-            }}
-          >
-            Auto-compact
-          </span>
-        </div>
-      )}
+      <div className="relative h-3.5">
+        <span
+          className="absolute text-[10px] whitespace-nowrap text-fg-subtle"
+          style={{
+            left: `${Math.min(100, (use.compactAt / use.budget) * 100)}%`,
+            transform: use.compactAt / use.budget > 0.85 ? 'translateX(-100%)' : 'translateX(-50%)',
+          }}
+        >
+          Auto-compact
+        </span>
+      </div>
       <div className="selectable font-mono text-[11px] text-fg-subtle">{connection}</div>
       <ul className="flex flex-col gap-1">
         {parts.map((p) =>
@@ -239,7 +237,7 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
                       style={{ width: `${Math.min(100, percent(use.used, use.budget))}%` }}
                     />
                   </div>
-                  {use.compactAt && <CompactMark at={use.compactAt} of={use.budget} className="-top-0.5 h-2" />}
+                  <CompactMark at={use.compactAt} of={use.budget} className="-top-0.5 h-2" />
                 </div>
               </li>
             )
