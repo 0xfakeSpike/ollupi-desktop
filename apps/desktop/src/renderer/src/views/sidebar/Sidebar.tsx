@@ -1,6 +1,6 @@
 import { groupByWorkspace } from '@ollupi/core'
 import { cn } from '@ollupi/ui'
-import { Brain, FolderPlus, Settings, SquarePen } from 'lucide-react'
+import { Brain, CalendarClock, FolderPlus, Settings, SquarePen } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { go, useNavigation } from '../../domains/navigation'
 import { useThreads } from '../../domains/threads'
@@ -38,6 +38,9 @@ export function Sidebar() {
       <div className="flex flex-col gap-0.5 px-2 pt-2 pb-3">
         <NavButton icon={<Brain size={16} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
           {m.memory}
+        </NavButton>
+        <NavButton icon={<CalendarClock size={16} />} active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
+          {m.cron}
         </NavButton>
         <NavButton icon={<Settings size={16} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
           {m.settings}

@@ -8,6 +8,7 @@ import { BackendScreen } from './backend/BackendScreen'
 import { Toasts } from './common/Toasts'
 import { ConversationScreen } from './conversation/ConversationScreen'
 import { DraftScreen } from './draft/DraftScreen'
+import { CronScreen } from './cron/CronScreen'
 import { MemoryScreen } from './memory/MemoryScreen'
 import { SettingsScreen } from './settings/SettingsScreen'
 import { Sidebar } from './sidebar/Sidebar'
@@ -61,6 +62,8 @@ function CurrentScreen() {
       return <ConversationScreen key={screen.threadId} threadId={screen.threadId} />
     case 'memory':
       return <MemoryScreen />
+    case 'cron':
+      return <CronScreen />
     case 'settings':
       return <SettingsScreen />
   }

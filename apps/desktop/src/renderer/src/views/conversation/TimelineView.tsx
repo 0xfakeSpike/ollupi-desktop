@@ -13,9 +13,9 @@ import {
 import type { ItemRow, TurnRow } from '@ollupi/protocol'
 import { Button, Callout } from '@ollupi/ui'
 import { CalendarClock, Clock, OctagonX } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { loadOlder } from '../../domains/conversation'
-import { loadJobs, useThreadJobs } from '../../domains/cron'
+import { useCron } from '../../domains/cron'
 import { useThreadSummary } from '../../domains/threads'
 import { useT } from '../../i18n'
 import { duration, usageLine } from '../../i18n/format'
@@ -30,7 +30,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   // Working: the turn runs and nobody is asked anything, here or (as the
   // thread's status reports) in one of its subagents.
   const working = !!running && !waitingOnUser(timeline) && !needsUser(summary?.status)
-  const jobNames = useJobNames(threadId, timeline)
+  const jobNames = useJobNames()
   const m = useT()
 
   return (
@@ -47,15 +47,11 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   )
 }
 
-/** Names of the scheduled tasks that started turns. The turn stores only
- * the task's id, so the thread's tasks are loaded when a turn has one. */
-function useJobNames(threadId: string, timeline: Timeline): (turn: TurnRow) => string | undefined {
-  const jobs = useThreadJobs(threadId)
-  const scheduled = timeline.turns.some((t) => t.cronJobId)
+/** Names of the scheduled tasks that started turns: the turn stores only
+ * the task's id, and a deleted task has no name left. */
+function useJobNames(): (turn: TurnRow) => string | undefined {
+  const jobs = useCron((s) => s.jobs)
   const someJob = useT().conversation.timeline.someJob
-  useEffect(() => {
-    if (scheduled && !jobs) void loadJobs(threadId)
-  }, [scheduled, jobs, threadId])
   return (turn) => (turn.cronJobId ? (jobs?.find((j) => j.id === turn.cronJobId)?.name ?? someJob) : undefined)
 }
 

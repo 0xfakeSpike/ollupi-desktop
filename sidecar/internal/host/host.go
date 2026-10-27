@@ -78,8 +78,10 @@ func New(opts Options) (_ *Host, err error) {
 	}
 
 	// The cron component is both a tool provider (the model manages tasks)
-	// and the timer that sends due tasks; the gateway exposes it as cron/*.
-	h.jobs = cron.New(db, time.Local)
+	// and the timer that sends due tasks; the gateway exposes it as cron/*
+	// and reports each change to a task as cron/changed.
+	var cronChanged func(id, threadID string)
+	h.jobs = cron.New(db, time.Local, func(id, threadID string) { cronChanged(id, threadID) })
 	providers := []tools.Provider{h.jobs}
 	if cfg.Shell.Enabled {
 		runner, err := shellRunner(opts.Home, cfg)
@@ -132,8 +134,10 @@ func New(opts Options) (_ *Host, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// Set before Start, so the agent never emits into a nil gateway.
+	// Set before Start, so the agent and the cron timer never emit into a
+	// nil gateway.
 	deliver = h.gateway.Deliver
+	cronChanged = h.gateway.CronChanged
 	return h, nil
 }
 

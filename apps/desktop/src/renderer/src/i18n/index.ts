@@ -7,6 +7,7 @@
 import { useLocale, type Locale } from './locale'
 import * as common from './messages/common'
 import * as conversation from './messages/conversation'
+import * as cron from './messages/cron'
 import * as errors from './messages/errors'
 import * as memory from './messages/memory'
 import * as requests from './messages/requests'
@@ -19,6 +20,7 @@ const en = {
   conversation: conversation.en,
   requests: requests.en,
   memory: memory.en,
+  cron: cron.en,
   settings: settings.en,
   errors: errors.en,
 }
@@ -33,6 +35,7 @@ const catalogs: Record<Locale, Messages> = {
     conversation: conversation.zh,
     requests: requests.zh,
     memory: memory.zh,
+    cron: cron.zh,
     settings: settings.zh,
     errors: errors.zh,
   },

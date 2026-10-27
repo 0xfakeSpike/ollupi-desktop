@@ -23,8 +23,6 @@ export const en = {
     permissions: 'Could not save the thread permissions',
   },
   cron: {
-    refresh: 'Could not refresh scheduled tasks',
-    load: 'Could not load scheduled tasks',
     create: 'Could not create the task',
     pause: 'Could not pause the task',
     resume: 'Could not resume the task',
@@ -75,8 +73,6 @@ export const zh: typeof en = {
     permissions: '无法保存会话权限',
   },
   cron: {
-    refresh: '无法刷新定时任务',
-    load: '无法加载定时任务',
     create: '无法创建任务',
     pause: '无法暂停任务',
     resume: '无法恢复任务',
