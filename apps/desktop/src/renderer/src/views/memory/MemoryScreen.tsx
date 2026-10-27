@@ -38,7 +38,7 @@ export function MemoryScreen() {
   const replace = (row: MemoryRow) => update((rows) => rows.map((e) => (e.id === row.id ? row : e)))
   const remove = (id: string) => update((rows) => rows.filter((e) => e.id !== id))
 
-  // memory/list returns every status; only active memories are recalled.
+  // memory/list returns every status; only active memories are used.
   const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
   const active = activeIn(scope)
   const count = (key: string) => (data ? ` (${activeIn(key).length})` : '')
@@ -107,7 +107,7 @@ export function MemoryScreen() {
 function StatusLine({ status }: { status: MemoryStatus }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-      <Badge tone={status.useEnabled ? 'success' : 'neutral'}>recall {status.useEnabled ? 'on' : 'off'}</Badge>
+      <Badge tone={status.useEnabled ? 'success' : 'neutral'}>{status.useEnabled ? 'used in conversations' : 'not used in conversations'}</Badge>
       <Badge tone={status.generationEnabled ? 'success' : 'neutral'}>learning {status.generationEnabled ? 'on' : 'off'}</Badge>
       <span>{status.active} active</span>
       {status.generationEnabled && status.pending > 0 && <span>· {status.pending} turns to learn from</span>}

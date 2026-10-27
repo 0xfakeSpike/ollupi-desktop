@@ -1,5 +1,5 @@
 // Memory's two switches in config.yaml: learning (memory.generate, with the
-// model that extracts memories) and recall (memory.use). They are read at the
+// model that extracts memories) and use (memory.use). They are read at the
 // backend's start, so saving restarts it; the running backend reports what
 // it actually uses in memory/status.
 
@@ -75,7 +75,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
       )}
       <Row
         title="Use memories in conversations"
-        hint="Recalled memories are added to the agent's context."
+        hint="Each conversation starts with the memories that fit in its context, and the agent can search the rest."
         control={<Switch label="Use memories in conversations" checked={use} onChange={setUse} />}
       />
       {(changed || stale) && (

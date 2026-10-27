@@ -9,6 +9,7 @@ import {
   formatValue,
   frozenCommand,
   isBuiltin,
+  memorySearchOf,
   parseArguments,
   planOf,
   questionsOf,
@@ -18,13 +19,14 @@ import {
   waitsForApproval,
   waitsForSubagent,
 } from '@ollupi/core'
-import type { ItemRow } from '@ollupi/protocol'
+import type { ItemRow, MemoryReference } from '@ollupi/protocol'
 import { Badge, cn, Disclosure, Spinner } from '@ollupi/ui'
-import { Ban, Bot, Check, ChevronRight, Circle, CircleCheck, CircleDot, ListChecks, MessageCircleQuestion, Terminal, Wrench, X } from 'lucide-react'
+import { Ban, Bot, Brain, Check, ChevronRight, Circle, CircleCheck, CircleDot, ListChecks, MessageCircleQuestion, Terminal, Wrench, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { openThread } from '../../../domains/conversation'
 import { usePendingRequest, useThreadRequests, type PendingRequest } from '../../../domains/requests'
 import { CodeBlock } from '../../common/Markdown'
+import { MemoryGroup } from './SystemItems'
 import { ApprovalCard } from '../../requests/ApprovalCard'
 import { QuestionsCard } from '../../requests/QuestionsCard'
 
@@ -37,19 +39,28 @@ export function ToolCallView({ item }: { item: ItemRow }) {
 
 function GenericCall({ item }: { item: ItemRow }) {
   const cmd = frozenCommand(item)
+  const search = memorySearchOf(item)
   return (
     <div className="flex flex-col gap-2">
       <Disclosure
         summary={
           <span className="flex min-w-0 items-center gap-2 text-[13px]">
-            {cmd ? <Terminal size={13} className="shrink-0" /> : <Wrench size={13} className="shrink-0" />}
+            {cmd ? (
+              <Terminal size={13} className="shrink-0" />
+            ) : search ? (
+              <Brain size={13} className="shrink-0" />
+            ) : (
+              <Wrench size={13} className="shrink-0" />
+            )}
             <span className={cn('truncate', cmd && 'font-mono text-[12px]')}>{toolTitle(item)}</span>
             {cmd?.escalated && <Badge tone="warning">outside sandbox</Badge>}
           </span>
         }
         aside={<CallState item={item} />}
       >
-        <div className="flex flex-col gap-2 pl-5">{cmd ? <ShellDetails item={item} /> : <ArgumentsAndResult item={item} />}</div>
+        <div className="flex flex-col gap-2 pl-5">
+          {cmd ? <ShellDetails item={item} /> : search?.memories ? <SearchResults memories={search.memories} /> : <ArgumentsAndResult item={item} />}
+        </div>
       </Disclosure>
       <PendingHere item={item} />
     </div>
@@ -122,6 +133,20 @@ function ShellDetails({ item }: { item: ItemRow }) {
         </div>
       )}
       {item.error && <ErrorText text={item.error} />}
+    </>
+  )
+}
+
+/** What memory_search found, by scope: each memory carries its workspace,
+ * or none if global. */
+function SearchResults({ memories }: { memories: MemoryReference[] }) {
+  if (memories.length === 0) return <div className="text-xs text-fg-subtle">No memories matched.</div>
+  const global = memories.filter((m) => !m.workspaceId)
+  const workspace = memories.filter((m) => m.workspaceId)
+  return (
+    <>
+      {global.length > 0 && <MemoryGroup title="Global" memories={global} />}
+      {workspace.length > 0 && <MemoryGroup title="This workspace" memories={workspace} />}
     </>
   )
 }

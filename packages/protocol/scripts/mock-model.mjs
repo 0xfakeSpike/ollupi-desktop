@@ -4,7 +4,7 @@
 // escalated run_command (needs approval), "ask" calls request_user_input,
 // "plan" calls update_plan, "schedule" creates a scheduled task, "delegate"
 // starts a subagent, "mcp" calls the mock MCP server's echo tool
-// (mock-mcp.mjs); anything else streams markdown. After a tool result it
+// (mock-mcp.mjs), "search memory" calls memory_search; anything else streams markdown. After a tool result it
 // streams a short summary.
 //
 //   PORT=18080 node scripts/mock-model.mjs
@@ -84,6 +84,9 @@ http
     } else if (/delegate/i.test(userText)) {
       await stream('content', 'Handing this to a subagent.')
       await call('Agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })
+    } else if (/search memory/i.test(userText)) {
+      await stream('content', 'Searching memory.')
+      await call('memory_search', { query: 'indentation' })
     } else if (/mcp/i.test(userText)) {
       await stream('content', 'Asking the MCP server.')
       await call('mock__echo', { text: 'hello from the MCP server' })

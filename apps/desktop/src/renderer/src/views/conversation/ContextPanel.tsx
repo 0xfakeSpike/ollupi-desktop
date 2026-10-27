@@ -1,9 +1,19 @@
 // The context window as the thread's model calls used it, from the stats
 // ollupi records on each call: how full the last prompt was and what filled
-// it, where compaction starts, what that call cost, the memories recalled into it, and how the
-// prompt grew call by call.
+// it, where compaction starts, what that call cost, the memory snapshot it
+// carried, and how the prompt grew call by call.
 
-import { contextUse, formatTokens, latestContextCall, modelCalls, recalledMemories, type ContextUse, type ModelCall, type Timeline } from '@ollupi/core'
+import {
+  contextUse,
+  formatTokens,
+  latestContextCall,
+  modelCalls,
+  promptMemory,
+  type ContextUse,
+  type MemorySection,
+  type ModelCall,
+  type Timeline,
+} from '@ollupi/core'
 import { cn, IconButton } from '@ollupi/ui'
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -13,7 +23,7 @@ const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; label: string; c
   { key: 'system', label: 'System prompt', color: 'bg-fg-subtle' },
   { key: 'tools', label: 'Tool definitions', color: 'bg-accent/45' },
   { key: 'messages', label: 'Messages', color: 'bg-accent' },
-  { key: 'memory', label: 'Recalled memory', color: 'bg-warning' },
+  { key: 'memory', label: 'Memory', color: 'bg-warning' },
 ]
 
 export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
@@ -36,7 +46,7 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
           <div className="flex flex-col gap-6">
             <Overview use={contextUse(latest.stats)} connection={connection(latest)} />
             {latest.usage && <LastCall call={latest} />}
-            <Memories timeline={timeline!} turnId={latest.turnId} />
+            <Memories timeline={timeline!} call={latest} />
             <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
           </div>
         )}
@@ -141,20 +151,43 @@ function LastCall({ call }: { call: ModelCall }) {
   )
 }
 
-function Memories({ timeline, turnId }: { timeline: Timeline; turnId: string }) {
-  const memories = recalledMemories(timeline, turnId)
-  if (memories.length === 0) return null
+function Memories({ timeline, call }: { timeline: Timeline; call: ModelCall }) {
+  const memory = promptMemory(timeline, call)
+  if (!memory) return null
   return (
-    <Section title={`Recalled this turn · ${memories.length}`}>
-      <ul className="selectable flex flex-col gap-1.5 text-xs text-fg-muted">
-        {memories.map((m) => (
-          <li key={m.id} className="line-clamp-3">
-            {m.topic && <span className="font-medium text-fg">{m.topic}: </span>}
-            {m.text}
-          </li>
-        ))}
-      </ul>
+    <Section
+      title="Memory in this prompt"
+      hint="Loaded when the conversation started and again after each compaction. The agent searches the rest with memory_search."
+    >
+      {memory.global && <MemoryList title="Global" section={memory.global} />}
+      {memory.workspace && <MemoryList title="This workspace" section={memory.workspace} />}
     </Section>
+  )
+}
+
+function MemoryList({ title, section }: { title: string; section: MemorySection }) {
+  const n = section.ids.length
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between text-[11px] text-fg-subtle">
+        <span>
+          {title} · {n}
+        </span>
+        <span className="tabular-nums">{formatTokens(section.tokens)}</span>
+      </div>
+      {section.entries ? (
+        <ul className="selectable flex flex-col gap-1.5 text-xs text-fg-muted">
+          {section.entries.map((m) => (
+            <li key={m.id} className="line-clamp-3">
+              {m.topic && <span className="font-medium text-fg">{m.topic}: </span>}
+              {m.text}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-fg-subtle">Loaded in an earlier part of the conversation; scroll up to load it.</p>
+      )}
+    </div>
   )
 }
 

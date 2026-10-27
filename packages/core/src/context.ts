@@ -4,7 +4,7 @@
 // call; a call that failed before answering records an error item, and a
 // compaction records them on its contextCompaction item.
 
-import type { ContextStats, ItemRow, MemoryReference, Usage } from '@ollupi/protocol'
+import type { ContextStats, ItemRow, MemoryReference, MemoryStats, Usage } from '@ollupi/protocol'
 import type { Timeline } from './timeline'
 
 export interface ModelCall {
@@ -43,7 +43,8 @@ export function latestContextCall(calls: ModelCall[]): ModelCall | undefined {
 /** A prompt's share of the model's input budget. ollupi estimates each part
  * from its text and calibrates the total against the input tokens the API
  * reported for an earlier call; the parts are scaled to that total, as
- * ollupi scales them when deciding to compact. Memory is part of messages. */
+ * ollupi scales them when deciding to compact. The memory snapshot is part
+ * of messages. */
 export interface ContextUse {
   used: number
   budget: number
@@ -52,16 +53,21 @@ export interface ContextUse {
   compactAt: number | undefined
   system: number
   tools: number
-  /** Messages other than recalled memory. */
+  /** Messages other than the memory snapshot. */
   messages: number
   memory: number
   /** Whether the total is calibrated against the API, or only estimated. */
   calibrated: boolean
 }
 
+/** The factor from ollupi's estimate of a prompt to its calibrated size. */
+function calibration(s: ContextStats): number {
+  return s.estimatedTokens > 0 ? (s.calibratedTokens || s.estimatedTokens) / s.estimatedTokens : 1
+}
+
 export function contextUse(s: ContextStats): ContextUse {
   const used = s.calibratedTokens || s.estimatedTokens
-  const k = s.estimatedTokens > 0 ? used / s.estimatedTokens : 1
+  const k = calibration(s)
   const memory = Math.round((s.memoryTokens ?? 0) * k)
   const system = Math.round(s.systemTokens * k)
   const tools = Math.round(s.toolsTokens * k)
@@ -77,9 +83,31 @@ export function contextUse(s: ContextStats): ContextUse {
   }
 }
 
-/** The memories recall put into a turn's prompts: its completed
- * memoryContext item, as ollupi reads it when building the prompt. */
-export function recalledMemories(t: Timeline, turnId: string): MemoryReference[] {
-  const it = t.items.find((i: ItemRow) => i.turnId === turnId && i.type === 'memoryContext' && i.status === 'completed')
-  return it?.memory ?? []
+export interface MemorySection {
+  /** The section's entries, scaled to the calibrated total like the parts
+   * of ContextUse. */
+  tokens: number
+  ids: string[]
+  /** The entries as the snapshot gave them, in its order; undefined when
+   * the snapshot is in a part of the thread not loaded. */
+  entries: MemoryReference[] | undefined
+}
+
+/** The memory snapshot a call's prompt carried, in its two sections (global
+ * and the workspace's), as ollupi reports it in the call's stats. A thread
+ * loads its snapshot before its first model call and again after each
+ * compaction, recording it as a memoryContext item: the call used the
+ * latest one before it. Undefined for a call that carried no memory. */
+export function promptMemory(t: Timeline, call: ModelCall): { global: MemorySection | undefined; workspace: MemorySection | undefined } | undefined {
+  const { globalMemory, workspaceMemory } = call.stats
+  if (!globalMemory?.ids.length && !workspaceMemory?.ids.length) return undefined
+  const at = t.items.findIndex((i) => i.id === call.itemId)
+  const snapshot = t.items.findLast((i: ItemRow, n) => n < at && i.type === 'memoryContext' && i.status === 'completed')
+  const section = (s: MemoryStats | null | undefined): MemorySection | undefined => {
+    if (!s?.ids.length) return undefined
+    const byId = new Map((snapshot?.memory ?? []).map((m) => [m.id, m]))
+    const entries = s.ids.map((id) => byId.get(id))
+    return { tokens: Math.round(s.tokens * calibration(call.stats)), ids: s.ids, entries: entries.every((e) => e !== undefined) ? entries : undefined }
+  }
+  return { global: section(globalMemory), workspace: section(workspaceMemory) }
 }
