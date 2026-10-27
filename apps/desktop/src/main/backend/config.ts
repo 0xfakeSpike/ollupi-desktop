@@ -7,7 +7,7 @@
 import { execFile } from 'node:child_process'
 import { chmod, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { isMap, parseDocument, type Document } from 'yaml'
+import { isMap, isSeq, parseDocument, type Document } from 'yaml'
 import type { ConfigChange, ConfigCheck } from '../../shared/ipc'
 
 export interface ConfigOptions {
@@ -74,7 +74,16 @@ export function editConfigText(text: string, changes: ConfigChange[]): { ok: tru
   attachSectionComments(doc)
   for (const c of changes) {
     if (c.kind === 'delete') doc.deleteIn(c.path)
-    else doc.setIn(c.path, doc.createNode(c.value))
+    else if (c.kind === 'set') doc.setIn(c.path, doc.createNode(c.value))
+    else {
+      // The node itself moves, with the comments attached to it.
+      const list = doc.getIn(c.path.slice(0, -1), true)
+      const from = c.path.at(-1)
+      if (!isSeq(list) || typeof from !== 'number' || from >= list.items.length || c.to < 0 || c.to >= list.items.length) {
+        return { ok: false, error: `cannot move ${c.path.join('.')} to ${c.to}` }
+      }
+      list.items.splice(c.to, 0, ...list.items.splice(from, 1))
+    }
   }
   return { ok: true, text: doc.toString() }
 }

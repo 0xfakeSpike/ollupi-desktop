@@ -1,8 +1,9 @@
 // Where the backend binary and data live, and the environment it runs in.
 // An app started from Finder or the Dock gets launchd's minimal environment,
-// so the user's login-shell environment is read once and merged under the
-// inherited one: a variable set in the launching terminal wins over the
-// shell profile.
+// so the user's login-shell environment is merged under the inherited one: a
+// variable set in the launching terminal wins over the shell profile. It is
+// read for every start and check, so a key exported in the profile since
+// the app launched is there.
 
 import { app } from 'electron'
 import { spawn } from 'node:child_process'
@@ -18,11 +19,9 @@ export function backendHome(): string {
   return process.env.OLLUPI_HOME || join(homedir(), '.ollupi')
 }
 
-let cached: Promise<NodeJS.ProcessEnv> | undefined
-
-export function backendEnv(): Promise<NodeJS.ProcessEnv> {
-  cached ??= loginShellEnv().then((shell) => ({ ...shell, ...process.env, PATH: shell.PATH ?? process.env.PATH }))
-  return cached
+export async function backendEnv(): Promise<NodeJS.ProcessEnv> {
+  const shell = await loginShellEnv()
+  return { ...shell, ...process.env, PATH: shell.PATH ?? process.env.PATH }
 }
 
 function loginShellEnv(): Promise<NodeJS.ProcessEnv> {

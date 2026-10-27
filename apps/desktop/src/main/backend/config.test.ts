@@ -6,43 +6,39 @@ import { editConfigText } from './config'
 const file = `# Ollupi desktop backend.
 name: ollupi
 
-# OpenAI-compatible APIs.
-endpoints:
-  deepseek:
+# Models, grouped by the API that serves them. The first is the default.
+models:
+  - provider: deepseek
     base_url: https://api.deepseek.com
-  # openai:
+    api_key_env: DEEPSEEK_API_KEY
+    names:
+      - name: deepseek-flash
+  # The local one.
+  - provider: local
+    base_url: http://127.0.0.1:11434/v1
+    names:
+      - name: qwen3:32b
+  # - provider: openai
   #   base_url: https://api.openai.com/v1
 
-# The first model is the default.
-models:
-  - id: deepseek-flash
-    name: deepseek-flash
-    endpoint: deepseek
-
-settings:
-  approvalPolicy: on-request # untrusted | on-request | never
-  permissions: {}
+permissions:
+  approval: on-request # untrusted | on-request | never
 
 memory:
   use: true
   generate: false
-  # model: { id: memory, name: gpt-5.2, endpoint: openai }
+  # model: deepseek/deepseek-flash
 `
 
 describe('editConfigText', () => {
   it('changes only what was asked, keeping every comment where it was', () => {
     const edited = editConfigText(file, [
       { kind: 'set', path: ['memory', 'generate'], value: true },
-      { kind: 'set', path: ['memory', 'model'], value: { id: 'deepseek-flash', name: 'deepseek-flash', endpoint: 'deepseek' } },
+      { kind: 'set', path: ['memory', 'model'], value: 'deepseek/deepseek-flash' },
     ])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
-    expect(edited.text).toBe(
-      file.replace(
-        '  generate: false\n',
-        '  generate: true\n  model:\n    id: deepseek-flash\n    name: deepseek-flash\n    endpoint: deepseek\n',
-      ),
-    )
+    expect(edited.text).toBe(file.replace('  generate: false\n', '  generate: true\n  model: deepseek/deepseek-flash\n'))
   })
 
   it('leaves the file unchanged when nothing changes', () => {
@@ -52,6 +48,26 @@ describe('editConfigText', () => {
   it('deletes keys', () => {
     const edited = editConfigText(file, [{ kind: 'delete', path: ['memory', 'use'] }])
     expect(edited.ok && edited.text.includes('  use: true')).toBe(false)
+  })
+
+  it('moves a list item with its comment', () => {
+    const edited = editConfigText(file, [{ kind: 'move', path: ['models', 1], to: 0 }])
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    const text = edited.text
+    expect(text.indexOf('# The local one.')).toBeLessThan(text.indexOf('provider: local'))
+    expect(text.indexOf('provider: local')).toBeLessThan(text.indexOf('provider: deepseek'))
+    expect(text).toContain('  # - provider: openai\n')
+  })
+
+  it('appends a list item', () => {
+    const edited = editConfigText(file, [{ kind: 'set', path: ['models', 2], value: { provider: 'openai', names: [{ name: 'gpt-5.2' }] } }])
+    expect(edited.ok && edited.text.includes('  - provider: openai\n    names:\n      - name: gpt-5.2\n')).toBe(true)
+  })
+
+  it('refuses a move outside the list', () => {
+    expect(editConfigText(file, [{ kind: 'move', path: ['models', 0], to: 2 }]).ok).toBe(false)
+    expect(editConfigText(file, [{ kind: 'move', path: ['memory', 'use'], to: 0 }]).ok).toBe(false)
   })
 
   it('refuses text that is not YAML', () => {

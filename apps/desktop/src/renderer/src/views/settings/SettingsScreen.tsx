@@ -3,23 +3,28 @@ import { Badge, Button, Disclosure, Input, Tabs } from '@ollupi/ui'
 import { Archive, ArchiveRestore, FileCog, FolderOpen, RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { AppInfo } from '../../../../shared/ipc'
-import { useModels } from '../../domains/models'
 import { renameWorkspace, setArchived, updateWorkspacePermissions, useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { desktop } from '../../platform/desktop'
+import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
 import { ToolsSection } from './ToolsSection'
 
-type Tab = 'backend' | 'tools' | 'workspaces'
+type Tab = 'general' | 'models' | 'tools' | 'workspaces'
 
 const tabs: { id: Tab; label: string; description: string }[] = [
-  { id: 'backend', label: 'Backend', description: 'Models, endpoints, default permissions, the shell sandbox, slots and memory are set in config.yaml.' },
+  { id: 'general', label: 'General', description: 'The ollupi backend the app runs, and where its data and config.yaml live.' },
+  {
+    id: 'models',
+    label: 'Models',
+    description: 'Grouped by the API that serves them; a model is selected as provider/name. Saving checks the change with the backend, then restarts it.',
+  },
   { id: 'tools', label: 'Tools', description: 'What the agent can call. Permission rules name these tools.' },
   { id: 'workspaces', label: 'Workspaces', description: 'Project folders threads run in. Their permissions add to the agent defaults.' },
 ]
 
 export function SettingsScreen() {
-  const [tab, setTab] = useState<Tab>('backend')
+  const [tab, setTab] = useState<Tab>('general')
   const current = tabs.find((t) => t.id === tab)!
   return (
     <div className="flex h-full flex-col">
@@ -30,7 +35,8 @@ export function SettingsScreen() {
       <div className="flex-1 overflow-y-auto">
         <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-3 px-6 py-8">
           <p className="text-xs text-fg-muted">{current.description}</p>
-          {tab === 'backend' && <BackendInfo />}
+          {tab === 'general' && <General />}
+          {tab === 'models' && <ModelsSection />}
           {tab === 'tools' && <ToolsSection />}
           {tab === 'workspaces' && <Workspaces />}
         </section>
@@ -39,17 +45,15 @@ export function SettingsScreen() {
   )
 }
 
-function BackendInfo() {
+function General() {
   const backend = useConnection((s) => s.backend)
   const serverVersion = useConnection((s) => s.serverVersion)
-  const models = useModels((s) => s.list)
   const [info, setInfo] = useState<AppInfo>()
   const [restarting, setRestarting] = useState(false)
   useEffect(() => void desktop.info().then(setInfo), [])
   const rows: [string, ReactNode][] = [
     ['Status', <Badge tone={backend.status === 'ready' ? 'success' : backend.status === 'failed' ? 'danger' : 'warning'}>{backend.status}</Badge>],
     ['ollupi', serverVersion || '—'],
-    ['Models', models.map((m) => m.connection).join(', ') || '—'],
     ['Data folder', info?.home],
     ['App', info?.version],
   ]

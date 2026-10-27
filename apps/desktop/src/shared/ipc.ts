@@ -8,9 +8,12 @@ import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 export type BackendConfig = NonNullable<CheckOutput['config']>
 /** One model as the app selects it: id is provider/name. */
 export type ConfigModel = NonNullable<CheckOutput['models']>[number]
-/** ollupid --check-config's result: the config with its models in order,
- * or why the backend would not start with it. */
-export type ConfigCheck = { ok: true; config: BackendConfig; models: ConfigModel[] } | { ok: false; error: string }
+/** Where a provider's API key comes from; the key itself never leaves the
+ * backend. */
+export type ConfigKey = NonNullable<CheckOutput['keys']>[number]
+/** ollupid --check-config's result: the config with its models in order and
+ * each provider's key source, or why the backend would not start with it. */
+export type ConfigCheck = { ok: true; config: BackendConfig; models: ConfigModel[]; keys: ConfigKey[] } | { ok: false; error: string }
 
 /** The backend process as the supervisor sees it. */
 export type BackendState =
@@ -27,8 +30,12 @@ export interface AppInfo {
   configPath: string
 }
 
-/** One edit to config.yaml, by key path, e.g. ['memory', 'generate']. */
-export type ConfigChange = { kind: 'set'; path: (string | number)[]; value: unknown } | { kind: 'delete'; path: (string | number)[] }
+/** One edit to config.yaml, by key path, e.g. ['memory', 'generate']. A move
+ * takes the list item at path to index `to` of the same list. */
+export type ConfigChange =
+  | { kind: 'set'; path: (string | number)[]; value: unknown }
+  | { kind: 'delete'; path: (string | number)[] }
+  | { kind: 'move'; path: (string | number)[]; to: number }
 
 export interface DesktopApi {
   info(): Promise<AppInfo>

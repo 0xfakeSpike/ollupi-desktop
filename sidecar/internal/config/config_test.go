@@ -30,6 +30,24 @@ func TestSameModelAtTwoProviders(t *testing.T) {
 	}
 }
 
+func TestKeyRefs(t *testing.T) {
+	raw := "name: x\nmodels:\n" +
+		"  - {provider: a, api_key: k, api_key_env: A_KEY, names: [{name: m}]}\n" +
+		"  - {provider: b, api_key_env: B_KEY, names: [{name: m}]}\n" +
+		"  - {provider: c, names: [{name: m}]}\n"
+	cfg, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := cfg.KeyRefs()
+	want := []KeyRef{{"a", "api_key"}, {"b", "api_key_env"}, {"c", "none"}}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("KeyRefs = %+v", got)
+		}
+	}
+}
+
 func TestValidateRejects(t *testing.T) {
 	one := "models: [{provider: p, names: [{name: m}]}]\n"
 	cases := map[string]string{
