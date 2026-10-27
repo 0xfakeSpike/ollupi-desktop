@@ -45,19 +45,15 @@ writeFileSync(join(workspace, 'README.md'), '# demo\n')
 writeFileSync(
   join(home, 'config.yaml'),
   `name: ollupi
-endpoints:
-  mock:
+models:
+  - provider: mock
     base_url: http://127.0.0.1:${PORT}/v1
     api_key: test
-    limits:
-      mock-model: { context: 128000, output: 8000 }
-models:
-  - id: mock-model
-    name: mock-model
-    endpoint: mock
-settings:
-  approvalPolicy: on-request
-  permissions: {}
+    names:
+      - name: mock-model
+        limits: { context: 128000, output: 8000 }
+permissions:
+  approval: on-request
 shell:
   enabled: true
   sandbox_mode: workspace-write

@@ -2,9 +2,15 @@
 // the API the preload exposes as window.desktop. Both sides import it, so a
 // change is checked on both ends.
 
-import type { BackendConfig } from './generated/backend-config'
+import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 
-export type { BackendConfig }
+/** config.yaml as the backend decodes it, API keys left out. */
+export type BackendConfig = NonNullable<CheckOutput['config']>
+/** One model as the app selects it: id is provider/name. */
+export type ConfigModel = NonNullable<CheckOutput['models']>[number]
+/** ollupid --check-config's result: the config with its models in order,
+ * or why the backend would not start with it. */
+export type ConfigCheck = { ok: true; config: BackendConfig; models: ConfigModel[] } | { ok: false; error: string }
 
 /** The backend process as the supervisor sees it. */
 export type BackendState =
@@ -20,11 +26,6 @@ export interface AppInfo {
   home: string
   configPath: string
 }
-
-/** The result of checking a config with the backend (ollupid
- * --check-config): the config as decoded, API keys left out, or why the
- * backend would not start with it. */
-export type ConfigCheck = { ok: true; config: BackendConfig } | { ok: false; error: string }
 
 /** One edit to config.yaml, by key path, e.g. ['memory', 'generate']. */
 export type ConfigChange = { kind: 'set'; path: (string | number)[]; value: unknown } | { kind: 'delete'; path: (string | number)[] }

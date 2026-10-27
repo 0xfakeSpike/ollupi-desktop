@@ -1,7 +1,7 @@
 // Package config is the backend's configuration file, <home>/config.yaml:
-// the agent-level settings ollupi takes once at start (models and their
-// endpoints, default permissions, the shell tool, memory, slots). It only
-// describes; host turns it into running components.
+// the agent-level settings ollupi takes once at start (models and the APIs
+// that serve them, default permissions, the shell tool, memory, slots). It
+// only describes; host turns it into running components.
 package config
 
 import (
@@ -24,13 +24,12 @@ const FileName = "config.yaml"
 type Config struct {
 	Name   string `json:"name"`
 	Prompt string `json:"prompt,omitempty"`
-	// Endpoints are OpenAI-compatible APIs, keyed by a name models refer to.
-	Endpoints map[string]Endpoint `json:"endpoints"`
-	// Models are selectable per turn; the first is the default.
-	Models []Model `json:"models"`
+	// Models are grouped by the API that serves them. Order matters: the
+	// first model of the first provider is the default.
+	Models []Provider `json:"models"`
 	// Tools is ollupi's tool allow-list; empty allows every tool.
-	Tools    []string                `json:"tools,omitempty"`
-	Settings repo.PermissionSettings `json:"settings"`
+	Tools       []string    `json:"tools,omitempty"`
+	Permissions Permissions `json:"permissions"`
 	// Slots caps how many threads run at once; 0 uses ollupi's default.
 	Slots     int    `json:"slots,omitempty"`
 	Shell     Shell  `json:"shell"`
@@ -38,27 +37,65 @@ type Config struct {
 	SkillsDir string `json:"skills_dir,omitempty"`
 }
 
-// Endpoint is one API. All models on it share one client, so Calls caps
-// concurrent requests to the endpoint as a whole; 0 uses ollupi's default.
-type Endpoint struct {
-	BaseURL   string                `json:"base_url,omitempty"`
-	APIKey    string                `json:"api_key,omitempty"`
-	APIKeyEnv string                `json:"api_key_env,omitempty"`
-	Calls     int                   `json:"calls,omitempty"`
-	Limits    map[string]llm.Limits `json:"limits,omitempty"`
+// Provider is one OpenAI-compatible API and the models it serves. Its name
+// identifies it: two providers may serve models of the same name.
+type Provider struct {
+	Provider  string  `json:"provider"`
+	BaseURL   string  `json:"base_url,omitempty"`
+	APIKey    string  `json:"api_key,omitempty"`
+	APIKeyEnv string  `json:"api_key_env,omitempty"`
+	Names     []Model `json:"names"`
 }
 
-// Model is one selectable model. ID becomes ollupi's connection: the unique
-// key a turn selects the model by. Name is what the endpoint is asked for.
+// Model is one model of a provider. Each is its own ollupi connection with
+// its own client, so Calls caps concurrent requests to this model; 0 uses
+// ollupi's default.
 type Model struct {
-	ID       string `json:"id"`
 	Name     string `json:"name"`
-	Endpoint string `json:"endpoint"`
+	Calls    int    `json:"calls,omitempty"`
 	Thinking *bool  `json:"thinking,omitempty"`
+	// Limits declares the context window of a model ollupi does not know.
+	Limits *llm.Limits `json:"limits,omitempty"`
 }
 
-func (m Model) LLM() llm.Model {
-	return llm.Model{Name: m.Name, Connection: m.ID, Thinking: m.Thinking}
+// ID is a model's ollupi connection: the key a turn selects it by. A
+// provider's model names are unique and provider names are unique, so the
+// pair is.
+func ID(provider, model string) string { return provider + "/" + model }
+
+// ModelRef is one model as the app selects it.
+type ModelRef struct {
+	ID       string `json:"id"`
+	Provider string `json:"provider"`
+	Name     string `json:"name"`
+}
+
+// ModelRefs lists every model in order, the first being the default.
+func (c Config) ModelRefs() []ModelRef {
+	var out []ModelRef
+	for _, p := range c.Models {
+		for _, m := range p.Names {
+			out = append(out, ModelRef{ID: ID(p.Provider, m.Name), Provider: p.Provider, Name: m.Name})
+		}
+	}
+	return out
+}
+
+// Permissions are the agent-level layer of ollupi's permission settings;
+// workspaces and threads add their own on top.
+type Permissions struct {
+	// Approval is the approval policy: untrusted, on-request or never.
+	Approval string   `json:"approval,omitempty"`
+	Allow    []string `json:"allow,omitempty"`
+	Ask      []string `json:"ask,omitempty"`
+	Deny     []string `json:"deny,omitempty"`
+}
+
+func (p Permissions) Settings() repo.PermissionSettings {
+	return repo.PermissionSettings{
+		ApprovalPolicy: p.Approval,
+		Rules:          repo.PermissionRules{Allow: p.Allow, Ask: p.Ask, Deny: p.Deny},
+	}
 }
 
 type Shell struct {
@@ -69,23 +106,24 @@ type Shell struct {
 type Memory struct {
 	Use      bool `json:"use"`
 	Generate bool `json:"generate"`
-	// Model extracts memories; required when Generate is on.
-	Model *Model `json:"model,omitempty"`
+	// Model is the ID of the model that extracts memories; required when
+	// Generate is on. It shares that model's client and Calls.
+	Model string `json:"model,omitempty"`
 }
 
-// Key resolves the endpoint's API key: the literal value, else the named
+// Key resolves the provider's API key: the literal value, else the named
 // environment variable, which must then be set.
-func (e Endpoint) Key() (string, error) {
-	if e.APIKey != "" {
-		return e.APIKey, nil
+func (p Provider) Key() (string, error) {
+	if p.APIKey != "" {
+		return p.APIKey, nil
 	}
-	if e.APIKeyEnv == "" {
+	if p.APIKeyEnv == "" {
 		return "", nil
 	}
-	if v := os.Getenv(e.APIKeyEnv); v != "" {
+	if v := os.Getenv(p.APIKeyEnv); v != "" {
 		return v, nil
 	}
-	return "", fmt.Errorf("environment variable %s is not set", e.APIKeyEnv)
+	return "", fmt.Errorf("environment variable %s is not set", p.APIKeyEnv)
 }
 
 // Load reads <home>/config.yaml, writing the starter template first when
@@ -118,7 +156,7 @@ func LoadFile(path, home string) (Config, error) {
 }
 
 // Parse decodes YAML by way of JSON so the file uses the json tags ollupi
-// defines on its settings and shell types. Unknown keys are errors.
+// defines on its shell types. Unknown keys are errors.
 func Parse(raw []byte) (Config, error) {
 	var tree any
 	if err := yaml.Unmarshal(raw, &tree); err != nil {
@@ -137,50 +175,51 @@ func Parse(raw []byte) (Config, error) {
 	return cfg, cfg.Validate()
 }
 
-// Validate checks what only this file's shape can get wrong: references
-// between its sections. ollupi validates its own settings at start.
+// Validate checks what only this file's shape can get wrong: names that
+// must identify a model, and references between sections. ollupi validates
+// the rest (policies, rules, limits) at start.
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.Name) == "" {
 		return errors.New("name is required")
 	}
-	if len(c.Models) == 0 {
+	providers := map[string]bool{}
+	ids := map[string]bool{}
+	for _, p := range c.Models {
+		if strings.TrimSpace(p.Provider) == "" || strings.Contains(p.Provider, "/") {
+			return fmt.Errorf("models: every provider needs a name without /, got %q", p.Provider)
+		}
+		if providers[p.Provider] {
+			return fmt.Errorf("models: provider %q is listed twice", p.Provider)
+		}
+		providers[p.Provider] = true
+		if len(p.Names) == 0 {
+			return fmt.Errorf("models: provider %s lists no models", p.Provider)
+		}
+		for _, m := range p.Names {
+			if strings.TrimSpace(m.Name) == "" {
+				return fmt.Errorf("models: provider %s has a model without a name", p.Provider)
+			}
+			id := ID(p.Provider, m.Name)
+			if ids[id] {
+				return fmt.Errorf("models: provider %s lists %s twice", p.Provider, m.Name)
+			}
+			ids[id] = true
+			if m.Calls < 0 {
+				return fmt.Errorf("models: %s: calls must not be negative", id)
+			}
+		}
+	}
+	if len(ids) == 0 {
 		return errors.New("models: at least one model is required; the first is the default")
 	}
-	ids := map[string]bool{}
-	for _, m := range c.Models {
-		if err := c.checkModel(m); err != nil {
-			return fmt.Errorf("models: %w", err)
-		}
-		if ids[m.ID] {
-			return fmt.Errorf("models: id %q is listed twice", m.ID)
-		}
-		ids[m.ID] = true
+	if c.Memory.Generate && c.Memory.Model == "" {
+		return errors.New("memory.model is required when memory.generate is on")
 	}
-	if c.Memory.Generate {
-		if c.Memory.Model == nil {
-			return errors.New("memory.model is required when memory.generate is on")
-		}
-		if err := c.checkModel(*c.Memory.Model); err != nil {
-			return fmt.Errorf("memory.model: %w", err)
-		}
+	if c.Memory.Model != "" && !ids[c.Memory.Model] {
+		return fmt.Errorf("memory.model %q is not a model listed under models (provider/name)", c.Memory.Model)
 	}
 	if c.Slots < 0 {
 		return errors.New("slots must not be negative")
-	}
-	for name, e := range c.Endpoints {
-		if e.Calls < 0 {
-			return fmt.Errorf("endpoint %s: calls must not be negative", name)
-		}
-	}
-	return nil
-}
-
-func (c Config) checkModel(m Model) error {
-	if strings.TrimSpace(m.ID) == "" || strings.TrimSpace(m.Name) == "" {
-		return errors.New("every model needs an id and a name")
-	}
-	if _, ok := c.Endpoints[m.Endpoint]; !ok {
-		return fmt.Errorf("model %s uses endpoint %q, which endpoints does not define", m.ID, m.Endpoint)
 	}
 	return nil
 }

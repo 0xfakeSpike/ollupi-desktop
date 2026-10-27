@@ -126,11 +126,10 @@ pnpm --filter @ollupi/desktop dev:renderer
 
 ## 配置（`~/.ollupi/config.yaml`）
 
-ollupi 只在启动时读取配置，所以界面里的配置修改（目前是 Memory 页的"学习"和"召回"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。配置的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
+ollupi 只在启动时读取配置，所以界面里的配置修改（目前是 Memory 页的"学习"和"召回"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，不含 API key，加上按 `provider/name` 展开的模型列表）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
 
-- `endpoints`：OpenAI 兼容接口（`base_url`、`api_key_env` 或 `api_key`、并发上限 `calls`（同一接口下所有模型共用，默认 4）、未知模型的 `limits`）。
-- `models`：可选模型，第一个是默认。`id` 是 ollupi 的 connection，即 `turn/start` 选择模型用的唯一键；`name` 是发给接口的模型名。
-- `settings`：agent 级权限（审批策略 + allow/ask/deny 规则），工作区和会话在其上叠加。
+- `models`：按提供方分组的模型。每个提供方是一个 OpenAI 兼容接口（`provider` 名称唯一且不含 `/`，`base_url`、`api_key_env` 或 `api_key`），`names` 列出它提供的模型；每个模型有自己的 client 和并发上限 `calls`（默认 4），未知模型用 `limits` 声明上下文窗口。模型的 id 是 `provider/name`，即 ollupi 的 connection、`turn/start` 选模型用的键，所以两个提供方可以提供同名模型。第一个提供方的第一个模型是默认。
+- `permissions`：agent 级权限（`approval` 审批策略 + `allow`/`ask`/`deny` 规则），工作区和会话在其上叠加。
 - `slots`：同时运行的会话数上限（默认 32）。
 - `shell`：`run_command` 工具与 macOS 沙箱。config.yaml 本身对命令不可读。
-- `memory`：召回 / 生成开关，生成需要 `model`。
+- `memory`：召回（`use`）/ 生成（`generate`）开关；生成需要 `model`，填某个模型的 id（`provider/name`），与该模型共用 client 和 `calls`。

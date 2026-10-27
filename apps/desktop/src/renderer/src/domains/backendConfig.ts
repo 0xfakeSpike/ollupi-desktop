@@ -3,13 +3,16 @@
 // first checks the changed file with the backend itself.
 
 import { isWorking } from '@ollupi/core'
-import type { BackendConfig, ConfigChange, ConfigCheck } from '../../../shared/ipc'
+import type { BackendConfig, ConfigChange, ConfigCheck, ConfigModel } from '../../../shared/ipc'
 import { run } from '../gateway/run'
 import { desktop } from '../platform/desktop'
 import { notify } from './notices'
 import { useThreads } from './threads'
 
-export type { BackendConfig }
+export type { BackendConfig, ConfigModel }
+
+/** A config the backend accepted. */
+export type CheckedConfig = Extract<ConfigCheck, { ok: true }>
 
 export function readConfig(): Promise<ConfigCheck | undefined> {
   return run('Could not read config.yaml', () => desktop.config.read())
@@ -19,7 +22,7 @@ export function readConfig(): Promise<ConfigCheck | undefined> {
  * are executing (ollupi marks them as possibly done), so with threads
  * running it asks first. Resolves to the config now in effect, or
  * undefined when nothing was applied. */
-export async function applyConfig(changes: ConfigChange[]): Promise<BackendConfig | undefined> {
+export async function applyConfig(changes: ConfigChange[]): Promise<CheckedConfig | undefined> {
   const running = useThreads.getState().list.filter((t) => isWorking(t.status)).length
   if (running && !confirm(`${running} thread${running === 1 ? ' is' : 's are'} running. Restarting the backend stops commands they are executing. Continue?`)) {
     return undefined
@@ -30,5 +33,5 @@ export async function applyConfig(changes: ConfigChange[]): Promise<BackendConfi
     notify(`config.yaml was not changed: ${result.error}`)
     return undefined
   }
-  return result.config
+  return result
 }

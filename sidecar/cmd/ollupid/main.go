@@ -6,7 +6,7 @@
 // Two other modes serve the app's config editing:
 //
 //	ollupid --check-config FILE   whether FILE would start; prints one JSON line
-//	ollupid --config-schema       the JSON Schema of config.yaml
+//	ollupid --config-schema       the JSON Schema of --check-config's output
 package main
 
 import (
@@ -38,7 +38,7 @@ func main() {
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
-	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of config.yaml and exit")
+	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of --check-config's output and exit")
 	flag.Parse()
 
 	switch {
@@ -96,11 +96,13 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 }
 
 // checkResult is --check-config's output: the config as the backend decodes
-// it (defaults applied, paths resolved), or why it would not start.
+// it (defaults applied, paths resolved, API keys left out) with its models
+// as the app selects them, or why it would not start.
 type checkResult struct {
-	OK     bool           `json:"ok"`
-	Config *config.Config `json:"config,omitempty"`
-	Error  string         `json:"error,omitempty"`
+	OK     bool              `json:"ok"`
+	Config *config.Config    `json:"config,omitempty"`
+	Models []config.ModelRef `json:"models,omitempty"`
+	Error  string            `json:"error,omitempty"`
 }
 
 func check(path, home string) int {
@@ -111,11 +113,10 @@ func check(path, home string) int {
 	out := checkResult{Error: errorText(err)}
 	if err == nil {
 		// The result goes to the app's UI, which has no use for keys.
-		for name, e := range cfg.Endpoints {
-			e.APIKey = ""
-			cfg.Endpoints[name] = e
+		for i := range cfg.Models {
+			cfg.Models[i].APIKey = ""
 		}
-		out = checkResult{OK: true, Config: &cfg}
+		out = checkResult{OK: true, Config: &cfg, Models: cfg.ModelRefs()}
 	}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
@@ -126,7 +127,7 @@ func check(path, home string) int {
 }
 
 func printSchema() int {
-	s, err := jsonschema.For[config.Config](nil)
+	s, err := jsonschema.For[checkResult](nil)
 	if err != nil {
 		log.Printf("ollupid: %v", err)
 		return 1

@@ -120,7 +120,7 @@ function TurnOutcome({ turn }: { turn: TurnRow }) {
       const usage = usageLine(turn.usage)
       return (
         <div className="flex gap-2 text-[11px] text-fg-subtle">
-          <span>{turn.model.name}</span>
+          <span>{turn.model.connection}</span>
           {turn.completedAt && <span>· {duration(turn.startedAt, turn.completedAt)}</span>}
           {usage && <span>· {usage}</span>}
         </div>
