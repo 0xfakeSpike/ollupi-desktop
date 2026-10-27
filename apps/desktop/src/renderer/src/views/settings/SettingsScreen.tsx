@@ -1,5 +1,5 @@
 import type { WorkspaceRow } from '@ollupi/protocol'
-import { Badge, Button, Disclosure, Input } from '@ollupi/ui'
+import { Badge, Button, Disclosure, Input, Tabs } from '@ollupi/ui'
 import { Archive, ArchiveRestore, FileCog, FolderOpen, RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { AppInfo } from '../../../../shared/ipc'
@@ -10,38 +10,32 @@ import { desktop } from '../../platform/desktop'
 import { PermissionEditor } from './PermissionEditor'
 import { ToolsSection } from './ToolsSection'
 
+type Tab = 'backend' | 'tools' | 'workspaces'
+
+const tabs: { id: Tab; label: string; description: string }[] = [
+  { id: 'backend', label: 'Backend', description: 'Models, endpoints, default permissions, the shell sandbox, slots and memory are set in config.yaml.' },
+  { id: 'tools', label: 'Tools', description: 'What the agent can call. Permission rules name these tools.' },
+  { id: 'workspaces', label: 'Workspaces', description: 'Project folders threads run in. Their permissions add to the agent defaults.' },
+]
+
 export function SettingsScreen() {
+  const [tab, setTab] = useState<Tab>('backend')
+  const current = tabs.find((t) => t.id === tab)!
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-[52px] shrink-0 items-center border-b border-line px-6">
+      <header className="drag flex h-[52px] shrink-0 items-center gap-4 border-b border-line px-6">
         <h1 className="text-[13px] font-semibold">Settings</h1>
+        <Tabs<Tab> label="Settings" tabs={tabs} value={tab} onChange={setTab} />
       </header>
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-8">
-          <Section title="Backend" description="Models, endpoints, default permissions, the shell sandbox, slots and memory are set in config.yaml.">
-            <BackendInfo />
-          </Section>
-          <Section title="Tools" description="What the agent can call. Permission rules name these tools.">
-            <ToolsSection />
-          </Section>
-          <Section title="Workspaces" description="Project folders threads run in. Their permissions add to the agent defaults.">
-            <Workspaces />
-          </Section>
-        </div>
+        <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-3 px-6 py-8">
+          <p className="text-xs text-fg-muted">{current.description}</p>
+          {tab === 'backend' && <BackendInfo />}
+          {tab === 'tools' && <ToolsSection />}
+          {tab === 'workspaces' && <Workspaces />}
+        </section>
       </div>
     </div>
-  )
-}
-
-function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-sm font-semibold text-fg">{title}</h2>
-        <p className="mt-0.5 text-xs text-fg-muted">{description}</p>
-      </div>
-      {children}
-    </section>
   )
 }
 
