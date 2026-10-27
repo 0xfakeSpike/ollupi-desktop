@@ -6,33 +6,47 @@ import type { MemoryRow, MemoryStatus } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, IconButton, Select, Spinner, Textarea } from '@ollupi/ui'
 import { Brain, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { editMemory, forgetMemory, readMemory, type MemoryScope } from '../../domains/memory'
+import { editMemory, forgetMemory, mergeScopes, readMemory, type MemoryScopes } from '../../domains/memory'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { MemorySettings } from './MemorySettings'
 
+/** What the screen shows: every scope, the global one, or a workspace with
+ * the global ones, as its threads recall them. */
+type Shown = { kind: 'all' } | { kind: 'global' } | { kind: 'workspace'; id: string }
+
+const ALL = '*'
+const GLOBAL = ''
+
 export function MemoryScreen() {
   const workspaces = useWorkspaces((s) => s.list)
-  const [scope, setScope] = useState<MemoryScope>({ workspaceId: undefined, includeGlobal: true })
-  const [data, setData] = useState<{ status: MemoryStatus; entries: MemoryRow[] }>()
+  const [shown, setShown] = useState<Shown>({ kind: 'all' })
+  const [data, setData] = useState<{ status: MemoryStatus; scopes: MemoryScopes }>()
   const [loading, setLoading] = useState(true)
+  const workspaceIds = workspaces.map((w) => w.id).join('\n')
 
   // Saving the memory settings restarts the backend: read again once the
   // new one is connected.
   const connected = useConnection((s) => s.gateway === 'connected')
   const reload = useCallback(async () => {
     setLoading(true)
-    setData(await readMemory(scope))
+    setData(await readMemory(workspaceIds ? workspaceIds.split('\n') : []))
     setLoading(false)
-  }, [scope])
+  }, [workspaceIds])
   useEffect(() => {
     if (connected) void reload()
   }, [reload, connected])
 
-  const replace = (row: MemoryRow) => setData((d) => d && { ...d, entries: d.entries.map((e) => (e.id === row.id ? row : e)) })
-  const remove = (id: string) => setData((d) => d && { ...d, entries: d.entries.filter((e) => e.id !== id) })
+  const update = (change: (rows: MemoryRow[]) => MemoryRow[]) =>
+    setData((d) => d && { ...d, scopes: new Map([...d.scopes].map(([k, rows]) => [k, change(rows)])) })
+  const replace = (row: MemoryRow) => update((rows) => rows.map((e) => (e.id === row.id ? row : e)))
+  const remove = (id: string) => update((rows) => rows.filter((e) => e.id !== id))
+
   // memory/list returns every status; only active memories are recalled.
-  const active = data?.entries.filter((e) => e.status === 'active') ?? []
+  const activeIn = (keys: string[]) => (data ? mergeScopes(data.scopes, keys).filter((e) => e.status === 'active') : [])
+  const keys = shown.kind === 'all' ? [...(data?.scopes.keys() ?? [])] : shown.kind === 'global' ? [GLOBAL] : [shown.id, GLOBAL]
+  const active = activeIn(keys)
+  const count = (k: string[]) => (data ? ` (${activeIn(k).length})` : '')
 
   return (
     <div className="flex h-full flex-col">
@@ -41,13 +55,17 @@ export function MemoryScreen() {
         <Select
           aria-label="Scope"
           className="h-7 w-56 text-xs"
-          value={scope.workspaceId ?? ''}
-          onChange={(e) => setScope({ workspaceId: e.target.value || undefined, includeGlobal: true })}
+          value={shown.kind === 'all' ? ALL : shown.kind === 'global' ? GLOBAL : shown.id}
+          onChange={(e) => {
+            const v = e.target.value
+            setShown(v === ALL ? { kind: 'all' } : v === GLOBAL ? { kind: 'global' } : { kind: 'workspace', id: v })
+          }}
         >
-          <option value="">Global</option>
+          <option value={ALL}>All scopes{count([...(data?.scopes.keys() ?? [])])}</option>
+          <option value={GLOBAL}>Global{count([GLOBAL])}</option>
           {workspaces.map((w) => (
             <option key={w.id} value={w.id}>
-              {w.name} and global
+              {w.name} and global{count([w.id, GLOBAL])}
             </option>
           ))}
         </Select>
@@ -65,9 +83,23 @@ export function MemoryScreen() {
               <Spinner />
             </div>
           ) : active.length === 0 ? (
-            <EmptyState icon={<Brain size={28} />} title="Nothing remembered yet">
-              Memories are distilled from finished turns when memory.generate is on in config.yaml.
-            </EmptyState>
+            activeIn([...(data?.scopes.keys() ?? [])]).length > 0 ? (
+              <EmptyState
+                icon={<Brain size={28} />}
+                title="Nothing remembered here"
+                action={
+                  <Button size="sm" onClick={() => setShown({ kind: 'all' })}>
+                    Show all scopes
+                  </Button>
+                }
+              >
+                Memories are kept per workspace or globally; the others are in other scopes.
+              </EmptyState>
+            ) : (
+              <EmptyState icon={<Brain size={28} />} title="Nothing remembered yet">
+                Memories are distilled from finished turns while learning is on.
+              </EmptyState>
+            )
           ) : (
             <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
               {active.map((e) => (
