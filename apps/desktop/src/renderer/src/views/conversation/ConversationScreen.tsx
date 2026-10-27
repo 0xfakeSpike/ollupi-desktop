@@ -34,42 +34,42 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-4">
+      <header className="drag flex h-10 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">
         {parent && (
-          <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
+          <IconButton label={m.conversation.screen.back} size="sm" className="-ml-1" onClick={() => void openThread(parent)}>
             <ArrowLeft size={14} />
           </IconButton>
         )}
-        <h1 className="min-w-0 truncate text-[13px] font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
+        <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
         {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
         {workspace && (
-          <span className="flex min-w-0 items-center gap-1 text-xs text-fg-subtle" title={workspace.rootPath}>
-            <Folder size={12} />
+          <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={workspace.rootPath}>
+            <Folder size={14} className="shrink-0" />
             <span className="truncate">{workspace.name}</span>
           </span>
         )}
-        {needsUser(summary?.status) && <Badge tone="warning">{m.conversation.screen.waiting}</Badge>}
+        {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}
         <div className="flex-1" />
         {thread && !parent && (
           <>
-            <IconButton label={m.conversation.screen.scheduledTasks} size="sm" onClick={() => setDialog('cron')} className="relative">
-              <CalendarClock size={14} />
-              {!!jobs?.length && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-accent" />}
+            <IconButton label={m.conversation.screen.scheduledTasks} onClick={() => setDialog('cron')} className="relative">
+              <CalendarClock size={16} />
+              {!!jobs?.length && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" />}
             </IconButton>
-            <IconButton label={m.conversation.screen.permissions} size="sm" onClick={() => setDialog('permissions')}>
-              <Shield size={14} />
+            <IconButton label={m.conversation.screen.permissions} onClick={() => setDialog('permissions')}>
+              <Shield size={16} />
             </IconButton>
           </>
         )}
-        <IconButton label={m.conversation.screen.context} size="sm" active={contextOpen} onClick={toggleContextPanel}>
-          <Gauge size={14} />
+        <IconButton label={m.conversation.screen.context} active={contextOpen} onClick={toggleContextPanel}>
+          <Gauge size={16} />
         </IconButton>
       </header>
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative min-h-0 flex-1">
-            <div ref={ref} className="h-full overflow-y-auto">
+            <div ref={ref} className="scroll-centered h-full overflow-y-auto">
               {timeline ? (
                 <TimelineView timeline={timeline} />
               ) : (
@@ -83,9 +83,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
                 type="button"
                 aria-label={m.conversation.screen.scrollToLatest}
                 onClick={() => scrollToBottom(true)}
-                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-line-strong bg-raised text-fg-muted shadow-md hover:text-fg"
+                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
               >
-                <ArrowDown size={15} />
+                <ArrowDown size={16} />
               </button>
             )}
           </div>
@@ -93,7 +93,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           {parent ? (
             // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
             // it works on the task its parent gave it and reports back there.
-            <p className="px-6 pb-5 text-center text-xs text-fg-subtle">
+            <p className="px-6 pb-5 text-center text-small text-fg-subtle">
               {m.conversation.screen.subagentNote}
             </p>
           ) : (

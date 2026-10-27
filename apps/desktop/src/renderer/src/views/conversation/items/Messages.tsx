@@ -8,7 +8,7 @@ import { Markdown } from '../../common/Markdown'
 export function UserMessage({ item }: { item: ItemRow }) {
   return (
     <div className="flex justify-end">
-      <div className="selectable max-w-[80%] rounded-2xl bg-surface px-4 py-2 text-sm leading-6 break-words whitespace-pre-wrap text-fg">{item.text}</div>
+      <div className="selectable max-w-4/5 rounded-2xl bg-surface px-4 py-2 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>
     </div>
   )
 }
@@ -17,7 +17,7 @@ export function AgentMessage({ item }: { item: ItemRow }) {
   const streaming = item.status === 'inProgress'
   if (!item.text && !streaming) return null
   return (
-    <div className={streaming ? 'streaming-caret text-sm text-fg' : 'text-sm text-fg'}>
+    <div className={cn('text-fg', streaming && 'streaming-caret')}>
       <Markdown text={item.text ?? ''} />
     </div>
   )

@@ -25,7 +25,7 @@ export const en = {
   },
   usage: {
     line: (input: string, output: string) => `${input} in · ${output} out`,
-    lineCached: (input: string, cached: string, output: string) => `${input} in (${cached} cached) · ${output} out`,
+    lineCached: (input: string, cached: string, output: string) => `${input} in · ${cached} cached · ${output} out`,
   },
   tool: {
     plan: 'Updated the plan',
@@ -68,7 +68,7 @@ export const zh: typeof en = {
   },
   usage: {
     line: (input, output) => `输入 ${input} · 输出 ${output}`,
-    lineCached: (input, cached, output) => `输入 ${input}（缓存 ${cached}）· 输出 ${output}`,
+    lineCached: (input, cached, output) => `输入 ${input} · 缓存 ${cached} · 输出 ${output}`,
   },
   tool: {
     plan: '更新了计划',

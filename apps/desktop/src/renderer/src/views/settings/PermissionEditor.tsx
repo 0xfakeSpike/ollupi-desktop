@@ -65,7 +65,7 @@ export function PermissionEditor({
           <Textarea
             rows={3}
             spellCheck={false}
-            className="font-mono text-xs"
+            className="font-mono text-small"
             value={rules[kind]}
             onChange={(e) => setRules({ ...rules, [kind]: e.target.value })}
             placeholder={m.settings.permissions.rulesPlaceholder}

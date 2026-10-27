@@ -62,13 +62,13 @@ export function McpSection() {
         <Callout tone="warning">
           <div className="flex items-center gap-3">
             <span className="flex-1">{m.settings.mcp.stale}</span>
-            <Button size="sm" icon={<RotateCw size={13} />} onClick={() => void desktop.backend.restart()}>
+            <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
               {m.common.restartBackend}
             </Button>
           </div>
         </Callout>
       )}
-      {servers.length === 0 && <p className="text-[13px] text-fg-subtle">{m.settings.mcp.empty}</p>}
+      {servers.length === 0 && <p className="text-ui text-fg-subtle">{m.settings.mcp.empty}</p>}
       {servers.map((s, i) => (
         <ServerCard
           key={`${i}:${s.name}`}
@@ -123,11 +123,11 @@ function ServerCard({
   const c = useT().settings.mcp.card
   const keys = Object.keys((s.url ? s.headers : s.env) ?? {})
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3">
+    <div className="flex flex-col gap-2 rounded-lg border border-line px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-medium text-fg">{s.name}</span>
+            <span className="text-ui font-medium text-fg">{s.name}</span>
             <Badge>{s.url ? 'HTTP' : 'stdio'}</Badge>
             {!status ? (
               <Badge tone="warning">{c.notStarted}</Badge>
@@ -137,36 +137,36 @@ function ServerCard({
               <Badge tone="danger">{c.notConnected}</Badge>
             )}
           </div>
-          <div className="selectable mt-1 font-mono text-xs break-all text-fg-subtle">
+          <div className="selectable mt-1 font-mono text-small break-all text-fg-subtle">
             {s.url ? s.url : [s.command, ...(s.args ?? [])].join(' ')}
           </div>
           {keys.length > 0 && (
-            <div className="mt-1 text-xs text-fg-muted">
+            <div className="mt-1 text-small text-fg-muted">
               {s.url ? c.headers : c.env}: <span className="font-mono">{keys.join(', ')}</span>
             </div>
           )}
         </div>
         <IconButton label={c.edit(s.name)} size="sm" onClick={onEdit}>
-          <Pencil size={13} />
+          <Pencil size={14} />
         </IconButton>
         <IconButton label={c.remove(s.name)} size="sm" onClick={onRemove}>
-          <Trash2 size={13} />
+          <Trash2 size={14} />
         </IconButton>
       </div>
       {status?.error && (
-        <pre className="selectable max-h-40 overflow-auto rounded-lg bg-danger-soft px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-danger">
+        <pre className="selectable max-h-40 overflow-auto rounded-lg bg-surface px-3 py-2 font-mono text-small whitespace-pre-wrap text-danger">
           {status.error}
         </pre>
       )}
       {!!status?.skippedTools?.length && (
-        <p className="text-xs text-fg-muted">
+        <p className="text-small text-fg-muted">
           {c.skipped(<span className="font-mono">{status.skippedTools.join(', ')}</span>)}
         </p>
       )}
       {tools.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {tools.map((t) => (
-            <code key={t} className="rounded bg-hover px-1.5 py-0.5 font-mono text-[11px] text-fg-muted">
+            <code key={t} className="rounded-sm bg-hover px-1.5 py-0.5 font-mono text-small text-fg-muted">
               {t}
             </code>
           ))}
@@ -266,8 +266,8 @@ function ServerDialog({
       wide
       footer={
         <>
-          <Button onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
+          <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
+          <Button size="lg" variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
             {m.settings.config.saveAndRestart}
           </Button>
         </>
@@ -286,13 +286,13 @@ function ServerDialog({
         {transport === 'stdio' ? (
           <>
             <Field label={t.command} hint={t.commandHint}>
-              <Input value={command} spellCheck={false} className="font-mono text-xs" placeholder="npx" onChange={(e) => setCommand(e.target.value)} />
+              <Input value={command} spellCheck={false} className="font-mono text-small" placeholder="npx" onChange={(e) => setCommand(e.target.value)} />
             </Field>
             <Field label={t.args} hint={t.argsHint}>
               <Textarea
                 rows={3}
                 spellCheck={false}
-                className="font-mono text-xs"
+                className="font-mono text-small"
                 value={args}
                 placeholder={'-y\n@modelcontextprotocol/server-filesystem\n/path/to/dir'}
                 onChange={(e) => setArgs(e.target.value)}
@@ -302,7 +302,7 @@ function ServerDialog({
               <Textarea
                 rows={3}
                 spellCheck={false}
-                className="font-mono text-xs"
+                className="font-mono text-small"
                 value={envText}
                 placeholder="API_TOKEN=${MY_API_TOKEN}"
                 onChange={(e) => setEnvText(e.target.value)}
@@ -315,7 +315,7 @@ function ServerDialog({
               <Input
                 value={url}
                 spellCheck={false}
-                className="font-mono text-xs"
+                className="font-mono text-small"
                 placeholder="https://example.com/mcp"
                 onChange={(e) => setUrl(e.target.value)}
               />
@@ -324,7 +324,7 @@ function ServerDialog({
               <Textarea
                 rows={3}
                 spellCheck={false}
-                className="font-mono text-xs"
+                className="font-mono text-small"
                 value={headersText}
                 placeholder="Authorization: Bearer ${GITHUB_TOKEN}"
                 onChange={(e) => setHeadersText(e.target.value)}

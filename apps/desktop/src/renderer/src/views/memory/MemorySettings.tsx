@@ -57,7 +57,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-line px-4 py-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-line px-4 py-4">
       <Row
         title={m.memory.settings.learn}
         hint={m.memory.settings.learnHint}
@@ -84,7 +84,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
       />
       {(changed || stale) && (
         <div className="flex items-center justify-end gap-3 border-t border-line pt-3">
-          <span className="text-xs text-fg-subtle">
+          <span className="text-small text-fg-subtle">
             {changed ? m.memory.settings.restarts : m.memory.settings.stale}
           </span>
           {changed ? (
@@ -92,7 +92,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
               {m.memory.settings.saveAndRestart}
             </Button>
           ) : (
-            <Button size="sm" icon={<RotateCw size={13} />} onClick={() => void desktop.backend.restart()}>
+            <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
               {m.common.restartBackend}
             </Button>
           )}
@@ -106,8 +106,8 @@ function Row({ title, hint, control }: { title: string; hint: string; control: R
   return (
     <div className="flex items-start gap-4">
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-fg">{title}</div>
-        <div className="mt-0.5 text-xs text-fg-muted">{hint}</div>
+        <div className="text-ui font-medium text-fg">{title}</div>
+        <div className="mt-0.5 text-small text-fg-muted">{hint}</div>
       </div>
       {control}
     </div>

@@ -11,8 +11,10 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     title: 'Ollupi',
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 18 },
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#161616' : '#ffffff',
+    // Centred on the screen panel's 40px header, which sits 8px down.
+    trafficLightPosition: { x: 16, y: 21 },
+    // theme.css --ol-ground, shown before the renderer paints.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a19' : '#f7f6f3',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,

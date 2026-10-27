@@ -23,13 +23,16 @@ export function SettingsScreen() {
   const current = tabs.find((t) => t.id === tab)!
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-[52px] shrink-0 items-center gap-4 border-b border-line px-6">
-        <h1 className="text-[13px] font-semibold">{m.settings.screen.title}</h1>
-        <Tabs<Tab> label={m.settings.screen.title} tabs={tabs} value={tab} onChange={setTab} />
+      {/* The header's row is the content's column, so the tabs sit over it. */}
+      <header className="drag flex h-10 shrink-0 border-b border-line">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-6 px-6">
+          <h1 className="text-ui font-semibold">{m.settings.screen.title}</h1>
+          <Tabs<Tab> label={m.settings.screen.title} tabs={tabs} value={tab} onChange={setTab} />
+        </div>
       </header>
-      <div className="flex-1 overflow-y-auto">
-        <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-3 px-6 py-8">
-          <p className="text-xs text-fg-muted">{current.description}</p>
+      <div className="scroll-centered flex-1 overflow-y-auto">
+        <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-8">
+          <p className="text-ui text-fg-muted">{current.description}</p>
           {tab === 'general' && <General />}
           {tab === 'models' && <ModelsSection />}
           {tab === 'mcp' && <McpSection />}
@@ -71,11 +74,11 @@ function General() {
           ))}
         </Select>
       </Field>
-      <dl className="grid grid-cols-[140px_1fr] gap-y-2 rounded-xl border border-line px-4 py-3 text-[13px]">
+      <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
         {rows.map(([k, v]) => (
-          <div key={k} className="contents">
-            <dt className="text-fg-muted">{k}</dt>
-            <dd className="selectable font-mono text-xs leading-5 break-all">{v}</dd>
+          <div key={k} className="flex min-h-11 items-center gap-4 px-3 py-2.5">
+            <dt className="shrink-0 text-ui text-fg">{k}</dt>
+            <dd className="selectable min-w-0 flex-1 text-right font-mono text-small break-all text-fg-muted">{v ?? '—'}</dd>
           </div>
         ))}
       </dl>

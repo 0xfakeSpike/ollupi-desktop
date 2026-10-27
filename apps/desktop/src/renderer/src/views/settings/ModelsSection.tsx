@@ -65,7 +65,7 @@ export function ModelsSection() {
         <Callout tone="warning">
           <div className="flex items-center gap-3">
             <span className="flex-1">{m.settings.models.stale}</span>
-            <Button size="sm" icon={<RotateCw size={13} />} onClick={() => void desktop.backend.restart()}>
+            <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
               {m.common.restartBackend}
             </Button>
           </div>
@@ -156,13 +156,13 @@ function ProviderCard({
   const m = useT()
   const c = m.settings.models.card
   return (
-    <div className="flex flex-col rounded-xl border border-line">
+    <div className="flex flex-col rounded-lg border border-line">
       <div className="flex items-start gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-medium text-fg">{p.provider}</div>
-          <div className="selectable mt-0.5 truncate font-mono text-xs text-fg-subtle">{p.base_url || c.noBaseUrl}</div>
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-fg-muted">
-            <KeyRound size={12} />
+          <div className="text-ui font-medium text-fg">{p.provider}</div>
+          <div className="selectable mt-0.5 truncate font-mono text-small text-fg-subtle">{p.base_url || c.noBaseUrl}</div>
+          <div className="mt-1 flex items-center gap-1.5 text-small text-fg-muted">
+            <KeyRound size={14} />
             {keyFrom === 'api_key_env' ? (
               <span>{c.keyFrom(<code className="selectable font-mono">${p.api_key_env}</code>)}</span>
             ) : keyFrom === 'api_key' ? (
@@ -173,10 +173,10 @@ function ProviderCard({
           </div>
         </div>
         <IconButton label={c.edit(p.provider)} size="sm" onClick={onEdit}>
-          <Pencil size={13} />
+          <Pencil size={14} />
         </IconButton>
         <IconButton label={c.remove(p.provider)} size="sm" onClick={onRemove}>
-          <Trash2 size={13} />
+          <Trash2 size={14} />
         </IconButton>
       </div>
       <ul className="flex flex-col divide-y divide-line">
@@ -187,7 +187,7 @@ function ProviderCard({
             <li key={`${i}:${model.name}`} className="flex items-center gap-3 px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="selectable font-mono text-xs text-fg">{model.name}</span>
+                  <span className="selectable font-mono text-small text-fg">{model.name}</span>
                   {isDefault && <Badge tone="accent">{c.default}</Badge>}
                   {memoryModel === id && <Badge>{c.memory}</Badge>}
                 </div>
@@ -195,21 +195,21 @@ function ProviderCard({
               </div>
               {!isDefault && (
                 <IconButton label={c.makeDefault(id)} size="sm" onClick={() => onMakeDefault(i)}>
-                  <Star size={13} />
+                  <Star size={14} />
                 </IconButton>
               )}
               <IconButton label={c.edit(id)} size="sm" onClick={() => onEditModel(i)}>
-                <Pencil size={13} />
+                <Pencil size={14} />
               </IconButton>
               <IconButton label={c.remove(id)} size="sm" onClick={() => onRemoveModel(i)}>
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </IconButton>
             </li>
           )
         })}
       </ul>
       <div className="border-t border-line px-2 py-1.5">
-        <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={onAddModel}>
+        <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={onAddModel}>
           {m.settings.models.addModel}
         </Button>
       </div>
@@ -226,7 +226,7 @@ function ModelDetails({ model }: { model: ProviderModel }) {
     model.limits ? d.limits(model.limits.context.toLocaleString(locale), model.limits.output.toLocaleString(locale)) : undefined,
   ].filter(Boolean)
   if (parts.length === 0) return null
-  return <div className="mt-0.5 text-xs text-fg-subtle">{parts.join(' · ')}</div>
+  return <div className="mt-0.5 text-small text-fg-subtle">{parts.join(' · ')}</div>
 }
 
 function ProviderDialog({
@@ -273,8 +273,8 @@ function ProviderDialog({
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
+          <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
+          <Button size="lg" variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
             {m.settings.config.saveAndRestart}
           </Button>
         </>
@@ -292,7 +292,7 @@ function ProviderDialog({
           <Input
             value={baseUrl}
             spellCheck={false}
-            className="font-mono text-xs"
+            className="font-mono text-small"
             placeholder="https://api.deepseek.com"
             onChange={(e) => setBaseUrl(e.target.value)}
           />
@@ -304,14 +304,14 @@ function ProviderDialog({
           <Input
             value={keyEnv}
             spellCheck={false}
-            className="font-mono text-xs"
+            className="font-mono text-small"
             placeholder="DEEPSEEK_API_KEY"
             onChange={(e) => setKeyEnv(e.target.value)}
           />
         </Field>
         {!provider && (
           <>
-            <div className="border-t border-line pt-3 text-xs font-medium text-fg">{t.firstModel}</div>
+            <div className="border-t border-line pt-3 text-small font-medium text-fg">{t.firstModel}</div>
             {first.form}
           </>
         )}
@@ -355,7 +355,7 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
         error={trimmed && nameError}
         hint={renamed ? t.renamedId(modelId(provider, trimmed), m.settings.models.renamed) : t.nameHint}
       >
-        <Input value={name} spellCheck={false} className="font-mono text-xs" placeholder="deepseek-flash" onChange={(e) => setName(e.target.value)} />
+        <Input value={name} spellCheck={false} className="font-mono text-small" placeholder="deepseek-flash" onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label={t.calls} error={callsError} hint={t.callsHint}>
         <Input value={calls} inputMode="numeric" className="max-w-32" placeholder={t.callsPlaceholder} onChange={(e) => setCalls(e.target.value)} />
@@ -407,8 +407,8 @@ function ModelDialog({
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="primary" disabled={invalid} loading={saving} onClick={() => void save()}>
+          <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
+          <Button size="lg" variant="primary" disabled={invalid} loading={saving} onClick={() => void save()}>
             {m.settings.config.saveAndRestart}
           </Button>
         </>

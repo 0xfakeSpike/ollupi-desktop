@@ -8,7 +8,7 @@ export function ThreadPermissionsDialog({ thread, onClose }: { thread: ThreadRow
   const m = useT()
   return (
     <Dialog title={m.settings.permissions.thread.title} closeLabel={m.common.close} onClose={onClose}>
-      <p className="mb-4 text-xs text-fg-muted">{m.settings.permissions.thread.intro}</p>
+      <p className="mb-4 text-small text-fg-muted">{m.settings.permissions.thread.intro}</p>
       <PermissionEditor
         value={thread.settings}
         inheritFrom={thread.workspaceId ? m.settings.permissions.fromWorkspace : m.settings.permissions.fromAgent}

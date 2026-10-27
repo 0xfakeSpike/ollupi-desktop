@@ -22,12 +22,14 @@ import { useState, type ReactNode } from 'react'
 import { toggleContextPanel } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 
-// Labels are the catalog's context.parts, by key.
+// Labels are the catalog's context.parts, by key. Steps of ink tell the
+// fixed parts apart; the conversation itself, the part that grows, is the
+// one in accent.
 const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; color: string }[] = [
-  { key: 'system', color: 'bg-fg-subtle' },
-  { key: 'tools', color: 'bg-accent/45' },
+  { key: 'system', color: 'bg-fg/25' },
+  { key: 'tools', color: 'bg-fg/45' },
   { key: 'messages', color: 'bg-accent' },
-  { key: 'memory', color: 'bg-warning' },
+  { key: 'memory', color: 'bg-fg/70' },
 ]
 
 export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
@@ -39,15 +41,15 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-canvas">
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-line pr-2 pl-4">
-        <h2 className="text-[13px] font-semibold">{t.title}</h2>
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-line pr-2 pl-4">
+        <h2 className="text-ui font-semibold">{t.title}</h2>
         <IconButton label={t.close} size="sm" onClick={toggleContextPanel}>
           <X size={14} />
         </IconButton>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {!latest ? (
-          <p className="text-xs text-fg-subtle">{t.empty}</p>
+          <p className="text-small text-fg-subtle">{t.empty}</p>
         ) : (
           <div className="flex flex-col gap-6">
             <Overview
@@ -67,9 +69,9 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-xs font-medium text-fg-muted">{title}</h3>
+      <h3 className="text-small font-medium text-fg-muted">{title}</h3>
       {children}
-      {hint && <p className="text-[11px] leading-4 text-fg-subtle">{hint}</p>}
+      {hint && <p className="text-small text-fg-subtle">{hint}</p>}
     </section>
   )
 }
@@ -83,8 +85,8 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
   return (
     <Section title={t.lastPrompt} hint={t.lastPromptHint(use.calibrated)}>
       <div className="flex items-baseline justify-between">
-        <span className="text-2xl font-semibold text-fg tabular-nums">{percent(use.used, use.budget)}%</span>
-        <span className="text-xs text-fg-muted tabular-nums">
+        <span className="text-display text-fg tabular-nums">{percent(use.used, use.budget)}%</span>
+        <span className="text-small text-fg-muted tabular-nums">
           {formatTokens(use.used)} / {formatTokens(use.budget)}
         </span>
       </div>
@@ -98,7 +100,7 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
       </div>
       <div className="relative h-3.5">
         <span
-          className="absolute text-[10px] whitespace-nowrap text-fg-subtle"
+          className="absolute text-small whitespace-nowrap text-fg-subtle"
           style={{
             left: `${Math.min(100, (use.compactAt / use.budget) * 100)}%`,
             transform: use.compactAt / use.budget > 0.85 ? 'translateX(-100%)' : 'translateX(-50%)',
@@ -107,14 +109,14 @@ function Overview({ use, connection, details }: { use: ContextUse; connection: s
           {t.autoCompact}
         </span>
       </div>
-      <div className="selectable font-mono text-[11px] text-fg-subtle">{connection}</div>
+      <div className="selectable font-mono text-small text-fg-subtle">{connection}</div>
       <ul className="flex flex-col gap-1">
         {parts.map((p) =>
           p.key === 'memory' && use.memory === 0 ? null : (
             <PartRow key={p.key} label={t.parts[p.key]} color={p.color} tokens={use[p.key]} budget={use.budget} details={details[p.key]} />
           ),
         )}
-        <li className="flex items-center gap-2 text-xs">
+        <li className="flex items-center gap-2 text-small">
           <span className="size-2 rounded-sm bg-hover" />
           <span className="flex-1 text-fg-muted">{t.free}</span>
           <span className="text-fg tabular-nums">{formatTokens(Math.max(0, use.budget - use.used))}</span>
@@ -133,24 +135,24 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
       <span className={cn('size-2 shrink-0 rounded-sm', color)} />
       <span className="flex flex-1 items-center gap-1 text-fg-muted">
         {label}
-        {details && <ChevronRight size={12} className={cn('text-fg-subtle transition-transform', open && 'rotate-90')} />}
+        {details && <ChevronRight size={14} className={cn('text-fg-subtle transition-transform duration-160 ease-standard', open && 'rotate-90')} />}
       </span>
       <span className="text-fg tabular-nums">{formatTokens(tokens)}</span>
       <span className="w-9 text-right text-fg-subtle tabular-nums">{percent(tokens, budget)}%</span>
     </>
   )
-  if (!details) return <li className="flex items-center gap-2 text-xs">{row}</li>
+  if (!details) return <li className="flex items-center gap-2 text-small">{row}</li>
   return (
     <li className="flex flex-col">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="-mx-1.5 flex items-center gap-2 rounded-md px-1.5 text-left text-xs hover:bg-hover"
+        className="-mx-1.5 flex items-center gap-2 rounded-md px-1.5 text-left text-small transition-colors duration-100 ease-standard hover:bg-hover"
       >
         {row}
       </button>
-      {open && <div className="mt-1.5 mb-2 flex flex-col gap-3 border-l-2 border-line pl-3 ml-0.5">{details}</div>}
+      {open && <div className="my-1.5 ml-0.5 flex flex-col gap-3 border-l border-line pl-3">{details}</div>}
     </li>
   )
 }
@@ -160,15 +162,15 @@ function LastCall({ call }: { call: ModelCall }) {
   const t = useT().conversation.context
   return (
     <Section title={t.lastCall} hint={t.lastCallHint}>
-      <dl className="grid grid-cols-[1fr_auto] gap-y-1 text-xs">
+      <dl className="grid grid-cols-[1fr_auto] gap-y-1 text-small">
         <dt className="text-fg-muted">{t.input}</dt>
-        <dd className="text-fg tabular-nums">{formatTokens(u.inputTokens)}</dd>
+        <dd className="text-right text-fg tabular-nums">{formatTokens(u.inputTokens)}</dd>
         <dt className="pl-3 text-fg-subtle">{t.cached}</dt>
-        <dd className="text-fg-subtle tabular-nums">
+        <dd className="text-right text-fg-subtle tabular-nums">
           {formatTokens(u.cachedInputTokens)} · {percent(u.cachedInputTokens, u.inputTokens)}%
         </dd>
         <dt className="text-fg-muted">{t.output}</dt>
-        <dd className="text-fg tabular-nums">{formatTokens(u.outputTokens)}</dd>
+        <dd className="text-right text-fg tabular-nums">{formatTokens(u.outputTokens)}</dd>
       </dl>
     </Section>
   )
@@ -182,9 +184,7 @@ function MemoryDetails({ memory, inWorkspace }: { memory: PromptMemory; inWorksp
     <>
       {memory.global && <MemoryList title={m.memoryScope.global} section={memory.global} />}
       {memory.local && <MemoryList title={m.memoryScope[inWorkspace ? 'workspace' : 'general']} section={memory.local} />}
-      <p className="text-[11px] leading-4 text-fg-subtle">
-        {m.context.memoryNote}
-      </p>
+      <p className="text-small text-fg-subtle">{m.context.memoryNote}</p>
     </>
   )
 }
@@ -194,14 +194,14 @@ function MemoryList({ title, section }: { title: string; section: MemorySection 
   const t = useT().conversation.context
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between text-[11px] text-fg-subtle">
+      <div className="flex items-baseline justify-between text-small text-fg-subtle">
         <span>
           {title} · {n}
         </span>
         <span className="tabular-nums">{formatTokens(section.tokens)}</span>
       </div>
       {section.entries ? (
-        <ul className="selectable flex flex-col gap-1.5 text-xs text-fg-muted">
+        <ul className="selectable flex flex-col gap-1.5 text-small text-fg-muted">
           {section.entries.map((m) => (
             <li key={m.id} className="line-clamp-3">
               {m.topic && <span className="font-medium text-fg">{m.topic}: </span>}
@@ -210,7 +210,7 @@ function MemoryList({ title, section }: { title: string; section: MemorySection 
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-fg-subtle">{t.memoryUnloaded}</p>
+        <p className="text-small text-fg-subtle">{t.memoryUnloaded}</p>
       )}
     </div>
   )
@@ -229,7 +229,7 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
             const use = contextUse(c.stats)
             return (
               <li key={c.itemId} className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-2 text-small">
                   <span className="text-fg-subtle tabular-nums">{new Date(c.startedAt).toLocaleTimeString(locale)}</span>
                   <span className={cn('min-w-0 flex-1 truncate', c.kind === 'failed' ? 'text-danger' : 'text-fg-muted')}>
                     {c.kind === 'compaction' ? t.compaction : c.kind === 'failed' ? t.failed : connection(c)}
@@ -240,7 +240,7 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
                 <div className="relative">
                   <div className="h-1 overflow-hidden rounded-full bg-hover">
                     <div
-                      className={cn('h-full', c.kind === 'compaction' ? 'bg-warning' : c.kind === 'failed' ? 'bg-danger' : 'bg-accent')}
+                      className={cn('h-full', c.kind === 'compaction' ? 'bg-warning' : c.kind === 'failed' ? 'bg-danger' : 'bg-fg/35')}
                       style={{ width: `${Math.min(100, percent(use.used, use.budget))}%` }}
                     />
                   </div>

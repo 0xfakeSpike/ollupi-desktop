@@ -20,11 +20,13 @@ export function App() {
   return (
     <>
       {synced && !failed ? (
-        <div className="flex h-full flex-col">
+        // The sidebar sits on the window's ground; the screen is a panel
+        // inset 8px from the window's edges.
+        <div className="flex h-full flex-col bg-ground">
           <ContractBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />
-            <main className="flex min-w-0 flex-1 flex-col bg-canvas">
+            <main className="my-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-canvas">
               <CurrentScreen />
             </main>
           </div>
@@ -44,7 +46,7 @@ function ContractBanner() {
   const m = useT()
   if (!mismatch) return null
   return (
-    <div className="drag flex shrink-0 items-center justify-center gap-2 border-b border-warning/40 bg-warning-soft px-4 py-1.5 pl-24 text-xs text-warning">
+    <div className="drag flex shrink-0 items-center justify-center gap-2 border-b border-line px-4 py-1.5 pl-24 text-small text-warning">
       {m.shell.contractBanner(mismatch.server.slice(0, 8), mismatch.ui.slice(0, 8))}
     </div>
   )
