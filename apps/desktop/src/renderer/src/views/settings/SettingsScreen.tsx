@@ -1,17 +1,14 @@
-import type { WorkspaceRow } from '@ollupi/protocol'
-import { Badge, Button, Disclosure, Input, Tabs } from '@ollupi/ui'
-import { Archive, ArchiveRestore, FileCog, FolderOpen, RotateCw } from 'lucide-react'
+import { Badge, Button, Tabs } from '@ollupi/ui'
+import { FileCog, RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { AppInfo } from '../../../../shared/ipc'
-import { renameWorkspace, setArchived, updateWorkspacePermissions, useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { desktop } from '../../platform/desktop'
 import { McpSection } from './McpSection'
 import { ModelsSection } from './ModelsSection'
-import { PermissionEditor } from './PermissionEditor'
 import { ToolsSection } from './ToolsSection'
 
-type Tab = 'general' | 'models' | 'mcp' | 'tools' | 'workspaces'
+type Tab = 'general' | 'models' | 'mcp' | 'tools'
 
 const tabs: { id: Tab; label: string; description: string }[] = [
   { id: 'general', label: 'General', description: 'The ollupi backend the app runs, and where its data and config.yaml live.' },
@@ -26,7 +23,6 @@ const tabs: { id: Tab; label: string; description: string }[] = [
     description: 'MCP servers give the agent their tools as <name>__<tool>. The backend connects them at start and skips one it cannot use.',
   },
   { id: 'tools', label: 'Tools', description: 'What the agent can call. Permission rules name these tools.' },
-  { id: 'workspaces', label: 'Workspaces', description: 'Project folders threads run in. Their permissions add to the agent defaults.' },
 ]
 
 export function SettingsScreen() {
@@ -45,7 +41,6 @@ export function SettingsScreen() {
           {tab === 'models' && <ModelsSection />}
           {tab === 'mcp' && <McpSection />}
           {tab === 'tools' && <ToolsSection />}
-          {tab === 'workspaces' && <Workspaces />}
         </section>
       </div>
     </div>
@@ -92,51 +87,5 @@ function General() {
         )}
       </div>
     </>
-  )
-}
-
-function Workspaces() {
-  const workspaces = useWorkspaces((s) => s.list)
-  if (workspaces.length === 0) return <p className="text-[13px] text-fg-subtle">No workspaces yet.</p>
-  return (
-    <div className="flex flex-col divide-y divide-line rounded-xl border border-line">
-      {workspaces.map((w) => (
-        <WorkspaceSettings key={w.id} workspace={w} />
-      ))}
-    </div>
-  )
-}
-
-function WorkspaceSettings({ workspace }: { workspace: WorkspaceRow }) {
-  const [name, setName] = useState(workspace.name)
-  const archived = !!workspace.archivedAt
-  return (
-    <div className="flex flex-col gap-3 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <Input
-          value={name}
-          className="max-w-60"
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => name.trim() && name.trim() !== workspace.name && void renameWorkspace(workspace.id, name.trim())}
-        />
-        {archived && <Badge>archived</Badge>}
-        <div className="flex-1" />
-        <Button size="sm" variant="ghost" icon={<FolderOpen size={13} />} onClick={() => void desktop.openPath(workspace.rootPath)}>
-          Reveal
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
-          onClick={() => void setArchived(workspace.id, !archived)}
-        >
-          {archived ? 'Restore' : 'Archive'}
-        </Button>
-      </div>
-      <div className="selectable font-mono text-xs text-fg-subtle">{workspace.rootPath}</div>
-      <Disclosure summary={<span className="text-xs">Permissions</span>}>
-        <PermissionEditor value={workspace.settings} inheritFrom="the agent defaults" onSave={(s) => updateWorkspacePermissions(workspace.id, s)} />
-      </Disclosure>
-    </div>
   )
 }
