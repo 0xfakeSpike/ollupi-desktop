@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -67,15 +68,9 @@ func New(opts Options) (_ *Host, err error) {
 	}
 	h.closers = append(h.closers, db.Close)
 
-	clients, err := endpointClients(cfg.Endpoints)
+	models, connections, err := modelClients(cfg.Models)
 	if err != nil {
 		return nil, err
-	}
-	models := make([]llm.Model, len(cfg.Models))
-	connections := make(map[string]*llm.OpenAI, len(cfg.Models))
-	for i, m := range cfg.Models {
-		models[i] = m.LLM()
-		connections[m.ID] = clients[m.Endpoint]
 	}
 
 	// The cron component is both a tool provider (the model manages tasks)
@@ -91,7 +86,7 @@ func New(opts Options) (_ *Host, err error) {
 		providers = append(providers, runner)
 	}
 
-	if h.memory, err = memoryManager(db, clients, cfg.Memory); err != nil {
+	if h.memory, err = memoryManager(db, models, connections, cfg.Memory); err != nil {
 		return nil, err
 	}
 
@@ -101,7 +96,7 @@ func New(opts Options) (_ *Host, err error) {
 		Prompt:      cfg.Prompt,
 		Models:      models,
 		Tools:       cfg.Tools,
-		Settings:    cfg.Settings,
+		Settings:    cfg.Permissions.Settings(),
 		Slots:       cfg.Slots,
 		Connections: connections,
 		Providers:   providers,
@@ -187,16 +182,28 @@ func (h *Host) close() {
 	h.closers = nil
 }
 
-func endpointClients(defs map[string]config.Endpoint) (map[string]*llm.OpenAI, error) {
-	out := make(map[string]*llm.OpenAI, len(defs))
-	for name, def := range defs {
-		key, err := def.Key()
+// modelClients gives each model its own ollupi connection and client, so
+// calls caps that model alone (ollupi: each model connection has its own
+// cap). The models keep the file's order; the first is the default.
+func modelClients(providers []config.Provider) ([]llm.Model, map[string]*llm.OpenAI, error) {
+	var models []llm.Model
+	clients := map[string]*llm.OpenAI{}
+	for _, p := range providers {
+		key, err := p.Key()
 		if err != nil {
-			return nil, fmt.Errorf("endpoint %s: %w", name, err)
+			return nil, nil, fmt.Errorf("provider %s: %w", p.Provider, err)
 		}
-		out[name] = llm.NewOpenAI(def.BaseURL, key, def.Calls, def.Limits)
+		for _, m := range p.Names {
+			id := config.ID(p.Provider, m.Name)
+			var limits map[string]llm.Limits
+			if m.Limits != nil {
+				limits = map[string]llm.Limits{m.Name: *m.Limits}
+			}
+			clients[id] = llm.NewOpenAI(p.BaseURL, key, m.Calls, limits)
+			models = append(models, llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking})
+		}
 	}
-	return out, nil
+	return models, clients, nil
 }
 
 func shellRunner(home string, cfg config.Config) (*shell.Runner, error) {
@@ -218,12 +225,14 @@ func shellRunner(home string, cfg config.Config) (*shell.Runner, error) {
 	})
 }
 
-func memoryManager(db *repo.DB, clients map[string]*llm.OpenAI, m config.Memory) (*memory.Manager, error) {
+// memoryManager extracts with the model memory.model names, through that
+// model's client, so extraction shares its calls with the model's turns.
+func memoryManager(db *repo.DB, models []llm.Model, clients map[string]*llm.OpenAI, m config.Memory) (*memory.Manager, error) {
 	opts := memory.Options{Use: m.Use, Generate: m.Generate}
 	var client *llm.OpenAI
-	if m.Model != nil {
-		opts.Model = m.Model.LLM()
-		client = clients[m.Model.Endpoint]
+	if m.Model != "" {
+		i := slices.IndexFunc(models, func(x llm.Model) bool { return x.Connection == m.Model })
+		opts.Model, client = models[i], clients[m.Model]
 	}
 	mgr, err := memory.New(db, client, opts)
 	if err != nil {

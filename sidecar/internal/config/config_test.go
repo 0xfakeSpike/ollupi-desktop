@@ -7,25 +7,45 @@ func TestTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Models[0].ID != "gpt-5.2" || cfg.Models[0].LLM().Connection != "gpt-5.2" {
-		t.Fatalf("default model = %+v", cfg.Models[0])
+	p := cfg.Models[0]
+	if ID(p.Provider, p.Names[0].Name) != "openai/gpt-5.2" {
+		t.Fatalf("default model = %s/%s", p.Provider, p.Names[0].Name)
 	}
-	if !cfg.Shell.Enabled || cfg.Shell.SandboxMode != "workspace-write" || cfg.Settings.ApprovalPolicy != "on-request" {
+	if !cfg.Shell.Enabled || cfg.Shell.SandboxMode != "workspace-write" || cfg.Permissions.Settings().ApprovalPolicy != "on-request" {
+		t.Fatalf("unexpected config: %+v", cfg)
+	}
+}
+
+func TestSameModelAtTwoProviders(t *testing.T) {
+	raw := "name: x\nmodels:\n" +
+		"  - {provider: a, names: [{name: deepseek-flash, calls: 2}]}\n" +
+		"  - {provider: b, names: [{name: deepseek-flash, calls: 8}]}\n" +
+		"memory: {generate: true, model: b/deepseek-flash}\n"
+	cfg, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Models[1].Names[0].Calls != 8 || cfg.Memory.Model != "b/deepseek-flash" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }
 
 func TestValidateRejects(t *testing.T) {
-	base := "name: x\nendpoints: {e: {}}\n"
-	one := "models: [{id: a, name: a, endpoint: e}]\n"
+	one := "models: [{provider: p, names: [{name: m}]}]\n"
 	cases := map[string]string{
-		"no models":        base + "models: []\n",
-		"unknown endpoint": base + "models: [{id: a, name: a, endpoint: nope}]\n",
-		"duplicate id":     base + "models: [{id: a, name: a, endpoint: e}, {id: a, name: b, endpoint: e}]\n",
-		"memory model":     base + one + "memory: {generate: true}\n",
-		"unknown key":      base + one + "modle: 1\n",
-		"negative slots":   base + one + "slots: -1\n",
-		"negative calls":   "name: x\nendpoints: {e: {calls: -2}}\n" + one,
+		"no models":          "name: x\nmodels: []\n",
+		"provider no models": "name: x\nmodels: [{provider: p, names: []}]\n",
+		"provider no name":   "name: x\nmodels: [{names: [{name: m}]}]\n",
+		"provider with /":    "name: x\nmodels: [{provider: a/b, names: [{name: m}]}]\n",
+		"provider twice":     "name: x\nmodels: [{provider: p, names: [{name: m}]}, {provider: p, names: [{name: n}]}]\n",
+		"model twice":        "name: x\nmodels: [{provider: p, names: [{name: m}, {name: m}]}]\n",
+		"negative calls":     "name: x\nmodels: [{provider: p, names: [{name: m, calls: -1}]}]\n",
+		"memory needs model": "name: x\n" + one + "memory: {generate: true}\n",
+		"memory bad model":   "name: x\n" + one + "memory: {model: p/other}\n",
+		"memory bare name":   "name: x\n" + one + "memory: {model: m}\n",
+		"unknown key":        "name: x\n" + one + "modle: 1\n",
+		"old settings key":   "name: x\n" + one + "settings: {approvalPolicy: never}\n",
+		"negative slots":     "name: x\n" + one + "slots: -1\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {

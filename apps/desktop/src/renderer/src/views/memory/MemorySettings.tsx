@@ -7,46 +7,37 @@ import type { MemoryStatus } from '@ollupi/protocol'
 import { Button, Callout, Field, Select, Switch } from '@ollupi/ui'
 import { RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { applyConfig, readConfig, type BackendConfig } from '../../domains/backendConfig'
+import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
 import { desktop } from '../../platform/desktop'
 
-type Model = NonNullable<BackendConfig['models']>[number]
-
-/** The config's memory model as one of its chat models, if it is one. */
-function sameModel(a: Model | null | undefined, b: Model): boolean {
-  return !!a && a.name === b.name && a.endpoint === b.endpoint
-}
-
 export function MemorySettings({ status }: { status: MemoryStatus | undefined }) {
-  const [config, setConfig] = useState<BackendConfig>()
+  const [checked, setChecked] = useState<CheckedConfig>()
   const [error, setError] = useState<string>()
   const [generate, setGenerate] = useState(false)
   const [use, setUse] = useState(false)
   const [modelId, setModelId] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const load = (c: BackendConfig) => {
-    setConfig(c)
-    setGenerate(c.memory.generate)
-    setUse(c.memory.use)
-    setModelId((c.models ?? []).find((m) => sameModel(c.memory.model, m))?.id ?? '')
+  const load = (c: CheckedConfig) => {
+    setChecked(c)
+    setGenerate(c.config.memory.generate)
+    setUse(c.config.memory.use)
+    setModelId(c.config.memory.model ?? '')
   }
   useEffect(() => {
-    void readConfig().then((r) => (r?.ok ? load(r.config) : setError(r?.error)))
+    void readConfig().then((r) => (r?.ok ? load(r) : setError(r?.error)))
   }, [])
 
   if (error) {
     return <Callout tone="danger">config.yaml cannot be read: {error}</Callout>
   }
-  if (!config) return null
+  if (!checked) return null
 
-  const models = config.models ?? []
-  const current = config.memory.model
-  // A memory model set by hand that is not one of the chat models.
-  const custom = current && !models.some((m) => sameModel(current, m)) ? current : undefined
+  const { config, models } = checked
+  // The backend only accepts a memory model that is one of the models.
   const chosen = models.find((m) => m.id === modelId)
-  const changed = generate !== config.memory.generate || use !== config.memory.use || (generate && !!chosen && !sameModel(current, chosen))
-  const needsModel = generate && !chosen && !custom
+  const changed = generate !== config.memory.generate || use !== config.memory.use || (generate && !!chosen && chosen.id !== config.memory.model)
+  const needsModel = generate && !chosen
   // The file and the running backend disagree, e.g. after a hand edit.
   const stale = status && (status.generationEnabled !== config.memory.generate || status.useEnabled !== config.memory.use)
 
@@ -55,7 +46,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
     const applied = await applyConfig([
       { kind: 'set', path: ['memory', 'generate'], value: generate },
       { kind: 'set', path: ['memory', 'use'], value: use },
-      ...(generate && chosen ? [{ kind: 'set' as const, path: ['memory', 'model'], value: chosen }] : []),
+      ...(generate && chosen ? [{ kind: 'set' as const, path: ['memory', 'model'], value: chosen.id }] : []),
     ])
     if (applied) load(applied)
     setSaving(false)
@@ -71,12 +62,11 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
       {generate && (
         <div className="pl-0.5">
           <Field label="Model that extracts memories" hint={needsModel ? 'Choose a model to turn learning on.' : undefined}>
-            <Select className="max-w-72" value={chosen ? chosen.id : custom ? '__custom__' : ''} onChange={(e) => setModelId(e.target.value)}>
-              {!chosen && !custom && <option value="">Choose a model</option>}
-              {custom && <option value="__custom__">{`${custom.name} (${custom.endpoint}, from config.yaml)`}</option>}
+            <Select className="max-w-72" value={chosen?.id ?? ''} onChange={(e) => setModelId(e.target.value)}>
+              {!chosen && <option value="">Choose a model</option>}
               {models.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.id === m.name ? m.name : `${m.id} · ${m.name}`}
+                  {m.id}
                 </option>
               ))}
             </Select>
