@@ -1,0 +1,85 @@
+// What a thread's model calls put in the context window, as ollupi records
+// it. Each call's prompt stats (ContextStats) and usage sit on exactly one
+// item of that call: its answer, else its reasoning, else its first tool
+// call; a call that failed before answering records an error item, and a
+// compaction records them on its contextCompaction item.
+
+import type { ContextStats, ItemRow, MemoryReference, Usage } from '@ollupi/protocol'
+import type { Timeline } from './timeline'
+
+export interface ModelCall {
+  itemId: string
+  turnId: string
+  /** compaction: the call that summarized earlier context; its prompt is
+   * that history, not the conversation's next prompt. */
+  kind: 'response' | 'failed' | 'compaction'
+  stats: ContextStats
+  usage: Usage | undefined
+  startedAt: string
+}
+
+/** The loaded items' model calls, oldest first. */
+export function modelCalls(t: Timeline): ModelCall[] {
+  const calls: ModelCall[] = []
+  for (const it of t.items) {
+    if (!it.contextStats) continue
+    calls.push({
+      itemId: it.id,
+      turnId: it.turnId,
+      kind: it.type === 'contextCompaction' ? 'compaction' : it.type === 'error' ? 'failed' : 'response',
+      stats: it.contextStats,
+      usage: it.usage ?? undefined,
+      startedAt: it.startedAt,
+    })
+  }
+  return calls
+}
+
+/** The last call that sent the conversation itself, not a compaction. */
+export function latestContextCall(calls: ModelCall[]): ModelCall | undefined {
+  return calls.findLast((c) => c.kind !== 'compaction')
+}
+
+/** A prompt's share of the model's input budget. ollupi estimates each part
+ * from its text and calibrates the total against the input tokens the API
+ * reported for an earlier call; the parts are scaled to that total, as
+ * ollupi scales them when deciding to compact. Memory is part of messages. */
+export interface ContextUse {
+  used: number
+  budget: number
+  /** The size above which a turn compacts earlier context, when there is
+   * enough of it; undefined for calls recorded before ollupi reported it. */
+  compactAt: number | undefined
+  system: number
+  tools: number
+  /** Messages other than recalled memory. */
+  messages: number
+  memory: number
+  /** Whether the total is calibrated against the API, or only estimated. */
+  calibrated: boolean
+}
+
+export function contextUse(s: ContextStats): ContextUse {
+  const used = s.calibratedTokens || s.estimatedTokens
+  const k = s.estimatedTokens > 0 ? used / s.estimatedTokens : 1
+  const memory = Math.round((s.memoryTokens ?? 0) * k)
+  const system = Math.round(s.systemTokens * k)
+  const tools = Math.round(s.toolsTokens * k)
+  return {
+    used,
+    budget: s.budgetTokens,
+    compactAt: s.compactAtTokens || undefined,
+    system,
+    tools,
+    messages: Math.max(0, used - system - tools - memory),
+    memory,
+    calibrated: !!s.calibratedTokens && s.calibratedTokens !== s.estimatedTokens,
+  }
+}
+
+/** The memories recall put into a turn's prompts: its completed
+ * memoryContext item, as ollupi reads it when building the prompt. */
+export function recalledMemories(t: Timeline, turnId: string): MemoryReference[] {
+  const it = t.items.find((i: ItemRow) => i.turnId === turnId && i.type === 'memoryContext' && i.status === 'completed')
+  return it?.memory ?? []
+}

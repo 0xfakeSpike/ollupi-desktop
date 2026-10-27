@@ -2,6 +2,10 @@ import type { ItemRow, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/prot
 import { describe, expect, it } from 'vitest'
 import {
   activeTurn,
+  contextUse,
+  latestContextCall,
+  modelCalls,
+  recalledMemories,
   appendDelta,
   commandLine,
   groupByTurn,
@@ -165,5 +169,37 @@ describe('calls', () => {
   it('reads plans', () => {
     const c = call({ tool: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'a', status: 'in_progress' }] }) })
     expect(planOf(c)?.plan).toEqual([{ step: 'a', status: 'in_progress' }])
+  })
+})
+
+describe('context', () => {
+  const stats = { model: 'm', budgetTokens: 1000, compactAtTokens: 800, systemTokens: 100, messagesTokens: 250, memoryTokens: 50, toolsTokens: 150, estimatedTokens: 500 }
+
+  it('scales the estimated parts to the calibrated total', () => {
+    const u = contextUse({ ...stats, calibratedTokens: 600 })
+    expect(u).toEqual({ used: 600, budget: 1000, compactAt: 800, system: 120, tools: 180, memory: 60, messages: 240, calibrated: true })
+    expect(contextUse({ ...stats, compactAtTokens: 0 }).compactAt).toBeUndefined()
+    expect(contextUse({ ...stats, calibratedTokens: 500 }).calibrated).toBe(false)
+  })
+
+  it('reads one call per item carrying stats, and skips compactions for the latest', () => {
+    const t = timelineFromPage(
+      page(
+        [
+          item('mem', 1, { type: 'memoryContext', memory: [{ id: 'x', text: 'likes tea' }] }),
+          item('a', 2, { contextStats: stats, usage: { inputTokens: 5, cachedInputTokens: 0, outputTokens: 1 } }),
+          item('tool', 3, { type: 'toolCall' }),
+          item('c', 4, { type: 'contextCompaction', contextStats: { ...stats, estimatedTokens: 900 } }),
+        ],
+        [turn('u1', 1)],
+      ),
+    )
+    const calls = modelCalls(t)
+    expect(calls.map((c) => [c.itemId, c.kind])).toEqual([
+      ['a', 'response'],
+      ['c', 'compaction'],
+    ])
+    expect(latestContextCall(calls)?.itemId).toBe('a')
+    expect(recalledMemories(t, 'u1').map((m) => m.text)).toEqual(['likes tea'])
   })
 })

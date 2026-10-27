@@ -1,15 +1,17 @@
 import { activeTurn, lastConnection, needsUser, threadTitle } from '@ollupi/core'
 import { Badge, IconButton, Spinner } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, CalendarClock, Folder, Shield } from 'lucide-react'
+import { ArrowDown, ArrowLeft, CalendarClock, Folder, Gauge, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { useThreadJobs } from '../../domains/cron'
+import { toggleContextPanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { CronDialog } from '../cron/CronDialog'
 import { ThreadPermissionsDialog } from '../settings/ThreadPermissionsDialog'
 import { Composer } from './Composer'
+import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
 import { TimelineView } from './TimelineView'
 
@@ -25,6 +27,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const parent = thread?.parentThreadId
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
   const [dialog, setDialog] = useState<Dialog>()
+  const contextOpen = useNavigation((s) => s.contextPanel)
 
   return (
     <div className="flex h-full flex-col">
@@ -55,46 +58,54 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             </IconButton>
           </>
         )}
+        <IconButton label="Context" size="sm" active={contextOpen} onClick={toggleContextPanel}>
+          <Gauge size={14} />
+        </IconButton>
       </header>
 
-      <div className="relative min-h-0 flex-1">
-        <div ref={ref} className="h-full overflow-y-auto">
-          {timeline ? (
-            <TimelineView timeline={timeline} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-fg-subtle">
-              <Spinner />
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="relative min-h-0 flex-1">
+            <div ref={ref} className="h-full overflow-y-auto">
+              {timeline ? (
+                <TimelineView timeline={timeline} />
+              ) : (
+                <div className="flex h-full items-center justify-center text-fg-subtle">
+                  <Spinner />
+                </div>
+              )}
             </div>
+            {!atBottom && (
+              <button
+                type="button"
+                aria-label="Scroll to the latest"
+                onClick={() => scrollToBottom(true)}
+                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-line-strong bg-raised text-fg-muted shadow-md hover:text-fg"
+              >
+                <ArrowDown size={15} />
+              </button>
+            )}
+          </div>
+
+          {parent ? (
+            // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
+            // it works on the task its parent gave it and reports back there.
+            <p className="px-6 pb-5 text-center text-xs text-fg-subtle">
+              A subagent works on the task its parent thread gave it; talk to it through the parent thread.
+            </p>
+          ) : (
+            <Composer
+              placeholder={running ? 'Add to the running turn…' : 'Reply…'}
+              running={!!running}
+              disabled={!timeline}
+              onSubmit={(text, mode) => sendMessage(threadId, text, mode)}
+              onStop={() => void interrupt(threadId)}
+              toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
+            />
           )}
         </div>
-        {!atBottom && (
-          <button
-            type="button"
-            aria-label="Scroll to the latest"
-            onClick={() => scrollToBottom(true)}
-            className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-line-strong bg-raised text-fg-muted shadow-md hover:text-fg"
-          >
-            <ArrowDown size={15} />
-          </button>
-        )}
+        {contextOpen && <ContextPanel timeline={timeline} />}
       </div>
-
-      {parent ? (
-        // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
-        // it works on the task its parent gave it and reports back there.
-        <p className="px-6 pb-5 text-center text-xs text-fg-subtle">
-          A subagent works on the task its parent thread gave it; talk to it through the parent thread.
-        </p>
-      ) : (
-        <Composer
-          placeholder={running ? 'Add to the running turn…' : 'Reply…'}
-          running={!!running}
-          disabled={!timeline}
-          onSubmit={(text, mode) => sendMessage(threadId, text, mode)}
-          onStop={() => void interrupt(threadId)}
-          toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
-        />
-      )}
 
       {thread && dialog === 'permissions' && <ThreadPermissionsDialog thread={thread} onClose={() => setDialog(undefined)} />}
       {dialog === 'cron' && <CronDialog threadId={threadId} onClose={() => setDialog(undefined)} />}
