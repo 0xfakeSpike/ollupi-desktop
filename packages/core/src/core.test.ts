@@ -178,7 +178,7 @@ describe('memory_search', () => {
   const call = (extra: Partial<ItemRow>) => item('c', 1, { type: 'toolCall', status: 'pending', ...extra })
 
   it('reads the query and the memories found', () => {
-    const found = { memories: [{ id: 'x', workspaceId: 'w', text: 'uses tabs' }] }
+    const found = { memories: [{ id: 'x', scope: 'workspace', workspaceId: 'w', text: 'uses tabs' }] }
     const c = call({ tool: 'memory_search', arguments: JSON.stringify({ query: 'tabs' }), status: 'completed', result: { output: found } })
     expect(memorySearchOf(c)).toEqual({ query: 'tabs', memories: found.memories })
     expect(toolTitle(c)).toBe('Searched memory for “tabs”')
@@ -200,7 +200,7 @@ describe('context', () => {
     const t = timelineFromPage(
       page(
         [
-          item('mem', 1, { type: 'memoryContext', memory: [{ id: 'x', text: 'likes tea' }] }),
+          item('mem', 1, { type: 'memoryContext', memory: [{ id: 'x', scope: 'global', text: 'likes tea' }] }),
           item('a', 2, { contextStats: stats, usage: { inputTokens: 5, cachedInputTokens: 0, outputTokens: 1 } }),
           item('tool', 3, { type: 'toolCall' }),
           item('c', 4, { type: 'contextCompaction', contextStats: { ...stats, estimatedTokens: 900 } }),
@@ -217,18 +217,18 @@ describe('context', () => {
   })
 
   it("reads a call's memory from the snapshot it was sent with", () => {
-    const tea = { id: 'x', text: 'likes tea' }
-    const tabs = { id: 'y', workspaceId: 'w', text: 'uses tabs' }
+    const tea = { id: 'x', scope: 'global' as const, text: 'likes tea' }
+    const tabs = { id: 'y', scope: 'workspace' as const, workspaceId: 'w', text: 'uses tabs' }
     const t = timelineFromPage(
       page(
         [
           item('mem', 1, { type: 'memoryContext', memory: [tea, tabs] }),
-          item('a', 2, { contextStats: { ...stats, globalMemory: { tokens: 10, ids: ['x'] }, workspaceMemory: { tokens: 40, ids: ['y'] } } }),
+          item('a', 2, { contextStats: { ...stats, globalMemory: { tokens: 10, ids: ['x'] }, localMemory: { tokens: 40, ids: ['y'] } } }),
           item('c', 3, { type: 'contextCompaction' }),
           item('mem2', 4, { type: 'memoryContext', memory: [tabs] }),
-          item('b', 5, { contextStats: { ...stats, globalMemory: { tokens: 0, ids: [] }, workspaceMemory: { tokens: 40, ids: ['y'] } } }),
+          item('b', 5, { contextStats: { ...stats, globalMemory: { tokens: 0, ids: [] }, localMemory: { tokens: 40, ids: ['y'] } } }),
           item('d', 6, { contextStats: stats }),
-          item('e', 7, { contextStats: { ...stats, calibratedTokens: 250, workspaceMemory: { tokens: 40, ids: ['y'] } } }),
+          item('e', 7, { contextStats: { ...stats, calibratedTokens: 250, localMemory: { tokens: 40, ids: ['y'] } } }),
         ],
         [turn('u1', 1)],
       ),
@@ -236,11 +236,11 @@ describe('context', () => {
     const [a, b, d, e] = modelCalls(t)
     expect(promptMemory(t, a!)).toEqual({
       global: { tokens: 10, ids: ['x'], entries: [tea] },
-      workspace: { tokens: 40, ids: ['y'], entries: [tabs] },
+      local: { tokens: 40, ids: ['y'], entries: [tabs] },
     })
-    expect(promptMemory(t, b!)).toEqual({ global: undefined, workspace: { tokens: 40, ids: ['y'], entries: [tabs] } })
+    expect(promptMemory(t, b!)).toEqual({ global: undefined, local: { tokens: 40, ids: ['y'], entries: [tabs] } })
     expect(promptMemory(t, d!)).toBeUndefined()
-    expect(promptMemory(t, e!)?.workspace?.tokens).toBe(20)
+    expect(promptMemory(t, e!)?.local?.tokens).toBe(20)
     // The snapshot is in a part of the thread not loaded.
     const tail = { ...t, items: t.items.slice(1, 2), hasMore: true }
     expect(promptMemory(tail, modelCalls(tail)[0]!)?.global?.entries).toBeUndefined()

@@ -95,17 +95,18 @@ export interface MemorySection {
 
 export interface PromptMemory {
   global: MemorySection | undefined
-  workspace: MemorySection | undefined
+  /** The thread's own scope: its workspace, or general without one. */
+  local: MemorySection | undefined
 }
 
 /** The memory snapshot a call's prompt carried, in its two sections (global
- * and the workspace's), as ollupi reports it in the call's stats. A thread
+ * and the thread's own scope), as ollupi reports it in the call's stats. A thread
  * loads its snapshot before its first model call and again after each
  * compaction, recording it as a memoryContext item: the call used the
  * latest one before it. Undefined for a call that carried no memory. */
 export function promptMemory(t: Timeline, call: ModelCall): PromptMemory | undefined {
-  const { globalMemory, workspaceMemory } = call.stats
-  if (!globalMemory?.ids.length && !workspaceMemory?.ids.length) return undefined
+  const { globalMemory, localMemory } = call.stats
+  if (!globalMemory?.ids.length && !localMemory?.ids.length) return undefined
   const at = t.items.findIndex((i) => i.id === call.itemId)
   const snapshot = t.items.findLast((i: ItemRow, n) => n < at && i.type === 'memoryContext' && i.status === 'completed')
   const section = (s: MemoryStats | null | undefined): MemorySection | undefined => {
@@ -114,5 +115,5 @@ export function promptMemory(t: Timeline, call: ModelCall): PromptMemory | undef
     const entries = s.ids.map((id) => byId.get(id))
     return { tokens: Math.round(s.tokens * calibration(call.stats)), ids: s.ids, entries: entries.every((e) => e !== undefined) ? entries : undefined }
   }
-  return { global: section(globalMemory), workspace: section(workspaceMemory) }
+  return { global: section(globalMemory), local: section(localMemory) }
 }

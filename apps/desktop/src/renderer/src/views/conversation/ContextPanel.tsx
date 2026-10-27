@@ -20,6 +20,7 @@ import { cn, IconButton } from '@ollupi/ui'
 import { ChevronRight, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toggleContextPanel } from '../../domains/navigation'
+import { scopeTitle } from './items/SystemItems'
 
 const parts: { key: 'system' | 'tools' | 'messages' | 'memory'; label: string; color: string }[] = [
   { key: 'system', label: 'System prompt', color: 'bg-fg-subtle' },
@@ -50,7 +51,7 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
             <Overview
               use={contextUse(latest.stats)}
               connection={connection(latest)}
-              details={{ memory: memory && <MemoryDetails memory={memory} /> }}
+              details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
             />
             {latest.usage && <LastCall call={latest} />}
             <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
@@ -172,12 +173,13 @@ function LastCall({ call }: { call: ModelCall }) {
   )
 }
 
-/** The memory snapshot the call carried, by section. */
-function MemoryDetails({ memory }: { memory: PromptMemory }) {
+/** The memory snapshot the call carried, by section: global, and the
+ * thread's own scope, its workspace or general without one. */
+function MemoryDetails({ memory, inWorkspace }: { memory: PromptMemory; inWorkspace: boolean }) {
   return (
     <>
-      {memory.global && <MemoryList title="Global" section={memory.global} />}
-      {memory.workspace && <MemoryList title="This workspace" section={memory.workspace} />}
+      {memory.global && <MemoryList title={scopeTitle.global} section={memory.global} />}
+      {memory.local && <MemoryList title={scopeTitle[inWorkspace ? 'workspace' : 'general']} section={memory.local} />}
       <p className="text-[11px] leading-4 text-fg-subtle">
         Loaded when the conversation started and again after each compaction. The agent searches the rest with memory_search.
       </p>

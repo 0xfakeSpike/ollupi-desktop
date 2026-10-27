@@ -173,7 +173,12 @@ await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { 
 // A new rule for a server that did not connect cannot be checked: refused.
 await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { ask: ['run_command', 'broken__new_tool'] } }).catch(() => {})
 await call('memory/status', {})
-await call('memory/list', {})
+await call('memory/list', { scope: 'global' })
+await call('memory/list', { scope: 'general' })
+await call('memory/list', { scope: 'workspace', workspaceId: ws1.id })
+// The workspace scope needs its workspace: refused.
+await call('memory/list', { scope: 'workspace' }).catch(() => {})
+await call('memory/move', { id: 'no-such-memory', scope: 'global' }).catch(() => {})
 await call('thread/list', { limit: 100 })
 await call('thread/list', { workspaceId: ws1.id, limit: 100 })
 await call('thread/read', { threadId: thread.id, limit: 500 })
