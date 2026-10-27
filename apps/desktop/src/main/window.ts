@@ -13,8 +13,8 @@ export function createMainWindow(): BrowserWindow {
     titleBarStyle: 'hiddenInset',
     // Centred on the screen panel's 40px header, which sits 8px down.
     trafficLightPosition: { x: 16, y: 21 },
-    // theme.css --ol-ground, shown before the renderer paints.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a19' : '#f7f6f3',
+    // The default palette's --ol-ground (theme.css), shown before the renderer paints.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b191a' : '#f7f5f4',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,

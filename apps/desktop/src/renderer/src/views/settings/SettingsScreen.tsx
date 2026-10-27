@@ -1,7 +1,8 @@
-import { Badge, Button, Field, Select, Tabs } from '@ollupi/ui'
+import { Badge, Button, cn, Field, palettes, Select, Tabs, type Palette } from '@ollupi/ui'
 import { FileCog, RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import type { AppInfo } from '../../../../shared/ipc'
+import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
+import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
 import { useConnection } from '../../gateway/connection'
 import { setLanguage, useLocale, useT, type LanguagePreference, type Messages } from '../../i18n'
 import { locales, systemLocale } from '../../i18n/locale'
@@ -74,6 +75,7 @@ function General() {
           ))}
         </Select>
       </Field>
+      <Appearance />
       <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
         {rows.map(([k, v]) => (
           <div key={k} className="flex min-h-11 items-center gap-4 px-3 py-2.5">
@@ -100,5 +102,69 @@ function General() {
         )}
       </div>
     </>
+  )
+}
+
+function Appearance() {
+  const { palette, scheme } = useAppearance()
+  const t = useT().common.appearance
+  return (
+    <>
+      <Field label={t.scheme}>
+        <Select className="max-w-60" value={scheme} onChange={(e) => setColorScheme(e.target.value as ColorScheme)}>
+          {colorSchemes.map((s) => (
+            <option key={s} value={s}>
+              {t.schemes[s]}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <div className="flex flex-col gap-1.5">
+        <span id="palette-label" className="text-ui font-medium text-fg">
+          {t.palette}
+        </span>
+        <div role="radiogroup" aria-labelledby="palette-label" className="grid grid-cols-3 gap-2">
+          {palettes.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="radio"
+              aria-checked={p === palette}
+              onClick={() => setPalette(p)}
+              className={cn(
+                'flex flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-colors duration-100 ease-standard',
+                'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+                p === palette ? 'border-fg' : 'border-line hover:border-line-strong',
+              )}
+            >
+              <Swatch palette={p} />
+              <span className="px-0.5 text-small text-fg">{t.palettes[p]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** A small window in the palette's own colours: data-palette gives this
+ * element that palette's tokens, in the scheme showing now. */
+function Swatch({ palette }: { palette: Palette }) {
+  return (
+    <div data-palette={palette} aria-hidden className="flex h-14 gap-1.5 rounded-md bg-ground p-1.5">
+      <div className="flex w-4 flex-col gap-1 pt-1">
+        <span className="h-1 rounded-full bg-fg/25" />
+        <span className="h-1 rounded-full bg-fg/15" />
+        <span className="h-1 rounded-full bg-fg/15" />
+      </div>
+      <div className="flex flex-1 flex-col justify-between rounded-sm border border-line bg-canvas p-1.5">
+        <span className="h-1 w-3/4 rounded-full bg-fg/70" />
+        <span className="h-1 w-1/2 rounded-full bg-fg/25" />
+        <div className="flex items-center gap-1">
+          <span className="size-2 rounded-full bg-accent" />
+          <span className="h-2 w-6 rounded-sm bg-ink" />
+        </div>
+      </div>
+    </div>
   )
 }

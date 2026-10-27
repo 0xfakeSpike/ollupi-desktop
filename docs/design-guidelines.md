@@ -157,30 +157,210 @@
   --container-dialog-wide: 640px;
 }
 
-/* Neutrals lean warm; text steps down from near-black. Primary actions are
-   ink, so the accent stays rare: links, focus, selected controls, and what
-   waits on the user. */
-:root {
-  color-scheme: light dark;
-  --ol-ground: #f7f6f3;
+/* Palettes. Each sets only its base colours; everything else is derived
+   from them below. :root carries the default (plum) and an element with
+   data-palette takes another, so <html data-palette> themes the app and a
+   preview swatch shows its own palette. The ids are @ollupi/ui's palettes. */
+:root,
+[data-palette='plum'] {
+  --ol-ground: #f7f5f4;
   --ol-canvas: #ffffff;
-  --ol-surface: #f4f3f0;
+  --ol-surface: #f2efee;
   --ol-raised: #ffffff;
-  --ol-hover: rgb(28 26 22 / 0.045);
-  --ol-selected: rgb(28 26 22 / 0.07);
-  --ol-line: rgb(28 26 22 / 0.08);
-  --ol-line-strong: rgb(28 26 22 / 0.13);
-  --ol-scrim: rgb(20 18 15 / 0.32);
   --ol-knob: #ffffff;
-  --ol-fg: #1c1b19;
-  --ol-fg-muted: #5f5d59;
-  --ol-fg-subtle: #8d8b86;
-  --ol-ink: #1c1b19;
+  --ol-fg: #1d1a1b;
+  --ol-fg-muted: #625b5e;
+  --ol-fg-subtle: #918a8d;
+  --ol-ink: #1d1a1b;
   --ol-ink-fg: #ffffff;
-  --ol-accent: #1f74f0;
+  --ol-accent: #8a4a6b;
   --ol-accent-fg: #ffffff;
-  --ol-accent-soft: rgb(31 116 240 / 0.1);
-  --ol-focus: rgb(31 116 240 / 0.3);
+}
+
+[data-palette='paper'] {
+  --ol-ground: #f3f0e8;
+  --ol-canvas: #fcfbf7;
+  --ol-surface: #efebe1;
+  --ol-raised: #fffefb;
+  --ol-knob: #ffffff;
+  --ol-fg: #1f1d18;
+  --ol-fg-muted: #625e55;
+  --ol-fg-subtle: #918c80;
+  --ol-ink: #1f1d18;
+  --ol-ink-fg: #fcfbf7;
+  --ol-accent: #3d6b4f;
+  --ol-accent-fg: #ffffff;
+}
+
+[data-palette='mist'] {
+  --ol-ground: #f4f5f7;
+  --ol-canvas: #ffffff;
+  --ol-surface: #eef0f3;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #17191c;
+  --ol-fg-muted: #5b6068;
+  --ol-fg-subtle: #8a9099;
+  --ol-ink: #17191c;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #5a7fb0;
+  --ol-accent-fg: #ffffff;
+}
+
+[data-palette='indigo'] {
+  --ol-ground: #f6f6f7;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f1f1f3;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #18181b;
+  --ol-fg-muted: #5d5d66;
+  --ol-fg-subtle: #8b8b94;
+  --ol-ink: #18181b;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #5b5bd0;
+  --ol-accent-fg: #ffffff;
+}
+
+[data-palette='bronze'] {
+  --ol-ground: #f5f3ef;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f1eee8;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #1c1a17;
+  --ol-fg-muted: #615c54;
+  --ol-fg-subtle: #908a80;
+  --ol-ink: #1c1a17;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #9a7238;
+  --ol-accent-fg: #ffffff;
+}
+
+[data-palette='teal'] {
+  --ol-ground: #f2f4f3;
+  --ol-canvas: #ffffff;
+  --ol-surface: #edf0ef;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #161a19;
+  --ol-fg-muted: #59605e;
+  --ol-fg-subtle: #889090;
+  --ol-ink: #161a19;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #2f6a74;
+  --ol-accent-fg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  [data-palette='plum'] {
+    --ol-ground: #1b191a;
+    --ol-canvas: #141213;
+    --ol-surface: #1f1c1e;
+    --ol-raised: #242123;
+    --ol-knob: #e6e1e3;
+    --ol-fg: #e6e1e3;
+    --ol-fg-muted: #9e979a;
+    --ol-fg-subtle: #716a6d;
+    --ol-ink: #e6e1e3;
+    --ol-ink-fg: #141213;
+    --ol-accent: #d08fb0;
+    --ol-accent-fg: #1b191a;
+  }
+
+  [data-palette='paper'] {
+    --ol-ground: #1b1a17;
+    --ol-canvas: #141311;
+    --ol-surface: #1f1e1a;
+    --ol-raised: #24221e;
+    --ol-knob: #e6e2d8;
+    --ol-fg: #e6e2d8;
+    --ol-fg-muted: #9d988c;
+    --ol-fg-subtle: #706c62;
+    --ol-ink: #e6e2d8;
+    --ol-ink-fg: #141311;
+    --ol-accent: #7fb08f;
+    --ol-accent-fg: #1b1a17;
+  }
+
+  [data-palette='mist'] {
+    --ol-ground: #17181b;
+    --ol-canvas: #111214;
+    --ol-surface: #1c1e21;
+    --ol-raised: #212326;
+    --ol-knob: #e1e3e7;
+    --ol-fg: #e1e3e7;
+    --ol-fg-muted: #969ba3;
+    --ol-fg-subtle: #6a6f77;
+    --ol-ink: #e1e3e7;
+    --ol-ink-fg: #111214;
+    --ol-accent: #8fb0dc;
+    --ol-accent-fg: #17181b;
+  }
+
+  [data-palette='indigo'] {
+    --ol-ground: #18181b;
+    --ol-canvas: #111113;
+    --ol-surface: #1c1c1f;
+    --ol-raised: #212125;
+    --ol-knob: #e4e4e7;
+    --ol-fg: #e4e4e7;
+    --ol-fg-muted: #9b9ba3;
+    --ol-fg-subtle: #6c6c74;
+    --ol-ink: #e4e4e7;
+    --ol-ink-fg: #111113;
+    --ol-accent: #9696f0;
+    --ol-accent-fg: #18181b;
+  }
+
+  [data-palette='bronze'] {
+    --ol-ground: #191816;
+    --ol-canvas: #121110;
+    --ol-surface: #1d1b19;
+    --ol-raised: #22201d;
+    --ol-knob: #e5e0d6;
+    --ol-fg: #e5e0d6;
+    --ol-fg-muted: #9c968b;
+    --ol-fg-subtle: #6f6a61;
+    --ol-ink: #e5e0d6;
+    --ol-ink-fg: #121110;
+    --ol-accent: #c9a064;
+    --ol-accent-fg: #191816;
+  }
+
+  [data-palette='teal'] {
+    --ol-ground: #161918;
+    --ol-canvas: #101312;
+    --ol-surface: #1a1e1d;
+    --ol-raised: #1f2322;
+    --ol-knob: #dfe5e3;
+    --ol-fg: #dfe5e3;
+    --ol-fg-muted: #94a09d;
+    --ol-fg-subtle: #677170;
+    --ol-ink: #dfe5e3;
+    --ol-ink-fg: #101312;
+    --ol-accent: #79b3bc;
+    --ol-accent-fg: #161918;
+  }
+}
+
+/* Derived from the palette, redeclared wherever a palette is set so they
+   follow it there. Primary actions are ink, so the accent stays rare: links,
+   focus, selected controls, and what waits on the user. */
+:root,
+[data-palette] {
+  color-scheme: light dark;
+  --ol-hover: color-mix(in srgb, var(--ol-fg) 4.5%, transparent);
+  --ol-selected: color-mix(in srgb, var(--ol-fg) 7%, transparent);
+  --ol-line: color-mix(in srgb, var(--ol-fg) 8%, transparent);
+  --ol-line-strong: color-mix(in srgb, var(--ol-fg) 14%, transparent);
+  --ol-scrim: color-mix(in srgb, var(--ol-fg) 32%, transparent);
+  --ol-accent-soft: color-mix(in srgb, var(--ol-accent) 10%, transparent);
+  --ol-focus: color-mix(in srgb, var(--ol-accent) 30%, transparent);
+  --ol-shadow-sm: 0 1px 2px color-mix(in srgb, var(--ol-fg) 4%, transparent), 0 4px 12px -4px color-mix(in srgb, var(--ol-fg) 8%, transparent);
+  --ol-shadow-md: 0 2px 6px color-mix(in srgb, var(--ol-fg) 5%, transparent), 0 12px 28px -8px color-mix(in srgb, var(--ol-fg) 14%, transparent);
+  --ol-shadow-lg: 0 4px 12px color-mix(in srgb, var(--ol-fg) 6%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--ol-fg) 24%, transparent);
   --ol-success: #1b7f3c;
   --ol-success-soft: rgb(27 127 60 / 0.1);
   --ol-warning: #a86400;
@@ -188,33 +368,23 @@
   --ol-danger: #d8323d;
   --ol-danger-fg: #ffffff;
   --ol-danger-soft: rgb(216 50 61 / 0.08);
-  --ol-shadow-sm: 0 1px 2px rgb(28 26 22 / 0.04), 0 4px 12px -4px rgb(28 26 22 / 0.08);
-  --ol-shadow-md: 0 2px 6px rgb(28 26 22 / 0.05), 0 12px 28px -8px rgb(28 26 22 / 0.14);
-  --ol-shadow-lg: 0 4px 12px rgb(28 26 22 / 0.06), 0 24px 56px -12px rgb(28 26 22 / 0.24);
 }
 
-/* The panel sits darker than the ground around it. */
+/* In the dark the panel sits darker than the ground around it, and the
+   accent is light, so what sits on it is dark. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ol-ground: #1a1a19;
-    --ol-canvas: #131312;
-    --ol-surface: #1e1e1d;
-    --ol-raised: #242423;
-    --ol-hover: rgb(255 255 255 / 0.055);
-    --ol-selected: rgb(255 255 255 / 0.085);
-    --ol-line: rgb(255 255 255 / 0.075);
-    --ol-line-strong: rgb(255 255 255 / 0.13);
+  :root,
+  [data-palette] {
+    --ol-hover: color-mix(in srgb, var(--ol-fg) 5.5%, transparent);
+    --ol-selected: color-mix(in srgb, var(--ol-fg) 8.5%, transparent);
+    --ol-line: color-mix(in srgb, var(--ol-fg) 7.5%, transparent);
+    --ol-line-strong: color-mix(in srgb, var(--ol-fg) 13%, transparent);
     --ol-scrim: rgb(0 0 0 / 0.55);
-    --ol-knob: #e8e7e4;
-    --ol-fg: #e2e1dd;
-    --ol-fg-muted: #9a9894;
-    --ol-fg-subtle: #6f6e6a;
-    --ol-ink: #e8e7e4;
-    --ol-ink-fg: #131312;
-    --ol-accent: #3f8cff;
-    --ol-accent-fg: #ffffff;
-    --ol-accent-soft: rgb(63 140 255 / 0.15);
-    --ol-focus: rgb(63 140 255 / 0.4);
+    --ol-accent-soft: color-mix(in srgb, var(--ol-accent) 15%, transparent);
+    --ol-focus: color-mix(in srgb, var(--ol-accent) 40%, transparent);
+    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
+    --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
+    --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
     --ol-success: #43b85c;
     --ol-success-soft: rgb(67 184 92 / 0.14);
     --ol-warning: #e0a237;
@@ -222,14 +392,19 @@
     --ol-danger: #f2615f;
     --ol-danger-fg: #ffffff;
     --ol-danger-soft: rgb(242 97 95 / 0.13);
-    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
-    --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
-    --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
   }
 }
 ```
 
 `transparent`、`current`、`inherit` 是 Tailwind 内置的值，不受 `--color-*: initial` 影响。
+
+### 2.1.1 配色方案与外观
+
+- **配色**：六套，id 见 `@ollupi/ui` 的 `palettes`：梅子 `plum`（默认）、宣纸 `paper`、雾蓝 `mist`、靛紫 `indigo`、古铜 `bronze`、黛蓝 `teal`。每套在 theme.css 里是一个 `[data-palette='…']` 块，只写基础色：`ground`、`canvas`、`surface`、`raised`、`knob`、三档文字、`ink`、`accent`。悬停、选中、分隔线、遮罩、强调色淡底、焦点环和阴影都在 `:root, [data-palette]` 里用 `color-mix` 从文字色和强调色推出来，状态色各套共用。
+- **新增一套**：加一个 `[data-palette='id']` 块（浅色一份、深色一份），把 id 加进 `palettes`，再在 `common.appearance.palettes` 里给它中英文名。不需要改任何组件。
+- **应用**：`<html data-palette>` 决定整个应用的配色；任何元素带上 `data-palette` 就用那一套，设置页的预览色块就是这样画的。
+- **外观**：跟随系统、浅色、深色。渲染进程通过 `desktop.setColorScheme` 设 Electron 的 `nativeTheme.themeSource`，`prefers-color-scheme` 和原生窗口一起跟着变，所以 CSS 里只有媒体查询一种深色写法。
+- 两项都在 Settings → General，存在本应用自己的存储里（`ollupi.palette`、`ollupi.colorScheme`），窗口加载时由 `startAppearance` 应用。
 
 ### 2.2 颜色
 

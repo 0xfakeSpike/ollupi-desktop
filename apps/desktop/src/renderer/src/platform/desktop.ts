@@ -25,6 +25,8 @@ function browserShim(): DesktopApi | undefined {
     config: { read: unavailable, apply: unavailable },
     pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
     openPath: async () => {},
+    // A browser follows its own scheme.
+    setColorScheme: async () => {},
   }
 }
 
@@ -39,4 +41,5 @@ export const desktop: DesktopApi = window.desktop ??
     config: { read: unavailable, apply: unavailable },
     pickDirectory: unavailable,
     openPath: unavailable,
+    setColorScheme: unavailable,
   }

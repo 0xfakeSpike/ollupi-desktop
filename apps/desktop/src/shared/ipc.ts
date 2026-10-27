@@ -46,6 +46,10 @@ export type ConfigChange =
   | { kind: 'delete'; path: (string | number)[] }
   | { kind: 'move'; path: (string | number)[]; to: number }
 
+/** Light or dark, or whichever the system uses. */
+export type ColorScheme = 'system' | 'light' | 'dark'
+export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
+
 export interface DesktopApi {
   info(): Promise<AppInfo>
   backend: {
@@ -61,6 +65,9 @@ export interface DesktopApi {
   }
   pickDirectory(): Promise<string | undefined>
   openPath(path: string): Promise<void>
+  /** Sets the window's scheme, which the renderer's prefers-color-scheme
+   * and the native window chrome both follow. */
+  setColorScheme(scheme: ColorScheme): Promise<void>
 }
 
 export const IpcChannel = {
@@ -72,6 +79,7 @@ export const IpcChannel = {
   ConfigApply: 'config:apply',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',
+  SetColorScheme: 'theme:setColorScheme',
 } as const
 
 /** Packaged builds serve the renderer from app://ollupi; the backend is told

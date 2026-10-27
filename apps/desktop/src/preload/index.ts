@@ -21,6 +21,7 @@ const api: DesktopApi = {
   },
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
+  setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),
 }
 
 contextBridge.exposeInMainWorld('desktop', api)
