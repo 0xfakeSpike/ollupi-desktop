@@ -8,6 +8,7 @@ import {
   type BuiltinToolName,
   type CommandOutput,
   type ItemRow,
+  type MemoryReference,
   type Plan,
   type Prepared,
   type SubagentCall,
@@ -76,6 +77,25 @@ export function planOf(item: ItemRow): Plan | undefined {
   return isBuiltin(item, 'update_plan') && isToolPart('update_plan', 'arguments', a) ? a : undefined
 }
 
+export interface MemorySearch {
+  /** The words the model searched for, when its arguments give them. */
+  query: string | undefined
+  /** The memories found, best first, once the call returned them. */
+  memories: MemoryReference[] | undefined
+}
+
+/** memory_search: the model's query (the contract does not type its
+ * arguments) and its result. */
+export function memorySearchOf(item: ItemRow): MemorySearch | undefined {
+  if (!isBuiltin(item, 'memory_search')) return undefined
+  const a = parseArguments(item) as { query?: unknown } | undefined
+  const out = item.result?.output
+  return {
+    query: typeof a?.query === 'string' ? a.query : undefined,
+    memories: isToolPart('memory_search', 'output', out) ? out.memories : undefined,
+  }
+}
+
 export interface SubagentTask extends SubagentCall {
   /** The thread the subagent runs in, once ollupi started it. */
   threadId: string | undefined
@@ -109,6 +129,8 @@ export function toolTitle(item: ItemRow): string {
   if (cmd) return commandLine(cmd)
   if (isBuiltin(item, 'update_plan')) return 'Updated the plan'
   if (isBuiltin(item, 'request_user_input')) return 'Asked you'
+  const search = memorySearchOf(item)
+  if (search) return search.query ? `Searched memory for “${search.query}”` : 'Searched memory'
   const task = subagentOf(item)
   if (task) return task.description
   return item.annotations?.title || item.tool || 'tool'

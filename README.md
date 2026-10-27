@@ -126,11 +126,11 @@ pnpm --filter @ollupi/desktop dev:renderer
 
 ## 配置（`~/.ollupi/config.yaml`）
 
-ollupi 只在启动时读取配置，所以界面里的配置修改（Settings 的 Models 页、Memory 页的"学习"和"召回"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，不含 API key；按 `provider/name` 展开的模型列表；每个提供方的 key 来源）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
+ollupi 只在启动时读取配置，所以界面里的配置修改（Settings 的 Models 页、Memory 页的"学习"和"使用"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，不含 API key；按 `provider/name` 展开的模型列表；每个提供方的 key 来源）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
 
 - `models`：按提供方分组的模型，可在 Settings → Models 里管理（应用只记录 key 所在的环境变量名，key 本身留在 `~/.zshrc`）。每个提供方是一个 OpenAI 兼容接口（`provider` 名称唯一且不含 `/`，`base_url`、`api_key_env` 或 `api_key`），`names` 列出它提供的模型；每个模型有自己的 client 和并发上限 `calls`（默认 4），未知模型用 `limits` 声明上下文窗口。模型的 id 是 `provider/name`，即 ollupi 的 connection、`turn/start` 选模型用的键，所以两个提供方可以提供同名模型。第一个提供方的第一个模型是默认。
 - `permissions`：agent 级权限（`approval` 审批策略 + `allow`/`ask`/`deny` 规则），工作区和会话在其上叠加。
 - `slots`：同时运行的会话数上限（默认 32）。
 - `shell`：`run_command` 工具与 macOS 沙箱。config.yaml 本身对命令不可读。
 - `mcp`：MCP 服务器，可在 Settings → MCP 里管理。每个要么是 stdio（`command`、`args`、`env`，子进程继承后端的环境变量），要么是 streamable HTTP（`url`、`headers`）。工具以 `<name>__<tool>` 提供给模型；连不上的服务器被跳过，后端照常启动，状态和原因由 `mcpServer/list` 报告；sidecar 把这些服务器名交给 agent（`Unavailable`），指向它们工具的权限规则保留但本次不生效，新增这样的规则会被拒绝，等服务器连上再加。`env` 和 `headers` 的值可以写 `${NAME}` 引用环境变量，密钥留在 `~/.zshrc`；引用的变量没设置时配置被拒绝。`--check-config` 输出里不含 `${NAME}` 的值会被清空，界面显示为"写在 config.yaml 里"，编辑时保留。
-- `memory`：召回（`use`）/ 生成（`generate`）开关；生成需要 `model`，填某个模型的 id（`provider/name`），与该模型共用 client 和 `calls`。
+- `memory`：使用（`use`，会话开始和每次压缩后载入一份记忆快照，并提供 `memory_search`）/ 生成（`generate`）开关；生成需要 `model`，填某个模型的 id（`provider/name`），与该模型共用 client 和 `calls`。
