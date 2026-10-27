@@ -11,7 +11,9 @@
     "protocol:generate": "pnpm --filter @ollupi/protocol generate",
     "protocol:check": "pnpm --filter @ollupi/protocol check",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test && pnpm sidecar:test"
+    "test": "pnpm -r test && pnpm sidecar:test",
+    "config:generate": "pnpm --filter @ollupi/desktop config:generate",
+    "config:check": "pnpm --filter @ollupi/desktop config:check"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

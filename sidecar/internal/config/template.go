@@ -34,7 +34,7 @@ models:
 
 # Agent-level permissions; workspaces and threads add rules on top.
 settings:
-  approvalPolicy: on-request   # untrusted | on-request | never
+  approvalPolicy: on-request # untrusted | on-request | never
   permissions:
     allow: []
     ask: []
@@ -45,7 +45,7 @@ settings:
 
 shell:
   enabled: true
-  sandbox_mode: workspace-write   # read-only | workspace-write | full-access
+  sandbox_mode: workspace-write # read-only | workspace-write | full-access
   command_timeout_sec: 60
   network: false
 

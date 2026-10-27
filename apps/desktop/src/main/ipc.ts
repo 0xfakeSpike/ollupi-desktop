@@ -4,14 +4,17 @@
 
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { isAbsolute, join } from 'node:path'
-import { IpcChannel, type AppInfo, type BackendState } from '../shared/ipc'
+import { IpcChannel, type AppInfo, type BackendState, type ConfigChange } from '../shared/ipc'
+import type { BackendConfig } from './backend/config'
 import type { BackendSupervisor } from './backend/supervisor'
 
-export function registerIpc(backend: BackendSupervisor, home: string): void {
+export function registerIpc(backend: BackendSupervisor, config: BackendConfig, home: string): void {
   const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
+  ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
+  ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
   ipcMain.handle(IpcChannel.PickDirectory, async (event) => {
     const opts: Electron.OpenDialogOptions = { properties: ['openDirectory', 'createDirectory'] }
     const win = BrowserWindow.fromWebContents(event.sender)
@@ -26,5 +29,20 @@ export function registerIpc(backend: BackendSupervisor, home: string): void {
 
   backend.on('state', (state: BackendState) => {
     for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IpcChannel.BackendChanged, state)
+  })
+}
+
+/** Changes come from the renderer: only key paths of strings and numbers,
+ * and values that are plain JSON. */
+function validChanges(changes: unknown): ConfigChange[] {
+  if (!Array.isArray(changes)) throw new Error('expected a list of changes')
+  return changes.map((c) => {
+    const path = (c as ConfigChange)?.path
+    if (!Array.isArray(path) || path.length === 0 || !path.every((p) => typeof p === 'string' || typeof p === 'number')) {
+      throw new Error('a change needs a key path')
+    }
+    if (c.kind === 'delete') return { kind: 'delete', path }
+    if (c.kind !== 'set') throw new Error('a change is set or delete')
+    return { kind: 'set', path, value: JSON.parse(JSON.stringify(c.value ?? null)) }
   })
 }

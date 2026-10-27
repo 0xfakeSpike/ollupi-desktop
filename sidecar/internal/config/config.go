@@ -89,16 +89,22 @@ func (e Endpoint) Key() (string, error) {
 }
 
 // Load reads <home>/config.yaml, writing the starter template first when
-// there is none. A relative skills_dir resolves against home.
+// there is none.
 func Load(home string) (Config, error) {
 	path := filepath.Join(home, FileName)
-	raw, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		raw = []byte(Template)
-		if err := os.WriteFile(path, raw, 0o600); err != nil {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(path, []byte(Template), 0o600); err != nil {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
-	} else if err != nil {
+	}
+	return LoadFile(path, home)
+}
+
+// LoadFile reads a config file for a backend whose home is home: a
+// relative skills_dir resolves against home.
+func LoadFile(path, home string) (Config, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
 		return Config{}, err
 	}
 	cfg, err := Parse(raw)

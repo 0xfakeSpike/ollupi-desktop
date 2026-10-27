@@ -15,6 +15,10 @@ const api: DesktopApi = {
       return () => ipcRenderer.off(IpcChannel.BackendChanged, wrapped)
     },
   },
+  config: {
+    read: () => ipcRenderer.invoke(IpcChannel.ConfigRead),
+    apply: (changes) => ipcRenderer.invoke(IpcChannel.ConfigApply, changes),
+  },
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
 }

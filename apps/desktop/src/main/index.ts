@@ -5,6 +5,7 @@ import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
+import { BackendConfig } from './backend/config'
 import { BackendSupervisor } from './backend/supervisor'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
@@ -17,6 +18,7 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   const home = backendHome()
   const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env: backendEnv })
+  const config = new BackendConfig({ binary: backendBinary(), home, env: backendEnv, restart: () => backend.restart() })
 
   app.on('second-instance', () => {
     const win = BrowserWindow.getAllWindows()[0]
@@ -26,7 +28,7 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     serveRenderer(join(import.meta.dirname, '../renderer'))
-    registerIpc(backend, home)
+    registerIpc(backend, config, home)
     createMainWindow()
     void backend.start()
     app.on('activate', () => {
