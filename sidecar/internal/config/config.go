@@ -81,6 +81,29 @@ func (c Config) ModelRefs() []ModelRef {
 	return out
 }
 
+// KeyRef says where a provider's API key comes from, never the key itself:
+// "api_key" when it is written in the file, "api_key_env" when it is read
+// from that variable, "none" when the API takes no key. A key in the file
+// wins, as in Key.
+type KeyRef struct {
+	Provider string `json:"provider"`
+	From     string `json:"from"`
+}
+
+func (c Config) KeyRefs() []KeyRef {
+	out := make([]KeyRef, 0, len(c.Models))
+	for _, p := range c.Models {
+		from := "none"
+		if p.APIKey != "" {
+			from = "api_key"
+		} else if p.APIKeyEnv != "" {
+			from = "api_key_env"
+		}
+		out = append(out, KeyRef{Provider: p.Provider, From: from})
+	}
+	return out
+}
+
 // Permissions are the agent-level layer of ollupi's permission settings;
 // workspaces and threads add their own on top.
 type Permissions struct {

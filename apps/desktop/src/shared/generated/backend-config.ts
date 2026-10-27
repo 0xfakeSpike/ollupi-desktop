@@ -64,5 +64,11 @@ export interface ConfigCheck {
         provider: string;
         name: string;
       }[];
+  keys?:
+    | null
+    | {
+        provider: string;
+        from: string;
+      }[];
   error?: string;
 }

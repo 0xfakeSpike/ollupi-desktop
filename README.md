@@ -84,7 +84,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` 先编译 sidecar，再启动 electron-vite（HMR）。首次运行写入 `~/.ollupi/config.yaml` 模板，填好后在应用里点 "Restart backend"。数据目录可用 `OLLUPI_HOME` 覆盖。环境变量优先用启动终端里的值，其次是登录 shell 的；改了 `~/.zshrc` 要从新的终端启动。
+`pnpm dev` 先编译 sidecar，再启动 electron-vite（HMR）。首次运行写入 `~/.ollupi/config.yaml` 模板，填好后在应用里点 "Restart backend"。数据目录可用 `OLLUPI_HOME` 覆盖。环境变量优先用启动终端里的值，其次是登录 shell 的。登录 shell 的环境在每次启动后端和校验配置时重新读取，所以在 `~/.zshrc` 里新 export 的 key 不用重开应用；但启动终端里已有的同名变量仍然优先，要改它得从新的终端启动。
 
 ollupi 改动契约后，重新生成并重新录制会话，结果都要提交：
 
@@ -126,9 +126,9 @@ pnpm --filter @ollupi/desktop dev:renderer
 
 ## 配置（`~/.ollupi/config.yaml`）
 
-ollupi 只在启动时读取配置，所以界面里的配置修改（目前是 Memory 页的"学习"和"召回"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，不含 API key，加上按 `provider/name` 展开的模型列表）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
+ollupi 只在启动时读取配置，所以界面里的配置修改（Settings 的 Models 页、Memory 页的"学习"和"召回"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，不含 API key；按 `provider/name` 展开的模型列表；每个提供方的 key 来源）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
 
-- `models`：按提供方分组的模型。每个提供方是一个 OpenAI 兼容接口（`provider` 名称唯一且不含 `/`，`base_url`、`api_key_env` 或 `api_key`），`names` 列出它提供的模型；每个模型有自己的 client 和并发上限 `calls`（默认 4），未知模型用 `limits` 声明上下文窗口。模型的 id 是 `provider/name`，即 ollupi 的 connection、`turn/start` 选模型用的键，所以两个提供方可以提供同名模型。第一个提供方的第一个模型是默认。
+- `models`：按提供方分组的模型，可在 Settings → Models 里管理（应用只记录 key 所在的环境变量名，key 本身留在 `~/.zshrc`）。每个提供方是一个 OpenAI 兼容接口（`provider` 名称唯一且不含 `/`，`base_url`、`api_key_env` 或 `api_key`），`names` 列出它提供的模型；每个模型有自己的 client 和并发上限 `calls`（默认 4），未知模型用 `limits` 声明上下文窗口。模型的 id 是 `provider/name`，即 ollupi 的 connection、`turn/start` 选模型用的键，所以两个提供方可以提供同名模型。第一个提供方的第一个模型是默认。
 - `permissions`：agent 级权限（`approval` 审批策略 + `allow`/`ask`/`deny` 规则），工作区和会话在其上叠加。
 - `slots`：同时运行的会话数上限（默认 32）。
 - `shell`：`run_command` 工具与 macOS 沙箱。config.yaml 本身对命令不可读。

@@ -42,7 +42,11 @@ function validChanges(changes: unknown): ConfigChange[] {
       throw new Error('a change needs a key path')
     }
     if (c.kind === 'delete') return { kind: 'delete', path }
-    if (c.kind !== 'set') throw new Error('a change is set or delete')
+    if (c.kind === 'move') {
+      if (!Number.isInteger(c.to)) throw new Error('a move needs a list index')
+      return { kind: 'move', path, to: c.to }
+    }
+    if (c.kind !== 'set') throw new Error('a change is set, delete or move')
     return { kind: 'set', path, value: JSON.parse(JSON.stringify(c.value ?? null)) }
   })
 }

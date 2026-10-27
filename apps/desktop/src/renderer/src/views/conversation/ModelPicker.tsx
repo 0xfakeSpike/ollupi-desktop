@@ -1,3 +1,4 @@
+import { cn } from '@ollupi/ui'
 import { ChevronDown, Cpu } from 'lucide-react'
 import { useModels } from '../../domains/models'
 import { chooseModel, useNavigation } from '../../domains/navigation'
@@ -12,13 +13,21 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
   const fallback = useModels((s) => s.fallback)
   const chosen = useNavigation((s) => s.model)
   const shown = chosen ?? inherited ?? fallback
+  // The thread's last model was removed from config.yaml or renamed: the
+  // server refuses to continue on it until another is chosen.
+  const unavailable = !models.some((m) => m.connection === shown)
   if (models.length === 0) return null
   return (
     <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg">
       <Cpu size={13} />
-      <span className="max-w-48 truncate">{shown}</span>
+      <span className={cn('max-w-72 truncate', unavailable && 'text-warning')}>{unavailable ? `${shown} (unavailable)` : shown}</span>
       <ChevronDown size={12} />
       <select aria-label="Model" className="absolute inset-0 cursor-pointer opacity-0" value={shown} onChange={(e) => chooseModel(e.target.value)}>
+        {unavailable && (
+          <option value={shown} disabled>
+            {shown} (unavailable)
+          </option>
+        )}
         {models.map((m) => (
           <option key={m.connection} value={m.connection}>
             {m.connection}
