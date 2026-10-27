@@ -1,70 +1,51 @@
-// Scheduled tasks: messages ollupi sends to a thread on a cron schedule. A
-// thread's tasks are read when someone looks at them. They change through
-// the cron/* calls below, which return the stored row, and through the
-// model's own cron tool calls, which the gateway reports only as completed
-// items from the cron provider; either way the loaded list is updated.
+// Scheduled tasks: messages ollupi sends to a thread on a cron schedule.
+// Every thread's tasks are listed once connected (cron/list without a
+// thread), and ollupi reports each change after that as cron/changed, with
+// the task as it is then: one the model or a cron/* call made, or the
+// scheduler moving its next run on. It holds a change back until the list
+// it follows is answered, so applying changes in order keeps the list
+// current. The cron/* calls below change tasks; their results are not
+// applied here, the notification is.
 
-import type { CronJobRow, Provider } from '@ollupi/protocol'
+import type { CronJobView } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 
-/** The cron provider's id, as the contract lists it. */
-const CRON: Provider = 'cron'
+/** Undefined until the first list arrives. */
+export const useCron = create<{ jobs: CronJobView[] | undefined }>()(() => ({ jobs: undefined }))
 
-export const useCron = create<{ byThread: Record<string, CronJobRow[]> }>()(() => ({ byThread: {} }))
-
-function set(threadId: string, jobs: CronJobRow[]): void {
-  useCron.setState((s) => ({ byThread: { ...s.byThread, [threadId]: jobs } }))
-}
-
-async function read(threadId: string): Promise<void> {
-  set(threadId, (await gateway().call('cron/list', { threadId })).data)
+function applyChange(id: string, job: CronJobView | null): void {
+  useCron.setState((s) => {
+    if (!s.jobs) return s
+    const rest = s.jobs.filter((j) => j.id !== id)
+    return { jobs: job ? [...rest, job] : rest }
+  })
 }
 
 export const cronDomain: Domain = {
-  bind: (client) =>
-    client.on('item/completed', ({ threadId, item }) => {
-      if (item.server === CRON && threadId in useCron.getState().byThread) {
-        void run((e) => e.cron.refresh, () => read(threadId))
-      }
-    }),
-  // Lists read before a reconnect may have changed meanwhile.
-  sync: async () => {
-    await Promise.all(Object.keys(useCron.getState().byThread).map(read))
+  bind: (client) => client.on('cron/changed', ({ id, job }) => applyChange(id, job)),
+  sync: async (client) => {
+    useCron.setState({ jobs: (await client.call('cron/list', {})).data })
   },
-}
-
-export function useThreadJobs(threadId: string): CronJobRow[] | undefined {
-  return useCron((s) => s.byThread[threadId])
-}
-
-export function loadJobs(threadId: string): Promise<void | undefined> {
-  return run((e) => e.cron.load, () => read(threadId))
-}
-
-function replace(row: CronJobRow): void {
-  const jobs = useCron.getState().byThread[row.threadId] ?? []
-  set(row.threadId, jobs.some((j) => j.id === row.id) ? jobs.map((j) => (j.id === row.id ? row : j)) : [...jobs, row])
 }
 
 export function createJob(threadId: string, name: string, spec: string, prompt: string): Promise<boolean> {
   return run((e) => e.cron.create, async () => {
-    replace(await gateway().call('cron/create', { threadId, name, spec, prompt }))
+    await gateway().call('cron/create', { threadId, name, spec, prompt })
     return true
   }).then(Boolean)
 }
 
-export function setPaused(threadId: string, name: string, paused: boolean): Promise<void | undefined> {
+export function setPaused(job: CronJobView, paused: boolean): Promise<void | undefined> {
   return run((e) => (paused ? e.cron.pause : e.cron.resume), async () => {
-    replace(await gateway().call('cron/pause', { threadId, name, paused }))
+    await gateway().call('cron/pause', { threadId: job.threadId, name: job.name, paused })
   })
 }
 
-export function deleteJob(threadId: string, name: string): Promise<void | undefined> {
+export function deleteJob(job: CronJobView): Promise<void | undefined> {
   return run((e) => e.cron.delete, async () => {
-    await gateway().call('cron/delete', { threadId, name })
-    set(threadId, (useCron.getState().byThread[threadId] ?? []).filter((j) => j.name !== name))
+    await gateway().call('cron/delete', { threadId: job.threadId, name: job.name })
   })
 }

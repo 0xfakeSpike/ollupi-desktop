@@ -1,30 +1,27 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, IconButton, Spinner } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, CalendarClock, Folder, Gauge, Shield } from 'lucide-react'
+import { ArrowDown, ArrowLeft, Folder, Gauge, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
-import { useThreadJobs } from '../../domains/cron'
 import { toggleContextPanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
 import { useStickToBottom } from '../common/useStickToBottom'
-import { CronDialog } from '../cron/CronDialog'
 import { ThreadPermissionsDialog } from '../settings/ThreadPermissionsDialog'
 import { Composer } from './Composer'
 import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
 import { TimelineView } from './TimelineView'
 
-type Dialog = 'permissions' | 'cron' | undefined
+type Dialog = 'permissions' | undefined
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
   const timeline = useTimeline(threadId)
   const summary = useThreadSummary(threadId)
   const thread = timeline?.thread ?? summary
   const workspace = useWorkspace(thread?.workspaceId)
-  const jobs = useThreadJobs(threadId)
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
@@ -52,10 +49,6 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         <div className="flex-1" />
         {thread && !parent && (
           <>
-            <IconButton label={m.conversation.screen.scheduledTasks} onClick={() => setDialog('cron')} className="relative">
-              <CalendarClock size={16} />
-              {!!jobs?.length && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-accent" />}
-            </IconButton>
             <IconButton label={m.conversation.screen.permissions} onClick={() => setDialog('permissions')}>
               <Shield size={16} />
             </IconButton>
@@ -111,7 +104,6 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       </div>
 
       {thread && dialog === 'permissions' && <ThreadPermissionsDialog thread={thread} onClose={() => setDialog(undefined)} />}
-      {dialog === 'cron' && <CronDialog threadId={threadId} onClose={() => setDialog(undefined)} />}
     </div>
   )
 }
