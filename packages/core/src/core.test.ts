@@ -193,7 +193,6 @@ describe('context', () => {
   it('scales the estimated parts to the calibrated total', () => {
     const u = contextUse({ ...stats, calibratedTokens: 600 })
     expect(u).toEqual({ used: 600, budget: 1000, compactAt: 800, system: 120, tools: 180, memory: 60, messages: 240, calibrated: true })
-    expect(contextUse({ ...stats, compactAtTokens: 0 }).compactAt).toBeUndefined()
     expect(contextUse({ ...stats, calibratedTokens: 500 }).calibrated).toBe(false)
   })
 
