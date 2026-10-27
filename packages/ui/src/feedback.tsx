@@ -1,9 +1,10 @@
-import { LoaderCircle } from 'lucide-react'
+import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from './cn'
 
 export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 
+// Badges: a soft fill with the tone's text.
 const tones: Record<Tone, string> = {
   neutral: 'bg-hover text-fg-muted',
   accent: 'bg-accent-soft text-accent',
@@ -14,7 +15,7 @@ const tones: Record<Tone, string> = {
 
 export function Badge({ tone = 'neutral', className, children }: { tone?: Tone; className?: string; children: ReactNode }) {
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap', tones[tone], className)}>
+    <span className={cn('inline-flex h-4.5 items-center gap-1 rounded-sm px-1.5 text-caption whitespace-nowrap', tones[tone], className)}>
       {children}
     </span>
   )
@@ -25,32 +26,37 @@ export function Spinner({ size = 16, className }: { size?: number; className?: s
 }
 
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded border border-line-strong px-1 font-sans text-[10px] leading-4 text-fg-subtle">{children}</kbd>
+  return <kbd className="rounded-sm border border-line-strong px-1 font-sans text-caption text-fg-subtle">{children}</kbd>
 }
 
+/** In place of the missing content: an icon (20px), what is empty, one line
+ * on what belongs here, and at most one secondary action. */
 export function EmptyState({ icon, title, children, action }: { icon?: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
       {icon && <div className="text-fg-subtle">{icon}</div>}
-      <div className="text-sm font-medium text-fg">{title}</div>
-      {children && <div className="max-w-sm text-sm text-fg-muted">{children}</div>}
-      {action}
+      <div className="text-ui font-medium text-fg">{title}</div>
+      {children && <div className="max-w-sm text-small text-fg-subtle">{children}</div>}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   )
 }
 
-/** A bordered message block: errors, warnings, notes. */
-export function Callout({ tone = 'neutral', icon, className, children }: { tone?: Tone; icon?: ReactNode; className?: string; children: ReactNode }) {
-  const border: Record<Tone, string> = {
-    neutral: 'border-line',
-    accent: 'border-accent/30',
-    success: 'border-success/30',
-    warning: 'border-warning/40',
-    danger: 'border-danger/30',
-  }
+const callouts: Record<Tone, { Icon: LucideIcon; color: string }> = {
+  neutral: { Icon: Info, color: 'text-fg-muted' },
+  accent: { Icon: Info, color: 'text-accent' },
+  success: { Icon: CircleCheck, color: 'text-success' },
+  warning: { Icon: TriangleAlert, color: 'text-warning' },
+  danger: { Icon: CircleAlert, color: 'text-danger' },
+}
+
+/** A message block in place: errors, warnings, notes. The tone shows as the
+ * icon alone; the block itself stays neutral. */
+export function Callout({ tone = 'neutral', className, children }: { tone?: Tone; className?: string; children: ReactNode }) {
+  const { Icon, color } = callouts[tone]
   return (
-    <div className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-[13px]', border[tone], tones[tone], className)}>
-      {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
+    <div className={cn('flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-ui text-fg', className)}>
+      <Icon size={14} className={cn('mt-0.75 shrink-0', color)} aria-hidden />
       <div className="min-w-0 flex-1 break-words">{children}</div>
     </div>
   )

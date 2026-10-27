@@ -15,7 +15,7 @@ export function CronDialog({ threadId, onClose }: { threadId: string; onClose():
   useEffect(() => void loadJobs(threadId), [threadId])
 
   return (
-    <Dialog title={m.requests.cron.title} closeLabel={m.common.close} onClose={onClose} width={560}>
+    <Dialog title={m.requests.cron.title} closeLabel={m.common.close} onClose={onClose} wide>
       <div className="flex flex-col gap-5">
         {!jobs ? (
           <div className="flex justify-center py-6 text-fg-subtle">

@@ -271,7 +271,6 @@ function ProviderDialog({
       title={provider ? t.editTitle(provider.provider) : t.addTitle}
       closeLabel={m.common.close}
       onClose={onClose}
-      width={480}
       footer={
         <>
           <Button onClick={onClose}>{m.common.cancel}</Button>
@@ -284,7 +283,8 @@ function ProviderDialog({
       <div className="flex flex-col gap-4">
         <Field
           label={t.name}
-          hint={nameError && trimmed ? nameError : renamed ? t.renamedIds(trimmed, m.settings.models.renamed) : t.nameHint}
+          error={trimmed && nameError}
+        hint={renamed ? t.renamedIds(trimmed, m.settings.models.renamed) : t.nameHint}
         >
           <Input value={name} autoFocus spellCheck={false} placeholder="deepseek" onChange={(e) => setName(e.target.value)} />
         </Field>
@@ -352,11 +352,12 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
     <>
       <Field
         label={t.name}
-        hint={nameError && trimmed ? nameError : renamed ? t.renamedId(modelId(provider, trimmed), m.settings.models.renamed) : t.nameHint}
+        error={trimmed && nameError}
+        hint={renamed ? t.renamedId(modelId(provider, trimmed), m.settings.models.renamed) : t.nameHint}
       >
         <Input value={name} spellCheck={false} className="font-mono text-xs" placeholder="deepseek-flash" onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label={t.calls} hint={callsError ?? t.callsHint}>
+      <Field label={t.calls} error={callsError} hint={t.callsHint}>
         <Input value={calls} inputMode="numeric" className="max-w-32" placeholder={t.callsPlaceholder} onChange={(e) => setCalls(e.target.value)} />
       </Field>
       <Field label={t.thinking} hint={t.thinkingHint}>
@@ -366,7 +367,7 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
           <option value="false">{t.off}</option>
         </Select>
       </Field>
-      <Field label={t.limits} hint={limitsError ?? t.limitsHint}>
+      <Field label={t.limits} error={limitsError} hint={t.limitsHint}>
         <div className="flex gap-2">
           <Input value={context} inputMode="numeric" placeholder={t.context} onChange={(e) => setContext(e.target.value)} />
           <Input value={output} inputMode="numeric" placeholder={t.output} onChange={(e) => setOutput(e.target.value)} />
@@ -404,7 +405,6 @@ function ModelDialog({
       title={model ? m.settings.models.model.editTitle(modelId(provider, model.name)) : m.settings.models.model.addTitle(provider)}
       closeLabel={m.common.close}
       onClose={onClose}
-      width={480}
       footer={
         <>
           <Button onClick={onClose}>{m.common.cancel}</Button>

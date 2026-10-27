@@ -7,7 +7,7 @@ import { PermissionEditor } from './PermissionEditor'
 export function ThreadPermissionsDialog({ thread, onClose }: { thread: ThreadRow; onClose(): void }) {
   const m = useT()
   return (
-    <Dialog title={m.settings.permissions.thread.title} closeLabel={m.common.close} onClose={onClose} width={520}>
+    <Dialog title={m.settings.permissions.thread.title} closeLabel={m.common.close} onClose={onClose}>
       <p className="mb-4 text-xs text-fg-muted">{m.settings.permissions.thread.intro}</p>
       <PermissionEditor
         value={thread.settings}

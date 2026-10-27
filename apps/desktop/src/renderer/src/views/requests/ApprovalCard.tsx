@@ -1,9 +1,11 @@
 // Asks to allow one tool call. For a command it shows the frozen execution:
-// approving runs exactly that program, arguments and directory.
+// approving runs exactly that program, arguments and directory. A call
+// that leaves the sandbox is the dangerous tier: it says what that means,
+// its primary action says so too, and it can only be allowed once.
 
 import { commandLine } from '@ollupi/core'
 import type { BuiltinToolName, Decision } from '@ollupi/protocol'
-import { Badge, Button } from '@ollupi/ui'
+import { ActionCard, Button, type ButtonProps } from '@ollupi/ui'
 import { ShieldAlert } from 'lucide-react'
 import type { PendingRequest } from '../../domains/requests'
 import { useT } from '../../i18n'
@@ -19,29 +21,29 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
   const p = request.params
   const exec = p.preparedExecution
   const command = p.tool === SHELL && exec?.program ? exec : undefined
+  const outside = !!exec?.escalated
+  const decisions = order.filter((d) => p.availableDecisions.includes(d) && !(outside && d === 'acceptForSession'))
+  const variant = (d: Decision): ButtonProps['variant'] =>
+    d === 'accept' ? (outside ? 'danger' : 'primary') : d === 'decline' && !outside ? 'ghost' : 'secondary'
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-warning/40 bg-warning-soft/40 p-4">
-      <div className="flex flex-wrap items-center gap-2 text-[13px] font-medium text-fg">
-        <ShieldAlert size={15} className="text-warning" />
-        {command ? m.requests.approval.command : m.requests.approval.tool(p.tool)}
-        {exec?.escalated && <Badge tone="warning">{m.requests.approval.outsideSandbox}</Badge>}
-      </div>
-      {p.reason && <p className="text-[13px] text-fg-muted">{p.reason}</p>}
+    <ActionCard
+      tone={outside ? 'danger' : 'warning'}
+      icon={<ShieldAlert size={16} />}
+      title={command ? (outside ? m.requests.approval.commandOutside : m.requests.approval.command) : m.requests.approval.tool(p.tool)}
+      actions={decisions.map((d) => (
+        <Button key={d} size="sm" variant={variant(d)} onClick={() => request.respond(d)}>
+          {d === 'accept' && outside ? m.requests.approval.runOutside : m.requests.approval.decisions[d]}
+        </Button>
+      ))}
+    >
+      {outside && <p className="text-ui text-fg">{m.requests.approval.outsideConsequence}</p>}
+      {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
       {command ? (
         <CodeBlock code={commandLine(command)} label={`sh · ${command.cwd}`} />
       ) : (
         <CodeBlock code={JSON.stringify(p.arguments, null, 2)} label={p.server ? m.requests.approval.serverArguments(p.server) : m.requests.approval.arguments} />
       )}
-      {exec?.justification && <p className="text-[13px] text-fg-muted">“{exec.justification}”</p>}
-      <div className="flex flex-wrap justify-end gap-2">
-        {order
-          .filter((d) => p.availableDecisions.includes(d))
-          .map((d) => (
-            <Button key={d} size="sm" variant={d === 'accept' ? 'primary' : 'secondary'} onClick={() => request.respond(d)}>
-              {m.requests.approval.decisions[d]}
-            </Button>
-          ))}
-      </div>
-    </div>
+      {exec?.justification && <p className="selectable text-ui text-fg-muted">“{exec.justification}”</p>}
+    </ActionCard>
   )
 }

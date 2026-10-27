@@ -3,21 +3,24 @@ import { cn } from './cn'
 import { Spinner } from './feedback'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
-type Size = 'sm' | 'md'
+type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-accent-fg hover:brightness-110',
   secondary: 'border border-line-strong bg-raised text-fg hover:bg-hover',
   ghost: 'text-fg-muted hover:bg-hover hover:text-fg',
-  danger: 'bg-danger text-white hover:brightness-110',
+  danger: 'bg-danger text-danger-fg hover:brightness-110',
 }
 
+// sm sits inside cards and rows, md is the default, lg ends dialogs and pages.
 const sizes: Record<Size, string> = {
-  sm: 'h-7 gap-1.5 px-2.5 text-xs',
-  md: 'h-8 gap-2 px-3 text-sm',
+  sm: 'h-6 gap-1.5 px-2 text-small',
+  md: 'h-7 gap-1.5 px-2.5 text-ui',
+  lg: 'h-8 gap-1.5 px-3 text-ui',
 }
 
-const focus = 'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none'
+const focus = 'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none'
+const motion = 'transition duration-100 ease-standard'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
@@ -33,7 +36,8 @@ export function Button({ variant = 'secondary', size = 'md', icon, loading, clas
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-md font-medium whitespace-nowrap transition',
+        'inline-flex shrink-0 items-center justify-center rounded-md font-medium whitespace-nowrap',
+        motion,
         'disabled:pointer-events-none disabled:opacity-50',
         focus,
         variants[variant],
@@ -51,7 +55,7 @@ export function Button({ variant = 'secondary', size = 'md', icon, loading, clas
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Accessible name and tooltip; icon buttons have no visible text. */
   label: string
-  size?: Size
+  size?: Exclude<Size, 'lg'>
   active?: boolean
 }
 
@@ -62,10 +66,11 @@ export function IconButton({ label, size = 'md', active, className, children, ty
       aria-label={label}
       title={label}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted transition hover:bg-hover hover:text-fg',
-        'disabled:pointer-events-none disabled:opacity-40',
+        'inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg',
+        'disabled:pointer-events-none disabled:opacity-50',
+        motion,
         focus,
-        size === 'sm' ? 'size-6' : 'size-8',
+        size === 'sm' ? 'size-6' : 'size-7',
         active && 'bg-hover text-fg',
         className,
       )}

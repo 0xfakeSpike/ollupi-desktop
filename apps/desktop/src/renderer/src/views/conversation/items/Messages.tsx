@@ -1,5 +1,6 @@
 import type { ItemRow } from '@ollupi/protocol'
-import { Disclosure } from '@ollupi/ui'
+import { cn, ProcessRow } from '@ollupi/ui'
+import { Lightbulb } from 'lucide-react'
 import { useT } from '../../../i18n'
 import { duration } from '../../../i18n/format'
 import { Markdown } from '../../common/Markdown'
@@ -27,14 +28,15 @@ export function Reasoning({ item }: { item: ItemRow }) {
   const m = useT()
   if (!thinking && !item.text) return null
   return (
-    <Disclosure
-      summary={
-        <span className={thinking ? 'shimmer text-[13px]' : 'text-[13px]'}>
+    <ProcessRow
+      icon={<Lightbulb size={14} />}
+      title={
+        <span className={cn(thinking && 'shimmer')}>
           {thinking ? m.conversation.items.thinking : m.conversation.items.thoughtFor(duration(m, item.startedAt, item.completedAt))}
         </span>
       }
     >
-      <div className="selectable border-l-2 border-line pl-3 text-[13px] leading-6 whitespace-pre-wrap text-fg-muted">{item.text}</div>
-    </Disclosure>
+      {item.text && <div className="selectable text-ui whitespace-pre-wrap text-fg-muted">{item.text}</div>}
+    </ProcessRow>
   )
 }

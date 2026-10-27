@@ -90,10 +90,10 @@ export const en = {
   },
   tool: {
     outsideSandbox: 'outside sandbox',
-    needsApproval: 'needs approval',
     waiting: 'waiting for you',
     subagentWorking: 'subagent working',
     declined: 'declined',
+    failed: 'failed',
     exit: (code: number) => `exit ${code}`,
     truncated: 'output truncated',
     sandboxDenial: (denial: string) => `sandbox: ${denial}`,
@@ -104,6 +104,8 @@ export const en = {
     plan: 'Plan',
     waitingAnswer: 'Waiting for your answer…',
     notAnswered: 'Not answered',
+    answered: (n: number) => (n === 1 ? 'Answered a question' : `Answered ${n} questions`),
+    openSubagent: 'Open conversation',
   },
   markdown: {
     copy: 'Copy',
@@ -193,10 +195,10 @@ export const zh: typeof en = {
   },
   tool: {
     outsideSandbox: '沙箱外',
-    needsApproval: '需要审批',
     waiting: '等你处理',
     subagentWorking: '子代理处理中',
     declined: '已拒绝',
+    failed: '失败',
     exit: (code) => `退出码 ${code}`,
     truncated: '输出已截断',
     sandboxDenial: (denial) => `沙箱：${denial}`,
@@ -207,6 +209,8 @@ export const zh: typeof en = {
     plan: '计划',
     waitingAnswer: '等待你的回答…',
     notAnswered: '未回答',
+    answered: (n) => `回答了 ${n} 个问题`,
+    openSubagent: '打开会话',
   },
   markdown: {
     copy: '复制',

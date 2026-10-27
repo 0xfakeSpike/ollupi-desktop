@@ -1,4 +1,4 @@
-import { IconButton } from '@ollupi/ui'
+import { Block, IconButton } from '@ollupi/ui'
 import { Check, Copy } from 'lucide-react'
 import { memo, useState, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
@@ -7,15 +7,11 @@ import { useT } from '../../i18n'
 
 export function CodeBlock({ code, label }: { code: string; label?: string }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface">
-      <div className="flex h-8 items-center justify-between gap-2 border-b border-line px-3 text-[11px] text-fg-subtle">
-        <span className="truncate font-mono">{label || 'text'}</span>
-        <CopyButton text={code} />
-      </div>
-      <pre className="overflow-x-auto px-3 py-2.5 font-mono text-[12.5px] leading-5">
+    <Block label={<span className="font-mono">{label || 'text'}</span>} actions={<CopyButton text={code} />}>
+      <pre className="selectable overflow-x-auto font-mono text-ui">
         <code>{code}</code>
       </pre>
-    </div>
+    </Block>
   )
 }
 
@@ -32,7 +28,7 @@ export function CopyButton({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 1200)
       }}
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? <Check size={14} /> : <Copy size={14} />}
     </IconButton>
   )
 }
