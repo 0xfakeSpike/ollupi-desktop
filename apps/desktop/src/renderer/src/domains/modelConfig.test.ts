@@ -44,8 +44,8 @@ describe('model edits', () => {
   })
 
   it('keeps the memory model while learning uses it, and drops it otherwise', () => {
-    expect(cannotRemove(learning, 0, 0)).toMatch(/Memory/)
-    expect(cannotRemoveProvider(learning, 0)).toMatch(/Memory/)
+    expect(cannotRemove(learning, 0, 0)).toBe('memoryModel')
+    expect(cannotRemoveProvider(learning, 0)).toBe('memoryModels')
     expect(cannotRemove(notLearning, 0, 0)).toBeUndefined()
     expect(removeProvider(notLearning, 0)).toContainEqual({ kind: 'delete', path: ['memory', 'model'] })
     expect(removeModel(notLearning, 0, 1).some((c) => c.path[0] === 'memory')).toBe(false)
@@ -53,8 +53,8 @@ describe('model edits', () => {
 
   it('refuses to remove the only model', () => {
     const one = { ...notLearning, models: [notLearning.models![1]!] }
-    expect(cannotRemove(one, 0, 0)).toMatch(/at least one/)
-    expect(cannotRemoveProvider(one, 0)).toMatch(/at least one/)
+    expect(cannotRemove(one, 0, 0)).toBe('lastModel')
+    expect(cannotRemoveProvider(one, 0)).toBe('lastModel')
   })
 
   it('makes a model the default by moving it and its provider first', () => {

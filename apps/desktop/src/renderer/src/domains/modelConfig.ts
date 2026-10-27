@@ -123,23 +123,20 @@ export function makeDefault(provider: number, index: number): ConfigChange[] {
 }
 
 /** Why a model cannot be removed, if it cannot: the backend requires at
- * least one model, and learning needs the model memory.model names. */
-export function cannotRemove(config: BackendConfig, provider: number, index: number): string | undefined {
+ * least one model (lastModel), and learning needs the model memory.model
+ * names (memoryModel). */
+export function cannotRemove(config: BackendConfig, provider: number, index: number): 'lastModel' | 'memoryModel' | undefined {
   const p = providers(config)[provider]!
-  if (providers(config).reduce((n, q) => n + (q.names ?? []).length, 0) === 1) return 'The backend needs at least one model.'
-  if (config.memory.generate && config.memory.model === modelId(p.provider, p.names![index]!.name)) {
-    return 'Memory uses this model to extract memories. Choose another one on the Memory screen first.'
-  }
+  if (providers(config).reduce((n, q) => n + (q.names ?? []).length, 0) === 1) return 'lastModel'
+  if (config.memory.generate && config.memory.model === modelId(p.provider, p.names![index]!.name)) return 'memoryModel'
   return undefined
 }
 
 /** cannotRemove for every model of a provider. */
-export function cannotRemoveProvider(config: BackendConfig, provider: number): string | undefined {
+export function cannotRemoveProvider(config: BackendConfig, provider: number): 'lastModel' | 'memoryModels' | undefined {
   const p = providers(config)[provider]!
   const others = providers(config).reduce((n, q, i) => n + (i === provider ? 0 : (q.names ?? []).length), 0)
-  if (others === 0) return 'The backend needs at least one model.'
-  if (config.memory.generate && (p.names ?? []).some((m) => config.memory.model === modelId(p.provider, m.name))) {
-    return 'Memory uses one of these models to extract memories. Choose another one on the Memory screen first.'
-  }
+  if (others === 0) return 'lastModel'
+  if (config.memory.generate && (p.names ?? []).some((m) => config.memory.model === modelId(p.provider, m.name))) return 'memoryModels'
   return undefined
 }

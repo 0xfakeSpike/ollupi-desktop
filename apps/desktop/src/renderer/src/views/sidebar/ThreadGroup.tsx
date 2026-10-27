@@ -1,4 +1,4 @@
-import { isWorking, needsUser, relativeTime, threadTitle } from '@ollupi/core'
+import { isWorking, needsUser } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
 import { Archive, ChevronRight, Folder, FolderOpen, Plus, Settings2 } from 'lucide-react'
@@ -6,6 +6,8 @@ import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { go, useOpenThreadId } from '../../domains/navigation'
 import { setArchived } from '../../domains/workspaces'
+import { useLocale, useT } from '../../i18n'
+import { relativeTime, threadTitle } from '../../i18n/format'
 import { desktop } from '../../platform/desktop'
 import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
@@ -16,6 +18,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
   const [settings, setSettings] = useState(false)
+  const m = useT().shell.sidebar
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
 
@@ -30,20 +33,20 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
         >
           <ChevronRight size={12} className={cn('shrink-0 transition-transform', open && 'rotate-90')} />
           {workspace && <Folder size={13} className="shrink-0" />}
-          <span className="truncate">{workspace ? workspace.name : 'Threads'}</span>
+          <span className="truncate">{workspace ? workspace.name : m.threads}</span>
         </button>
         {workspace && (
           <div className="flex opacity-0 transition group-hover:opacity-100">
-            <IconButton label="Reveal folder" size="sm" onClick={() => void desktop.openPath(workspace.rootPath)}>
+            <IconButton label={m.revealFolder} size="sm" onClick={() => void desktop.openPath(workspace.rootPath)}>
               <FolderOpen size={13} />
             </IconButton>
-            <IconButton label="Workspace settings" size="sm" onClick={() => setSettings(true)}>
+            <IconButton label={m.workspaceSettings} size="sm" onClick={() => setSettings(true)}>
               <Settings2 size={13} />
             </IconButton>
-            <IconButton label={`Archive ${workspace.name}`} size="sm" onClick={() => void setArchived(workspace.id, true)}>
+            <IconButton label={m.archive(workspace.name)} size="sm" onClick={() => void setArchived(workspace.id, true)}>
               <Archive size={13} />
             </IconButton>
-            <IconButton label={`New thread in ${workspace.name}`} size="sm" onClick={() => go({ kind: 'draft', workspaceId: workspace.id })}>
+            <IconButton label={m.newThreadIn(workspace.name)} size="sm" onClick={() => go({ kind: 'draft', workspaceId: workspace.id })}>
               <Plus size={14} />
             </IconButton>
           </div>
@@ -54,11 +57,11 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           {visible.map((t) => (
             <ThreadEntry key={t.id} thread={t} />
           ))}
-          {workspace && threads.length === 0 && <li className="py-1 pl-8 text-[12px] text-fg-subtle">No threads yet</li>}
+          {workspace && threads.length === 0 && <li className="py-1 pl-8 text-[12px] text-fg-subtle">{m.noThreads}</li>}
           {threads.length > SHOWN && (
             <li>
               <button type="button" onClick={() => setAll(!all)} className="py-1 pl-8 text-[12px] text-fg-subtle hover:text-fg-muted">
-                {all ? 'Show less' : `Show ${threads.length - SHOWN} more`}
+                {all ? m.showLess : m.showMore(threads.length - SHOWN)}
               </button>
             </li>
           )}
@@ -71,6 +74,8 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
 
 function ThreadEntry({ thread }: { thread: ThreadSummary }) {
   const active = useOpenThreadId() === thread.id
+  const m = useT()
+  const locale = useLocale((s) => s.locale)
   return (
     <li>
       <button
@@ -81,13 +86,13 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
           active ? 'bg-hover text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
         )}
       >
-        <span className="min-w-0 flex-1 truncate">{threadTitle(thread)}</span>
+        <span className="min-w-0 flex-1 truncate">{threadTitle(m, thread)}</span>
         {needsUser(thread.status) ? (
-          <span className="size-2 shrink-0 rounded-full bg-warning" title="Waiting for you" />
+          <span className="size-2 shrink-0 rounded-full bg-warning" title={m.shell.sidebar.waiting} />
         ) : isWorking(thread.status) ? (
           <Spinner size={12} className="shrink-0 text-fg-subtle" />
         ) : (
-          <span className="shrink-0 text-[11px] text-fg-subtle">{relativeTime(thread.updatedAt)}</span>
+          <span className="shrink-0 text-[11px] text-fg-subtle">{relativeTime(m, locale, thread.updatedAt)}</span>
         )}
       </button>
     </li>

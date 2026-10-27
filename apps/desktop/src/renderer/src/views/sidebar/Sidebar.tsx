@@ -5,6 +5,7 @@ import { useMemo, type ReactNode } from 'react'
 import { go, useNavigation } from '../../domains/navigation'
 import { useThreads } from '../../domains/threads'
 import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
+import { useT } from '../../i18n'
 import { ConnectionStatus } from './ConnectionStatus'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { ThreadGroup } from './ThreadGroup'
@@ -13,6 +14,7 @@ export function Sidebar() {
   const workspaces = useWorkspaces((s) => s.list)
   const threads = useThreads((s) => s.list)
   const screen = useNavigation((s) => s.screen)
+  const m = useT().shell.sidebar
   const groups = useMemo(() => groupByWorkspace(workspaces, threads), [workspaces, threads])
 
   return (
@@ -20,10 +22,10 @@ export function Sidebar() {
       <div className="drag h-[52px] shrink-0" />
       <nav className="flex flex-col gap-0.5 px-2 pb-2">
         <NavButton icon={<SquarePen size={15} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
-          New thread
+          {m.newThread}
         </NavButton>
         <NavButton icon={<FolderPlus size={15} />} onClick={() => void addWorkspace()}>
-          Add workspace
+          {m.addWorkspace}
         </NavButton>
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
@@ -34,10 +36,10 @@ export function Sidebar() {
       </div>
       <div className="flex flex-col gap-0.5 border-t border-line px-2 py-2">
         <NavButton icon={<Brain size={15} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
-          Memory
+          {m.memory}
         </NavButton>
         <NavButton icon={<Settings size={15} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
-          Settings
+          {m.settings}
         </NavButton>
         <ConnectionStatus />
       </div>

@@ -123,17 +123,25 @@ export function questionsOf(item: ItemRow): QuestionAndAnswer[] | undefined {
   return (a.questions ?? []).map((q) => ({ ...q, answers: answers?.[q.id]?.answers }))
 }
 
-/** A one-line label for any tool call. */
-export function toolTitle(item: ItemRow): string {
+/** What a one-line label for a tool call says, before it is worded. */
+export type ToolLabel =
+  | { kind: 'command'; line: string }
+  | { kind: 'plan' }
+  | { kind: 'question' }
+  | { kind: 'memorySearch'; query: string | undefined }
+  | { kind: 'subagent'; description: string }
+  | { kind: 'tool'; name: string | undefined }
+
+export function toolLabel(item: ItemRow): ToolLabel {
   const cmd = frozenCommand(item)
-  if (cmd) return commandLine(cmd)
-  if (isBuiltin(item, 'update_plan')) return 'Updated the plan'
-  if (isBuiltin(item, 'request_user_input')) return 'Asked you'
+  if (cmd) return { kind: 'command', line: commandLine(cmd) }
+  if (isBuiltin(item, 'update_plan')) return { kind: 'plan' }
+  if (isBuiltin(item, 'request_user_input')) return { kind: 'question' }
   const search = memorySearchOf(item)
-  if (search) return search.query ? `Searched memory for “${search.query}”` : 'Searched memory'
+  if (search) return { kind: 'memorySearch', query: search.query }
   const task = subagentOf(item)
-  if (task) return task.description
-  return item.annotations?.title || item.tool || 'tool'
+  if (task) return { kind: 'subagent', description: task.description }
+  return { kind: 'tool', name: item.annotations?.title || item.tool || undefined }
 }
 
 export function formatValue(value: unknown): string {

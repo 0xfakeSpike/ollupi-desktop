@@ -9,10 +9,10 @@ const config = {
 describe('MCP server edits', () => {
   it("follows ollupi's naming rule", () => {
     expect(nameError('github', [])).toBeUndefined()
-    expect(nameError('git__hub', [])).toBeDefined()
-    expect(nameError('-x', [])).toBeDefined()
-    expect(nameError('a'.repeat(33), [])).toBeDefined()
-    expect(nameError('gh', ['gh'])).toMatch(/Another/)
+    expect(nameError('git__hub', [])).toBe('format')
+    expect(nameError('-x', [])).toBe('format')
+    expect(nameError('a'.repeat(33), [])).toBe('format')
+    expect(nameError('gh', ['gh'])).toBe('taken')
   })
 
   it('keeps a value it was not given unless it is changed or removed', () => {

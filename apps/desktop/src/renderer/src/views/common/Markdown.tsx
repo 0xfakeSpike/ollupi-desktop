@@ -3,6 +3,7 @@ import { Check, Copy } from 'lucide-react'
 import { memo, useState, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useT } from '../../i18n'
 
 export function CodeBlock({ code, label }: { code: string; label?: string }) {
   return (
@@ -20,9 +21,10 @@ export function CodeBlock({ code, label }: { code: string; label?: string }) {
 
 export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
+  const m = useT()
   return (
     <IconButton
-      label={copied ? 'Copied' : 'Copy'}
+      label={copied ? m.conversation.markdown.copied : m.conversation.markdown.copy}
       size="sm"
       onClick={() => {
         void navigator.clipboard.writeText(text)

@@ -19,8 +19,17 @@ export type ConfigCheck = { ok: true; config: BackendConfig; models: ConfigModel
 export type BackendState =
   | { status: 'starting' }
   | { status: 'ready'; url: string; token: string; version: string }
-  | { status: 'failed'; message: string; configPath: string | undefined; log: string }
+  | { status: 'failed'; failure: BackendFailure; configPath: string | undefined; log: string }
   | { status: 'stopped' }
+
+/** Why the backend is not running. The renderer words it in the app's
+ * language; only what ollupi itself reported (reported.message) is shown
+ * as written. */
+export type BackendFailure =
+  | { kind: 'timeout'; seconds: number }
+  | { kind: 'spawn'; binary: string; error: string }
+  | { kind: 'exited'; how: string }
+  | { kind: 'reported'; message: string | undefined }
 
 export interface AppInfo {
   version: string

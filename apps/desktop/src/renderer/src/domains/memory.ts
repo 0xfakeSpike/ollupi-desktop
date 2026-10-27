@@ -22,7 +22,7 @@ export type MemoryScopes = Map<string, MemoryRow[]>
  * reads one, so each is read on its own: global, general and every
  * workspace, archived ones included, since their memories stay. */
 export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStatus; scopes: MemoryScopes } | undefined> {
-  return run('Could not load memory', async () => {
+  return run((e) => e.memory.load, async () => {
     const client = gateway()
     const places: MemoryPlace[] = [{ scope: 'global' }, { scope: 'general' }, ...workspaceIds.map((workspaceId) => ({ scope: 'workspace' as const, workspaceId }))]
     const [status, ...lists] = await Promise.all([client.call('memory/status', {}), ...places.map((p) => client.call('memory/list', p))])
@@ -31,16 +31,16 @@ export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStat
 }
 
 export function editMemory(id: string, text: string): Promise<MemoryRow | undefined> {
-  return run('Could not save the memory', async () => (await gateway().call('memory/update', { id, text })).memory)
+  return run((e) => e.memory.save, async () => (await gateway().call('memory/update', { id, text })).memory)
 }
 
 /** Puts a memory in another place, when extraction chose the wrong one. */
 export function moveMemory(id: string, to: MemoryPlace): Promise<MemoryRow | undefined> {
-  return run('Could not move the memory', async () => (await gateway().call('memory/move', { id, ...to })).memory)
+  return run((e) => e.memory.move, async () => (await gateway().call('memory/move', { id, ...to })).memory)
 }
 
 export function forgetMemory(id: string): Promise<boolean> {
-  return run('Could not forget the memory', async () => {
+  return run((e) => e.memory.forget, async () => {
     await gateway().call('memory/forget', { id })
     return true
   }).then(Boolean)

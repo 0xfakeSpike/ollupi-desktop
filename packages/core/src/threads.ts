@@ -27,12 +27,6 @@ export function setThreadStatus(list: readonly ThreadSummary[], threadId: string
   return list.map((t) => (t.id === threadId ? { ...t, status } : t))
 }
 
-/** The server sets preview to the first line of the first turn's input when
- * that turn starts; before then the thread has no title of its own. */
-export function threadTitle(thread: Pick<ThreadRow, 'preview'>): string {
-  return thread.preview || 'New thread'
-}
-
 /** agent.threadStatus: idle without an inProgress turn; while one exists,
  * waitingOn* when this thread, or a subagent thread it waits on, has a
  * request pending, else active (running, waiting for a slot or for a

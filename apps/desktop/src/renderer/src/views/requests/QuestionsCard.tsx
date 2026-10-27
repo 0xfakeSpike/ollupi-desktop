@@ -7,8 +7,10 @@ import { Button, cn, Input } from '@ollupi/ui'
 import { MessageCircleQuestion } from 'lucide-react'
 import { useState } from 'react'
 import type { PendingRequest } from '../../domains/requests'
+import { useT } from '../../i18n'
 
 export function QuestionsCard({ request }: { request: Extract<PendingRequest, { kind: 'question' }> }) {
+  const m = useT()
   const { questions } = request.params
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const complete = questions.every((q) => answers[q.id]?.trim())
@@ -26,7 +28,7 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
       ))}
       <div className="flex justify-end">
         <Button size="sm" variant="primary" disabled={!complete} onClick={submit}>
-          Submit
+          {m.requests.questions.submit}
         </Button>
       </div>
     </div>
@@ -34,6 +36,7 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
 }
 
 function Question({ question, value, onChange }: { question: UserInputQuestion; value: string; onChange(v: string): void }) {
+  const m = useT()
   const options = question.options ?? []
   const picked = options.some((o) => o.label === value)
   return (
@@ -64,7 +67,7 @@ function Question({ question, value, onChange }: { question: UserInputQuestion; 
         </div>
       )}
       <div className="pl-6">
-        <Input placeholder={options.length ? 'Or type your own answer' : 'Your answer'} value={picked ? '' : value} onChange={(e) => onChange(e.target.value)} />
+        <Input placeholder={options.length ? m.requests.questions.ownAnswer : m.requests.questions.answer} value={picked ? '' : value} onChange={(e) => onChange(e.target.value)} />
       </div>
     </div>
   )

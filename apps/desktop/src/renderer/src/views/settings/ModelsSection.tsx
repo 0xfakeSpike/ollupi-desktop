@@ -27,13 +27,13 @@ import {
 import { useModels } from '../../domains/models'
 import { notify } from '../../domains/notices'
 import { useConnection } from '../../gateway/connection'
+import { useLocale, useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 
 type Editing = { kind: 'provider'; index?: number } | { kind: 'model'; provider: number; index?: number }
 
-const RENAMED = 'Threads whose last turn used the old id need another model chosen for their next turn.'
-
 export function ModelsSection() {
+  const m = useT()
   const [checked, setChecked] = useState<CheckedConfig>()
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
@@ -44,7 +44,7 @@ export function ModelsSection() {
     void readConfig().then((r) => (r?.ok ? setChecked(r) : setError(r?.error)))
   }, [])
 
-  if (error) return <Callout tone="danger">config.yaml cannot be read: {error}</Callout>
+  if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
   if (!checked) return null
 
   const { config, models, keys } = checked
@@ -64,9 +64,9 @@ export function ModelsSection() {
       {stale && (
         <Callout tone="warning">
           <div className="flex items-center gap-3">
-            <span className="flex-1">config.yaml lists different models than the backend is using.</span>
+            <span className="flex-1">{m.settings.models.stale}</span>
             <Button size="sm" icon={<RotateCw size={13} />} onClick={() => void desktop.backend.restart()}>
-              Restart backend
+              {m.common.restartBackend}
             </Button>
           </div>
         </Callout>
@@ -81,22 +81,23 @@ export function ModelsSection() {
           onEdit={() => setEditing({ kind: 'provider', index: i })}
           onRemove={() => {
             const reason = cannotRemoveProvider(config, i)
-            if (reason) return notify(reason, 'info')
-            if (confirm(`Remove ${p.provider} and its models? ${RENAMED}`)) void apply(removeProvider(config, i))
+            if (reason) return notify(m.errors.modelRemoval[reason], 'info')
+            if (confirm(m.settings.models.confirmRemoveProvider(p.provider, m.settings.models.renamed))) void apply(removeProvider(config, i))
           }}
           onAddModel={() => setEditing({ kind: 'model', provider: i })}
-          onEditModel={(m) => setEditing({ kind: 'model', provider: i, index: m })}
-          onRemoveModel={(m) => {
-            const reason = cannotRemove(config, i, m)
-            if (reason) return notify(reason, 'info')
-            if (confirm(`Remove ${modelId(p.provider, p.names![m]!.name)}? ${RENAMED}`)) void apply(removeModel(config, i, m))
+          onEditModel={(j) => setEditing({ kind: 'model', provider: i, index: j })}
+          onRemoveModel={(j) => {
+            const reason = cannotRemove(config, i, j)
+            if (reason) return notify(m.errors.modelRemoval[reason], 'info')
+            if (confirm(m.settings.models.confirmRemoveModel(modelId(p.provider, p.names![j]!.name), m.settings.models.renamed)))
+              void apply(removeModel(config, i, j))
           }}
-          onMakeDefault={(m) => void apply(makeDefault(i, m))}
+          onMakeDefault={(j) => void apply(makeDefault(i, j))}
         />
       ))}
       <div>
         <Button icon={<Plus size={14} />} onClick={() => setEditing({ kind: 'provider' })}>
-          Add provider
+          {m.settings.models.addProvider}
         </Button>
       </div>
       {editing?.kind === 'provider' && (
@@ -152,55 +153,55 @@ function ProviderCard({
   onRemoveModel(index: number): void
   onMakeDefault(index: number): void
 }) {
+  const m = useT()
+  const c = m.settings.models.card
   return (
     <div className="flex flex-col rounded-xl border border-line">
       <div className="flex items-start gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0 flex-1">
           <div className="text-[13px] font-medium text-fg">{p.provider}</div>
-          <div className="selectable mt-0.5 truncate font-mono text-xs text-fg-subtle">{p.base_url || 'No base URL'}</div>
+          <div className="selectable mt-0.5 truncate font-mono text-xs text-fg-subtle">{p.base_url || c.noBaseUrl}</div>
           <div className="mt-1 flex items-center gap-1.5 text-xs text-fg-muted">
             <KeyRound size={12} />
             {keyFrom === 'api_key_env' ? (
-              <span>
-                Key from <code className="selectable font-mono">${p.api_key_env}</code>
-              </span>
+              <span>{c.keyFrom(<code className="selectable font-mono">${p.api_key_env}</code>)}</span>
             ) : keyFrom === 'api_key' ? (
-              <span>Key written in config.yaml</span>
+              <span>{c.keyWritten}</span>
             ) : (
-              <span>No API key</span>
+              <span>{c.noKey}</span>
             )}
           </div>
         </div>
-        <IconButton label={`Edit ${p.provider}`} size="sm" onClick={onEdit}>
+        <IconButton label={c.edit(p.provider)} size="sm" onClick={onEdit}>
           <Pencil size={13} />
         </IconButton>
-        <IconButton label={`Remove ${p.provider}`} size="sm" onClick={onRemove}>
+        <IconButton label={c.remove(p.provider)} size="sm" onClick={onRemove}>
           <Trash2 size={13} />
         </IconButton>
       </div>
       <ul className="flex flex-col divide-y divide-line">
-        {(p.names ?? []).map((m, i) => {
-          const id = modelId(p.provider, m.name)
+        {(p.names ?? []).map((model, i) => {
+          const id = modelId(p.provider, model.name)
           const isDefault = isFirst && i === 0
           return (
-            <li key={`${i}:${m.name}`} className="flex items-center gap-3 px-4 py-2.5">
+            <li key={`${i}:${model.name}`} className="flex items-center gap-3 px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="selectable font-mono text-xs text-fg">{m.name}</span>
-                  {isDefault && <Badge tone="accent">default</Badge>}
-                  {memoryModel === id && <Badge>memory</Badge>}
+                  <span className="selectable font-mono text-xs text-fg">{model.name}</span>
+                  {isDefault && <Badge tone="accent">{c.default}</Badge>}
+                  {memoryModel === id && <Badge>{c.memory}</Badge>}
                 </div>
-                <ModelDetails model={m} />
+                <ModelDetails model={model} />
               </div>
               {!isDefault && (
-                <IconButton label={`Make ${id} the default`} size="sm" onClick={() => onMakeDefault(i)}>
+                <IconButton label={c.makeDefault(id)} size="sm" onClick={() => onMakeDefault(i)}>
                   <Star size={13} />
                 </IconButton>
               )}
-              <IconButton label={`Edit ${id}`} size="sm" onClick={() => onEditModel(i)}>
+              <IconButton label={c.edit(id)} size="sm" onClick={() => onEditModel(i)}>
                 <Pencil size={13} />
               </IconButton>
-              <IconButton label={`Remove ${id}`} size="sm" onClick={() => onRemoveModel(i)}>
+              <IconButton label={c.remove(id)} size="sm" onClick={() => onRemoveModel(i)}>
                 <Trash2 size={13} />
               </IconButton>
             </li>
@@ -209,18 +210,20 @@ function ProviderCard({
       </ul>
       <div className="border-t border-line px-2 py-1.5">
         <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={onAddModel}>
-          Add model
+          {m.settings.models.addModel}
         </Button>
       </div>
     </div>
   )
 }
 
-function ModelDetails({ model: m }: { model: ProviderModel }) {
+function ModelDetails({ model }: { model: ProviderModel }) {
+  const d = useT().settings.models.details
+  const locale = useLocale((s) => s.locale)
   const parts = [
-    m.calls ? `${m.calls} concurrent calls` : undefined,
-    m.thinking === true ? 'thinking on' : m.thinking === false ? 'thinking off' : undefined,
-    m.limits ? `context ${m.limits.context.toLocaleString()} · output ${m.limits.output.toLocaleString()}` : undefined,
+    model.calls ? d.calls(model.calls) : undefined,
+    model.thinking === true ? d.thinkingOn : model.thinking === false ? d.thinkingOff : undefined,
+    model.limits ? d.limits(model.limits.context.toLocaleString(locale), model.limits.output.toLocaleString(locale)) : undefined,
   ].filter(Boolean)
   if (parts.length === 0) return null
   return <div className="mt-0.5 text-xs text-fg-subtle">{parts.join(' · ')}</div>
@@ -241,6 +244,8 @@ function ProviderDialog({
   /** first is the new provider's first model; a provider serves at least one. */
   onSave(fields: ProviderFields, first: ModelFields | undefined): Promise<void>
 }) {
+  const m = useT()
+  const t = m.settings.models.provider
   const [name, setName] = useState(provider?.provider ?? '')
   const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? '')
   const [keyEnv, setKeyEnv] = useState(provider?.api_key_env ?? '')
@@ -248,13 +253,7 @@ function ProviderDialog({
   const [saving, setSaving] = useState(false)
 
   const trimmed = name.trim()
-  const nameError = !trimmed
-    ? 'Required.'
-    : trimmed.includes('/')
-      ? 'A model is selected as provider/name, so the name cannot contain /.'
-      : taken.includes(trimmed)
-        ? 'Another provider has this name.'
-        : undefined
+  const nameError = !trimmed ? t.required : trimmed.includes('/') ? t.noSlash : taken.includes(trimmed) ? t.taken : undefined
   const renamed = provider && trimmed !== provider.provider && (provider.names ?? []).length > 0
   const valid = !nameError && (provider || !first.invalid)
 
@@ -269,26 +268,27 @@ function ProviderDialog({
 
   return (
     <Dialog
-      title={provider ? `Edit ${provider.provider}` : 'Add provider'}
+      title={provider ? t.editTitle(provider.provider) : t.addTitle}
+      closeLabel={m.common.close}
       onClose={onClose}
       width={480}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
           <Button variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
-            Save and restart
+            {m.settings.config.saveAndRestart}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         <Field
-          label="Name"
-          hint={nameError && trimmed ? nameError : renamed ? `Its models' ids become ${trimmed}/… ${RENAMED}` : 'Models are selected as name/model.'}
+          label={t.name}
+          hint={nameError && trimmed ? nameError : renamed ? t.renamedIds(trimmed, m.settings.models.renamed) : t.nameHint}
         >
           <Input value={name} autoFocus spellCheck={false} placeholder="deepseek" onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Base URL" hint="An OpenAI-compatible API.">
+        <Field label={t.baseUrl} hint={t.baseUrlHint}>
           <Input
             value={baseUrl}
             spellCheck={false}
@@ -298,14 +298,8 @@ function ProviderDialog({
           />
         </Field>
         <Field
-          label="API key environment variable"
-          hint={
-            keyFrom === 'api_key' && keyEnv.trim()
-              ? 'The key written in config.yaml is removed, so the variable is used.'
-              : keyFrom === 'api_key'
-                ? 'This provider’s key is written in config.yaml. Name a variable to use instead.'
-                : 'Export it in ~/.zshrc first; the backend checks that it is set. Leave empty for an API without a key.'
-          }
+          label={t.keyEnv}
+          hint={keyFrom === 'api_key' && keyEnv.trim() ? t.keyEnvReplaces : keyFrom === 'api_key' ? t.keyEnvWritten : t.keyEnvHint}
         >
           <Input
             value={keyEnv}
@@ -317,7 +311,7 @@ function ProviderDialog({
         </Field>
         {!provider && (
           <>
-            <div className="border-t border-line pt-3 text-xs font-medium text-fg">First model</div>
+            <div className="border-t border-line pt-3 text-xs font-medium text-fg">{t.firstModel}</div>
             {first.form}
           </>
         )}
@@ -331,6 +325,8 @@ const DEFAULT = ''
 /** The fields of one model, for a model dialog and a new provider's first
  * model: the form, its value, and whether it can be saved. */
 function useModelForm(provider: string, model: ProviderModel | undefined, taken: string[]) {
+  const m = useT()
+  const t = m.settings.models.model
   const [name, setName] = useState(model?.name ?? '')
   const [calls, setCalls] = useState(model?.calls ? String(model.calls) : '')
   const [thinking, setThinking] = useState(model?.thinking == null ? DEFAULT : String(model.thinking))
@@ -338,12 +334,12 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
   const [output, setOutput] = useState(model?.limits ? String(model.limits.output) : '')
 
   const trimmed = name.trim()
-  const nameError = !trimmed ? 'Required.' : taken.includes(trimmed) ? `${provider} already has a model with this name.` : undefined
+  const nameError = !trimmed ? t.required : taken.includes(trimmed) ? t.taken(provider) : undefined
   const count = (s: string) => (/^\d+$/.test(s.trim()) && Number(s) > 0 ? Number(s) : undefined)
-  const callsError = calls.trim() && !count(calls) ? 'A positive whole number.' : undefined
+  const callsError = calls.trim() && !count(calls) ? t.callsError : undefined
   // ollupi needs both to fit a conversation in the model's window.
   const limitsError =
-    (context.trim() || output.trim()) && (!count(context) || !count(output)) ? 'Give both as positive whole numbers, or neither.' : undefined
+    (context.trim() || output.trim()) && (!count(context) || !count(output)) ? t.limitsError : undefined
   const renamed = model && trimmed !== model.name
 
   const fields: ModelFields = {
@@ -355,31 +351,25 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
   const form = (
     <>
       <Field
-        label="Model name"
-        hint={
-          nameError && trimmed
-            ? nameError
-            : renamed
-              ? `Its id becomes ${modelId(provider, trimmed)}. ${RENAMED}`
-              : 'The name the API knows it by.'
-        }
+        label={t.name}
+        hint={nameError && trimmed ? nameError : renamed ? t.renamedId(modelId(provider, trimmed), m.settings.models.renamed) : t.nameHint}
       >
         <Input value={name} spellCheck={false} className="font-mono text-xs" placeholder="deepseek-flash" onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Concurrent calls" hint={callsError ?? 'How many requests to this model may run at once. Empty uses ollupi\u2019s default.'}>
-        <Input value={calls} inputMode="numeric" className="max-w-32" placeholder="Default" onChange={(e) => setCalls(e.target.value)} />
+      <Field label={t.calls} hint={callsError ?? t.callsHint}>
+        <Input value={calls} inputMode="numeric" className="max-w-32" placeholder={t.callsPlaceholder} onChange={(e) => setCalls(e.target.value)} />
       </Field>
-      <Field label="Thinking" hint="Sent to the API as enable_thinking, which some APIs read to turn reasoning on or off.">
+      <Field label={t.thinking} hint={t.thinkingHint}>
         <Select className="max-w-48" value={thinking} onChange={(e) => setThinking(e.target.value)}>
-          <option value={DEFAULT}>Not sent (API default)</option>
-          <option value="true">On</option>
-          <option value="false">Off</option>
+          <option value={DEFAULT}>{t.thinkingDefault}</option>
+          <option value="true">{t.on}</option>
+          <option value="false">{t.off}</option>
         </Select>
       </Field>
-      <Field label="Token limits" hint={limitsError ?? 'Required for a model ollupi does not know; empty uses what ollupi knows.'}>
+      <Field label={t.limits} hint={limitsError ?? t.limitsHint}>
         <div className="flex gap-2">
-          <Input value={context} inputMode="numeric" placeholder="Context" onChange={(e) => setContext(e.target.value)} />
-          <Input value={output} inputMode="numeric" placeholder="Output" onChange={(e) => setOutput(e.target.value)} />
+          <Input value={context} inputMode="numeric" placeholder={t.context} onChange={(e) => setContext(e.target.value)} />
+          <Input value={output} inputMode="numeric" placeholder={t.output} onChange={(e) => setOutput(e.target.value)} />
         </div>
       </Field>
     </>
@@ -401,6 +391,7 @@ function ModelDialog({
   onClose(): void
   onSave(fields: ModelFields): Promise<void>
 }) {
+  const m = useT()
   const { form, fields, invalid } = useModelForm(provider, model, taken)
   const [saving, setSaving] = useState(false)
   const save = async () => {
@@ -410,14 +401,15 @@ function ModelDialog({
   }
   return (
     <Dialog
-      title={model ? `Edit ${modelId(provider, model.name)}` : `Add a model to ${provider}`}
+      title={model ? m.settings.models.model.editTitle(modelId(provider, model.name)) : m.settings.models.model.addTitle(provider)}
+      closeLabel={m.common.close}
       onClose={onClose}
       width={480}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
           <Button variant="primary" disabled={invalid} loading={saving} onClick={() => void save()}>
-            Save and restart
+            {m.settings.config.saveAndRestart}
           </Button>
         </>
       }

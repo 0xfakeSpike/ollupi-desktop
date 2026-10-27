@@ -27,7 +27,7 @@ export const cronDomain: Domain = {
   bind: (client) =>
     client.on('item/completed', ({ threadId, item }) => {
       if (item.server === CRON && threadId in useCron.getState().byThread) {
-        void run('Could not refresh scheduled tasks', () => read(threadId))
+        void run((e) => e.cron.refresh, () => read(threadId))
       }
     }),
   // Lists read before a reconnect may have changed meanwhile.
@@ -41,7 +41,7 @@ export function useThreadJobs(threadId: string): CronJobRow[] | undefined {
 }
 
 export function loadJobs(threadId: string): Promise<void | undefined> {
-  return run('Could not load scheduled tasks', () => read(threadId))
+  return run((e) => e.cron.load, () => read(threadId))
 }
 
 function replace(row: CronJobRow): void {
@@ -50,20 +50,20 @@ function replace(row: CronJobRow): void {
 }
 
 export function createJob(threadId: string, name: string, spec: string, prompt: string): Promise<boolean> {
-  return run('Could not create the task', async () => {
+  return run((e) => e.cron.create, async () => {
     replace(await gateway().call('cron/create', { threadId, name, spec, prompt }))
     return true
   }).then(Boolean)
 }
 
 export function setPaused(threadId: string, name: string, paused: boolean): Promise<void | undefined> {
-  return run(paused ? 'Could not pause the task' : 'Could not resume the task', async () => {
+  return run((e) => (paused ? e.cron.pause : e.cron.resume), async () => {
     replace(await gateway().call('cron/pause', { threadId, name, paused }))
   })
 }
 
 export function deleteJob(threadId: string, name: string): Promise<void | undefined> {
-  return run('Could not delete the task', async () => {
+  return run((e) => e.cron.delete, async () => {
     await gateway().call('cron/delete', { threadId, name })
     set(threadId, (useCron.getState().byThread[threadId] ?? []).filter((j) => j.name !== name))
   })

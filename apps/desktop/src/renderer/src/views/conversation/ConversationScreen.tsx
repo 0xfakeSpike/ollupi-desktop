@@ -1,4 +1,4 @@
-import { activeTurn, lastConnection, needsUser, threadTitle } from '@ollupi/core'
+import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, IconButton, Spinner } from '@ollupi/ui'
 import { ArrowDown, ArrowLeft, CalendarClock, Folder, Gauge, Shield } from 'lucide-react'
 import { useState } from 'react'
@@ -7,6 +7,8 @@ import { useThreadJobs } from '../../domains/cron'
 import { toggleContextPanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
+import { useT } from '../../i18n'
+import { threadTitle } from '../../i18n/format'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { CronDialog } from '../cron/CronDialog'
 import { ThreadPermissionsDialog } from '../settings/ThreadPermissionsDialog'
@@ -28,37 +30,38 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
   const [dialog, setDialog] = useState<Dialog>()
   const contextOpen = useNavigation((s) => s.contextPanel)
+  const m = useT()
 
   return (
     <div className="flex h-full flex-col">
       <header className="drag flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-4">
         {parent && (
-          <IconButton label="Back to the parent thread" size="sm" onClick={() => void openThread(parent)}>
+          <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
             <ArrowLeft size={14} />
           </IconButton>
         )}
-        <h1 className="min-w-0 truncate text-[13px] font-semibold text-fg">{thread ? threadTitle(thread) : 'Thread'}</h1>
-        {parent && <Badge>Subagent</Badge>}
+        <h1 className="min-w-0 truncate text-[13px] font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
+        {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
         {workspace && (
           <span className="flex min-w-0 items-center gap-1 text-xs text-fg-subtle" title={workspace.rootPath}>
             <Folder size={12} />
             <span className="truncate">{workspace.name}</span>
           </span>
         )}
-        {needsUser(summary?.status) && <Badge tone="warning">Waiting for you</Badge>}
+        {needsUser(summary?.status) && <Badge tone="warning">{m.conversation.screen.waiting}</Badge>}
         <div className="flex-1" />
         {thread && !parent && (
           <>
-            <IconButton label="Scheduled tasks" size="sm" onClick={() => setDialog('cron')} className="relative">
+            <IconButton label={m.conversation.screen.scheduledTasks} size="sm" onClick={() => setDialog('cron')} className="relative">
               <CalendarClock size={14} />
               {!!jobs?.length && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-accent" />}
             </IconButton>
-            <IconButton label="Thread permissions" size="sm" onClick={() => setDialog('permissions')}>
+            <IconButton label={m.conversation.screen.permissions} size="sm" onClick={() => setDialog('permissions')}>
               <Shield size={14} />
             </IconButton>
           </>
         )}
-        <IconButton label="Context" size="sm" active={contextOpen} onClick={toggleContextPanel}>
+        <IconButton label={m.conversation.screen.context} size="sm" active={contextOpen} onClick={toggleContextPanel}>
           <Gauge size={14} />
         </IconButton>
       </header>
@@ -78,7 +81,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             {!atBottom && (
               <button
                 type="button"
-                aria-label="Scroll to the latest"
+                aria-label={m.conversation.screen.scrollToLatest}
                 onClick={() => scrollToBottom(true)}
                 className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-line-strong bg-raised text-fg-muted shadow-md hover:text-fg"
               >
@@ -91,11 +94,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
             // it works on the task its parent gave it and reports back there.
             <p className="px-6 pb-5 text-center text-xs text-fg-subtle">
-              A subagent works on the task its parent thread gave it; talk to it through the parent thread.
+              {m.conversation.screen.subagentNote}
             </p>
           ) : (
             <Composer
-              placeholder={running ? 'Add to the running turn…' : 'Reply…'}
+              placeholder={running ? m.conversation.screen.addToTurn : m.conversation.screen.reply}
               running={!!running}
               disabled={!timeline}
               onSubmit={(text, mode) => sendMessage(threadId, text, mode)}

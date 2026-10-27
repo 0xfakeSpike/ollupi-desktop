@@ -54,7 +54,12 @@ domains/    每个领域一个文件，自带 store、要订阅的网关事件�
 views/      React 界面：sidebar、draft、conversation（items/ 按 item 类型渲染）、
             requests（审批卡、问答卡）、cron、memory、settings、backend、common
 platform/   唯一接触 window.desktop 的模块（开发时可用浏览器 shim）
+i18n/       界面语言（English、简体中文）：按区域分的词条（messages/<area>），
+            中文词条与英文同键同参数，缺译不能编译；format 把 core 的中性值
+            （时间、时长、工具调用标题）按当前语言说出来
 ```
+
+界面语言在 Settings → General 里选，默认跟随系统，选择存在应用自己的存储里，切换即时生效。只翻译应用自己的文字；用户、agent 和 ollupi 写的内容（消息、后端报的错误、审批理由）原样显示。`@ollupi/core` 不产出任何界面文字，只给出结构化的值。
 
 session 不认识任何领域的事件：它依次调用各领域的 `bind`、按声明顺序 `sync`（会话列表按工作区分别获取，所以工作区先同步），断线时调用 `disconnect`。数据流单向：网关事件 → 领域 store → 视图；视图只调用领域动作。
 

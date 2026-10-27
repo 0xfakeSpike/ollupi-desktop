@@ -22,11 +22,11 @@ import {
 } from '../../domains/mcpConfig'
 import { useTools } from '../../domains/tools'
 import { useConnection } from '../../gateway/connection'
+import { useT, type Messages } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 
-const RENAMED = 'Its tools are named <name>__<tool>, so permission rules that name the old tools must change too.'
-
 export function McpSection() {
+  const m = useT()
   const [checked, setChecked] = useState<CheckedConfig>()
   const [error, setError] = useState<string>()
   const [statuses, setStatuses] = useState<ServerStatus[]>()
@@ -44,7 +44,7 @@ export function McpSection() {
     if (connected) void reloadStatus()
   }, [connected, reloadStatus])
 
-  if (error) return <Callout tone="danger">config.yaml cannot be read: {error}</Callout>
+  if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
   if (!checked) return null
 
   const servers = checked.config.mcp ?? []
@@ -61,14 +61,14 @@ export function McpSection() {
       {stale && (
         <Callout tone="warning">
           <div className="flex items-center gap-3">
-            <span className="flex-1">config.yaml lists different MCP servers than the backend started with.</span>
+            <span className="flex-1">{m.settings.mcp.stale}</span>
             <Button size="sm" icon={<RotateCw size={13} />} onClick={() => void desktop.backend.restart()}>
-              Restart backend
+              {m.common.restartBackend}
             </Button>
           </div>
         </Callout>
       )}
-      {servers.length === 0 && <p className="text-[13px] text-fg-subtle">No MCP servers yet.</p>}
+      {servers.length === 0 && <p className="text-[13px] text-fg-subtle">{m.settings.mcp.empty}</p>}
       {servers.map((s, i) => (
         <ServerCard
           key={`${i}:${s.name}`}
@@ -77,17 +77,17 @@ export function McpSection() {
           tools={tools.filter((t) => t.provider === s.name).map((t) => t.name)}
           onEdit={() => setEditing({ index: i })}
           onRemove={() => {
-            if (confirm(`Remove the MCP server ${s.name}? Its tools go with it.`)) void apply(removeServer(i))
+            if (confirm(m.settings.mcp.confirmRemove(s.name))) void apply(removeServer(i))
           }}
         />
       ))}
       <div className="flex gap-2">
         <Button icon={<Plus size={14} />} onClick={() => setEditing({})}>
-          Add server
+          {m.settings.mcp.addServer}
         </Button>
         {servers.length > 0 && (
           <Button variant="ghost" icon={<RotateCw size={14} />} onClick={() => void reloadStatus()}>
-            Refresh status
+            {m.settings.mcp.refreshStatus}
           </Button>
         )}
       </div>
@@ -120,6 +120,7 @@ function ServerCard({
   onEdit(): void
   onRemove(): void
 }) {
+  const c = useT().settings.mcp.card
   const keys = Object.keys((s.url ? s.headers : s.env) ?? {})
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3">
@@ -129,13 +130,11 @@ function ServerCard({
             <span className="text-[13px] font-medium text-fg">{s.name}</span>
             <Badge>{s.url ? 'HTTP' : 'stdio'}</Badge>
             {!status ? (
-              <Badge tone="warning">not started</Badge>
+              <Badge tone="warning">{c.notStarted}</Badge>
             ) : status.connected ? (
-              <Badge tone="success">
-                connected · {status.tools} {status.tools === 1 ? 'tool' : 'tools'}
-              </Badge>
+              <Badge tone="success">{c.connected(status.tools)}</Badge>
             ) : (
-              <Badge tone="danger">not connected</Badge>
+              <Badge tone="danger">{c.notConnected}</Badge>
             )}
           </div>
           <div className="selectable mt-1 font-mono text-xs break-all text-fg-subtle">
@@ -143,14 +142,14 @@ function ServerCard({
           </div>
           {keys.length > 0 && (
             <div className="mt-1 text-xs text-fg-muted">
-              {s.url ? 'Headers' : 'Env'}: <span className="font-mono">{keys.join(', ')}</span>
+              {s.url ? c.headers : c.env}: <span className="font-mono">{keys.join(', ')}</span>
             </div>
           )}
         </div>
-        <IconButton label={`Edit ${s.name}`} size="sm" onClick={onEdit}>
+        <IconButton label={c.edit(s.name)} size="sm" onClick={onEdit}>
           <Pencil size={13} />
         </IconButton>
-        <IconButton label={`Remove ${s.name}`} size="sm" onClick={onRemove}>
+        <IconButton label={c.remove(s.name)} size="sm" onClick={onRemove}>
           <Trash2 size={13} />
         </IconButton>
       </div>
@@ -161,8 +160,7 @@ function ServerCard({
       )}
       {!!status?.skippedTools?.length && (
         <p className="text-xs text-fg-muted">
-          Not offered, since the model API refuses their names once prefixed:{' '}
-          <span className="font-mono">{status.skippedTools.join(', ')}</span>
+          {c.skipped(<span className="font-mono">{status.skippedTools.join(', ')}</span>)}
         </p>
       )}
       {tools.length > 0 && (
@@ -178,28 +176,27 @@ function ServerCard({
   )
 }
 
-/** Shown in place of a value the app was not given; kept unless changed. */
-const WRITTEN = '(written in config.yaml)'
-
-function toLines(values: Values, sep: string): string {
+/** `written` is shown in place of a value the app was not given; kept
+ * unless changed. */
+function toLines(values: Values, sep: string, written: string): string {
   return Object.entries(values)
-    .map(([k, v]) => `${k}${sep}${v === KEPT ? WRITTEN : v}`)
+    .map(([k, v]) => `${k}${sep}${v === KEPT ? written : v}`)
     .join('\n')
 }
 
-/** Parses KEY=value (or Name: value) lines; a line still showing WRITTEN
- * keeps the value in the file. */
-function fromLines(text: string, sep: string, before: Values): { values: Values; error?: string } {
+/** Parses KEY=value (or Name: value) lines; a line still showing `written`,
+ * as toLines put it, keeps the value in the file. */
+function fromLines(text: string, sep: string, before: Values, written: string, m: Messages): { values: Values; error?: string } {
   const values: Values = {}
   for (const raw of text.split('\n')) {
     const line = raw.trim()
     if (!line) continue
     const at = line.indexOf(sep)
     const key = at > 0 ? line.slice(0, at).trim() : ''
-    if (!key) return { values, error: `Write each line as name${sep}value.` }
-    if (key in values) return { values, error: `${key} is listed twice.` }
+    if (!key) return { values, error: m.settings.mcp.lineFormat(sep) }
+    if (key in values) return { values, error: m.settings.mcp.listedTwice(key) }
     const value = line.slice(at + sep.length).trim()
-    values[key] = value === WRITTEN && before[key] === KEPT ? KEPT : value
+    values[key] = value === written && before[key] === KEPT ? KEPT : value
   }
   return { values }
 }
@@ -215,21 +212,27 @@ function ServerDialog({
   onClose(): void
   onSave(fields: McpFields): Promise<void>
 }) {
+  const m = useT()
+  const t = m.settings.mcp.dialog
+  // The placeholder as the dialog first showed it, so a language change
+  // while it is open still reads it back as a kept value.
+  const [written] = useState(m.settings.mcp.written)
   const env = valuesOf(server?.env)
   const headers = valuesOf(server?.headers)
   const [name, setName] = useState(server?.name ?? '')
   const [transport, setTransport] = useState<'stdio' | 'http'>(server?.url ? 'http' : 'stdio')
   const [command, setCommand] = useState(server?.command ?? '')
   const [args, setArgs] = useState((server?.args ?? []).join('\n'))
-  const [envText, setEnvText] = useState(toLines(env, '='))
+  const [envText, setEnvText] = useState(toLines(env, '=', written))
   const [url, setUrl] = useState(server?.url ?? '')
-  const [headersText, setHeadersText] = useState(toLines(headers, ': '))
+  const [headersText, setHeadersText] = useState(toLines(headers, ': ', written))
   const [saving, setSaving] = useState(false)
 
   const trimmed = name.trim()
-  const nameProblem = trimmed ? nameError(trimmed, taken) : undefined
-  const parsedEnv = fromLines(envText, '=', env)
-  const parsedHeaders = fromLines(headersText, ':', headers)
+  const nameReason = trimmed ? nameError(trimmed, taken) : undefined
+  const nameProblem = nameReason && m.errors.mcpName[nameReason]
+  const parsedEnv = fromLines(envText, '=', env, written, m)
+  const parsedHeaders = fromLines(headersText, ':', headers, written, m)
   const valid =
     !!trimmed &&
     !nameProblem &&
@@ -255,37 +258,37 @@ function ServerDialog({
     setSaving(false)
   }
 
-  const secrets = 'Write a secret as ${NAME}, a variable exported in ~/.zshrc; the backend checks it is set.'
   return (
     <Dialog
-      title={server ? `Edit ${server.name}` : 'Add MCP server'}
+      title={server ? t.editTitle(server.name) : t.addTitle}
+      closeLabel={m.common.close}
       onClose={onClose}
       width={520}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
           <Button variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
-            Save and restart
+            {m.settings.config.saveAndRestart}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label="Name" hint={nameProblem ?? (renamed ? RENAMED : `Its tools are offered as ${trimmed || 'name'}__<tool>.`)}>
+        <Field label={t.name} hint={nameProblem ?? (renamed ? m.settings.mcp.renamed : t.nameHint(trimmed || t.namePlaceholder))}>
           <Input value={name} autoFocus spellCheck={false} placeholder="github" onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Transport">
+        <Field label={t.transport}>
           <Select className="max-w-60" value={transport} onChange={(e) => setTransport(e.target.value as 'stdio' | 'http')}>
-            <option value="stdio">Command (stdio)</option>
-            <option value="http">URL (streamable HTTP)</option>
+            <option value="stdio">{t.stdio}</option>
+            <option value="http">{t.http}</option>
           </Select>
         </Field>
         {transport === 'stdio' ? (
           <>
-            <Field label="Command" hint="Found on the PATH of your login shell.">
+            <Field label={t.command} hint={t.commandHint}>
               <Input value={command} spellCheck={false} className="font-mono text-xs" placeholder="npx" onChange={(e) => setCommand(e.target.value)} />
             </Field>
-            <Field label="Arguments" hint="One per line.">
+            <Field label={t.args} hint={t.argsHint}>
               <Textarea
                 rows={3}
                 spellCheck={false}
@@ -295,7 +298,7 @@ function ServerDialog({
                 onChange={(e) => setArgs(e.target.value)}
               />
             </Field>
-            <Field label="Environment" hint={parsedEnv.error ?? `KEY=value per line. The command also inherits the backend's environment. ${secrets}`}>
+            <Field label={t.env} hint={parsedEnv.error ?? t.envHint(t.secrets)}>
               <Textarea
                 rows={3}
                 spellCheck={false}
@@ -308,7 +311,7 @@ function ServerDialog({
           </>
         ) : (
           <>
-            <Field label="URL">
+            <Field label={t.url}>
               <Input
                 value={url}
                 spellCheck={false}
@@ -317,7 +320,7 @@ function ServerDialog({
                 onChange={(e) => setUrl(e.target.value)}
               />
             </Field>
-            <Field label="Headers" hint={parsedHeaders.error ?? `Name: value per line, sent with every request. ${secrets}`}>
+            <Field label={t.headers} hint={parsedHeaders.error ?? t.headersHint(t.secrets)}>
               <Textarea
                 rows={3}
                 spellCheck={false}

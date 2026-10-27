@@ -33,7 +33,7 @@ export function activeWorkspaces(list: readonly WorkspaceRow[]): WorkspaceRow[] 
 
 /** Picks a folder, registers it, and opens a draft in it. */
 export function addWorkspace(): Promise<void | undefined> {
-  return run('Could not add the workspace', async () => {
+  return run((e) => e.workspace.add, async () => {
     const path = await desktop.pickDirectory()
     if (!path) return
     const { workspace } = await gateway().call('workspace/add', { path })
@@ -43,19 +43,19 @@ export function addWorkspace(): Promise<void | undefined> {
 }
 
 export function renameWorkspace(workspaceId: string, name: string): Promise<void | undefined> {
-  return run('Could not rename the workspace', async () => {
+  return run((e) => e.workspace.rename, async () => {
     apply((await gateway().call('workspace/rename', { workspaceId, name })).workspace)
   })
 }
 
 export function setArchived(workspaceId: string, archived: boolean): Promise<void | undefined> {
-  return run(archived ? 'Could not archive the workspace' : 'Could not restore the workspace', async () => {
+  return run((e) => (archived ? e.workspace.archive : e.workspace.restore), async () => {
     apply((await gateway().call('workspace/archive', { workspaceId, archived })).workspace)
   })
 }
 
 export function updateWorkspacePermissions(workspaceId: string, settings: PermissionSettings): Promise<boolean> {
-  return run('Could not save the workspace permissions', async () => {
+  return run((e) => e.workspace.permissions, async () => {
     apply((await gateway().call('workspace/updatePermissions', { workspaceId, ...settings })).workspace)
     return true
   }).then(Boolean)

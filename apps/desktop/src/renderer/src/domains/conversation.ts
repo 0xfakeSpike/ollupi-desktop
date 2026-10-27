@@ -78,14 +78,14 @@ export function useTimeline(threadId: string | undefined): Timeline | undefined 
  * still waiting in it. */
 export function openThread(threadId: string): Promise<void | undefined> {
   go({ kind: 'thread', threadId })
-  return run('Could not open the thread', async () => {
+  return run((e) => e.thread.open, async () => {
     if (useTimelines.getState().byThread[threadId]) return
     store(threadId, timelineFromPage(await gateway().call('thread/resume', { threadId, limit: PAGE_SIZE })))
   })
 }
 
 export function loadOlder(threadId: string): Promise<void | undefined> {
-  return run('Could not load earlier messages', async () => {
+  return run((e) => e.thread.earlier, async () => {
     const t = useTimelines.getState().byThread[threadId]
     const beforeSeq = t && oldestSeq(t)
     if (!t?.hasMore || beforeSeq === undefined) return
@@ -96,7 +96,7 @@ export function loadOlder(threadId: string): Promise<void | undefined> {
 
 /** Starts a thread from the draft screen with its first message. */
 export function startThread(workspaceId: string | undefined, text: string): Promise<boolean> {
-  return run('Could not start the thread', async () => {
+  return run((e) => e.thread.start, async () => {
     const { thread } = await gateway().call('thread/start', { workspaceId, permissions: {} })
     store(thread.id, emptyTimeline(thread))
     useThreads.setState((s) => ({ list: upsertThread(s.list, thread) }))
@@ -116,7 +116,7 @@ export type SendMode = 'steer' | 'queue'
  * ending (NoActiveTurn, TurnMismatch) is sent as a new turn instead, which
  * is what the message needs. */
 export function sendMessage(threadId: string, text: string, mode: SendMode): Promise<boolean> {
-  return run('Could not send the message', async () => {
+  return run((e) => e.thread.send, async () => {
     const t = useTimelines.getState().byThread[threadId]
     const running = t && activeTurn(t)
     if (running && mode === 'steer') {
@@ -140,7 +140,7 @@ async function startTurn(threadId: string, text: string): Promise<void> {
 }
 
 export function interrupt(threadId: string): Promise<void | undefined> {
-  return run('Could not stop the turn', async () => {
+  return run((e) => e.thread.stop, async () => {
     const t = useTimelines.getState().byThread[threadId]
     const running = t && activeTurn(t)
     if (running) await gateway().call('turn/interrupt', { threadId, turnId: running.id })
@@ -148,7 +148,7 @@ export function interrupt(threadId: string): Promise<void | undefined> {
 }
 
 export function updateThreadPermissions(threadId: string, settings: PermissionSettings): Promise<boolean> {
-  return run('Could not save the thread permissions', async () => {
+  return run((e) => e.thread.permissions, async () => {
     const { thread } = await gateway().call('thread/updatePermissions', { threadId, ...settings })
     update(threadId, (t) => setThread(t, thread))
     useThreads.setState((s) => ({ list: upsertThread(s.list, thread) }))

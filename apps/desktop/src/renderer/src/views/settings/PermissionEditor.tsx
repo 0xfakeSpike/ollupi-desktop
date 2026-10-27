@@ -6,22 +6,19 @@
 import type { ApprovalPolicy, PermissionSettings } from '@ollupi/protocol'
 import { Button, Field, Select, Textarea } from '@ollupi/ui'
 import { useState } from 'react'
+import { useT, type Messages } from '../../i18n'
 
-const policies: { value: ApprovalPolicy; label: string }[] = [
-  { value: 'untrusted', label: 'Untrusted: ask before anything not known to be safe' },
-  { value: 'on-request', label: 'On request: ask when a rule or the sandbox requires it' },
-  { value: 'never', label: 'Never ask' },
+const policies = (m: Messages): { value: ApprovalPolicy; label: string }[] => [
+  { value: 'untrusted', label: m.settings.permissions.policies.untrusted },
+  { value: 'on-request', label: m.settings.permissions.policies.onRequest },
+  { value: 'never', label: m.settings.permissions.policies.never },
 ]
 
 const INHERIT = ''
 
 type RuleKind = 'allow' | 'ask' | 'deny'
 
-const kinds: { kind: RuleKind; label: string; hint: string }[] = [
-  { kind: 'allow', label: 'Allow rules', hint: 'Run without asking.' },
-  { kind: 'ask', label: 'Ask rules', hint: 'Always ask first.' },
-  { kind: 'deny', label: 'Deny rules', hint: 'Never run; wins over allow and ask.' },
-]
+const kinds: RuleKind[] = ['allow', 'ask', 'deny']
 
 export function PermissionEditor({
   value,
@@ -32,6 +29,7 @@ export function PermissionEditor({
   inheritFrom: string
   onSave(settings: PermissionSettings): Promise<boolean>
 }) {
+  const m = useT()
   const [policy, setPolicy] = useState<ApprovalPolicy | typeof INHERIT>(value.approvalPolicy ?? INHERIT)
   const [rules, setRules] = useState<Record<RuleKind, string>>({
     allow: (value.permissions.allow ?? []).join('\n'),
@@ -52,31 +50,31 @@ export function PermissionEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label="Approval policy" hint={policy === INHERIT ? `Uses the policy from ${inheritFrom}.` : undefined}>
+      <Field label={m.settings.permissions.policy} hint={policy === INHERIT ? m.settings.permissions.inheritHint(inheritFrom) : undefined}>
         <Select value={policy} onChange={(e) => setPolicy(e.target.value as ApprovalPolicy | typeof INHERIT)}>
-          <option value={INHERIT}>Inherit</option>
-          {policies.map((p) => (
+          <option value={INHERIT}>{m.settings.permissions.inherit}</option>
+          {policies(m).map((p) => (
             <option key={p.value} value={p.value}>
               {p.label}
             </option>
           ))}
         </Select>
       </Field>
-      {kinds.map(({ kind, label, hint }) => (
-        <Field key={kind} label={label} hint={hint}>
+      {kinds.map((kind) => (
+        <Field key={kind} label={m.settings.permissions.kinds[kind].label} hint={m.settings.permissions.kinds[kind].hint}>
           <Textarea
             rows={3}
             spellCheck={false}
             className="font-mono text-xs"
             value={rules[kind]}
             onChange={(e) => setRules({ ...rules, [kind]: e.target.value })}
-            placeholder={'One rule per line: a tool name, or Tool(specifier)\ne.g. run_command(git:*)'}
+            placeholder={m.settings.permissions.rulesPlaceholder}
           />
         </Field>
       ))}
       <div className="flex justify-end">
         <Button variant="primary" loading={saving} onClick={() => void save()}>
-          Save permissions
+          {m.settings.permissions.save}
         </Button>
       </div>
     </div>

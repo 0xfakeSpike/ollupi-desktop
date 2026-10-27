@@ -2,6 +2,7 @@ import { cn } from '@ollupi/ui'
 import { ChevronDown, Cpu } from 'lucide-react'
 import { useModels } from '../../domains/models'
 import { chooseModel, useNavigation } from '../../domains/navigation'
+import { useT } from '../../i18n'
 
 /** Chooses the model for the next turn. Without a choice the turn is sent
  * without a connection and the server continues with `inherited` (the
@@ -12,6 +13,7 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
   const models = useModels((s) => s.list)
   const fallback = useModels((s) => s.fallback)
   const chosen = useNavigation((s) => s.model)
+  const t = useT().conversation.modelPicker
   const shown = chosen ?? inherited ?? fallback
   // The thread's last model was removed from config.yaml or renamed: the
   // server refuses to continue on it until another is chosen.
@@ -20,12 +22,12 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
   return (
     <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-fg-muted hover:bg-hover hover:text-fg">
       <Cpu size={13} />
-      <span className={cn('max-w-72 truncate', unavailable && 'text-warning')}>{unavailable ? `${shown} (unavailable)` : shown}</span>
+      <span className={cn('max-w-72 truncate', unavailable && 'text-warning')}>{unavailable ? t.unavailable(shown) : shown}</span>
       <ChevronDown size={12} />
-      <select aria-label="Model" className="absolute inset-0 cursor-pointer opacity-0" value={shown} onChange={(e) => chooseModel(e.target.value)}>
+      <select aria-label={t.label} className="absolute inset-0 cursor-pointer opacity-0" value={shown} onChange={(e) => chooseModel(e.target.value)}>
         {unavailable && (
           <option value={shown} disabled>
-            {shown} (unavailable)
+            {t.unavailable(shown)}
           </option>
         )}
         {models.map((m) => (

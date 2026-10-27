@@ -5,6 +5,7 @@ import { AutoTextarea, cn, IconButton, Kbd } from '@ollupi/ui'
 import { ArrowUp, Square } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { SendMode } from '../../domains/conversation'
+import { useT } from '../../i18n'
 
 export interface ComposerProps {
   placeholder: string
@@ -21,6 +22,7 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
+  const m = useT()
   useEffect(() => input.current?.focus(), [])
 
   const submit = async (mode: SendMode) => {
@@ -58,14 +60,14 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
         <div className="flex items-center gap-2 px-2.5 pt-1 pb-2.5">
           <div className="flex min-w-0 flex-1 items-center gap-1.5">{toolbar}</div>
           {running && onStop && (
-            <IconButton label="Stop the running turn" onClick={onStop} className="rounded-full border border-line-strong">
+            <IconButton label={m.conversation.composer.stop} onClick={onStop} className="rounded-full border border-line-strong">
               <Square size={12} fill="currentColor" />
             </IconButton>
           )}
           <button
             type="button"
-            aria-label="Send"
-            title={running ? 'Add to the running turn' : 'Send'}
+            aria-label={m.conversation.composer.send}
+            title={running ? m.conversation.composer.addToTurn : m.conversation.composer.send}
             disabled={!text.trim() || sending || disabled}
             onClick={() => void submit('steer')}
             className={cn('flex size-8 items-center justify-center rounded-full bg-fg text-canvas transition hover:opacity-85 disabled:opacity-25')}
@@ -77,17 +79,11 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
       <div className="mt-1.5 flex justify-center gap-3 text-[11px] text-fg-subtle">
         {running ? (
           <>
-            <span>
-              <Kbd>Enter</Kbd> adds to the running turn
-            </span>
-            <span>
-              <Kbd>⌥ Enter</Kbd> queues a new turn
-            </span>
+            <span>{m.conversation.composer.addsToTurn(<Kbd>Enter</Kbd>)}</span>
+            <span>{m.conversation.composer.queues(<Kbd>⌥ Enter</Kbd>)}</span>
           </>
         ) : (
-          <span>
-            <Kbd>Enter</Kbd> to send · <Kbd>Shift Enter</Kbd> for a new line
-          </span>
+          <span>{m.conversation.composer.idle(<Kbd>Enter</Kbd>, <Kbd>Shift Enter</Kbd>)}</span>
         )}
       </div>
     </div>

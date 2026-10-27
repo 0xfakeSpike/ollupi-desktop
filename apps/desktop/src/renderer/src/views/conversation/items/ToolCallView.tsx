@@ -5,7 +5,6 @@
 import {
   commandLine,
   commandOutput,
-  duration,
   formatValue,
   frozenCommand,
   isBuiltin,
@@ -14,7 +13,6 @@ import {
   planOf,
   questionsOf,
   subagentOf,
-  toolTitle,
   waitsForAnswer,
   waitsForApproval,
   waitsForSubagent,
@@ -25,6 +23,8 @@ import { Ban, Bot, Brain, Check, ChevronRight, Circle, CircleCheck, CircleDot, L
 import type { ReactNode } from 'react'
 import { openThread } from '../../../domains/conversation'
 import { usePendingRequest, useThreadRequests, type PendingRequest } from '../../../domains/requests'
+import { useT } from '../../../i18n'
+import { duration, toolTitle } from '../../../i18n/format'
 import { CodeBlock } from '../../common/Markdown'
 import { MemoryGroups } from './SystemItems'
 import { ApprovalCard } from '../../requests/ApprovalCard'
@@ -40,6 +40,7 @@ export function ToolCallView({ item }: { item: ItemRow }) {
 function GenericCall({ item }: { item: ItemRow }) {
   const cmd = frozenCommand(item)
   const search = memorySearchOf(item)
+  const m = useT()
   return (
     <div className="flex flex-col gap-2">
       <Disclosure
@@ -52,8 +53,8 @@ function GenericCall({ item }: { item: ItemRow }) {
             ) : (
               <Wrench size={13} className="shrink-0" />
             )}
-            <span className={cn('truncate', cmd && 'font-mono text-[12px]')}>{toolTitle(item)}</span>
-            {cmd?.escalated && <Badge tone="warning">outside sandbox</Badge>}
+            <span className={cn('truncate', cmd && 'font-mono text-[12px]')}>{toolTitle(m, item)}</span>
+            {cmd?.escalated && <Badge tone="warning">{m.conversation.tool.outsideSandbox}</Badge>}
           </span>
         }
         aside={<CallState item={item} />}
@@ -70,18 +71,19 @@ function GenericCall({ item }: { item: ItemRow }) {
 /** The call's state as ollupi records it (see ItemStatus). */
 function CallState({ item }: { item: ItemRow }) {
   const approvalAsked = usePendingRequest(item.id)?.kind === 'approval'
+  const m = useT()
   let mark: ReactNode
   switch (item.status) {
     case 'pending':
       // Validated and frozen, but not run: either it waits for approval or
       // it is about to run.
-      mark = approvalAsked || waitsForApproval(item) ? <Badge tone="warning">needs approval</Badge> : <Spinner size={13} />
+      mark = approvalAsked || waitsForApproval(item) ? <Badge tone="warning">{m.conversation.tool.needsApproval}</Badge> : <Spinner size={13} />
       break
     case 'inProgress':
       mark = waitsForAnswer(item) ? (
-        <Badge tone="accent">waiting for you</Badge>
+        <Badge tone="accent">{m.conversation.tool.waiting}</Badge>
       ) : waitsForSubagent(item) ? (
-        <Badge>subagent working</Badge>
+        <Badge>{m.conversation.tool.subagentWorking}</Badge>
       ) : (
         <Spinner size={13} />
       )
@@ -95,14 +97,14 @@ function CallState({ item }: { item: ItemRow }) {
     case 'declined':
       mark = (
         <span className="flex items-center gap-1">
-          <Ban size={12} /> declined
+          <Ban size={12} /> {m.conversation.tool.declined}
         </span>
       )
       break
   }
   return (
     <span className="flex shrink-0 items-center gap-2 text-[11px] text-fg-subtle">
-      {item.completedAt && duration(item.startedAt, item.completedAt)}
+      {item.completedAt && duration(m, item.startedAt, item.completedAt)}
       {mark}
     </span>
   )
@@ -111,6 +113,7 @@ function CallState({ item }: { item: ItemRow }) {
 function ShellDetails({ item }: { item: ItemRow }) {
   const cmd = frozenCommand(item)!
   const out = commandOutput(item)
+  const m = useT()
   return (
     <>
       <CodeBlock code={commandLine(cmd)} label={`sh · ${cmd.cwd}`} />
@@ -122,12 +125,12 @@ function ShellDetails({ item }: { item: ItemRow }) {
       )}
       {out && (
         <div className="flex flex-wrap gap-1.5">
-          <Badge tone={out.exit_code === 0 ? 'success' : 'danger'}>exit {out.exit_code}</Badge>
+          <Badge tone={out.exit_code === 0 ? 'success' : 'danger'}>{m.conversation.tool.exit(out.exit_code)}</Badge>
           {out.signal && <Badge tone="danger">{out.signal}</Badge>}
-          {out.truncated && <Badge>output truncated</Badge>}
+          {out.truncated && <Badge>{m.conversation.tool.truncated}</Badge>}
           {(out.sandbox_denials ?? []).map((d) => (
             <Badge key={d} tone="warning">
-              sandbox: {d}
+              {m.conversation.tool.sandboxDenial(d)}
             </Badge>
           ))}
         </div>
@@ -139,7 +142,8 @@ function ShellDetails({ item }: { item: ItemRow }) {
 
 /** What memory_search found, by the scope each memory carries. */
 function SearchResults({ memories }: { memories: MemoryReference[] }) {
-  if (memories.length === 0) return <div className="text-xs text-fg-subtle">No memories matched.</div>
+  const m = useT()
+  if (memories.length === 0) return <div className="text-xs text-fg-subtle">{m.conversation.tool.noMemories}</div>
   return <MemoryGroups memories={memories} />
 }
 
@@ -148,10 +152,11 @@ function ArgumentsAndResult({ item }: { item: ItemRow }) {
   const args = parseArguments(item)
   const shown = args === undefined ? item.arguments : JSON.stringify(args, null, 2)
   const output = formatValue(item.result?.output)
+  const m = useT()
   return (
     <>
-      {shown && <CodeBlock code={shown} label="arguments" />}
-      {output && <CodeBlock code={output} label="result" />}
+      {shown && <CodeBlock code={shown} label={m.conversation.tool.arguments} />}
+      {output && <CodeBlock code={output} label={m.conversation.tool.result} />}
       {item.error && <ErrorText text={item.error} />}
     </>
   )
@@ -164,8 +169,9 @@ function ErrorText({ text }: { text: string }) {
 /** The request this call waits on, once the gateway has sent it. */
 function PendingHere({ item }: { item: ItemRow }) {
   const request = usePendingRequest(item.id)
+  const m = useT()
   if (request) return <RequestCard request={request} />
-  if (waitsForApproval(item)) return <div className="pl-5 text-xs text-fg-subtle">Waiting for approval…</div>
+  if (waitsForApproval(item)) return <div className="pl-5 text-xs text-fg-subtle">{m.conversation.tool.waitingApproval}</div>
   return null
 }
 
@@ -181,13 +187,14 @@ const stepIcon = {
 
 function PlanCard({ item }: { item: ItemRow }) {
   const plan = planOf(item)
+  const m = useT()
   if (!plan) return <GenericCall item={item} />
   const steps = plan.plan ?? []
   const done = steps.filter((s) => s.status === 'completed').length
   return (
     <div className="rounded-xl border border-line bg-surface/60 px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-fg">
-        <ListChecks size={14} /> Plan
+        <ListChecks size={14} /> {m.conversation.tool.plan}
         <span className="text-xs font-normal text-fg-subtle">
           {done}/{steps.length}
         </span>
@@ -236,6 +243,7 @@ function SubagentCard({ item }: { item: ItemRow }) {
 
 function QuestionCall({ item }: { item: ItemRow }) {
   const request = usePendingRequest(item.id)
+  const m = useT()
   if (request?.kind === 'question') return <QuestionsCard request={request} />
   const qa = questionsOf(item)
   if (!qa) return <GenericCall item={item} />
@@ -247,7 +255,7 @@ function QuestionCall({ item }: { item: ItemRow }) {
           <div className="min-w-0">
             <div className="text-fg-muted">{q.question}</div>
             <div className="selectable text-fg">
-              {q.answers?.join(', ') ?? (waitsForAnswer(item) ? 'Waiting for your answer…' : item.error || 'Not answered')}
+              {q.answers?.join(', ') ?? (waitsForAnswer(item) ? m.conversation.tool.waitingAnswer : item.error || m.conversation.tool.notAnswered)}
             </div>
           </div>
         </div>

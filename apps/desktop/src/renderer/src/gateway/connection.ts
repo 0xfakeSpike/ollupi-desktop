@@ -5,6 +5,7 @@
 import type { OllupiClient } from '@ollupi/client'
 import { create } from 'zustand'
 import type { BackendState } from '../../../shared/ipc'
+import { t } from '../i18n'
 
 export type GatewayStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting'
 
@@ -39,6 +40,6 @@ export function setClient(c: OllupiClient | undefined): void {
 /** The live client. Actions call this; offline it throws, and the action's
  * error reaches the user as a notice. */
 export function gateway(): OllupiClient {
-  if (!client || client.isClosed) throw new Error('Not connected to the backend')
+  if (!client || client.isClosed) throw new Error(t().errors.notConnected)
   return client
 }

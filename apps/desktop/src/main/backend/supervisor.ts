@@ -7,7 +7,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { createInterface } from 'node:readline'
-import type { BackendState } from '../../shared/ipc'
+import type { BackendFailure, BackendState } from '../../shared/ipc'
 
 export interface SupervisorOptions {
   binary: string
@@ -57,7 +57,7 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     let handshaken = false
     const timer = setTimeout(() => {
       if (handshaken) return
-      this.fail('the backend did not report ready within 30s')
+      this.fail({ kind: 'timeout', seconds: HANDSHAKE_TIMEOUT_MS / 1000 })
       child.kill('SIGKILL')
     }, HANDSHAKE_TIMEOUT_MS)
 
@@ -68,17 +68,17 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
       handshaken = true
       clearTimeout(timer)
       if (msg.type === 'ready' && msg.url) this.set({ status: 'ready', url: msg.url, token, version: msg.version ?? '' })
-      else this.fail(msg.message ?? 'the backend failed to start', msg.configPath)
+      else this.fail({ kind: 'reported', message: msg.message }, msg.configPath)
     })
     child.on('error', (err) => {
       clearTimeout(timer)
-      this.fail(`cannot start ${this.opts.binary}: ${err.message}`)
+      this.fail({ kind: 'spawn', binary: this.opts.binary, error: err.message })
     })
     child.on('exit', (code, signal) => {
       clearTimeout(timer)
       if (this.child === child) this.child = undefined
       if (this.current.status === 'ready' || this.current.status === 'starting') {
-        this.fail(`the backend exited unexpectedly (${signal ?? `code ${code}`})`)
+        this.fail({ kind: 'exited', how: signal ?? `code ${code}` })
       }
     })
   }
@@ -104,9 +104,9 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     await this.start()
   }
 
-  private fail(message: string, configPath?: string): void {
+  private fail(failure: BackendFailure, configPath?: string): void {
     if (this.current.status === 'failed') return
-    this.set({ status: 'failed', message, configPath, log: this.log.join('\n') })
+    this.set({ status: 'failed', failure, configPath, log: this.log.join('\n') })
   }
 
   private remember(line: string): void {
