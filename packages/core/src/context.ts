@@ -93,12 +93,17 @@ export interface MemorySection {
   entries: MemoryReference[] | undefined
 }
 
+export interface PromptMemory {
+  global: MemorySection | undefined
+  workspace: MemorySection | undefined
+}
+
 /** The memory snapshot a call's prompt carried, in its two sections (global
  * and the workspace's), as ollupi reports it in the call's stats. A thread
  * loads its snapshot before its first model call and again after each
  * compaction, recording it as a memoryContext item: the call used the
  * latest one before it. Undefined for a call that carried no memory. */
-export function promptMemory(t: Timeline, call: ModelCall): { global: MemorySection | undefined; workspace: MemorySection | undefined } | undefined {
+export function promptMemory(t: Timeline, call: ModelCall): PromptMemory | undefined {
   const { globalMemory, workspaceMemory } = call.stats
   if (!globalMemory?.ids.length && !workspaceMemory?.ids.length) return undefined
   const at = t.items.findIndex((i) => i.id === call.itemId)
