@@ -3,7 +3,7 @@
 
 import { relativeTime } from '@ollupi/core'
 import type { MemoryRow, MemoryStatus } from '@ollupi/protocol'
-import { Badge, Button, EmptyState, IconButton, Select, Spinner, Textarea } from '@ollupi/ui'
+import { Badge, Button, EmptyState, IconButton, Spinner, Tabs, Textarea } from '@ollupi/ui'
 import { Brain, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { editMemory, forgetMemory, readMemory, type MemoryScopes } from '../../domains/memory'
@@ -41,63 +41,57 @@ export function MemoryScreen() {
   // memory/list returns every status; only active memories are used.
   const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
   const active = activeIn(scope)
-  const count = (key: string) => (data ? ` (${activeIn(key).length})` : '')
+  const scopes = [
+    { id: GLOBAL, label: 'Global', detail: data && String(activeIn(GLOBAL).length) },
+    ...workspaces.map((w) => ({ id: w.id, label: w.name, detail: data && String(activeIn(w.id).length) })),
+  ]
   const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
   return (
     <div className="flex h-full flex-col">
       <header className="drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line px-6">
         <h1 className="text-[13px] font-semibold">Memory</h1>
-        <Select
-          aria-label="Scope"
-          className="h-7 w-56 text-xs"
-          value={scope}
-          onChange={(e) => setScope(e.target.value)}
-        >
-          <option value={GLOBAL}>Global{count(GLOBAL)}</option>
-          {workspaces.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-              {count(w.id)}
-            </option>
-          ))}
-        </Select>
         <div className="flex-1" />
         <IconButton label="Reload" size="sm" onClick={() => void reload()}>
           <RotateCw size={13} />
         </IconButton>
       </header>
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
-          <MemorySettings status={data?.status} />
-          {data && <StatusLine status={data.status} />}
-          {loading && !data ? (
-            <div className="flex justify-center py-12 text-fg-subtle">
-              <Spinner />
-            </div>
-          ) : active.length === 0 ? (
-            elsewhere ? (
-              <EmptyState icon={<Brain size={28} />} title="Nothing remembered in this scope">
-                Memories are kept globally or per workspace; other scopes have some. Choose one above.
-              </EmptyState>
+      <div className="flex min-h-0 flex-1">
+        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-3">
+          <Tabs label="Scope" orientation="vertical" tabs={scopes} value={scope} onChange={setScope} />
+        </nav>
+        <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="flex-1 overflow-y-auto">
+          <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
+            <MemorySettings status={data?.status} />
+            {data && <StatusLine status={data.status} />}
+            {loading && !data ? (
+              <div className="flex justify-center py-12 text-fg-subtle">
+                <Spinner />
+              </div>
+            ) : active.length === 0 ? (
+              elsewhere ? (
+                <EmptyState icon={<Brain size={28} />} title="Nothing remembered in this scope">
+                  Memories are kept globally or per workspace; other scopes have some. Choose one on the left.
+                </EmptyState>
+              ) : (
+                <EmptyState icon={<Brain size={28} />} title="Nothing remembered yet">
+                  Memories are distilled from finished turns while learning is on.
+                </EmptyState>
+              )
             ) : (
-              <EmptyState icon={<Brain size={28} />} title="Nothing remembered yet">
-                Memories are distilled from finished turns while learning is on.
-              </EmptyState>
-            )
-          ) : (
-            <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
-              {active.map((e) => (
-                <Entry
-                  key={e.id}
-                  entry={e}
-                  workspaceName={workspaces.find((w) => w.id === e.workspaceId)?.name}
-                  onSaved={replace}
-                  onForgotten={() => remove(e.id)}
-                />
-              ))}
-            </ul>
-          )}
+              <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
+                {active.map((e) => (
+                  <Entry
+                    key={e.id}
+                    entry={e}
+                    workspaceName={workspaces.find((w) => w.id === e.workspaceId)?.name}
+                    onSaved={replace}
+                    onForgotten={() => remove(e.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
