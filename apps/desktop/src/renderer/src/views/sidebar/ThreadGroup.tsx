@@ -1,11 +1,13 @@
 import { isWorking, needsUser, relativeTime, threadTitle } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
-import { ChevronRight, Folder, FolderOpen, Plus } from 'lucide-react'
+import { Archive, ChevronRight, Folder, FolderOpen, Plus, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { go, useOpenThreadId } from '../../domains/navigation'
+import { setArchived } from '../../domains/workspaces'
 import { desktop } from '../../platform/desktop'
+import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
 const SHOWN = 8
 
@@ -13,6 +15,7 @@ const SHOWN = 8
 export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadSummary[] }) {
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
+  const [settings, setSettings] = useState(false)
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
 
@@ -33,6 +36,12 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           <div className="flex opacity-0 transition group-hover:opacity-100">
             <IconButton label="Reveal folder" size="sm" onClick={() => void desktop.openPath(workspace.rootPath)}>
               <FolderOpen size={13} />
+            </IconButton>
+            <IconButton label="Workspace settings" size="sm" onClick={() => setSettings(true)}>
+              <Settings2 size={13} />
+            </IconButton>
+            <IconButton label={`Archive ${workspace.name}`} size="sm" onClick={() => void setArchived(workspace.id, true)}>
+              <Archive size={13} />
             </IconButton>
             <IconButton label={`New thread in ${workspace.name}`} size="sm" onClick={() => go({ kind: 'draft', workspaceId: workspace.id })}>
               <Plus size={14} />
@@ -55,6 +64,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           )}
         </ul>
       )}
+      {workspace && settings && <WorkspaceSettingsDialog workspace={workspace} onClose={() => setSettings(false)} />}
     </section>
   )
 }

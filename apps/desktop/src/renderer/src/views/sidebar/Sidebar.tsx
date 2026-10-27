@@ -6,6 +6,7 @@ import { go, useNavigation } from '../../domains/navigation'
 import { useThreads } from '../../domains/threads'
 import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { ConnectionStatus } from './ConnectionStatus'
+import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { ThreadGroup } from './ThreadGroup'
 
 export function Sidebar() {
@@ -29,6 +30,7 @@ export function Sidebar() {
         {groups.map((g) => (
           <ThreadGroup key={g.workspace?.id ?? 'none'} workspace={g.workspace} threads={g.threads} />
         ))}
+        <ArchivedWorkspaces workspaces={workspaces.filter((w) => w.archivedAt)} />
       </div>
       <div className="flex flex-col gap-0.5 border-t border-line px-2 py-2">
         <NavButton icon={<Brain size={15} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
