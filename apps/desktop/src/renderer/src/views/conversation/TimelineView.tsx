@@ -12,7 +12,7 @@ import {
 } from '@ollupi/core'
 import type { ItemRow, TurnRow } from '@ollupi/protocol'
 import { Button, Callout } from '@ollupi/ui'
-import { CalendarClock, Clock, OctagonX, TriangleAlert } from 'lucide-react'
+import { CalendarClock, Clock, OctagonX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { loadOlder } from '../../domains/conversation'
 import { loadJobs, useThreadJobs } from '../../domains/cron'
@@ -112,7 +112,7 @@ function TurnOutcome({ turn }: { turn: TurnRow }) {
   switch (turn.status) {
     case 'failed':
       return (
-        <Callout tone="danger" icon={<TriangleAlert size={14} />}>
+        <Callout tone="danger">
           <span className="selectable">{turn.error || m.conversation.timeline.failed}</span>
         </Callout>
       )

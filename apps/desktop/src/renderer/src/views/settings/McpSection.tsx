@@ -263,7 +263,7 @@ function ServerDialog({
       title={server ? t.editTitle(server.name) : t.addTitle}
       closeLabel={m.common.close}
       onClose={onClose}
-      width={520}
+      wide
       footer={
         <>
           <Button onClick={onClose}>{m.common.cancel}</Button>
@@ -274,7 +274,7 @@ function ServerDialog({
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label={t.name} hint={nameProblem ?? (renamed ? m.settings.mcp.renamed : t.nameHint(trimmed || t.namePlaceholder))}>
+        <Field label={t.name} error={nameProblem} hint={renamed ? m.settings.mcp.renamed : t.nameHint(trimmed || t.namePlaceholder)}>
           <Input value={name} autoFocus spellCheck={false} placeholder="github" onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label={t.transport}>
@@ -298,7 +298,7 @@ function ServerDialog({
                 onChange={(e) => setArgs(e.target.value)}
               />
             </Field>
-            <Field label={t.env} hint={parsedEnv.error ?? t.envHint(t.secrets)}>
+            <Field label={t.env} error={parsedEnv.error} hint={t.envHint(t.secrets)}>
               <Textarea
                 rows={3}
                 spellCheck={false}
@@ -320,7 +320,7 @@ function ServerDialog({
                 onChange={(e) => setUrl(e.target.value)}
               />
             </Field>
-            <Field label={t.headers} hint={parsedHeaders.error ?? t.headersHint(t.secrets)}>
+            <Field label={t.headers} error={parsedHeaders.error} hint={t.headersHint(t.secrets)}>
               <Textarea
                 rows={3}
                 spellCheck={false}

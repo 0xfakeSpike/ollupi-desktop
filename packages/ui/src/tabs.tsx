@@ -32,7 +32,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, orientati
       role="tablist"
       aria-label={label}
       aria-orientation={orientation}
-      className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}
+      className={cn(vertical ? 'flex flex-col gap-0.5' : 'flex gap-4 self-stretch')}
       onKeyDown={onKeyDown}
     >
       {tabs.map((t) => {
@@ -52,15 +52,21 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, orientati
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={cn(
-              'flex h-7 items-center gap-2 rounded-md px-3 text-[13px] transition focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
-              vertical && 'w-full text-left',
-              selected ? 'bg-hover font-medium text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
+              'flex items-center gap-1.5 text-ui transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+              // A column reads like the sidebar. A row is text whose underline
+              // lies on the line under the tab bar, which its container draws.
+              vertical
+                ? cn('h-7 w-full rounded-md px-2 text-left', selected ? 'bg-selected font-medium text-fg' : 'text-fg hover:bg-hover')
+                : cn(
+                    'relative min-h-8 font-medium',
+                    selected ? 'text-fg after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-fg' : 'text-fg-muted hover:text-fg',
+                  ),
             )}
           >
             <span className={cn(vertical && 'min-w-0 flex-1 truncate')} title={vertical ? t.label : undefined}>
               {t.label}
             </span>
-            {t.detail && <span className="text-xs text-fg-subtle tabular-nums">{t.detail}</span>}
+            {t.detail && <span className="text-small text-fg-subtle tabular-nums">{t.detail}</span>}
           </button>
         )
       })}

@@ -1,4 +1,5 @@
 // Transient messages shown as toasts: failed actions and gateway errors.
+// Info clears itself; an error stays until it is dismissed.
 
 import { create } from 'zustand'
 
@@ -13,7 +14,8 @@ interface NoticeStore {
   dismiss(id: number): void
 }
 
-const TTL_MS = 6000
+const INFO_TTL_MS = 4000
+const MAX_SHOWN = 3
 let nextId = 1
 
 export const useNotices = create<NoticeStore>()((set) => ({
@@ -23,6 +25,6 @@ export const useNotices = create<NoticeStore>()((set) => ({
 
 export function notify(message: string, tone: Notice['tone'] = 'danger'): void {
   const id = nextId++
-  useNotices.setState((s) => ({ notices: [...s.notices.slice(-3), { id, tone, message }] }))
-  setTimeout(() => useNotices.getState().dismiss(id), TTL_MS)
+  useNotices.setState((s) => ({ notices: [...s.notices.slice(-(MAX_SHOWN - 1)), { id, tone, message }] }))
+  if (tone === 'info') setTimeout(() => useNotices.getState().dismiss(id), INFO_TTL_MS)
 }

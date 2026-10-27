@@ -14,7 +14,7 @@ export function WorkspaceSettingsDialog({ workspace, onClose }: { workspace: Wor
     if (next && next !== workspace.name) void renameWorkspace(workspace.id, next)
   }
   return (
-    <Dialog title={m.settings.permissions.workspace.title} closeLabel={m.common.close} onClose={onClose} width={520}>
+    <Dialog title={m.settings.permissions.workspace.title} closeLabel={m.common.close} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <Field label={m.settings.permissions.workspace.name} hint={<span className="selectable font-mono">{workspace.rootPath}</span>}>
           <Input value={name} className="max-w-60" onChange={(e) => setName(e.target.value)} onBlur={rename} onKeyDown={(e) => e.key === 'Enter' && rename()} />

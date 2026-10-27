@@ -1,75 +1,165 @@
 /* Design tokens for @ollupi/ui. Components use only these semantic names
-   (bg-canvas, text-fg-muted, border-line, ...), so a theme is a set of
-   variable values and dark mode needs no per-component classes. */
+   (bg-canvas, text-fg-muted, border-line, text-ui, rounded-lg, ...), so a
+   theme is a set of variable values and dark mode needs no per-component
+   classes. The resets below remove Tailwind's defaults: a class outside
+   these scales produces no style. See docs/design-guidelines.md. */
 
 @theme inline {
+  --color-*: initial;
   --color-canvas: var(--ol-canvas);
   --color-sidebar: var(--ol-sidebar);
   --color-surface: var(--ol-surface);
   --color-raised: var(--ol-raised);
   --color-hover: var(--ol-hover);
+  --color-selected: var(--ol-selected);
   --color-line: var(--ol-line);
   --color-line-strong: var(--ol-line-strong);
+  --color-scrim: var(--ol-scrim);
+  --color-knob: var(--ol-knob);
   --color-fg: var(--ol-fg);
   --color-fg-muted: var(--ol-fg-muted);
   --color-fg-subtle: var(--ol-fg-subtle);
   --color-accent: var(--ol-accent);
   --color-accent-fg: var(--ol-accent-fg);
   --color-accent-soft: var(--ol-accent-soft);
+  --color-focus: var(--ol-focus);
   --color-success: var(--ol-success);
   --color-success-soft: var(--ol-success-soft);
   --color-warning: var(--ol-warning);
   --color-warning-soft: var(--ol-warning-soft);
   --color-danger: var(--ol-danger);
+  --color-danger-fg: var(--ol-danger-fg);
   --color-danger-soft: var(--ol-danger-soft);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
+
+  --text-*: initial;
+  --text-caption: 11px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 500;
+  --text-small: 12px;
+  --text-small--line-height: 18px;
+  --text-ui: 13px;
+  --text-ui--line-height: 20px;
+  --text-body: 14px;
+  --text-body--line-height: 23px;
+  --text-title: 15px;
+  --text-title--line-height: 22px;
+  --text-title--font-weight: 600;
+  --text-display: 20px;
+  --text-display--line-height: 28px;
+  --text-display--font-weight: 600;
+
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --spacing: 4px;
+
+  --radius-*: initial;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --shadow-*: initial;
+  --shadow-sm: var(--ol-shadow-sm);
+  --shadow-md: var(--ol-shadow-md);
+  --shadow-lg: var(--ol-shadow-lg);
+
+  --ease-*: initial;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Entrances: menus and toasts rise, dialogs scale. Under reduced motion
+     an element swaps its entrance for animate-fade. */
+  --animate-enter: enter 160ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-dialog: dialog 240ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-fade: fade 160ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes dialog {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  --container-thread: 720px;
+  --container-dialog: 480px;
+  --container-dialog-wide: 640px;
 }
 
 :root {
   color-scheme: light dark;
   --ol-canvas: #ffffff;
   --ol-sidebar: #f7f7f6;
-  --ol-surface: #f5f5f4;
+  --ol-surface: #f4f4f2;
   --ol-raised: #ffffff;
-  --ol-hover: rgb(0 0 0 / 0.05);
+  --ol-hover: rgb(0 0 0 / 0.045);
+  --ol-selected: rgb(0 0 0 / 0.075);
   --ol-line: rgb(0 0 0 / 0.08);
-  --ol-line-strong: rgb(0 0 0 / 0.16);
+  --ol-line-strong: rgb(0 0 0 / 0.14);
+  --ol-scrim: rgb(0 0 0 / 0.3);
+  --ol-knob: #ffffff;
   --ol-fg: #1b1b1a;
   --ol-fg-muted: #5f5f5c;
-  --ol-fg-subtle: #94948f;
+  --ol-fg-subtle: #8a8a85;
   --ol-accent: #1f6feb;
   --ol-accent-fg: #ffffff;
   --ol-accent-soft: rgb(31 111 235 / 0.1);
+  --ol-focus: rgb(31 111 235 / 0.35);
   --ol-success: #1a7f37;
   --ol-success-soft: rgb(26 127 55 / 0.1);
   --ol-warning: #9a6700;
   --ol-warning-soft: rgb(212 167 44 / 0.15);
   --ol-danger: #cf222e;
+  --ol-danger-fg: #ffffff;
   --ol-danger-soft: rgb(207 34 46 / 0.08);
+  --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --ol-shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.06);
+  --ol-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --ol-canvas: #161616;
     --ol-sidebar: #1c1c1c;
-    --ol-surface: #202020;
+    --ol-surface: #212121;
     --ol-raised: #262626;
     --ol-hover: rgb(255 255 255 / 0.06);
+    --ol-selected: rgb(255 255 255 / 0.1);
     --ol-line: rgb(255 255 255 / 0.08);
-    --ol-line-strong: rgb(255 255 255 / 0.16);
+    --ol-line-strong: rgb(255 255 255 / 0.15);
+    --ol-scrim: rgb(0 0 0 / 0.5);
+    --ol-knob: #e8e8e6;
     --ol-fg: #ececea;
     --ol-fg-muted: #a5a5a0;
-    --ol-fg-subtle: #6f6f6b;
+    --ol-fg-subtle: #75756f;
     --ol-accent: #4c8dff;
     --ol-accent-fg: #ffffff;
     --ol-accent-soft: rgb(76 141 255 / 0.14);
+    --ol-focus: rgb(76 141 255 / 0.45);
     --ol-success: #3fb950;
     --ol-success-soft: rgb(63 185 80 / 0.14);
     --ol-warning: #d29922;
     --ol-warning-soft: rgb(210 153 34 / 0.16);
     --ol-danger: #f85149;
+    --ol-danger-fg: #ffffff;
     --ol-danger-soft: rgb(248 81 73 / 0.12);
+    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --ol-shadow-md: 0 4px 16px rgb(0 0 0 / 0.45);
+    --ol-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.6);
   }
 }

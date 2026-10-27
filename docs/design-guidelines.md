@@ -59,6 +59,7 @@
   --color-line: var(--ol-line);
   --color-line-strong: var(--ol-line-strong);
   --color-scrim: var(--ol-scrim);
+  --color-knob: var(--ol-knob);
   --color-fg: var(--ol-fg);
   --color-fg-muted: var(--ol-fg-muted);
   --color-fg-subtle: var(--ol-fg-subtle);
@@ -115,6 +116,30 @@
   --ease-*: initial;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
+  /* Entrances: menus and toasts rise, dialogs scale. Under reduced motion
+     an element swaps its entrance for animate-fade. */
+  --animate-enter: enter 160ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-dialog: dialog 240ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-fade: fade 160ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes dialog {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
   --container-thread: 720px;
   --container-dialog: 480px;
   --container-dialog-wide: 640px;
@@ -131,6 +156,7 @@
   --ol-line: rgb(0 0 0 / 0.08);
   --ol-line-strong: rgb(0 0 0 / 0.14);
   --ol-scrim: rgb(0 0 0 / 0.3);
+  --ol-knob: #ffffff;
   --ol-fg: #1b1b1a;
   --ol-fg-muted: #5f5f5c;
   --ol-fg-subtle: #8a8a85;
@@ -161,6 +187,7 @@
     --ol-line: rgb(255 255 255 / 0.08);
     --ol-line-strong: rgb(255 255 255 / 0.15);
     --ol-scrim: rgb(0 0 0 / 0.5);
+    --ol-knob: #e8e8e6;
     --ol-fg: #ececea;
     --ol-fg-muted: #a5a5a0;
     --ol-fg-subtle: #75756f;
@@ -199,6 +226,7 @@
 | `line` | 分隔线、普通卡片轮廓、表格线 | 输入框 |
 | `line-strong` | 输入框、次要按钮、行动块的边框；滚动条 | 分隔线 |
 | `scrim` | 对话框背后的遮罩 | — |
+| `knob` | 开关的圆钮（两套主题里都是近白色） | — |
 
 **文字三档**
 
@@ -305,11 +333,11 @@
 | `duration-160` | 展开/折叠、浮层出现、箭头旋转 |
 | `duration-240` | 对话框出现、侧面板滑入 |
 
-- 缓动统一 `ease-standard`。浮层出现：透明度 0→1 加 4px 位移；对话框：透明度加 0.98→1 缩放。
+- 缓动统一 `ease-standard`。浮层和 toast 出现用 `animate-enter`（透明度 0→1 加 4px 位移）；对话框用 `animate-dialog`（透明度加 0.98→1 缩放），遮罩用 `animate-fade`。
 - **流式输出**：不做逐字淡入，只保留末尾光标 `▍`（`.streaming-caret`），自动贴底滚动；用户向上滚动后停止贴底，出现"回到底部"按钮。
 - **加载**：等待 <300ms 不显示任何东西；之后列表用骨架行，其余用 spinner + 动词。对话流里只有"当前那一步"闪 shimmer（`.shimmer`），同一时刻最多一处。
 - 超长输出展开不做高度动画，直接出现。
-- 遵守 `prefers-reduced-motion: reduce`：位移和 shimmer 关掉，保留透明度变化。
+- 遵守 `prefers-reduced-motion: reduce`：带入场动画的元素同时写 `motion-reduce:animate-fade`，只保留透明度变化；shimmer 关掉。
 
 ---
 
@@ -441,8 +469,8 @@ Label                          ← text-ui font-medium fg，下方 6
 Help text                      ← text-small fg-subtle，上方 4；出错时替换成错误文字
 ```
 
-- **输入框 / 下拉框 / 多行文本**：`bg-canvas`（对话框里 `bg-raised`）+ `border border-line-strong` + `rounded-md` + `px-2.5` + `text-ui`。占位符 `fg-subtle`。聚焦：边框 `accent` + `ring-3 ring-focus`。命令、路径、JSON 类的输入用 `font-mono`。
-- **错误**：边框 `danger`，提示换成 `text-small text-danger` 的错误文字，说清楚哪里不对、怎么改（"Must be a URL starting with http:// or https://"）。在失焦或提交时校验，不在输入过程中报错。
+- **输入框 / 下拉框 / 多行文本**：`bg-transparent`（取所在表面的颜色：页面上是 canvas，对话框里是 raised）+ `border border-line-strong` + `rounded-md` + `px-2.5` + `text-ui`。占位符 `fg-subtle`。聚焦：边框 `accent` + `ring-3 ring-focus`。命令、路径、JSON 类的输入用 `font-mono`。
+- **错误**：通过 `Field` 的 `error`（不要塞进 `hint`），边框变 `danger`，提示换成 `text-small text-danger` 的错误文字，说清楚哪里不对、怎么改（"Must be a URL starting with http:// or https://"）。在失焦或提交时校验，不在输入过程中报错。
 - **开关 vs 复选框**：立即生效的设置用开关，没有保存按钮；需要统一保存的表单里用复选框。
 - **设置行**（macOS 系统设置的写法）：左边标签（`text-ui` `fg`）+ 说明（`text-small` `fg-muted`），右边控件，行高至少 44、`px-3 py-2.5`。多行组成一张 `bg-surface rounded-lg` 卡片，行之间 `border-t border-line`。
 - **必填** 不打星号；可选字段在标签后写 "(optional)"，`fg-subtle`。
@@ -537,6 +565,10 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | `text-white`（危险按钮） | `text-danger-fg` |
 | `bg-white` | `bg-raised` 或 `bg-canvas` |
 | `ring-2 ring-accent/50` | `ring-3 ring-focus` |
+| `Dialog width={…}` | 默认 480；长表单传 `wide`（640） |
+| `Field hint={error ?? hint}` | `Field error={error} hint={hint}` |
+| `Callout icon={…}` | 去掉：图标由 `tone` 决定 |
+| Switch 圆钮 `bg-white` | `bg-knob` |
 | 侧栏选中的 `bg-hover` | `bg-selected` |
 | 提问卡片 `border-accent/30 bg-accent-soft/40` | L2：`bg-raised border-line-strong shadow-sm` + accent 色条 |
 | 审批卡片的黄色底 | L2 + warning 色条（沙箱外为 danger） |
@@ -549,8 +581,9 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 ### 5.2 顺序
 
 1. 替换 `packages/ui/src/theme.css`（2.1），修改 `styles.css` 的 body 和 `.markdown` 字号。
-2. 改 `@ollupi/ui` 的基础组件：Button、IconButton、Input、Dialog、Toast、Tabs、Disclosure，对齐 3.4–3.7。
-3. 新增对话流的三个组件，放在 `@ollupi/ui`：`ProcessRow`（L0）、`Block`（L1）、`ActionCard`（L2，接收 `tone: 'accent' | 'warning' | 'danger'`），把 `ToolCallView`、`SystemItems`、`ApprovalCard`、`QuestionsCard` 迁过去。提问和审批先改，差异最大。
+2. 改 `@ollupi/ui` 的基础组件：Button、IconButton、Input、Dialog、Toast、Tabs，对齐 3.4–3.7。
+   `cn`（tailwind-merge）已登记 theme.css 的字号、缓动、动画、容器名；以后在 theme.css 新增一档，也要同步登记到 `packages/ui/src/cn.ts`，否则 `cn('text-ui', 'text-fg')` 会把字号当成颜色合并掉。
+3. 新增对话流的三个组件，放在 `@ollupi/ui`：`ProcessRow`（L0，取代原来的 `Disclosure`）、`Block`（L1，`CodeBlock` 建在它上面）、`ActionCard`（L2，接收 `tone: 'accent' | 'warning' | 'danger'`），把 `ToolCallView`、`SystemItems`、推理、`ApprovalCard`、`QuestionsCard` 迁过去。提问和审批先改，差异最大。
 4. 侧栏、Memory、Settings、各对话框、Context 面板、后端启动失败页。
 
 ### 5.3 自查

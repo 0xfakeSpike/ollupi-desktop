@@ -13,7 +13,8 @@ body {
   background: var(--color-canvas);
   color: var(--color-fg);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--text-ui);
+  line-height: var(--text-ui--line-height);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   user-select: none;
@@ -53,7 +54,8 @@ input {
 }
 
 .markdown {
-  line-height: 1.65;
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
   overflow-wrap: anywhere;
 }
 .markdown > * + * {
@@ -153,4 +155,11 @@ input {
   background-clip: text;
   color: transparent;
   animation: shimmer 2.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    background: none;
+    color: var(--color-fg-muted);
+  }
 }
