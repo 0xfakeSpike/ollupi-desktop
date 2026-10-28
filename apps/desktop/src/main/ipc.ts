@@ -8,6 +8,7 @@ import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type ColorSc
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
 import type { BackendSupervisor } from './backend/supervisor'
+import { listFolder, readFile } from './files'
 import { listModels } from './models'
 
 export function registerIpc(backend: BackendSupervisor, config: BackendConfig, skills: BackendSkills, home: string): void {
@@ -30,6 +31,8 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, s
   })
   ipcMain.handle(IpcChannel.SkillsRemove, (_event, name: unknown) => skills.remove(text(name)))
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
+  ipcMain.handle(IpcChannel.FilesList, (_event, root: unknown, path: unknown) => listFolder(text(root), text(path)))
+  ipcMain.handle(IpcChannel.FilesRead, (_event, root: unknown, path: unknown) => readFile(text(root), text(path)))
   ipcMain.handle(IpcChannel.ListModels, (_event, baseUrl: unknown, apiKey: unknown) => {
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, baseUrl, apiKey)

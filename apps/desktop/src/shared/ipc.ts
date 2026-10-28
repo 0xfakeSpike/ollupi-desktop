@@ -69,6 +69,19 @@ export interface NewSkill {
   instructions: string
 }
 
+/** One entry of a workspace folder. */
+export interface FileEntry {
+  name: string
+  kind: 'file' | 'folder'
+}
+
+/** A workspace file as a preview shows it: its text (only the start of a
+ * long file), an image, or neither. size is the file's, in bytes. */
+export type FilePreview =
+  | { kind: 'text'; size: number; text: string; truncated: boolean }
+  | { kind: 'image'; size: number; dataUrl: string }
+  | { kind: 'binary'; size: number }
+
 /** Light or dark, or whichever the system uses. */
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
@@ -103,6 +116,12 @@ export interface DesktopApi {
      * skills_dir value that names it. */
     defaultFolder(): Promise<string>
   }
+  /** A workspace's files, read-only; path is relative to the root, and
+   * nothing outside the root is read. */
+  files: {
+    list(root: string, path: string): Promise<FileEntry[]>
+    read(root: string, path: string): Promise<FilePreview>
+  }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
    * OpenAI's, as for the backend. */
@@ -128,6 +147,8 @@ export const IpcChannel = {
   SkillsImport: 'skills:import',
   SkillsRemove: 'skills:remove',
   SkillsDefaultFolder: 'skills:defaultFolder',
+  FilesList: 'files:list',
+  FilesRead: 'files:read',
   ListModels: 'models:list',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',

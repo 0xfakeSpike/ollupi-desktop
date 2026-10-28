@@ -43,6 +43,10 @@ export const en = {
     save: 'Could not save config.yaml',
     mcpStatus: 'Could not read the MCP servers',
   },
+  files: {
+    list: 'Could not read the folder',
+    read: 'Could not read the file',
+  },
   skills: {
     load: 'Could not read the skills',
     read: 'Could not read SKILL.md',
@@ -106,6 +110,10 @@ export const zh: typeof en = {
     read: '无法读取 config.yaml',
     save: '无法保存 config.yaml',
     mcpStatus: '无法读取 MCP 服务器',
+  },
+  files: {
+    list: '无法读取文件夹',
+    read: '无法读取文件',
   },
   skills: {
     load: '无法读取技能',

@@ -24,6 +24,7 @@ function browserShim(): DesktopApi | undefined {
     // A sidecar started by hand: the browser cannot reach its config file.
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
+    files: { list: unavailable, read: unavailable },
     listModels: unavailable,
     pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
     openPath: async () => {},
@@ -42,6 +43,7 @@ export const desktop: DesktopApi = window.desktop ??
     backend: { state: unavailable, restart: unavailable, onState: unavailable },
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
+    files: { list: unavailable, read: unavailable },
     listModels: unavailable,
     pickDirectory: unavailable,
     openPath: unavailable,
