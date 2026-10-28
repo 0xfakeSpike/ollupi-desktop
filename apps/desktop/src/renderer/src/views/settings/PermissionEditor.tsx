@@ -38,13 +38,19 @@ export function PermissionEditor({
   })
   const [saving, setSaving] = useState(false)
 
+  const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
+  const next: PermissionSettings = {
+    ...(policy === INHERIT ? {} : { approvalPolicy: policy }),
+    permissions: { allow: lines(rules.allow), ask: lines(rules.ask), deny: lines(rules.deny) },
+  }
+  // Saved settings come back as value, so the button rests until the next edit.
+  const unchanged =
+    (next.approvalPolicy ?? INHERIT) === (value.approvalPolicy ?? INHERIT) &&
+    kinds.every((k) => (next.permissions[k] ?? []).join('\n') === (value.permissions[k] ?? []).join('\n'))
+
   const save = async () => {
     setSaving(true)
-    const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
-    await onSave({
-      ...(policy === INHERIT ? {} : { approvalPolicy: policy }),
-      permissions: { allow: lines(rules.allow), ask: lines(rules.ask), deny: lines(rules.deny) },
-    })
+    await onSave(next)
     setSaving(false)
   }
 
@@ -73,7 +79,7 @@ export function PermissionEditor({
         </Field>
       ))}
       <div className="flex justify-end">
-        <Button variant="primary" loading={saving} onClick={() => void save()}>
+        <Button variant="primary" disabled={unchanged} loading={saving} onClick={() => void save()}>
           {m.settings.permissions.save}
         </Button>
       </div>

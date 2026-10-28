@@ -4,7 +4,7 @@
 import { create } from 'zustand'
 
 /** What a conversation shows beside it. */
-export type Panel = 'tasks' | 'context'
+export type Panel = 'tasks' | 'permissions' | 'context'
 
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
