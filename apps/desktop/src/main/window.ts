@@ -11,8 +11,8 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     title: 'Ollupi',
     titleBarStyle: 'hiddenInset',
-    // Centred on the screen panel's 40px header, which sits 8px down.
-    trafficLightPosition: { x: 16, y: 21 },
+    // Centred on the screen's 40px header at the top of the window.
+    trafficLightPosition: { x: 16, y: 13 },
     // The default palette's --ol-ground (theme.css), shown before the renderer paints.
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b191a' : '#f7f5f4',
     webPreferences: {

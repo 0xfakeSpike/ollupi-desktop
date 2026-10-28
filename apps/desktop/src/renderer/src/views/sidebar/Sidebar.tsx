@@ -19,8 +19,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-65 shrink-0 flex-col">
-      {/* Level with the screen panel's header: its 8px inset and 40px height. */}
-      <div className="drag h-12 shrink-0" />
+      {/* Level with the screen's 40px header; the traffic lights sit here. */}
+      <div className="drag h-10 shrink-0" />
       <nav className="flex flex-col gap-0.5 px-2 pb-2">
         <NavButton icon={<SquarePen size={16} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
           {m.newThread}
