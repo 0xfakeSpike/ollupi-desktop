@@ -5,12 +5,13 @@
 // from the design tokens, not by Streamdown's own classes. Code is
 // highlighted by Shiki in a light and a dark theme, picked by the scheme,
 // with its JavaScript regex engine: the page's CSP allows no WebAssembly,
-// which the default engine compiles.
+// which the default engine compiles. A diff's added and removed lines are
+// marked, for .markdown to shade.
 
 import { Block, IconButton } from '@ollupi/ui'
 import { Check, Copy } from 'lucide-react'
-import { createElement, memo, useEffect, useState, type ReactNode } from 'react'
-import { createHighlighterCore, type HighlighterCore } from 'shiki/core'
+import { createElement, memo, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { createHighlighterCore, type HighlighterCore, type ShikiTransformer } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
@@ -23,7 +24,8 @@ export function CodeBlock({ code, label }: { code: string; label?: string }) {
   return (
     <Block label={<span className="font-mono">{label || 'text'}</span>} actions={<CopyButton text={code} />}>
       {html ? (
-        <div className="selectable overflow-x-auto font-mono text-ui" dangerouslySetInnerHTML={{ __html: html }} />
+        // Scrolled across the block's padding, so a shaded line reaches its edges.
+        <div className="selectable -mx-3 overflow-x-auto px-3 font-mono text-ui" dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
         <pre className="selectable overflow-x-auto font-mono text-ui">
           <code>{code}</code>
@@ -49,7 +51,19 @@ async function highlight(code: string, language: string): Promise<string | undef
   const load = (bundledLanguages as Record<string, (typeof bundledLanguages)[keyof typeof bundledLanguages] | undefined>)[language]
   if (!load) return undefined
   if (!h.getLoadedLanguages().includes(language)) await h.loadLanguage(load())
-  return h.codeToHtml(code, { lang: language, themes, defaultColor: false })
+  return h.codeToHtml(code, { lang: language, themes, defaultColor: false, transformers: language === 'diff' ? [diffLines] : [] })
+}
+
+/** In a diff, a line starting + was added and one starting - removed. */
+const diffLines: ShikiTransformer = {
+  pre(node) {
+    this.addClassToHast(node, 'diff')
+  },
+  line(node, line) {
+    const first = this.source.split('\n')[line - 1]?.[0]
+    if (first === '+') this.addClassToHast(node, 'added')
+    if (first === '-') this.addClassToHast(node, 'removed')
+  },
 }
 
 /** Shiki's HTML for the code, once it has loaded the language; undefined
@@ -88,12 +102,25 @@ export function CopyButton({ text }: { text: string }) {
   )
 }
 
+type Hast = { properties?: { className?: unknown } } | undefined
+
 /** The tag itself, with its children and attributes but none of
- * Streamdown's classes. */
+ * Streamdown's classes. GFM's sr-only stays: it hides the footnotes'
+ * heading, which is there for screen readers. */
 const plain =
   (tag: string) =>
-  ({ node: _node, className: _className, ...props }: Record<string, unknown>) =>
-    createElement(tag, props)
+  ({ node, className: _className, ...props }: Record<string, unknown>) => {
+    const classes = (node as Hast)?.properties?.className
+    return createElement(tag, Array.isArray(classes) && classes.includes('sr-only') ? { ...props, className: 'sr-only' } : props)
+  }
+
+/** A link within the message (a footnote and the way back) scrolls to its
+ * target in this message: every message numbers its footnotes from 1, so
+ * the same id is in each. */
+function inMessage(event: MouseEvent<HTMLAnchorElement>, id: string) {
+  event.preventDefault()
+  event.currentTarget.closest('.markdown')?.querySelector(`[id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
 
 const tags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'strong', 'em', 'del', 'sub', 'sup', 'img', 'section']
 const tableTags = ['thead', 'tbody', 'tr', 'th', 'td']
@@ -109,14 +136,22 @@ const components: Components = {
     return language === 'mermaid' ? <MermaidBlock code={code} /> : <CodeBlock code={code} label={language} />
   },
   inlineCode: ({ children }) => <code>{children}</code>,
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
-  ),
+  // Footnote links keep their ids and labels, which screen readers follow.
+  a: ({ href, children, node: _node, className: _className, ...props }) =>
+    href?.startsWith('#') ? (
+      <a {...props} href={href} target={undefined} rel={undefined} onClick={(e) => inMessage(e, decodeURIComponent(href.slice(1)))}>
+        {children}
+      </a>
+    ) : (
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    ),
 }
 
 export const Markdown = memo(function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
+  const m = useT().conversation.markdown
+  const remarkRehypeOptions = useMemo(() => ({ footnoteLabel: m.footnotes, footnoteBackLabel: m.footnoteBack }), [m])
   return (
     <Streamdown
       className="markdown"
@@ -124,6 +159,7 @@ export const Markdown = memo(function Markdown({ text, streaming = false }: { te
       components={components}
       controls={false}
       linkSafety={{ enabled: false }}
+      remarkRehypeOptions={remarkRehypeOptions}
     >
       {text}
     </Streamdown>

@@ -111,6 +111,8 @@ export const en = {
     copy: 'Copy',
     copied: 'Copied',
     diagramError: (why: string) => `The diagram could not be drawn: ${why}`,
+    footnotes: 'Footnotes',
+    footnoteBack: 'Back to the text',
   },
 }
 
@@ -217,5 +219,7 @@ export const zh: typeof en = {
     copy: '复制',
     copied: '已复制',
     diagramError: (why) => `无法画出这张图：${why}`,
+    footnotes: '脚注',
+    footnoteBack: '回到正文',
   },
 }
