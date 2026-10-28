@@ -130,6 +130,16 @@ input {
   background: var(--color-surface);
   font-weight: 600;
 }
+/* Shiki writes both themes' colours as variables (defaultColor: false);
+   the scheme picks one. The block draws its own background. */
+.shiki span {
+  color: var(--shiki-light);
+}
+@media (prefers-color-scheme: dark) {
+  .shiki span {
+    color: var(--shiki-dark);
+  }
+}
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--color-line);

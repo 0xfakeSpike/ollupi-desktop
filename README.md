@@ -11,6 +11,7 @@
 | 契约 | ollupi 提交的 `gateway/protocol.schema.json`，生成 TypeScript | 契约由 ollupi 从它分发消息的那张表生成，并用真实流量测试；UI 只读这份 JSON |
 | 外壳 | Electron + electron-vite | 窗口、原生对话框、托管 sidecar |
 | 界面 | React 19 + TypeScript + Tailwind v4 + zustand | 领域逻辑在纯函数包里，store 只存状态 |
+| Markdown | Streamdown + Shiki（JavaScript 正则引擎） | 流式输出时补全未收尾的块；代码高亮不需要 WebAssembly，页面的 CSP 保持不放开 |
 
 ## 架构
 
