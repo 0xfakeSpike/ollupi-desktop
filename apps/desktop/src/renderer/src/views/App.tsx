@@ -11,6 +11,7 @@ import { DraftScreen } from './draft/DraftScreen'
 import { CronScreen } from './cron/CronScreen'
 import { MemoryScreen } from './memory/MemoryScreen'
 import { SettingsScreen } from './settings/SettingsScreen'
+import { SkillsScreen } from './skills/SkillsScreen'
 import { Sidebar } from './sidebar/Sidebar'
 
 export function App() {
@@ -62,6 +63,8 @@ function CurrentScreen() {
       return <ConversationScreen key={screen.threadId} threadId={screen.threadId} />
     case 'memory':
       return <MemoryScreen />
+    case 'skills':
+      return <SkillsScreen />
     case 'cron':
       return <CronScreen />
     case 'settings':

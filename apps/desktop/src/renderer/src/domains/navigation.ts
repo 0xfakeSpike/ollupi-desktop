@@ -7,6 +7,7 @@ export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
   | { kind: 'thread'; threadId: string }
   | { kind: 'memory' }
+  | { kind: 'skills' }
   | { kind: 'cron' }
   | { kind: 'settings' }
 
