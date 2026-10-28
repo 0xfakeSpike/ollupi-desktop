@@ -10,7 +10,6 @@ import {
   type BuiltinToolName,
   type CommandOutput,
   type ItemRow,
-  type MemoryReference,
   type Plan,
   type Prepared,
   type SubagentCall,
@@ -72,7 +71,6 @@ export type ToolCall =
   | { kind: 'command'; command: FrozenCommand; output: CommandOutput | undefined }
   | { kind: 'plan'; plan: Plan }
   | { kind: 'question'; questions: QuestionAndAnswer[] }
-  | { kind: 'memorySearch'; search: MemorySearch }
   | { kind: 'subagent'; task: SubagentTask }
   | { kind: 'tool'; name: string | undefined; server: string | undefined }
 
@@ -124,18 +122,7 @@ function classify(c: CallFacts): ToolCall {
       // Once answered, ollupi stores the answers as the result
       // (agent.answerUserInput); the contract allows a null answer.
       const answers = isToolPart('request_user_input', 'output', c.output) ? c.output : undefined
-      return { kind: 'question', questions: (c.arguments.questions ?? []).map((q) => ({ ...q, answers: answers?.[q.id]?.answers })) }
-    }
-    case 'memory_search': {
-      // The contract does not type its arguments.
-      const a = c.arguments as { query?: unknown } | undefined
-      return {
-        kind: 'memorySearch',
-        search: {
-          query: typeof a?.query === 'string' ? a.query : undefined,
-          memories: isToolPart('memory_search', 'output', c.output) ? c.output.memories : undefined,
-        },
-      }
+      return { kind: 'question', questions: c.arguments.questions.map((q) => ({ ...q, answers: answers?.[q.id]?.answers })) }
     }
     case 'Agent':
       if (isToolPart('Agent', 'arguments', c.arguments)) return { kind: 'subagent', task: { ...c.arguments, threadId: c.threadId } }
@@ -155,13 +142,6 @@ export function commandLine(p: Pick<Prepared, 'program' | 'args'>): string {
  * itself completed. */
 export function commandFailed(output: CommandOutput): boolean {
   return output.exit_code !== 0 || !!output.signal
-}
-
-export interface MemorySearch {
-  /** The words the model searched for, when its arguments give them. */
-  query: string | undefined
-  /** The memories found, best first, once the call returned them. */
-  memories: MemoryReference[] | undefined
 }
 
 export interface SubagentTask extends SubagentCall {

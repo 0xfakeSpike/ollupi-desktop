@@ -1012,21 +1012,6 @@
         "workspace"
       ]
     },
-    "MemorySearchResult": {
-      "type": "object",
-      "properties": {
-        "memories": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/MemoryReference"
-          }
-        }
-      },
-      "required": [
-        "memories"
-      ],
-      "additionalProperties": false
-    },
     "MemorySource": {
       "type": "object",
       "properties": {
@@ -1235,16 +1220,16 @@
       "type": "object",
       "properties": {
         "explanation": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 500
         },
         "plan": {
-          "type": [
-            "null",
-            "array"
-          ],
+          "type": "array",
           "items": {
             "$ref": "#/$defs/PlanStep"
-          }
+          },
+          "minItems": 1,
+          "maxItems": 12
         }
       },
       "required": [
@@ -1256,7 +1241,9 @@
       "type": "object",
       "properties": {
         "step": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         },
         "status": {
           "$ref": "#/$defs/PlanStepStatus"
@@ -1378,10 +1365,16 @@
       "type": "object",
       "properties": {
         "description": {
-          "type": "string"
+          "type": "string",
+          "description": "A short (3-5 word) description of the task, shown to the user.",
+          "minLength": 1,
+          "maxLength": 80
         },
         "prompt": {
-          "type": "string"
+          "type": "string",
+          "description": "The complete task for the subagent, self-contained.",
+          "minLength": 1,
+          "maxLength": 20000
         }
       },
       "required": [
@@ -1922,10 +1915,15 @@
       "type": "object",
       "properties": {
         "label": {
-          "type": "string"
+          "type": "string",
+          "description": "User-facing label (1-5 words).",
+          "minLength": 1,
+          "maxLength": 60
         },
         "description": {
-          "type": "string"
+          "type": "string",
+          "description": "One short sentence explaining the impact of this option.",
+          "maxLength": 200
         }
       },
       "required": [
@@ -1937,22 +1935,29 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Stable identifier for mapping answers (snake_case).",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
         },
         "header": {
-          "type": "string"
+          "type": "string",
+          "description": "Short header label shown in the UI (12 or fewer chars).",
+          "minLength": 1,
+          "maxLength": 12
         },
         "question": {
-          "type": "string"
+          "type": "string",
+          "description": "Single-sentence prompt shown to the user, in the user's language.",
+          "minLength": 1,
+          "maxLength": 600
         },
         "options": {
-          "type": [
-            "null",
-            "array"
-          ],
+          "type": "array",
           "items": {
             "$ref": "#/$defs/UserInputOption"
-          }
+          },
+          "description": "Optional mutually exclusive choices. The user can always answer in their own words instead.",
+          "maxItems": 4
         }
       },
       "required": [
@@ -1966,13 +1971,13 @@
       "type": "object",
       "properties": {
         "questions": {
-          "type": [
-            "null",
-            "array"
-          ],
+          "type": "array",
           "items": {
             "$ref": "#/$defs/UserInputQuestion"
-          }
+          },
+          "description": "Questions to show the user. Prefer 1 and do not exceed 3.",
+          "minItems": 1,
+          "maxItems": 3
         }
       },
       "required": [
@@ -2447,11 +2452,6 @@
     "Agent": {
       "arguments": {
         "$ref": "#/$defs/SubagentCall"
-      }
-    },
-    "memory_search": {
-      "output": {
-        "$ref": "#/$defs/MemorySearchResult"
       }
     },
     "request_user_input": {

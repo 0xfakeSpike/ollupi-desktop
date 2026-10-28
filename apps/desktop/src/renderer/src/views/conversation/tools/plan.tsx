@@ -26,7 +26,7 @@ const steps = {
 
 function PlanCall({ call }: { item: ItemRow; call: Plan }) {
   const m = useT()
-  const list = call.plan.plan ?? []
+  const list = call.plan.plan
   const done = list.filter((s) => s.status === 'completed').length
   return (
     <Block

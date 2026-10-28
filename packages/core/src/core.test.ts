@@ -190,17 +190,10 @@ describe('calls', () => {
     const c = call({ tool: 'Agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), await: { by: 'agent', threadId: 'child', request: {} } })
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', threadId: 'child' } })
   })
-})
 
-describe('memory_search', () => {
-  const call = (extra: Partial<ItemRow>) => item('c', 1, { type: 'toolCall', status: 'pending', ...extra })
-
-  it('reads the query and the memories found', () => {
-    const found = { memories: [{ id: 'x', scope: 'workspace', workspaceId: 'w', text: 'uses tabs' }] }
-    const c = call({ tool: 'memory_search', arguments: JSON.stringify({ query: 'tabs' }), status: 'completed', result: { output: found } })
-    expect(callOf(c)).toEqual({ kind: 'memorySearch', search: { query: 'tabs', memories: found.memories } })
-    expect(callOf(call({ tool: 'memory_search', arguments: '{', status: 'inProgress' }))).toEqual({ kind: 'memorySearch', search: { query: undefined, memories: undefined } })
-    expect(callOf(call({ tool: 'mock__echo' })).kind).toBe('tool')
+  it('reads tools the contract does not type as generic calls', () => {
+    const search = call({ tool: 'memory_search', server: 'memory', arguments: JSON.stringify({ query: 'tabs' }) })
+    expect(callOf(search)).toEqual({ kind: 'tool', name: 'memory_search', server: 'memory' })
   })
 })
 

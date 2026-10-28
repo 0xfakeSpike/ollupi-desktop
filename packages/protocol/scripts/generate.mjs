@@ -74,6 +74,8 @@ async function types() {
     additionalProperties: false,
     unreachableDefinitions: true,
     strictIndexSignatures: true,
+    // An array bounded in length stays an array, not a union of tuples.
+    maxItems: -1,
     format: true,
   })
 }

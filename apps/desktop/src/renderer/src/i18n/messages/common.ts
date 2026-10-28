@@ -30,8 +30,6 @@ export const en = {
   tool: {
     plan: 'Updated the plan',
     question: 'Asked you',
-    memorySearch: 'Searched memory',
-    memorySearchFor: (query: string) => `Searched memory for “${query}”`,
     unnamed: 'tool',
   },
   newThread: 'New thread',
@@ -79,8 +77,6 @@ export const zh: typeof en = {
   tool: {
     plan: '更新了计划',
     question: '向你提问',
-    memorySearch: '搜索了记忆',
-    memorySearchFor: (query) => `搜索记忆：“${query}”`,
     unnamed: '工具',
   },
   newThread: '新会话',
