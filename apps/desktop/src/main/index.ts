@@ -27,6 +27,8 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   void app.whenReady().then(() => {
+    // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
+    if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
     registerIpc(backend, config, home)
     createMainWindow()
