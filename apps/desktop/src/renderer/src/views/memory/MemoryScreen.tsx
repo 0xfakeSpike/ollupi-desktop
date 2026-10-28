@@ -1,10 +1,10 @@
 // Long-term memory by scope: global, general (conversations outside any
 // workspace) and each workspace. Entries can be corrected (ollupi then
-// keeps extraction from rewriting them), moved to the scope they belong
-// in, or forgotten.
+// keeps extraction from rewriting them), moved between their own scope and
+// global, or forgotten.
 
 import type { MemoryRow, MemoryStatus } from '@ollupi/protocol'
-import { Badge, Button, EmptyState, IconButton, Select, Spinner, Tabs, Textarea } from '@ollupi/ui'
+import { Badge, Button, EmptyState, IconButton, Spinner, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Brain, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { editMemory, forgetMemory, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
@@ -60,6 +60,7 @@ export function MemoryScreen() {
       return { ...d, scopes: new Map([...d.scopes].map(([k, rows]) => [k, [...rows.filter((e) => e.id !== row.id), ...(k === to ? [row] : [])]])) }
     })
   const places = placesOf(m, workspaces)
+  const placeLabel = (key: string) => places.find((p) => placeKey(p.place) === key)?.label ?? key
 
   // memory/list returns every status; only active memories are used.
   const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
@@ -105,7 +106,7 @@ export function MemoryScreen() {
                   <Entry
                     key={e.id}
                     entry={e}
-                    places={places.filter((p) => placeKey(p.place) !== scope)}
+                    origin={e.scope === 'global' ? placeLabel(e.originWorkspaceId || 'general') : undefined}
                     onSaved={replace}
                     onMoved={moved}
                     onForgotten={() => remove(e.id)}
@@ -135,14 +136,14 @@ function StatusLine({ status }: { status: MemoryStatus }) {
 
 function Entry({
   entry,
-  places,
+  origin,
   onSaved,
   onMoved,
   onForgotten,
 }: {
   entry: MemoryRow
-  /** Where it can be moved to. */
-  places: { place: MemoryPlace; label: string }[]
+  /** For a global memory, the name of the scope it came from. */
+  origin: string | undefined
   onSaved(row: MemoryRow): void
   onMoved(row: MemoryRow): void
   onForgotten(): void
@@ -150,7 +151,6 @@ function Entry({
   const m = useT()
   const locale = useLocale((s) => s.locale)
   const [editing, setEditing] = useState(false)
-  const [moving, setMoving] = useState(false)
   const [text, setText] = useState(entry.text)
   const [busy, setBusy] = useState(false)
 
@@ -170,14 +170,19 @@ function Entry({
         <span className="font-medium text-fg">{entry.topic}</span>
         <Badge>{kindLabel(m, entry.kind)}</Badge>
         {entry.userEdited && <Badge tone="success">{m.memory.entry.editedByYou}</Badge>}
+        {origin !== undefined && <span className="text-fg-subtle">{m.memory.entry.from(origin)}</span>}
         <span className="text-fg-subtle">{relativeTime(m, locale, entry.updatedAt)}</span>
         <div className="flex-1" />
-        {!editing && !moving && (
+        {!editing && (
           <div className="flex opacity-0 transition group-hover:opacity-100">
             <IconButton label={m.common.edit} size="sm" onClick={() => setEditing(true)}>
               <Pencil size={14} />
             </IconButton>
-            <IconButton label={m.memory.entry.move} size="sm" onClick={() => setMoving(true)}>
+            <IconButton
+              label={origin === undefined ? m.memory.entry.toGlobal : m.memory.entry.backTo(origin)}
+              size="sm"
+              onClick={() => void moveMemory(entry.id).then((row) => row && onMoved(row))}
+            >
               <ArrowRightLeft size={14} />
             </IconButton>
             <IconButton
@@ -192,16 +197,6 @@ function Entry({
           </div>
         )}
       </div>
-      {moving && (
-        <MoveTo
-          places={places}
-          onCancel={() => setMoving(false)}
-          onMove={async (to) => {
-            const row = await moveMemory(entry.id, to)
-            if (row) onMoved(row)
-          }}
-        />
-      )}
       {editing ? (
         <div className="flex flex-col gap-2">
           <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />
@@ -218,50 +213,5 @@ function Entry({
         <p className="selectable text-ui leading-6 whitespace-pre-wrap text-fg-muted">{entry.text}</p>
       )}
     </li>
-  )
-}
-
-/** Picks the place a memory belongs in. */
-function MoveTo({
-  places,
-  onCancel,
-  onMove,
-}: {
-  places: { place: MemoryPlace; label: string }[]
-  onCancel(): void
-  onMove(to: MemoryPlace): Promise<void>
-}) {
-  const m = useT()
-  const [to, setTo] = useState(places[0] && placeKey(places[0].place))
-  const [busy, setBusy] = useState(false)
-  const target = places.find((p) => placeKey(p.place) === to)
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-small text-fg-muted">{m.memory.moveTo.label}</span>
-      <Select aria-label={m.memory.moveTo.select} className="h-7 w-56 text-small" value={to} onChange={(e) => setTo(e.target.value)}>
-        {places.map((p) => (
-          <option key={placeKey(p.place)} value={placeKey(p.place)}>
-            {p.label}
-          </option>
-        ))}
-      </Select>
-      <div className="flex-1" />
-      <Button size="sm" variant="ghost" onClick={onCancel}>
-        {m.common.cancel}
-      </Button>
-      <Button
-        size="sm"
-        variant="primary"
-        disabled={!target}
-        loading={busy}
-        onClick={() => {
-          if (!target) return
-          setBusy(true)
-          void onMove(target.place).finally(() => setBusy(false))
-        }}
-      >
-        {m.memory.moveTo.move}
-      </Button>
-    </div>
   )
 }

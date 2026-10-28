@@ -5,8 +5,8 @@
 // question, a plan, a scheduled task created by the model, a subagent, an
 // MCP tool call (mock-mcp.mjs, beside a server that cannot start), the
 // memory snapshot and a memory_search call, queued
-// turns, the cron, workspace, memory, MCP and permission methods, and an
-// error response. Server requests are answered as a user would (approve,
+// turns, the cron, workspace, memory, settings, MCP and permission methods,
+// and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
 // with its direction.
 //
@@ -180,7 +180,11 @@ await call('memory/list', { scope: 'general' })
 await call('memory/list', { scope: 'workspace', workspaceId: ws1.id })
 // The workspace scope needs its workspace: refused.
 await call('memory/list', { scope: 'workspace' }).catch(() => {})
-await call('memory/move', { id: 'no-such-memory', scope: 'global' }).catch(() => {})
+await call('memory/move', { id: 'no-such-memory' }).catch(() => {})
+// Each switch arrives as settings/changed; it ends on, as it starts.
+await call('settings/read', {})
+await call('settings/update', { redaction: false })
+await call('settings/update', { redaction: true })
 await call('thread/list', { limit: 100 })
 await call('thread/list', { workspaceId: ws1.id, limit: 100 })
 await call('thread/read', { threadId: thread.id, limit: 500 })

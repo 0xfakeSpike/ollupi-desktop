@@ -34,9 +34,10 @@ export function editMemory(id: string, text: string): Promise<MemoryRow | undefi
   return run((e) => e.memory.save, async () => (await gateway().call('memory/update', { id, text })).memory)
 }
 
-/** Puts a memory in another place, when extraction chose the wrong one. */
-export function moveMemory(id: string, to: MemoryPlace): Promise<MemoryRow | undefined> {
-  return run((e) => e.memory.move, async () => (await gateway().call('memory/move', { id, ...to })).memory)
+/** Takes a local memory to global, or a global one back where it came
+ * from, when extraction chose the wrong scope. */
+export function moveMemory(id: string): Promise<MemoryRow | undefined> {
+  return run((e) => e.memory.move, async () => (await gateway().call('memory/move', { id })).memory)
 }
 
 export function forgetMemory(id: string): Promise<boolean> {

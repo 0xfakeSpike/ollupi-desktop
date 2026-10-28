@@ -24,14 +24,11 @@ export const en = {
     /** Display names of the kinds ollupi gives memories. */
     kinds: { preference: 'preference', decision: 'decision', procedure: 'procedure', fact: 'fact' },
     editedByYou: 'edited by you',
-    move: 'Move to another scope',
+    toGlobal: 'Move to global',
+    backTo: (place: string) => `Move back to ${place}`,
+    from: (place: string) => `from ${place}`,
     forget: 'Forget',
     forgetConfirm: 'Forget this memory?',
-  },
-  moveTo: {
-    label: 'Move to',
-    select: 'Scope to move to',
-    move: 'Move',
   },
   settings: {
     unreadable: 'config.yaml cannot be read:',
@@ -70,14 +67,11 @@ export const zh: typeof en = {
   entry: {
     kinds: { preference: '偏好', decision: '决定', procedure: '流程', fact: '事实' },
     editedByYou: '已由你编辑',
-    move: '移到其他范围',
+    toGlobal: '移到全局',
+    backTo: (place) => `移回${place}`,
+    from: (place) => `来自${place}`,
     forget: '遗忘',
     forgetConfirm: '遗忘这条记忆？',
-  },
-  moveTo: {
-    label: '移到',
-    select: '要移到的范围',
-    move: '移动',
   },
   settings: {
     unreadable: '无法读取 config.yaml：',
