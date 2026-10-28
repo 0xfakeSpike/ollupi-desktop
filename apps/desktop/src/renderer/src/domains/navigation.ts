@@ -1,7 +1,10 @@
 // Client-only UI state: the screen showing, the model chosen for the next
-// message, and whether a conversation shows its context panel. Nothing here reaches the server until an action reads it.
+// message, and the panel a conversation shows beside it. Nothing here reaches the server until an action reads it.
 
 import { create } from 'zustand'
+
+/** What a conversation shows beside it. */
+export type Panel = 'tasks' | 'context'
 
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
@@ -17,13 +20,13 @@ interface NavigationStore {
    * server continues with the thread's last model, or the default. */
   model: string | undefined
   /** Stays open across threads, like a pane. */
-  contextPanel: boolean
+  panel: Panel | undefined
 }
 
 export const useNavigation = create<NavigationStore>()(() => ({
   screen: { kind: 'draft', workspaceId: undefined },
   model: undefined,
-  contextPanel: false,
+  panel: undefined,
 }))
 
 /** A model choice belongs to the conversation it was made in. */
@@ -31,8 +34,9 @@ export function go(screen: Screen): void {
   useNavigation.setState((s) => ({ screen, model: sameThread(s.screen, screen) ? s.model : undefined }))
 }
 
-export function toggleContextPanel(): void {
-  useNavigation.setState((s) => ({ contextPanel: !s.contextPanel }))
+/** Shows the panel, or closes it when it is the one showing. */
+export function togglePanel(panel: Panel): void {
+  useNavigation.setState((s) => ({ panel: s.panel === panel ? undefined : panel }))
 }
 
 export function chooseModel(model: string | undefined): void {

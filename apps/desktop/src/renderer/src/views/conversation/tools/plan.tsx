@@ -2,9 +2,10 @@
 
 import type { ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
-import { Block, cn } from '@ollupi/ui'
-import { Circle, CircleCheck, CircleDot, ListChecks } from 'lucide-react'
+import { Block } from '@ollupi/ui'
+import { ListChecks } from 'lucide-react'
 import { useT } from '../../../i18n'
+import { PlanSteps } from '../PlanSteps'
 import { argumentsApproval, statusFailure } from './CallRow'
 import type { ToolView } from './types'
 
@@ -15,13 +16,6 @@ export const plan: ToolView<Plan> = {
   failure: (m, _call, item) => statusFailure(m, item),
   Call: PlanCall,
   approval: argumentsApproval,
-}
-
-// Steps differ by shape and weight, not colour.
-const steps = {
-  pending: { icon: <Circle size={14} className="text-fg-subtle" />, text: 'text-fg' },
-  in_progress: { icon: <CircleDot size={14} className="text-fg" />, text: 'text-fg' },
-  completed: { icon: <CircleCheck size={14} className="text-fg-subtle" />, text: 'text-fg-subtle' },
 }
 
 function PlanCall({ call }: { item: ItemRow; call: Plan }) {
@@ -39,15 +33,8 @@ function PlanCall({ call }: { item: ItemRow; call: Plan }) {
         </span>
       }
     >
-      {call.plan.explanation && <p className="selectable text-ui text-fg-muted">{call.plan.explanation}</p>}
-      <ol className="flex flex-col gap-1">
-        {list.map((s, i) => (
-          <li key={i} className="flex items-start gap-2 text-ui">
-            <span className="mt-0.75 flex shrink-0">{steps[s.status].icon}</span>
-            <span className={cn('selectable', steps[s.status].text)}>{s.step}</span>
-          </li>
-        ))}
-      </ol>
+      <PlanSteps plan={call.plan} />
     </Block>
   )
 }
+

@@ -1,9 +1,9 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, Folder, Gauge, Shield } from 'lucide-react'
+import { ArrowDown, ArrowLeft, Folder, Gauge, ListChecks, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
-import { toggleContextPanel, useNavigation } from '../../domains/navigation'
+import { togglePanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useT } from '../../i18n'
@@ -13,6 +13,7 @@ import { ThreadPermissionsDialog } from '../settings/ThreadPermissionsDialog'
 import { Composer } from './Composer'
 import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
+import { TasksPanel } from './TasksPanel'
 import { TimelineView } from './TimelineView'
 
 type Dialog = 'permissions' | undefined
@@ -26,7 +27,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const parent = thread?.parentThreadId
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
   const [dialog, setDialog] = useState<Dialog>()
-  const contextOpen = useNavigation((s) => s.contextPanel)
+  const panel = useNavigation((s) => s.panel)
   const m = useT()
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
 
@@ -55,7 +56,10 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             </IconButton>
           </>
         )}
-        <IconButton label={m.conversation.screen.context} active={contextOpen} onClick={toggleContextPanel}>
+        <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
+          <ListChecks size={16} />
+        </IconButton>
+        <IconButton label={m.conversation.screen.context} active={panel === 'context'} onClick={() => togglePanel('context')}>
           <Gauge size={16} />
         </IconButton>
       </header>
@@ -105,7 +109,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             />
           )}
         </div>
-        {contextOpen && <ContextPanel timeline={timeline} />}
+        {panel === 'tasks' && <TasksPanel timeline={timeline} />}
+        {panel === 'context' && <ContextPanel timeline={timeline} />}
       </div>
 
       {thread && dialog === 'permissions' && <ThreadPermissionsDialog thread={thread} onClose={() => setDialog(undefined)} />}

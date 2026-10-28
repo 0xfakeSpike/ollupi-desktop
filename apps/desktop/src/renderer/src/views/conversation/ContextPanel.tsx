@@ -16,11 +16,11 @@ import {
   type PromptMemory,
   type Timeline,
 } from '@ollupi/core'
-import { cn, IconButton } from '@ollupi/ui'
-import { ChevronRight, X } from 'lucide-react'
+import { cn } from '@ollupi/ui'
+import { ChevronRight } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { toggleContextPanel } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
+import { SidePanel } from './SidePanel'
 
 // Labels are the catalog's context.parts, by key, in the order ollupi builds
 // the prompt: the system prompt, the tool definitions sent with it, then the
@@ -46,28 +46,20 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
   const connection = (c: ModelCall) => timeline?.turns.find((t) => t.id === c.turnId)?.model.connection ?? c.stats.model ?? ''
 
   return (
-    <aside className="my-2 mr-2 flex w-80 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-canvas">
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-line pr-2 pl-4">
-        <h2 className="text-ui font-semibold">{t.title}</h2>
-        <IconButton label={t.close} size="sm" onClick={toggleContextPanel}>
-          <X size={14} />
-        </IconButton>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {!latest ? (
-          <p className="text-small text-fg-subtle">{t.empty}</p>
-        ) : (
-          <div className="flex flex-col gap-6">
-            <Overview
-              use={contextUse(latest.stats)}
-              details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
-            />
-            {latest.usage && <LastCall call={latest} />}
-            <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
-          </div>
-        )}
-      </div>
-    </aside>
+    <SidePanel panel="context" title={t.title} closeLabel={t.close}>
+      {!latest ? (
+        <p className="text-small text-fg-subtle">{t.empty}</p>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <Overview
+            use={contextUse(latest.stats)}
+            details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
+          />
+          {latest.usage && <LastCall call={latest} />}
+          <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
+        </div>
+      )}
+    </SidePanel>
   )
 }
 

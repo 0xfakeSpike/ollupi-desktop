@@ -10,6 +10,7 @@ import {
   callOf,
   commandFailed,
   commandLine,
+  currentPlan,
   groupByTurn,
   groupByWorkspace,
   promptMemory,
@@ -194,6 +195,26 @@ describe('calls', () => {
   it('reads tools the contract does not type as generic calls', () => {
     const search = call({ tool: 'memory_search', server: 'memory', arguments: JSON.stringify({ query: 'tabs' }) })
     expect(callOf(search)).toEqual({ kind: 'tool', name: 'memory_search', server: 'memory' })
+  })
+})
+
+describe('currentPlan', () => {
+  const plan = (id: string, seq: number, step: string, status: ItemRow['status'] = 'completed') =>
+    item(id, seq, { type: 'toolCall', tool: 'update_plan', status, arguments: JSON.stringify({ plan: [{ step, status: 'in_progress' }] }) })
+
+  it('is the last update_plan call that went through, from any turn', () => {
+    const t = timelineFromPage(
+      page(
+        [plan('p1', 1, 'first'), { ...plan('p2', 2, 'second'), turnId: 'u2' }, plan('p3', 3, 'declined', 'declined'), plan('p4', 4, 'refused', 'failed'), item('m', 5)],
+        [turn('u1', 1), turn('u2', 2)],
+      ),
+    )
+    expect(currentPlan(t)?.item.id).toBe('p2')
+    expect(currentPlan(t)?.plan.plan[0].step).toBe('second')
+  })
+
+  it('is none before any plan', () => {
+    expect(currentPlan(timelineFromPage(page([item('m', 1)], [turn('u1', 1)])))).toBeUndefined()
   })
 })
 
