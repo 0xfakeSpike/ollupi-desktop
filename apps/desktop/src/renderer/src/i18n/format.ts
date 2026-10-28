@@ -1,6 +1,6 @@
 // Core's language-neutral values worded in the current language.
 
-import { elapsed, formatTokens, span, toolLabel } from '@ollupi/core'
+import { elapsed, formatTokens, span, toolLabel, type Schedule } from '@ollupi/core'
 import type { ItemRow, ThreadRow, Usage } from '@ollupi/protocol'
 import type { Messages } from '.'
 import type { Locale } from './locale'
@@ -57,4 +57,30 @@ export function toolTitle(m: Messages, item: ItemRow): string {
  * that turn starts; before then the thread has no title of its own. */
 export function threadTitle(m: Messages, thread: Pick<ThreadRow, 'preview'>): string {
   return thread.preview || m.common.newThread
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** A time of day as the schedule controls show it, 24-hour. */
+export const clock = (hour: number, minute: number): string => `${pad(hour)}:${pad(minute)}`
+
+/** A cron weekday (0 is Sunday) named in the locale. 2023-01-01 was a Sunday. */
+export function weekdayName(locale: Locale, day: number, style: 'long' | 'short' = 'long'): string {
+  return new Date(2023, 0, 1 + day).toLocaleDateString(locale, { weekday: style })
+}
+
+export function describeSchedule(m: Messages, locale: Locale, s: Schedule): string {
+  const d = m.cron.describe
+  switch (s.every) {
+    case 'hour':
+      return d.hour(pad(s.minute))
+    case 'day':
+      return d.day(clock(s.hour, s.minute))
+    case 'weekday':
+      return d.weekday(clock(s.hour, s.minute))
+    case 'week':
+      return d.week(weekdayName(locale, s.day, m.cron.describeWeekday), clock(s.hour, s.minute))
+    case 'month':
+      return d.month(s.date, clock(s.hour, s.minute))
+  }
 }

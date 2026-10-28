@@ -27,6 +27,9 @@ import {
   toolLabel,
   elapsed,
   span,
+  cronSpec,
+  scheduleOf,
+  type Schedule,
 } from './index'
 
 const thread = (extra: Partial<ThreadRow> = {}): ThreadRow => ({
@@ -270,5 +273,26 @@ describe('elapsed and span', () => {
     expect(span(start, end(42_000))).toEqual({ s: 42, digits: 0 })
     expect(span(start, end(74_000))).toEqual({ m: 1, s: 14 })
     expect(span(start, end(-1))).toBeUndefined()
+  })
+})
+
+describe('schedules', () => {
+  it('writes each schedule as a five-field spec and reads it back', () => {
+    const all: Schedule[] = [
+      { every: 'hour', minute: 15 },
+      { every: 'day', hour: 9, minute: 29 },
+      { every: 'weekday', hour: 18, minute: 0 },
+      { every: 'week', day: 0, hour: 8, minute: 5 },
+      { every: 'month', date: 31, hour: 23, minute: 59 },
+    ]
+    expect(all.map(cronSpec)).toEqual(['15 * * * *', '29 9 * * *', '0 18 * * 1-5', '5 8 * * 0', '59 23 31 * *'])
+    for (const s of all) expect(scheduleOf(cronSpec(s))).toEqual(s)
+  })
+  it('reads descriptors, and leaves specs it cannot describe', () => {
+    expect(scheduleOf('@daily')).toEqual({ every: 'day', hour: 0, minute: 0 })
+    expect(scheduleOf('@weekly')).toEqual({ every: 'week', day: 0, hour: 0, minute: 0 })
+    for (const spec of ['*/5 * * * *', '0 9 * * 1,3', '0 9 1 6 *', '0 9 1 * 1', '0 9 * * 7', '60 9 * * *', '@yearly', '0 9 * *']) {
+      expect(scheduleOf(spec)).toBeUndefined()
+    }
   })
 })
