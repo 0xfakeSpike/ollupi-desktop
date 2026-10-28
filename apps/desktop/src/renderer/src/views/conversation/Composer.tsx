@@ -1,8 +1,8 @@
 // The message box. It knows nothing about threads: the screen decides what
 // submitting means and whether a turn is running.
 
-import { AutoTextarea, IconButton, Kbd } from '@ollupi/ui'
-import { ArrowUp, Square } from 'lucide-react'
+import { AutoTextarea, cn, IconButton, Kbd } from '@ollupi/ui'
+import { ArrowUp, ListEnd, Square } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { SendMode } from '../../domains/conversation'
 import { useT } from '../../i18n'
@@ -17,6 +17,10 @@ export interface ComposerProps {
   /** Controls on the toolbar's left (model, workspace...). */
   toolbar?: ReactNode
 }
+
+/** The two ways to send while a turn runs: into it, or after it. */
+const pill =
+  'flex h-8 items-center gap-1.5 rounded-full px-3 text-small font-medium transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25'
 
 export function Composer({ placeholder, running, disabled, onSubmit, onStop, toolbar }: ComposerProps) {
   const [text, setText] = useState('')
@@ -36,6 +40,8 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
       input.current?.focus()
     }
   }
+
+  const blocked = !text.trim() || sending || disabled
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // An IME composition (e.g. pinyin) uses Enter to pick a candidate.
@@ -64,22 +70,35 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
               <Square size={12} fill="currentColor" />
             </IconButton>
           )}
-          <button
-            type="button"
-            aria-label={m.conversation.composer.send}
-            title={running ? m.conversation.composer.addToTurn : m.conversation.composer.send}
-            disabled={!text.trim() || sending || disabled}
-            onClick={() => void submit('steer')}
-            className="flex size-8 items-center justify-center rounded-full bg-ink text-ink-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
-          >
-            <ArrowUp size={16} strokeWidth={2.5} />
-          </button>
+          {running ? (
+            <>
+              <button type="button" title="⌥ Enter" disabled={blocked} onClick={() => void submit('queue')} className={cn(pill, 'border border-line-strong text-fg hover:bg-hover')}>
+                <ListEnd size={14} />
+                {m.conversation.composer.queue}
+              </button>
+              <button type="button" title="Enter" disabled={blocked} onClick={() => void submit('steer')} className={cn(pill, 'bg-ink text-ink-fg hover:opacity-85')}>
+                <ArrowUp size={14} strokeWidth={2.5} />
+                {m.conversation.composer.interject}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              aria-label={m.conversation.composer.send}
+              title={m.conversation.composer.send}
+              disabled={blocked}
+              onClick={() => void submit('steer')}
+              className="flex size-8 items-center justify-center rounded-full bg-ink text-ink-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
+            >
+              <ArrowUp size={16} strokeWidth={2.5} />
+            </button>
+          )}
         </div>
       </div>
       <div className="mt-2 flex justify-center gap-3 text-small text-fg-subtle">
         {running ? (
           <>
-            <span>{m.conversation.composer.addsToTurn(<Kbd>Enter</Kbd>)}</span>
+            <span>{m.conversation.composer.interjects(<Kbd>Enter</Kbd>)}</span>
             <span>{m.conversation.composer.queues(<Kbd>⌥ Enter</Kbd>)}</span>
           </>
         ) : (

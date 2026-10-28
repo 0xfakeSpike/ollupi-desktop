@@ -16,7 +16,7 @@ export const en = {
     context: 'Context',
     scrollToLatest: 'Scroll to the latest',
     subagentNote: 'A subagent works on the task its parent thread gave it; talk to it through the parent thread.',
-    addToTurn: 'Add to the running turn…',
+    addToTurn: 'Add a note to the work in progress, or queue what comes next…',
     reply: 'Reply…',
   },
   timeline: {
@@ -32,9 +32,10 @@ export const en = {
   composer: {
     stop: 'Stop the running turn',
     send: 'Send',
-    addToTurn: 'Add to the running turn',
-    addsToTurn: (enter: ReactNode) => join(enter, ' adds to the running turn'),
-    queues: (altEnter: ReactNode) => join(altEnter, ' queues a new turn'),
+    interject: 'Interject',
+    queue: 'Queue',
+    interjects: (enter: ReactNode) => join(enter, ' Interject: the agent sees it right away and adjusts'),
+    queues: (altEnter: ReactNode) => join(altEnter, ' Queue: sent once the current work is done'),
     idle: (enter: ReactNode, shiftEnter: ReactNode) => join(enter, ' to send · ', shiftEnter, ' for a new line'),
   },
   modelPicker: {
@@ -122,7 +123,7 @@ export const zh: typeof en = {
     context: '上下文',
     scrollToLatest: '滚动到最新',
     subagentNote: '子代理执行父会话交给它的任务；请通过父会话与它沟通。',
-    addToTurn: '追加到当前轮…',
+    addToTurn: '补充说明，或排队下一件事…',
     reply: '回复…',
   },
   timeline: {
@@ -138,9 +139,10 @@ export const zh: typeof en = {
   composer: {
     stop: '停止当前轮',
     send: '发送',
-    addToTurn: '追加到当前轮',
-    addsToTurn: (enter) => join(enter, ' 追加到当前轮'),
-    queues: (altEnter) => join(altEnter, ' 排队新的一轮'),
+    interject: '插话',
+    queue: '排队',
+    interjects: (enter) => join(enter, ' 插话：代理马上看到，并据此调整'),
+    queues: (altEnter) => join(altEnter, ' 排队：等手头的事做完再发送'),
     idle: (enter, shiftEnter) => join(enter, ' 发送 · ', shiftEnter, ' 换行'),
   },
   modelPicker: {
