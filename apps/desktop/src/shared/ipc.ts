@@ -3,6 +3,7 @@
 // change is checked on both ends.
 
 import type { ConfigCheck as CheckOutput } from './generated/backend-config'
+import type { SkillsCheck } from './generated/backend-skills'
 
 /** config.yaml as the backend decodes it. */
 export type BackendConfig = NonNullable<CheckOutput['config']>
@@ -53,6 +54,21 @@ export interface ListedModel {
  * why it could not be asked. */
 export type ModelList = { ok: true; models: ListedModel[] } | { ok: false; error: string }
 
+/** One skill as the agent loads it from its SKILL.md. */
+export type Skill = NonNullable<SkillsCheck['skills']>[number]
+/** The skills folder and its skills as the agent would load them, or why
+ * the agent would not start with the folder. dir is empty while config.yaml
+ * sets no skills_dir, which turns skills off. */
+export type SkillList = { ok: true; dir: string; skills: Skill[] } | { ok: false; dir: string; error: string }
+/** A change to the skills folder, or why the agent's rules refused it. */
+export type SkillChange = { ok: true } | { ok: false; error: string }
+/** What a new skill's SKILL.md is written from. */
+export interface NewSkill {
+  name: string
+  description: string
+  instructions: string
+}
+
 /** Light or dark, or whichever the system uses. */
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
@@ -69,6 +85,23 @@ export interface DesktopApi {
     /** Validates the changed file with the backend; when it passes, writes it
      * and restarts the backend, since ollupi reads its config only at start. */
     apply(changes: ConfigChange[]): Promise<ConfigCheck>
+  }
+  /** The folder config.yaml's skills_dir names. A change is checked with
+   * the agent's own catalog before it reaches the folder; one that passes
+   * restarts the backend, which loads skills only at start. */
+  skills: {
+    list(): Promise<SkillList>
+    read(name: string): Promise<string>
+    create(skill: NewSkill): Promise<SkillChange>
+    save(name: string, text: string): Promise<SkillChange>
+    /** Asks for a skill folder and copies it in; undefined when none was
+     * chosen. */
+    import(): Promise<SkillChange | undefined>
+    /** Moves the skill's folder to the Trash. */
+    remove(name: string): Promise<void>
+    /** Creates the skills folder in the backend's home and gives the
+     * skills_dir value that names it. */
+    defaultFolder(): Promise<string>
   }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
@@ -88,6 +121,13 @@ export const IpcChannel = {
   BackendChanged: 'backend:changed',
   ConfigRead: 'config:read',
   ConfigApply: 'config:apply',
+  SkillsList: 'skills:list',
+  SkillsRead: 'skills:read',
+  SkillsCreate: 'skills:create',
+  SkillsSave: 'skills:save',
+  SkillsImport: 'skills:import',
+  SkillsRemove: 'skills:remove',
+  SkillsDefaultFolder: 'skills:defaultFolder',
   ListModels: 'models:list',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',

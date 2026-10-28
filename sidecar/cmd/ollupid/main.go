@@ -3,10 +3,14 @@
 // with the gateway token in OLLUPI_GATEWAY_TOKEN and reads one handshake line
 // from stdout. SIGTERM, or stdin closing when the parent dies, shuts it down.
 //
-// Two other modes serve the app's config editing:
+// Other modes serve the app's config and skill editing; each prints one JSON
+// line:
 //
-//	ollupid --check-config FILE   whether FILE would start; prints one JSON line
+//	ollupid --check-config FILE   whether FILE would start
 //	ollupid --config-schema       the JSON Schema of --check-config's output
+//	ollupid --list-skills         the skills in config.yaml's skills_dir
+//	ollupid --check-skills DIR    the skills in DIR, as the agent would load them
+//	ollupid --skills-schema       the JSON Schema of the skills modes' output
 package main
 
 import (
@@ -28,6 +32,7 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
+	"github.com/0xfakeSpike/ollupi/agent/skills"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -39,13 +44,22 @@ func main() {
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
 	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of --check-config's output and exit")
+	listSkills := flag.Bool("list-skills", false, "list the skills in this home's skills_dir and exit")
+	checkSkills := flag.String("check-skills", "", "list the skills in a directory and exit")
+	skillsSchema := flag.Bool("skills-schema", false, "print the JSON Schema of the skills modes' output and exit")
 	flag.Parse()
 
 	switch {
 	case *configSchema:
-		os.Exit(printSchema())
+		os.Exit(printSchema[checkResult]())
 	case *checkConfig != "":
 		os.Exit(check(*checkConfig, *home))
+	case *skillsSchema:
+		os.Exit(printSchema[skillsResult]())
+	case *listSkills:
+		os.Exit(printSkills(configuredSkills(*home)))
+	case *checkSkills != "":
+		os.Exit(printSkills(skillsIn(*checkSkills)))
 	}
 
 	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
@@ -127,8 +141,48 @@ func check(path, home string) int {
 	return 0
 }
 
-func printSchema() int {
-	s, err := jsonschema.For[checkResult](nil)
+// skillsResult is the skills modes' output: the folder and the skills the
+// agent loads from it, or why the agent would refuse to start with it. Dir
+// is empty when config.yaml sets no skills_dir, which turns skills off.
+type skillsResult struct {
+	OK     bool           `json:"ok"`
+	Dir    string         `json:"dir"`
+	Skills []skills.Skill `json:"skills,omitempty"`
+	Error  string         `json:"error,omitempty"`
+}
+
+func configuredSkills(home string) skillsResult {
+	cfg, err := config.LoadFile(filepath.Join(home, config.FileName), home)
+	if err != nil {
+		return skillsResult{Error: err.Error()}
+	}
+	if cfg.SkillsDir == "" {
+		return skillsResult{OK: true}
+	}
+	return skillsIn(cfg.SkillsDir)
+}
+
+// skillsIn reads dir with the catalog the agent builds at start, so a
+// folder it lists is one the agent starts with.
+func skillsIn(dir string) skillsResult {
+	catalog, err := skills.New(dir)
+	if err != nil {
+		return skillsResult{Dir: dir, Error: err.Error()}
+	}
+	return skillsResult{OK: true, Dir: dir, Skills: catalog.All()}
+}
+
+func printSkills(out skillsResult) int {
+	line, _ := json.Marshal(out)
+	fmt.Println(string(line))
+	if !out.OK {
+		return 1
+	}
+	return 0
+}
+
+func printSchema[T any]() int {
+	s, err := jsonschema.For[T](nil)
 	if err != nil {
 		log.Printf("ollupid: %v", err)
 		return 1

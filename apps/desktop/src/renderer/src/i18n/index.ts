@@ -13,6 +13,7 @@ import * as memory from './messages/memory'
 import * as requests from './messages/requests'
 import * as settings from './messages/settings'
 import * as shell from './messages/shell'
+import * as skills from './messages/skills'
 
 const en = {
   common: common.en,
@@ -20,6 +21,7 @@ const en = {
   conversation: conversation.en,
   requests: requests.en,
   memory: memory.en,
+  skills: skills.en,
   cron: cron.en,
   settings: settings.en,
   errors: errors.en,
@@ -35,6 +37,7 @@ const catalogs: Record<Locale, Messages> = {
     conversation: conversation.zh,
     requests: requests.zh,
     memory: memory.zh,
+    skills: skills.zh,
     cron: cron.zh,
     settings: settings.zh,
     errors: errors.zh,

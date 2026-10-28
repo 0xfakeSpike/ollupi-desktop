@@ -6,6 +6,7 @@ export const en = {
   notConnected: 'Not connected to the backend',
   contractMismatch: (where: string, problem: string) => `Contract mismatch: ${where} ${problem}`,
   configUnchanged: (why: string) => `config.yaml was not changed: ${why}`,
+  skillsUnchanged: (why: string) => `The skills folder was not changed: ${why}`,
 
   workspace: {
     add: 'Could not add the workspace',
@@ -42,10 +43,20 @@ export const en = {
     save: 'Could not save config.yaml',
     mcpStatus: 'Could not read the MCP servers',
   },
+  skills: {
+    load: 'Could not read the skills',
+    read: 'Could not read SKILL.md',
+    save: 'Could not save the skill',
+    remove: 'Could not remove the skill',
+  },
 
   mcpName: {
     format: "1 to 32 letters, digits, '-' or '_', starting with a letter or digit, without '__'.",
     taken: 'Another server has this name.',
+  },
+  skillName: {
+    format: '1 to 64 lowercase letters, digits and single hyphens, not starting or ending with one.',
+    taken: 'Another skill has this name.',
   },
   modelRemoval: {
     lastModel: 'The backend needs at least one model.',
@@ -59,6 +70,7 @@ export const zh: typeof en = {
   notConnected: '未连接到后端',
   contractMismatch: (where, problem) => `协议不一致：${where} ${problem}`,
   configUnchanged: (why) => `config.yaml 未修改：${why}`,
+  skillsUnchanged: (why) => `技能文件夹未修改：${why}`,
 
   workspace: {
     add: '无法添加工作区',
@@ -95,10 +107,20 @@ export const zh: typeof en = {
     save: '无法保存 config.yaml',
     mcpStatus: '无法读取 MCP 服务器',
   },
+  skills: {
+    load: '无法读取技能',
+    read: '无法读取 SKILL.md',
+    save: '无法保存技能',
+    remove: '无法删除技能',
+  },
 
   mcpName: {
     format: '1 到 32 个字母、数字、“-”或“_”，以字母或数字开头，不能包含“__”。',
     taken: '已有服务器使用这个名称。',
+  },
+  skillName: {
+    format: '1 到 64 个小写字母、数字或单个连字符，不能以连字符开头或结尾。',
+    taken: '已有技能使用这个名称。',
   },
   modelRemoval: {
     lastModel: '后端至少需要一个模型。',

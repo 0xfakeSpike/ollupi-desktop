@@ -6,26 +6,35 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'el
 import { isAbsolute, join } from 'node:path'
 import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type ColorScheme, type ConfigChange } from '../shared/ipc'
 import type { BackendConfig } from './backend/config'
+import type { BackendSkills } from './backend/skills'
 import type { BackendSupervisor } from './backend/supervisor'
 import { listModels } from './models'
 
-export function registerIpc(backend: BackendSupervisor, config: BackendConfig, home: string): void {
+export function registerIpc(backend: BackendSupervisor, config: BackendConfig, skills: BackendSkills, home: string): void {
   const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
   ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
   ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
+  ipcMain.handle(IpcChannel.SkillsList, () => skills.list())
+  ipcMain.handle(IpcChannel.SkillsRead, (_event, name: unknown) => skills.read(text(name)))
+  ipcMain.handle(IpcChannel.SkillsCreate, (_event, skill: unknown) => {
+    const s = skill as Record<string, unknown> | null
+    return skills.create({ name: text(s?.name), description: text(s?.description), instructions: text(s?.instructions) })
+  })
+  ipcMain.handle(IpcChannel.SkillsSave, (_event, name: unknown, content: unknown) => skills.save(text(name), text(content)))
+  ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
+    const source = await pickDirectory(event.sender, false)
+    return source === undefined ? undefined : skills.import(source)
+  })
+  ipcMain.handle(IpcChannel.SkillsRemove, (_event, name: unknown) => skills.remove(text(name)))
+  ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   ipcMain.handle(IpcChannel.ListModels, (_event, baseUrl: unknown, apiKey: unknown) => {
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, baseUrl, apiKey)
   })
-  ipcMain.handle(IpcChannel.PickDirectory, async (event) => {
-    const opts: Electron.OpenDialogOptions = { properties: ['openDirectory', 'createDirectory'] }
-    const win = BrowserWindow.fromWebContents(event.sender)
-    const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
-    return res.canceled ? undefined : res.filePaths[0]
-  })
+  ipcMain.handle(IpcChannel.PickDirectory, (event) => pickDirectory(event.sender, true))
   ipcMain.handle(IpcChannel.OpenPath, async (_event, path: unknown) => {
     if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('expected an absolute path')
     const err = await shell.openPath(path)
@@ -39,6 +48,19 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, h
   backend.on('state', (state: BackendState) => {
     for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IpcChannel.BackendChanged, state)
   })
+}
+
+/** A folder the user chooses; create lets them make a new one. */
+async function pickDirectory(sender: Electron.WebContents, create: boolean): Promise<string | undefined> {
+  const opts: Electron.OpenDialogOptions = { properties: create ? ['openDirectory', 'createDirectory'] : ['openDirectory'] }
+  const win = BrowserWindow.fromWebContents(sender)
+  const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+  return res.canceled ? undefined : res.filePaths[0]
+}
+
+function text(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('expected a string')
+  return value
 }
 
 /** Changes come from the renderer: only key paths of strings and numbers,
