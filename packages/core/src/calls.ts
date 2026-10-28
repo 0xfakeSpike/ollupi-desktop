@@ -1,10 +1,12 @@
-// Reading tool-call items: what a call waits on, and what the built-in
-// tools' arguments and outputs say. The shapes are the contract's
-// (builtinTools); a value is read as one only after it validates against
-// the contract, since arguments are the model's own JSON text.
+// Reading tool calls: what a call waits on, and which kind of call it is
+// (ToolCall), with what the built-in tools' arguments and outputs say. The
+// shapes are the contract's (builtinTools); a value is read as one only
+// after it validates against the contract, since arguments are the model's
+// own JSON text. Each kind has one view in the desktop.
 
 import {
   isToolPart,
+  type ApprovalRequestParams,
   type BuiltinToolName,
   type CommandOutput,
   type ItemRow,
@@ -14,12 +16,6 @@ import {
   type SubagentCall,
   type UserInputQuestion,
 } from '@ollupi/protocol'
-
-/** Whether the call is to the named built-in tool. The name must be one the
- * contract lists, which the compiler checks. */
-export function isBuiltin(item: ItemRow, name: BuiltinToolName): boolean {
-  return item.type === 'toolCall' && item.tool === name
-}
 
 /** repo.ItemRow.WaitsForApproval: approval happens before a call runs, so
  * only a pending call can wait on it. */
@@ -53,28 +49,112 @@ export function parseArguments(item: Pick<ItemRow, 'arguments'>): unknown {
   }
 }
 
-/** The command a run_command call runs: ollupi freezes it before approval
- * and execution (preparedExecution), and exactly that runs. Before then the
- * call has only the model's arguments, which the contract does not type. */
-export function frozenCommand(item: ItemRow): (Prepared & { program: string }) | undefined {
-  const p = item.preparedExecution
-  return isBuiltin(item, 'run_command') && p?.program ? { ...p, program: p.program } : undefined
+/** What a call says about itself, wherever it is read from: a timeline
+ * item, or the approval request the gateway sends before the item has run. */
+interface CallFacts {
+  tool: string | undefined
+  /** The provider (cron, skills, memory) or MCP server the tool belongs to. */
+  server: string | undefined
+  /** The model's arguments, parsed; undefined when they are not JSON. */
+  arguments: unknown
+  prepared: Prepared | null | undefined
+  output: unknown
+  /** The thread a call that waits on another agent waits on. */
+  threadId: string | undefined
+  /** The MCP server's own title for the tool. */
+  title: string | undefined
 }
+
+/** A call as the kind of thing it does, with what the contract types of
+ * it. A built-in tool whose arguments do not match the contract is read as
+ * any other tool: they are the model's own JSON text. */
+export type ToolCall =
+  | { kind: 'command'; command: FrozenCommand; output: CommandOutput | undefined }
+  | { kind: 'plan'; plan: Plan }
+  | { kind: 'question'; questions: QuestionAndAnswer[] }
+  | { kind: 'memorySearch'; search: MemorySearch }
+  | { kind: 'subagent'; task: SubagentTask }
+  | { kind: 'tool'; name: string | undefined; server: string | undefined }
+
+export type ToolKind = ToolCall['kind']
+
+/** A timeline item's call. */
+export function callOf(item: ItemRow): ToolCall {
+  return classify({
+    tool: item.tool,
+    server: item.server,
+    arguments: parseArguments(item),
+    prepared: item.preparedExecution,
+    output: item.result?.output,
+    threadId: item.await?.threadId,
+    title: item.annotations?.title,
+  })
+}
+
+/** The call an approval request asks about. It has not run, so has no
+ * output yet. */
+export function approvalCallOf(p: ApprovalRequestParams): ToolCall {
+  return classify({
+    tool: p.tool,
+    server: p.server,
+    arguments: p.arguments,
+    prepared: p.preparedExecution,
+    output: undefined,
+    threadId: undefined,
+    title: undefined,
+  })
+}
+
+function classify(c: CallFacts): ToolCall {
+  const builtin = c.tool as BuiltinToolName | undefined
+  switch (builtin) {
+    case 'run_command': {
+      // ollupi freezes the command before approval and execution, and
+      // exactly that runs. Before then the call has only the model's
+      // arguments, which the contract does not type.
+      const p = c.prepared
+      if (!p?.program) break
+      return { kind: 'command', command: { ...p, program: p.program }, output: isToolPart('run_command', 'output', c.output) ? c.output : undefined }
+    }
+    case 'update_plan':
+      if (isToolPart('update_plan', 'arguments', c.arguments)) return { kind: 'plan', plan: c.arguments }
+      break
+    case 'request_user_input': {
+      if (!isToolPart('request_user_input', 'arguments', c.arguments)) break
+      // Once answered, ollupi stores the answers as the result
+      // (agent.answerUserInput); the contract allows a null answer.
+      const answers = isToolPart('request_user_input', 'output', c.output) ? c.output : undefined
+      return { kind: 'question', questions: (c.arguments.questions ?? []).map((q) => ({ ...q, answers: answers?.[q.id]?.answers })) }
+    }
+    case 'memory_search': {
+      // The contract does not type its arguments.
+      const a = c.arguments as { query?: unknown } | undefined
+      return {
+        kind: 'memorySearch',
+        search: {
+          query: typeof a?.query === 'string' ? a.query : undefined,
+          memories: isToolPart('memory_search', 'output', c.output) ? c.output.memories : undefined,
+        },
+      }
+    }
+    case 'Agent':
+      if (isToolPart('Agent', 'arguments', c.arguments)) return { kind: 'subagent', task: { ...c.arguments, threadId: c.threadId } }
+      break
+  }
+  return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
+}
+
+/** The frozen execution of a command that has a program to run. */
+export type FrozenCommand = Prepared & { program: string }
 
 export function commandLine(p: Pick<Prepared, 'program' | 'args'>): string {
   return [p.program ?? '', ...(p.args ?? [])].map(shellQuote).join(' ')
 }
 
-/** run_command's output, once it validates as CommandOutput. */
-export function commandOutput(item: ItemRow): CommandOutput | undefined {
-  const out = item.result?.output
-  return isBuiltin(item, 'run_command') && isToolPart('run_command', 'output', out) ? out : undefined
-}
-
-/** update_plan's arguments. */
-export function planOf(item: ItemRow): Plan | undefined {
-  const a = parseArguments(item)
-  return isBuiltin(item, 'update_plan') && isToolPart('update_plan', 'arguments', a) ? a : undefined
+/** A command that exits non-zero or is killed failed, though the call
+ * itself completed. */
+export function commandFailed(output: CommandOutput): boolean {
+  return output.exit_code !== 0 || !!output.signal
 }
 
 export interface MemorySearch {
@@ -84,64 +164,14 @@ export interface MemorySearch {
   memories: MemoryReference[] | undefined
 }
 
-/** memory_search: the model's query (the contract does not type its
- * arguments) and its result. */
-export function memorySearchOf(item: ItemRow): MemorySearch | undefined {
-  if (!isBuiltin(item, 'memory_search')) return undefined
-  const a = parseArguments(item) as { query?: unknown } | undefined
-  const out = item.result?.output
-  return {
-    query: typeof a?.query === 'string' ? a.query : undefined,
-    memories: isToolPart('memory_search', 'output', out) ? out.memories : undefined,
-  }
-}
-
 export interface SubagentTask extends SubagentCall {
   /** The thread the subagent runs in, once ollupi started it. */
   threadId: string | undefined
 }
 
-/** Agent's arguments and the thread it runs in. */
-export function subagentOf(item: ItemRow): SubagentTask | undefined {
-  const a = parseArguments(item)
-  if (!isBuiltin(item, 'Agent') || !isToolPart('Agent', 'arguments', a)) return undefined
-  return { ...a, threadId: item.await?.threadId }
-}
-
 export interface QuestionAndAnswer extends UserInputQuestion {
   /** The stored answer, once given; the contract allows null. */
   answers: string[] | null | undefined
-}
-
-/** request_user_input: its questions (the call's arguments) and, once
- * answered, the answers ollupi stored as the result (agent.answerUserInput). */
-export function questionsOf(item: ItemRow): QuestionAndAnswer[] | undefined {
-  const a = parseArguments(item)
-  if (!isBuiltin(item, 'request_user_input') || !isToolPart('request_user_input', 'arguments', a)) return undefined
-  const out = item.result?.output
-  const answers = isToolPart('request_user_input', 'output', out) ? out : undefined
-  return (a.questions ?? []).map((q) => ({ ...q, answers: answers?.[q.id]?.answers }))
-}
-
-/** What a one-line label for a tool call says, before it is worded. */
-export type ToolLabel =
-  | { kind: 'command'; line: string }
-  | { kind: 'plan' }
-  | { kind: 'question' }
-  | { kind: 'memorySearch'; query: string | undefined }
-  | { kind: 'subagent'; description: string }
-  | { kind: 'tool'; name: string | undefined }
-
-export function toolLabel(item: ItemRow): ToolLabel {
-  const cmd = frozenCommand(item)
-  if (cmd) return { kind: 'command', line: commandLine(cmd) }
-  if (isBuiltin(item, 'update_plan')) return { kind: 'plan' }
-  if (isBuiltin(item, 'request_user_input')) return { kind: 'question' }
-  const search = memorySearchOf(item)
-  if (search) return { kind: 'memorySearch', query: search.query }
-  const task = subagentOf(item)
-  if (task) return { kind: 'subagent', description: task.description }
-  return { kind: 'tool', name: item.annotations?.title || item.tool || undefined }
 }
 
 export function formatValue(value: unknown): string {

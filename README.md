@@ -35,7 +35,7 @@
 | --- | --- |
 | `packages/protocol` | 网关契约。`src/generated/` 全部由 `scripts/generate.mjs` 从 ollupi 的 `protocol.schema.json` 生成：类型（json-schema-to-typescript）、方法/通知/请求的参数与结果、错误码、内置工具和提供方、契约指纹，以及内置工具参数和输出的校验器（ajv standalone，预编译、不用 eval）。`fixtures/session.json` 是录下的真实会话，测试用它校验契约。 |
 | `packages/client` | `RpcPeer`：与传输无关的双向 JSON-RPC；`OllupiClient`：按方法表类型化的 `call` / `on` / `handle`。不负责重连。 |
-| `packages/core` | 纯函数领域逻辑，每条规则对照 ollupi 的实现：时间线归并、会话列表（只含顶层会话、按 `updated_at`、`created_at` 排序）、工作区排序、工具调用解读（等审批只在 `pending`、等回答/子代理在 `inProgress`、shell 冻结命令与输出、计划、问答）、格式化。 |
+| `packages/core` | 纯函数领域逻辑，每条规则对照 ollupi 的实现：时间线归并、会话列表（只含顶层会话、按 `updated_at`、`created_at` 排序）、工作区排序、工具调用解读（等审批只在 `pending`、等回答/子代理在 `inProgress`；`callOf` / `approvalCallOf` 把一次调用读成一种 `ToolCall`：冻结的命令与输出、计划、问答、记忆搜索、子代理，参数不合契约的内置工具和其余工具都归为通用的 `tool`）、格式化。 |
 | `packages/ui` | 设计 token（`theme.css`，自动深色）和展示组件。 |
 | `apps/desktop` | Electron 主进程、preload、渲染进程。 |
 | `sidecar` | `cmd/ollupid` 后端入口；`internal/config` 配置文件；`internal/host` 组件装配与生命周期；`internal/handshake` 与主进程的启动协议。 |
@@ -52,8 +52,9 @@ domains/    每个领域一个文件，自带 store、要订阅的网关事件�
             连接建立后的加载（sync）、断线时清理（disconnect）和用户动作：
             workspaces、threads、conversation、requests、models、tools、cron、memory，
             以及纯客户端的 navigation、notices
-views/      React 界面：sidebar、draft、conversation（items/ 按 item 类型渲染）、
-            requests（审批卡、问答卡）、cron、memory、settings、backend、common
+views/      React 界面：sidebar、draft、conversation（items/ 按 item 类型渲染，tools/
+            每种工具调用一份视图，漏一种不能编译）、requests（审批卡、问答卡）、
+            cron、memory、settings、backend、common
 platform/   唯一接触 window.desktop 的模块（开发时可用浏览器 shim）
 i18n/       界面语言（English、简体中文）：按区域分的词条（messages/<area>），
             中文词条与英文同键同参数，缺译不能编译；format 把 core 的中性值

@@ -1,17 +1,16 @@
-// Asks to allow one tool call. For a command it shows the frozen execution:
-// approving runs exactly that program, arguments and directory. A call
-// that leaves the sandbox is the dangerous tier: it says what that means,
-// its primary action says so too, and it can only be allowed once.
+// Asks to allow one tool call, which the view of its kind words and shows
+// (a command its frozen execution). A call that leaves the sandbox is the
+// dangerous tier: it says what that means, its primary action says so too,
+// and it can only be allowed once.
 
-import { commandLine } from '@ollupi/core'
-import type { BuiltinToolName, Decision } from '@ollupi/protocol'
+import { approvalCallOf } from '@ollupi/core'
+import type { Decision } from '@ollupi/protocol'
 import { ActionCard, Button, type ButtonProps } from '@ollupi/ui'
 import { ShieldAlert } from 'lucide-react'
+import { useMemo } from 'react'
 import type { PendingRequest } from '../../domains/requests'
 import { useT } from '../../i18n'
-import { CodeBlock } from '../common/Markdown'
-
-const SHELL: BuiltinToolName = 'run_command'
+import { viewOf } from '../conversation/tools'
 
 // Decline first, the primary action last.
 const order: Decision[] = ['decline', 'acceptForSession', 'accept']
@@ -19,8 +18,9 @@ const order: Decision[] = ['decline', 'acceptForSession', 'accept']
 export function ApprovalCard({ request }: { request: Extract<PendingRequest, { kind: 'approval' }> }) {
   const m = useT()
   const p = request.params
+  const call = useMemo(() => approvalCallOf(p), [p])
+  const { approval } = viewOf(call)
   const exec = p.preparedExecution
-  const command = p.tool === SHELL && exec?.program ? exec : undefined
   const outside = !!exec?.escalated
   const decisions = order.filter((d) => p.availableDecisions.includes(d) && !(outside && d === 'acceptForSession'))
   const variant = (d: Decision): ButtonProps['variant'] =>
@@ -29,7 +29,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
     <ActionCard
       tone={outside ? 'danger' : 'warning'}
       icon={<ShieldAlert size={16} />}
-      title={command ? (outside ? m.requests.approval.commandOutside : m.requests.approval.command) : m.requests.approval.tool(p.tool)}
+      title={approval.title(m, call, p)}
       actions={decisions.map((d) => (
         <Button key={d} size="sm" variant={variant(d)} onClick={() => request.respond(d)}>
           {d === 'accept' && outside ? m.requests.approval.runOutside : m.requests.approval.decisions[d]}
@@ -38,11 +38,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
     >
       {outside && <p className="text-ui text-fg">{m.requests.approval.outsideConsequence}</p>}
       {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
-      {command ? (
-        <CodeBlock code={commandLine(command)} label={`sh · ${command.cwd}`} />
-      ) : (
-        <CodeBlock code={JSON.stringify(p.arguments, null, 2)} label={p.server ? m.requests.approval.serverArguments(p.server) : m.requests.approval.arguments} />
-      )}
+      <approval.Body call={call} params={p} />
       {exec?.justification && <p className="selectable text-ui text-fg-muted">“{exec.justification}”</p>}
     </ActionCard>
   )
