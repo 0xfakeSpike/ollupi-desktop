@@ -51,4 +51,4 @@ export function t(): Messages {
   return catalogs[useLocale.getState().locale]
 }
 
-export { setLanguage, useLocale, type LanguagePreference, type Locale } from './locale'
+export { setLanguage, useLocale, type LanguagePreference } from './locale'

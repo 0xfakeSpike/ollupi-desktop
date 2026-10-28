@@ -9,7 +9,6 @@ export const en = {
   edit: 'Edit',
   remove: 'Remove',
   reload: 'Reload',
-  retry: 'Retry',
   restartBackend: 'Restart backend',
 
   time: {
@@ -56,7 +55,6 @@ export const zh: typeof en = {
   edit: '编辑',
   remove: '删除',
   reload: '刷新',
-  retry: '重试',
   restartBackend: '重启后端',
 
   time: {

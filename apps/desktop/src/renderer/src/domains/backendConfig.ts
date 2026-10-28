@@ -3,14 +3,12 @@
 // first checks the changed file with the backend itself.
 
 import { isWorking } from '@ollupi/core'
-import type { BackendConfig, ConfigChange, ConfigCheck, ConfigModel } from '../../../shared/ipc'
+import type { ConfigChange, ConfigCheck } from '../../../shared/ipc'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
 import { notify } from './notices'
 import { useThreads } from './threads'
-
-export type { BackendConfig, ConfigModel }
 
 /** A config the backend accepted. */
 export type CheckedConfig = Extract<ConfigCheck, { ok: true }>

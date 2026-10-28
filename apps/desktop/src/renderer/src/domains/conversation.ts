@@ -29,7 +29,7 @@ import { useThreads } from './threads'
  * reports hasMore. */
 const PAGE_SIZE = 100
 
-export const useTimelines = create<{ byThread: Record<string, Timeline> }>()(() => ({ byThread: {} }))
+const useTimelines = create<{ byThread: Record<string, Timeline> }>()(() => ({ byThread: {} }))
 
 /** Notifications for a thread nobody opened are dropped: opening it reads
  * the current state. */
