@@ -2,8 +2,8 @@
 // An app started from Finder or the Dock gets launchd's minimal environment,
 // so the user's login-shell environment is merged under the inherited one: a
 // variable set in the launching terminal wins over the shell profile. It is
-// read for every start and check, so a key exported in the profile since
-// the app launched is there.
+// read for every start and check, so a variable an MCP server's ${NAME}
+// names, exported in the profile since the app launched, is there.
 
 import { app } from 'electron'
 import { spawn } from 'node:child_process'

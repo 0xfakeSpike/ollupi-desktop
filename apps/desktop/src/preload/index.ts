@@ -19,6 +19,7 @@ const api: DesktopApi = {
     read: () => ipcRenderer.invoke(IpcChannel.ConfigRead),
     apply: (changes) => ipcRenderer.invoke(IpcChannel.ConfigApply, changes),
   },
+  listModels: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, baseUrl, apiKey),
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
   setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),

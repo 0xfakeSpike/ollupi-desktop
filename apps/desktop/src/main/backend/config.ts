@@ -51,7 +51,7 @@ export class BackendConfig {
   }
 
   /** ollupid --check-config: the backend's own validation, run with the
-   * environment the backend gets (api_key_env must resolve). */
+   * environment the backend gets (MCP ${NAME} references must resolve). */
   private async check(file: string): Promise<ConfigCheck> {
     const env = await this.opts.env()
     return new Promise((resolve) => {

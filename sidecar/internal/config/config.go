@@ -44,11 +44,12 @@ type Config struct {
 // Provider is one OpenAI-compatible API and the models it serves. Its name
 // identifies it: two providers may serve models of the same name.
 type Provider struct {
-	Provider  string  `json:"provider"`
-	BaseURL   string  `json:"base_url,omitempty"`
-	APIKey    string  `json:"api_key,omitempty"`
-	APIKeyEnv string  `json:"api_key_env,omitempty"`
-	Names     []Model `json:"names"`
+	Provider string `json:"provider"`
+	BaseURL  string `json:"base_url,omitempty"`
+	// APIKey is written in the file, like BaseURL; empty for an API that
+	// takes no key.
+	APIKey string  `json:"api_key,omitempty"`
+	Names  []Model `json:"names"`
 }
 
 // Model is one model of a provider. Each is its own ollupi connection with
@@ -58,8 +59,9 @@ type Model struct {
 	Name     string `json:"name"`
 	Calls    int    `json:"calls,omitempty"`
 	Thinking *bool  `json:"thinking,omitempty"`
-	// Limits declares the context window of a model ollupi does not know.
-	Limits *llm.Limits `json:"limits,omitempty"`
+	// Limits is the model's context window and how much of it an answer
+	// may take; ollupi fits a conversation into it.
+	Limits llm.Limits `json:"limits"`
 }
 
 // ID is a model's ollupi connection: the key a turn selects it by. A
@@ -81,29 +83,6 @@ func (c Config) ModelRefs() []ModelRef {
 		for _, m := range p.Names {
 			out = append(out, ModelRef{ID: ID(p.Provider, m.Name), Provider: p.Provider, Name: m.Name})
 		}
-	}
-	return out
-}
-
-// KeyRef says where a provider's API key comes from, never the key itself:
-// "api_key" when it is written in the file, "api_key_env" when it is read
-// from that variable, "none" when the API takes no key. A key in the file
-// wins, as in Key.
-type KeyRef struct {
-	Provider string `json:"provider"`
-	From     string `json:"from"`
-}
-
-func (c Config) KeyRefs() []KeyRef {
-	out := make([]KeyRef, 0, len(c.Models))
-	for _, p := range c.Models {
-		from := "none"
-		if p.APIKey != "" {
-			from = "api_key"
-		} else if p.APIKeyEnv != "" {
-			from = "api_key_env"
-		}
-		out = append(out, KeyRef{Provider: p.Provider, From: from})
 	}
 	return out
 }
@@ -195,21 +174,6 @@ func (s MCPServer) Redacted() MCPServer {
 	return s
 }
 
-// Key resolves the provider's API key: the literal value, else the named
-// environment variable, which must then be set.
-func (p Provider) Key() (string, error) {
-	if p.APIKey != "" {
-		return p.APIKey, nil
-	}
-	if p.APIKeyEnv == "" {
-		return "", nil
-	}
-	if v := os.Getenv(p.APIKeyEnv); v != "" {
-		return v, nil
-	}
-	return "", fmt.Errorf("environment variable %s is not set", p.APIKeyEnv)
-}
-
 // Load reads <home>/config.yaml, writing the starter template first when
 // there is none.
 func Load(home string) (Config, error) {
@@ -261,7 +225,7 @@ func Parse(raw []byte) (Config, error) {
 
 // Validate checks what only this file's shape can get wrong: names that
 // must identify a model, and references between sections. ollupi validates
-// the rest (policies, rules, limits) at start.
+// the rest (policies, rules, limits' values) at start.
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.Name) == "" {
 		return errors.New("name is required")
@@ -290,6 +254,9 @@ func (c Config) Validate() error {
 			ids[id] = true
 			if m.Calls < 0 {
 				return fmt.Errorf("models: %s: calls must not be negative", id)
+			}
+			if m.Limits == (llm.Limits{}) {
+				return fmt.Errorf("models: %s: limits is required: { context: <window tokens>, output: <answer tokens> }", id)
 			}
 		}
 	}

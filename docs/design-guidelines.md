@@ -184,7 +184,7 @@
     }
   }
 
-  --container-thread: 720px;
+  --container-thread: 800px;
   --container-dialog: 480px;
   --container-dialog-wide: 640px;
 }
@@ -488,7 +488,7 @@
 
 | token | 用于 |
 |---|---|
-| `ink` / `ink-fg` | 主按钮、发送按钮 |
+| `ink` / `ink-fg` | 主按钮、发送按钮、图标按钮的提示 |
 | `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"的圆点和徽标 |
 | `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
@@ -518,7 +518,7 @@
 - **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。
 - **等宽**：命令、路径、文件名、模型 ID、环境变量、退出码用 `font-mono`。对话流的工具行里用 12px（`text-small`），代码块和输出用 13px（`text-ui`），Markdown 行内代码 0.88em。等宽字体栈末尾带苹方，代码里的中文有回退。等宽文字关掉连字，`<-`、`:=` 按原字符显示。
 - **数字**：表格、Context 面板、时长、token 数一律 `tabular-nums`。
-- **对话列宽**：`max-w-thread`（720px）居中，左右至少 24px 留白。
+- **对话列宽**：`max-w-thread`（800px）居中，左右至少 24px 留白。
 
 ### 2.4 间距
 
@@ -578,7 +578,8 @@
 
 - `strokeWidth={1.75}` 统一（14px 时可用 2，保证清晰）。
 - 颜色继承 `currentColor`，默认跟随文字的 `fg-muted`。只有图标本身表达状态时才着状态色（失败的 ✕、提问的 ?、审批的盾牌）。
-- 纯图标按钮必须有 `label`（作为无障碍名称和 tooltip）。点击区：sm 24px（紧凑行内），md 28px（默认）。
+- 纯图标按钮必须有 `label`（作为无障碍名称和提示）。点击区：sm 24px（紧凑行内），md 28px（默认）。
+- 图标看不出后果的动作（比如转移记忆会改变哪些会话用到它），给 `hint`：提示里在动作下面多一行，说清做了之后会怎样。
 
 ### 2.7 动效
 
@@ -752,6 +753,7 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | **对话框** | 需要专注的多字段编辑：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方；破坏性动作的确认 | `max-w-dialog`（480）或 `max-w-dialog-wide`（640）；`bg-raised border border-line rounded-xl shadow-lg`；背后 `bg-scrim`；标题区 `px-5 pt-5`，`text-title` + 一句 `text-ui fg-muted` 说明；内容 `px-5 py-4`；底部 `px-5 pb-5` 右对齐按钮（lg），不画分隔线，内容滚动时才在底部出现 `border-t border-line` |
 | **菜单 / 选择浮层** | 从触发器展开的选择：模型选择、workspace 选择、行尾 "…" 菜单 | `bg-raised border border-line rounded-xl shadow-md p-1`；菜单项同 3.6；危险项放最后，前面加分隔线 |
 | **Toast** | 用户没在原地等待的异步结果；后台动作的失败 | 右下角，宽 360，`bg-raised border border-line rounded-xl shadow-md p-3`；图标 + 一句话 + 可选的一个操作按钮；成功类 4 秒自动消失，错误类要手动关闭；最多同时 3 条 |
+| **提示** | 图标按钮的名字（`IconButton` 自带；自己画的图标按钮用 `useTooltip`），不用浏览器原生 `title` | 悬停 500ms 出现，刚关掉一个提示后 300ms 内移到下一个按钮立即出现；键盘聚焦时立即出现；按下、移开、滚动或 Escape 消失。在按钮下方 6px 居中，下方放不下时放上方，离窗口边至少 8px；`bg-ink text-ink-fg rounded-md shadow-md text-small`，最宽 288px；只有名字时 `px-2 py-1`，带 `hint` 时 `px-2.5 py-1.5`，名字 `font-medium`、hint 是 `ink-fg` 的 70%、`text-pretty`。名字和按钮的无障碍名称相同，只有 hint 作为描述读出 |
 | **气泡提示** | 图标按钮的名称和快捷键；截断文字的全文；绝对时间 | 延迟 500ms；`bg-raised border border-line rounded-md shadow-md px-2 py-1 text-small` |
 
 - **不叠对话框。** 对话框里的删除用对话框内的二次确认（按钮变成 "Click again to delete"）或者一个小确认浮层。

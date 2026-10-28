@@ -211,17 +211,9 @@ func modelClients(providers []config.Provider) ([]llm.Model, map[string]*llm.Ope
 	var models []llm.Model
 	clients := map[string]*llm.OpenAI{}
 	for _, p := range providers {
-		key, err := p.Key()
-		if err != nil {
-			return nil, nil, fmt.Errorf("provider %s: %w", p.Provider, err)
-		}
 		for _, m := range p.Names {
 			id := config.ID(p.Provider, m.Name)
-			var limits map[string]llm.Limits
-			if m.Limits != nil {
-				limits = map[string]llm.Limits{m.Name: *m.Limits}
-			}
-			clients[id] = llm.NewOpenAI(p.BaseURL, key, m.Calls, limits)
+			clients[id] = llm.NewOpenAI(p.BaseURL, p.APIKey, m.Calls, map[string]llm.Limits{m.Name: m.Limits})
 			models = append(models, llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking})
 		}
 	}
@@ -229,8 +221,8 @@ func modelClients(providers []config.Provider) ([]llm.Model, map[string]*llm.Ope
 }
 
 // mcpServers resolves the ${NAME} references in env and header values. A
-// reference to a variable that is not set refuses the config, as an unset
-// api_key_env does: the server would otherwise run without its secret.
+// reference to a variable that is not set refuses the config: the server
+// would otherwise run without its secret.
 func mcpServers(list []config.MCPServer) ([]mcp.Server, error) {
 	out := make([]mcp.Server, 0, len(list))
 	for _, s := range list {

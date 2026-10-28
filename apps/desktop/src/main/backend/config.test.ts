@@ -10,7 +10,7 @@ name: ollupi
 models:
   - provider: deepseek
     base_url: https://api.deepseek.com
-    api_key_env: DEEPSEEK_API_KEY
+    api_key: sk-test
     names:
       - name: deepseek-flash
   # The local one.

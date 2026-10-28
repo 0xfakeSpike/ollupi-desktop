@@ -34,6 +34,9 @@ export const en = {
     move: 'Could not move the memory',
     forget: 'Could not forget the memory',
   },
+  settings: {
+    redaction: 'Could not change redaction',
+  },
   config: {
     read: 'Could not read config.yaml',
     save: 'Could not save config.yaml',
@@ -83,6 +86,9 @@ export const zh: typeof en = {
     save: '无法保存记忆',
     move: '无法移动记忆',
     forget: '无法遗忘记忆',
+  },
+  settings: {
+    redaction: '无法更改脱敏设置',
   },
   config: {
     read: '无法读取 config.yaml',

@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from './cn'
 import { Spinner } from './feedback'
+import { useTooltip } from './tooltip'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
@@ -55,28 +56,34 @@ export function Button({ variant = 'secondary', size = 'md', icon, loading, clas
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Accessible name and tooltip; icon buttons have no visible text. */
   label: string
+  /** A line in the tooltip under the label, on what the action does. */
+  hint?: string
   size?: Exclude<Size, 'lg'>
   active?: boolean
 }
 
-export function IconButton({ label, size = 'md', active, className, children, type = 'button', ...rest }: IconButtonProps) {
+export function IconButton({ label, hint, size = 'md', active, className, children, type = 'button', ...rest }: IconButtonProps) {
+  const { trigger, tooltip } = useTooltip({ label, hint })
   return (
-    <button
-      type={type}
-      aria-label={label}
-      title={label}
-      className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg',
-        'disabled:pointer-events-none disabled:opacity-50',
-        motion,
-        focus,
-        size === 'sm' ? 'size-6' : 'size-7',
-        active && 'bg-hover text-fg',
-        className,
-      )}
-      {...rest}
-    >
-      {children}
-    </button>
+    <>
+      <button
+        type={type}
+        aria-label={label}
+        className={cn(
+          'inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg',
+          'disabled:pointer-events-none disabled:opacity-50',
+          motion,
+          focus,
+          size === 'sm' ? 'size-6' : 'size-7',
+          active && 'bg-hover text-fg',
+          className,
+        )}
+        {...rest}
+        {...trigger}
+      >
+        {children}
+      </button>
+      {tooltip}
+    </>
   )
 }

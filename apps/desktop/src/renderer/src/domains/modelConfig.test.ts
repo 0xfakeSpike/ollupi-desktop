@@ -1,13 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import type { BackendConfig } from '../../../shared/ipc'
-import { cannotRemove, cannotRemoveProvider, editModel, editProvider, makeDefault, removeModel, removeProvider } from './modelConfig'
+import {
+  addModels,
+  addProvider,
+  cannotRemove,
+  cannotRemoveProvider,
+  editModel,
+  editProvider,
+  makeDefault,
+  removeModel,
+  removeProvider,
+  type ModelFields,
+} from './modelConfig'
+
+const limits = { context: 128_000, output: 16_384 }
+const listed = (name: string): ModelFields => ({ name, calls: undefined, thinking: undefined, limits })
 
 const config = (memory: BackendConfig['memory']): BackendConfig =>
   ({
     name: 'ollupi',
     models: [
-      { provider: 'deepseek', api_key_env: 'DEEPSEEK_API_KEY', names: [{ name: 'deepseek-flash' }, { name: 'deepseek-pro' }] },
-      { provider: 'local', names: [{ name: 'qwen3:32b' }] },
+      { provider: 'deepseek', api_key: 'sk-test', names: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
+      { provider: 'local', names: [{ name: 'qwen3:32b', limits }] },
     ],
     permissions: {},
     shell: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
@@ -18,24 +32,37 @@ const learning = config({ use: true, generate: true, model: 'deepseek/deepseek-f
 const notLearning = config({ use: true, generate: false, model: 'deepseek/deepseek-flash' })
 
 describe('model edits', () => {
+  it('adds a provider with the models chosen from its list', () => {
+    expect(addProvider(learning, { provider: 'openai', baseUrl: '', apiKey: 'sk-test' }, [listed('gpt-5.2'), listed('gpt-5.2-mini')])).toEqual([
+      { kind: 'set', path: ['models', 2], value: { provider: 'openai', api_key: 'sk-test', names: [{ name: 'gpt-5.2', limits }, { name: 'gpt-5.2-mini', limits }] } },
+    ])
+  })
+
+  it('appends models after the ones a provider serves', () => {
+    expect(addModels(learning, 0, [listed('deepseek-chat'), listed('deepseek-reasoner')])).toEqual([
+      { kind: 'set', path: ['models', 0, 'names', 2], value: { name: 'deepseek-chat', limits } },
+      { kind: 'set', path: ['models', 0, 'names', 3], value: { name: 'deepseek-reasoner', limits } },
+    ])
+  })
+
   it('moves memory.model along when its provider is renamed', () => {
-    expect(editProvider(learning, 0, { provider: 'ds', baseUrl: '', keyEnv: 'DEEPSEEK_API_KEY' })).toContainEqual({
+    expect(editProvider(learning, 0, { provider: 'ds', baseUrl: '', apiKey: 'sk-test' })).toContainEqual({
       kind: 'set',
       path: ['memory', 'model'],
       value: 'ds/deepseek-flash',
     })
-    expect(editProvider(learning, 1, { provider: 'ollama', baseUrl: '', keyEnv: '' }).some((c) => c.path[0] === 'memory')).toBe(false)
+    expect(editProvider(learning, 1, { provider: 'ollama', baseUrl: '', apiKey: '' }).some((c) => c.path[0] === 'memory')).toBe(false)
   })
 
   it('moves memory.model along when its model is renamed', () => {
-    const fields = { name: 'deepseek-v4-flash', calls: undefined, thinking: undefined, limits: undefined }
+    const fields = { name: 'deepseek-v4-flash', calls: undefined, thinking: undefined, limits }
     expect(editModel(learning, 0, 0, fields)).toContainEqual({ kind: 'set', path: ['memory', 'model'], value: 'deepseek/deepseek-v4-flash' })
     expect(editModel(learning, 0, 1, { ...fields, name: 'x' }).some((c) => c.path[0] === 'memory')).toBe(false)
   })
 
-  it('names a key variable in place of a key written in the file', () => {
-    expect(editProvider(learning, 1, { provider: 'local', baseUrl: '', keyEnv: 'LOCAL_KEY' })).toContainEqual({ kind: 'delete', path: ['models', 1, 'api_key'] })
-    expect(editProvider(learning, 1, { provider: 'local', baseUrl: '', keyEnv: '' })).toContainEqual({ kind: 'delete', path: ['models', 1, 'api_key_env'] })
+  it('writes the key in the file, and removes it when emptied', () => {
+    expect(editProvider(learning, 1, { provider: 'local', baseUrl: '', apiKey: 'sk-local' })).toContainEqual({ kind: 'set', path: ['models', 1, 'api_key'], value: 'sk-local' })
+    expect(editProvider(learning, 0, { provider: 'deepseek', baseUrl: '', apiKey: '' })).toContainEqual({ kind: 'delete', path: ['models', 0, 'api_key'] })
   })
 
   it('removes a provider with its last model', () => {
