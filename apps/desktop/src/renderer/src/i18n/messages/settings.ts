@@ -187,6 +187,7 @@ export const en = {
     thread: {
       title: 'Thread permissions',
       intro: 'Layered over the workspace and agent defaults. A running turn uses them from its next batch of calls.',
+      close: 'Close thread permissions',
     },
     workspace: {
       title: 'Workspace settings',
@@ -377,6 +378,7 @@ export const zh: typeof en = {
     thread: {
       title: '会话权限',
       intro: '叠加在工作区和代理默认设置之上。正在进行的轮次从下一批调用起使用它们。',
+      close: '关闭会话权限',
     },
     workspace: {
       title: '工作区设置',
