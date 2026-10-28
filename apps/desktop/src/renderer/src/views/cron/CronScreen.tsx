@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { createJob, deleteJob, setPaused, useCron } from '../../domains/cron'
 import { useThreads } from '../../domains/threads'
-import { useWorkspaces } from '../../domains/workspaces'
+import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { describeSchedule, relativeTime, threadTitle } from '../../i18n/format'
 import { defaultSchedule, SchedulePicker } from './SchedulePicker'
@@ -134,13 +134,19 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
 
 /** A new task goes to an existing top-level thread of an active workspace
  * (or of none): ollupi skips runs in archived workspaces, and subagent
- * threads take no messages. The threads offered are those the sidebar
- * loaded. */
+ * threads take no messages. The workspace is picked first, starting from the
+ * one shown on the left, then one of its threads; those offered are the ones
+ * the sidebar loaded. */
 function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow[] }) {
   const m = useT()
   const threads = useThreads((s) => s.list)
-  const active = (id: string | undefined) => !id || workspaces.some((w) => w.id === id && !w.archivedAt)
-  const options = threads.filter((t) => isTopLevel(t) && active(t.workspaceId) && (place === ALL || placeOf(t) === place))
+  const active = activeWorkspaces(workspaces)
+  const eligible = threads.filter((t) => isTopLevel(t) && (!t.workspaceId || active.some((w) => w.id === t.workspaceId)))
+  const spaces = [{ id: GENERAL, name: m.cron.general }, ...active].filter((s) => eligible.some((t) => placeOf(t) === s.id))
+  // A workspace picked here holds until another one is shown on the left.
+  const [picked, setPicked] = useState({ place, space: place })
+  const space = spaces.find((s) => s.id === (picked.place === place ? picked.space : place)) ?? spaces[0]
+  const options = eligible.filter((t) => placeOf(t) === space?.id)
   const [threadId, setThreadId] = useState('')
   const [name, setName] = useState('')
   const [schedule, setSchedule] = useState<Schedule>(defaultSchedule)
@@ -148,8 +154,6 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
   const [saving, setSaving] = useState(false)
   const target = options.find((t) => t.id === threadId) ?? options[0]
   const ready = target && name.trim() && prompt.trim()
-  const label = (t: (typeof options)[number]) =>
-    place === ALL ? `${workspaces.find((w) => w.id === t.workspaceId)?.name ?? m.cron.general} · ${threadTitle(m, t)}` : threadTitle(m, t)
 
   const create = async () => {
     if (!target) return
@@ -165,15 +169,24 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong p-4">
       <div className="text-small font-medium text-fg-muted">{m.cron.newTask}</div>
-      {options.length === 0 ? (
+      {spaces.length === 0 ? (
         <p className="text-small text-fg-subtle">{m.cron.noThreads}</p>
       ) : (
         <>
+          <Field label={m.cron.workspace} hint={m.cron.workspaceHint}>
+            <Select value={space?.id} onChange={(e) => setPicked({ place, space: e.target.value })}>
+              {spaces.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label={m.cron.thread} hint={m.cron.threadHint}>
             <Select value={target?.id} onChange={(e) => setThreadId(e.target.value)}>
               {options.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {label(t)}
+                  {threadTitle(m, t)}
                 </option>
               ))}
             </Select>
