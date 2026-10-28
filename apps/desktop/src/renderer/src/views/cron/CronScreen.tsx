@@ -3,7 +3,7 @@
 // (queued if the thread is busy). ollupi skips a run while the thread's
 // workspace is archived, and a subagent thread takes no messages.
 
-import { isTopLevel } from '@ollupi/core'
+import { cronSpec, isTopLevel, scheduleOf, type Schedule } from '@ollupi/core'
 import type { CronJobView, WorkspaceRow } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Spinner, Switch, Tabs, Textarea } from '@ollupi/ui'
 import { CalendarClock, Trash2 } from 'lucide-react'
@@ -13,7 +13,8 @@ import { createJob, deleteJob, setPaused, useCron } from '../../domains/cron'
 import { useThreads } from '../../domains/threads'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
-import { relativeTime, threadTitle } from '../../i18n/format'
+import { describeSchedule, relativeTime, threadTitle } from '../../i18n/format'
+import { defaultSchedule, SchedulePicker } from './SchedulePicker'
 
 /** The list shown: every task, those outside any workspace, or one
  * workspace's. */
@@ -86,12 +87,21 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
   const m = useT()
   const locale = useLocale((s) => s.locale)
   const archived = !!workspace?.archivedAt
+  // A spec the model wrote in a shape the picker has no words for is shown
+  // as written.
+  const schedule = scheduleOf(job.spec)
   return (
     <li className="flex items-start gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2 text-ui">
           <span className="font-medium text-fg">{job.name}</span>
-          <code className="selectable font-mono text-small text-fg-muted">{job.spec}</code>
+          {schedule ? (
+            <span className="text-small text-fg-muted" title={job.spec}>
+              {describeSchedule(m, locale, schedule)}
+            </span>
+          ) : (
+            <code className="selectable font-mono text-small text-fg-muted">{job.spec}</code>
+          )}
           {job.parentThreadId ? <Badge tone="danger">{m.cron.subagent}</Badge> : archived && <Badge>{m.cron.archived}</Badge>}
         </div>
         <p className="selectable mt-0.5 line-clamp-2 text-small text-fg-muted">{job.prompt}</p>
@@ -133,20 +143,20 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
   const options = threads.filter((t) => isTopLevel(t) && active(t.workspaceId) && (place === ALL || placeOf(t) === place))
   const [threadId, setThreadId] = useState('')
   const [name, setName] = useState('')
-  const [spec, setSpec] = useState('')
+  const [schedule, setSchedule] = useState<Schedule>(defaultSchedule)
   const [prompt, setPrompt] = useState('')
   const [saving, setSaving] = useState(false)
   const target = options.find((t) => t.id === threadId) ?? options[0]
-  const ready = target && name.trim() && spec.trim() && prompt.trim()
+  const ready = target && name.trim() && prompt.trim()
   const label = (t: (typeof options)[number]) =>
     place === ALL ? `${workspaces.find((w) => w.id === t.workspaceId)?.name ?? m.cron.general} · ${threadTitle(m, t)}` : threadTitle(m, t)
 
   const create = async () => {
     if (!target) return
     setSaving(true)
-    if (await createJob(target.id, name.trim(), spec.trim(), prompt.trim())) {
+    if (await createJob(target.id, name.trim(), cronSpec(schedule), prompt.trim())) {
       setName('')
-      setSpec('')
+      setSchedule(defaultSchedule)
       setPrompt('')
     }
     setSaving(false)
@@ -168,14 +178,12 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={m.cron.name} hint={m.cron.nameHint}>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="daily-summary" />
-            </Field>
-            <Field label={m.cron.schedule} hint={m.cron.scheduleHint}>
-              <Input value={spec} onChange={(e) => setSpec(e.target.value)} placeholder="0 9 * * 1-5" className="font-mono" />
-            </Field>
-          </div>
+          <Field label={m.cron.name} hint={m.cron.nameHint}>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="daily-summary" />
+          </Field>
+          <Field label={m.cron.schedule} hint={m.cron.scheduleHint}>
+            <SchedulePicker value={schedule} onChange={setSchedule} />
+          </Field>
           <Field label={m.cron.message}>
             <Textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={m.cron.messagePlaceholder} />
           </Field>
