@@ -29,6 +29,13 @@ textarea,
 input {
   user-select: text;
 }
+/* Code shows the characters it is made of: the mono face's ligatures
+   would draw <- as an arrow and := as one sign. */
+pre,
+code,
+.font-mono {
+  font-variant-ligatures: none;
+}
 
 /* Frameless window: these regions move it. */
 .drag {
@@ -98,6 +105,15 @@ input {
 .markdown li + li {
   margin-top: 0.25em;
 }
+/* A task's checkbox stands where its bullet would. */
+.markdown li:has(> input[type='checkbox']) {
+  list-style: none;
+}
+.markdown li > input[type='checkbox'] {
+  margin: 0 0.45em 0 -1.25em;
+  vertical-align: -0.1em;
+  accent-color: var(--color-accent);
+}
 .markdown a {
   color: var(--color-accent);
   text-decoration: underline;
@@ -115,20 +131,36 @@ input {
   border-radius: 4px;
   padding: 0.1em 0.35em;
 }
+/* A table is one rounded block, as wide as its columns need, scrolling
+   sideways when wider than the message. Headings stay on one line, so a
+   column of short values is not squeezed under a two-line heading. */
 .markdown table {
-  border-collapse: collapse;
   display: block;
+  width: fit-content;
+  max-width: 100%;
   overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  border-collapse: separate;
+  border-spacing: 0;
 }
 .markdown th,
 .markdown td {
-  border: 1px solid var(--color-line);
+  border-top: 1px solid var(--color-line);
   padding: 0.35em 0.7em;
   text-align: left;
+}
+.markdown th + th,
+.markdown td + td {
+  border-left: 1px solid var(--color-line);
+}
+.markdown thead th {
+  border-top: 0;
 }
 .markdown th {
   background: var(--color-surface);
   font-weight: 600;
+  white-space: nowrap;
 }
 /* Shiki writes both themes' colours as variables (defaultColor: false);
    the scheme picks one. The block draws its own background. */
@@ -150,6 +182,30 @@ input {
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--color-line);
+}
+/* A diff's lines are rows as wide as the widest, so an added or removed
+   line is shaded across the block. */
+.shiki.diff code {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+}
+.shiki.diff .line {
+  margin-inline: calc(var(--spacing) * -3);
+  padding-inline: calc(var(--spacing) * 3);
+}
+.shiki.diff .line.added {
+  background: var(--ol-success-soft);
+}
+.shiki.diff .line.removed {
+  background: var(--ol-danger-soft);
+}
+/* Footnotes close the message, below a rule and smaller than its text. */
+.markdown section[data-footnotes] {
+  border-top: 1px solid var(--color-line);
+  padding-top: 0.75em;
+  font-size: var(--text-ui);
+  color: var(--color-fg-muted);
 }
 
 @keyframes caret-blink {
