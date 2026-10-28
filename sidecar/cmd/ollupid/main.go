@@ -29,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
@@ -81,7 +82,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err != nil {
 		return err
 	}
-	h, err := host.New(host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Version: version(), Browser: browserServer()})
+	h, err := host.New(host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Version: version(), Browser: browserEndpoint()})
 	if err != nil {
 		return err
 	}
@@ -109,15 +110,15 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	return h.Serve(ctx, ln)
 }
 
-// browserServer is the app's built-in browser: the desktop serves it on
-// loopback and passes where, and the token it takes, in the environment of
-// every start and check. Outside the app there is none.
-func browserServer() *config.MCPServer {
+// browserEndpoint is where the app's built-in browser answers: the desktop
+// passes it, and the token it takes, in the environment of every start and
+// check. Outside the app there is none.
+func browserEndpoint() *browser.Endpoint {
 	url := os.Getenv("OLLUPI_BROWSER_URL")
 	if url == "" {
 		return nil
 	}
-	return &config.MCPServer{Name: config.BrowserServer, URL: url, Headers: map[string]string{"Authorization": "Bearer ${OLLUPI_BROWSER_TOKEN}"}}
+	return &browser.Endpoint{URL: url, Token: os.Getenv("OLLUPI_BROWSER_TOKEN")}
 }
 
 // checkResult is --check-config's output: the config as the backend decodes
@@ -135,7 +136,7 @@ type checkResult struct {
 func check(path, home string) int {
 	cfg, err := config.LoadFile(path, home)
 	if err == nil {
-		err = host.Check(home, cfg, browserServer())
+		err = host.Check(home, cfg, browserEndpoint())
 	}
 	out := checkResult{Error: errorText(err)}
 	if err == nil {

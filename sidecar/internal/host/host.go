@@ -1,10 +1,10 @@
 // Package host assembles one ollupi backend from a Config, following the
 // assembly ollupi's README describes: the database, one model client per
-// model, the tool providers (cron, shell, MCP servers), memory, the agent and
-// the gateway. It
-// owns their lifetimes: New builds everything without starting anything,
-// Start starts the agent and its sibling goroutines, Serve serves the gateway
-// until the context ends and then waits for every component to stop.
+// model, the tool providers (cron, shell, the app's browser, MCP servers),
+// memory, the agent and the gateway. It owns their lifetimes: New builds
+// everything without starting anything, Start starts the agent and its
+// sibling goroutines, Serve serves the gateway until the context ends and
+// then waits for every component to stop.
 package host
 
 import (
@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/agent/memory"
@@ -42,9 +43,9 @@ type Options struct {
 	AllowedOrigins []string
 	// Version is the backend's, which MCP servers see as the client's.
 	Version string
-	// Browser is the app's built-in browser server, connected beside the
-	// config's servers; nil outside the app.
-	Browser *config.MCPServer
+	// Browser is where the app's built-in browser answers; nil outside the
+	// app, which has none.
+	Browser *browser.Endpoint
 }
 
 type Host struct {
@@ -95,11 +96,11 @@ func New(opts Options) (_ *Host, err error) {
 		providers = append(providers, runner)
 	}
 
-	list := cfg.MCP
 	if opts.Browser != nil {
-		list = append([]config.MCPServer{*opts.Browser}, list...)
+		providers = append(providers, browser.New(*opts.Browser))
 	}
-	servers, err := mcpServers(list)
+
+	servers, err := mcpServers(cfg.MCP)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +182,7 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 // validates the rest (permission rules against the tool registry, each
 // model's context budget), against a throwaway database, then stops it.
 // Nothing is served and the real database is not opened.
-func Check(home string, cfg config.Config, browser *config.MCPServer) error {
+func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 	data, err := os.MkdirTemp("", "ollupid-check-")
 	if err != nil {
 		return err

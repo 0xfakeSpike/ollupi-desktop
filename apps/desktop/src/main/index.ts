@@ -9,7 +9,7 @@ import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
 import { AgentBrowser } from './browser/browser'
-import { BrowserServer } from './browser/server'
+import { BrowserEndpoint } from './browser/endpoint'
 import { WorkspaceChanges } from './changes'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
@@ -22,9 +22,9 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   const home = backendHome()
   const browser = new AgentBrowser()
-  const browserServer = new BrowserServer(browser, app.getVersion())
-  // Every start and check of the backend connects to the app's browser.
-  const env = async () => ({ ...(await backendEnv()), ...browserServer.env() })
+  const browserEndpoint = new BrowserEndpoint(browser)
+  // Every start and check of the backend reaches the app's browser.
+  const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env })
   const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
   const skills = new BackendSkills({ binary: backendBinary(), home, restart: () => backend.restart(), trash: (path) => shell.trashItem(path) })
@@ -41,8 +41,8 @@ if (!app.requestSingleInstanceLock()) {
     serveRenderer(join(import.meta.dirname, '../renderer'))
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), browser, home)
     createMainWindow()
-    // The backend connects to the browser's server as it starts.
-    void browserServer.listen().then(() => backend.start())
+    // The backend's browser tools reach the endpoint from its start.
+    void browserEndpoint.listen().then(() => backend.start())
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     })

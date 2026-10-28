@@ -46,12 +46,12 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.ChangesDiff, (_event, root: unknown, path: unknown, untracked: unknown) =>
     changes.diff(absolute(root), text(path), untracked === true),
   )
-  ipcMain.handle(IpcChannel.BrowserState, () => browser.state())
-  ipcMain.handle(IpcChannel.BrowserPlace, (_event, bounds: unknown) => browser.place(validBounds(bounds)))
-  ipcMain.handle(IpcChannel.BrowserOpen, (_event, url: unknown) => browser.open(text(url)))
-  ipcMain.handle(IpcChannel.BrowserBack, () => browser.back())
-  ipcMain.handle(IpcChannel.BrowserForward, () => browser.forward())
-  ipcMain.handle(IpcChannel.BrowserReload, () => browser.reload())
+  ipcMain.handle(IpcChannel.BrowserState, (_event, thread: unknown) => browser.state(text(thread)))
+  ipcMain.handle(IpcChannel.BrowserPlace, (_event, thread: unknown, bounds: unknown) => browser.place(text(thread), validBounds(bounds)))
+  ipcMain.handle(IpcChannel.BrowserOpen, (_event, thread: unknown, url: unknown) => browser.open(text(thread), text(url)))
+  ipcMain.handle(IpcChannel.BrowserBack, (_event, thread: unknown) => browser.back(text(thread)))
+  ipcMain.handle(IpcChannel.BrowserForward, (_event, thread: unknown) => browser.forward(text(thread)))
+  ipcMain.handle(IpcChannel.BrowserReload, (_event, thread: unknown) => browser.reload(text(thread)))
   ipcMain.handle(IpcChannel.ListModels, (_event, baseUrl: unknown, apiKey: unknown) => {
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, baseUrl, apiKey)
@@ -71,8 +71,8 @@ export function registerIpc(
     for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, ...args)
   }
   backend.on('state', (state: BackendState) => send(IpcChannel.BackendChanged, state))
-  browser.on('state', (state: BrowserState) => send(IpcChannel.BrowserChanged, state))
-  browser.on('used', () => send(IpcChannel.BrowserUsed))
+  browser.on('state', (thread: string, state: BrowserState) => send(IpcChannel.BrowserChanged, thread, state))
+  browser.on('used', (thread: string) => send(IpcChannel.BrowserUsed, thread))
 }
 
 /** A folder the user chooses; create lets them make a new one. */

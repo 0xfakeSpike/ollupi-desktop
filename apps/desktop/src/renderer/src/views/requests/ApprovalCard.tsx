@@ -47,6 +47,8 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
     >
       {outside && <p className="text-ui text-fg">{m.requests.approval.outsideConsequence}</p>}
       {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
+      {/* What the call does, in its tool's words; a command's view already shows the command. */}
+      {p.content && call.kind !== 'command' && <p className="selectable text-ui text-fg">{p.content}</p>}
       <approval.Body call={call} params={p} />
       {exec?.justification && <p className="selectable text-ui text-fg-muted">“{exec.justification}”</p>}
       {decisions.includes('acceptAlways') && rules.length > 0 && (

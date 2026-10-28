@@ -119,7 +119,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             />
           )}
         </div>
-        {panel === 'browser' && <BrowserPanel />}
+        {/* Each conversation has its own tab. */}
+        {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
         {/* One tree per workspace: threads of the same workspace keep its open folders. */}
         {panel === 'files' && workspace && <FilesPanel key={workspace.id} workspace={workspace} />}
         {panel === 'changes' && workspace && <ChangesPanel key={workspace.id} workspace={workspace} turn={running?.id} />}
