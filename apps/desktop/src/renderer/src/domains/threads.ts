@@ -9,7 +9,7 @@ import type { Domain } from '../gateway/domain'
 import { activeWorkspaces, useWorkspaces } from './workspaces'
 
 /** thread/list's maximum; it has no cursor, so each group shows at most this. */
-export const THREADS_PER_GROUP = 100
+const THREADS_PER_GROUP = 100
 
 export const useThreads = create<{ list: ThreadSummary[] }>()(() => ({ list: [] }))
 

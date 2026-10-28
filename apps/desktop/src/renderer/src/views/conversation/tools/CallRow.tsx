@@ -96,7 +96,7 @@ export function statusFailure(m: Messages, item: ItemRow): string | undefined {
 }
 
 /** The request this call waits on, once the gateway has sent it. */
-export function PendingHere({ item }: { item: ItemRow }) {
+function PendingHere({ item }: { item: ItemRow }) {
   const request = usePendingRequest(item.id)
   const m = useT()
   if (request) return <RequestCard request={request} />

@@ -11,7 +11,7 @@ export type PendingRequest =
   | { kind: 'approval'; params: ApprovalRequestParams; respond(decision: Decision): void }
   | { kind: 'question'; params: UserInputRequestParams; respond(answers: Record<string, UserInputAnswer>): void }
 
-export const useRequests = create<{ byItem: Record<string, PendingRequest> }>()(() => ({ byItem: {} }))
+const useRequests = create<{ byItem: Record<string, PendingRequest> }>()(() => ({ byItem: {} }))
 
 function add(r: PendingRequest): void {
   useRequests.setState((s) => ({ byItem: { ...s.byItem, [r.params.itemId]: r } }))
