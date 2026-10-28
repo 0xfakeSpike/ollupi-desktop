@@ -1,13 +1,23 @@
 appId: dev.ollupi.desktop
 productName: Ollupi
+copyright: Copyright © 2026 0xfakeSpike
 directories:
   output: release
 files:
   - out/**
   - package.json
 extraResources:
-  - from: resources/bin
+  # The sidecar built for the arch being packaged (pnpm sidecar:release).
+  - from: resources/bin/${arch}
     to: bin
 mac:
   category: public.app-category.developer-tools
+  minimumSystemVersion: '12.0'
   target: [dmg]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # No Developer ID yet: sign ad hoc, so Apple silicon runs the bundle once
+  # the user lets Gatekeeper open it. Hardened runtime needs a real identity.
+  identity: '-'
+  hardenedRuntime: false
+dmg:
+  title: ${productName} ${version}
