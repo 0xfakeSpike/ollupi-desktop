@@ -15,6 +15,12 @@ export const en = {
       acceptForSession: 'Allow for this thread',
       accept: 'Allow once',
     },
+    /** acceptAlways: ollupi adds the suggested rules to the workspace's
+     * Always allow, or to the thread's when it has no workspace. */
+    alwaysIn: (workspace: string) => `Always allow in ${workspace}`,
+    alwaysInThread: 'Always allow in this thread',
+    alwaysInParent: 'Always allow in the parent thread',
+    alwaysAdds: 'Always allowing adds',
     /** accept, when the call leaves the sandbox. */
     runOutside: 'Run outside sandbox',
   },
@@ -40,6 +46,10 @@ export const zh: typeof en = {
       acceptForSession: '在此会话中允许',
       accept: '允许一次',
     },
+    alwaysIn: (workspace) => `在「${workspace}」中总是允许`,
+    alwaysInThread: '在此会话中总是允许',
+    alwaysInParent: '在上级会话中总是允许',
+    alwaysAdds: '总是允许会添加',
     runOutside: '在沙箱外运行',
   },
   questions: {
