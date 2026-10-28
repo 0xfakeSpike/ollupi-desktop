@@ -6,25 +6,21 @@ import {
   latestContextCall,
   modelCalls,
   appendDelta,
+  approvalCallOf,
+  callOf,
+  commandFailed,
   commandLine,
   groupByTurn,
   groupByWorkspace,
-  memorySearchOf,
-  planOf,
   promptMemory,
   prependPage,
-  questionsOf,
   refreshFromPage,
-  frozenCommand,
-  commandOutput,
-  subagentOf,
   timelineFromPage,
   upsertItem,
   upsertThread,
   upsertTurn,
   waitsForAnswer,
   waitsForApproval,
-  toolLabel,
   elapsed,
   span,
   cronSpec,
@@ -132,28 +128,39 @@ describe('threads', () => {
 
 describe('calls', () => {
   const call = (extra: Partial<ItemRow>) => item('c', 1, { type: 'toolCall', status: 'pending', ...extra })
+  const prepared = { cwd: '/w', settingsDigest: '', argumentsDigest: '', program: 'git', args: ['commit', '-m', "it's"] }
 
-  it('reads the frozen command; before preparation there is none', () => {
-    const c = call({
-      tool: 'run_command',
-      arguments: JSON.stringify({ program: 'ls', args: ['-la'] }),
-      preparedExecution: { cwd: '/w', settingsDigest: '', argumentsDigest: '', program: 'git', args: ['commit', '-m', "it's"] },
-    })
-    const cmd = frozenCommand(c)!
-    expect([commandLine(cmd), cmd.cwd]).toEqual([`git commit -m 'it'\\''s'`, '/w'])
-    expect(frozenCommand({ ...c, preparedExecution: undefined })).toBeUndefined()
+  it('reads the frozen command; before preparation it is any tool', () => {
+    const c = call({ tool: 'run_command', arguments: JSON.stringify({ program: 'ls', args: ['-la'] }), preparedExecution: prepared })
+    const read = callOf(c)
+    expect(read.kind === 'command' && [commandLine(read.command), read.command.cwd]).toEqual([`git commit -m 'it'\\''s'`, '/w'])
+    expect(callOf({ ...c, preparedExecution: undefined })).toEqual({ kind: 'tool', name: 'run_command', server: undefined })
   })
 
   it('reads command output only when it matches the contract', () => {
     const output = { stdout: 'ok', stderr: '', exit_code: 2, work_dir: '/w', truncated: true }
-    expect(commandOutput(call({ tool: 'run_command', status: 'completed', result: { output } }))).toEqual(output)
-    expect(commandOutput(call({ tool: 'run_command', status: 'failed', result: { output: { stdout: 'ok' } } }))).toBeUndefined()
+    const done = callOf(call({ tool: 'run_command', status: 'completed', preparedExecution: prepared, result: { output } }))
+    expect(done.kind === 'command' && done.output).toEqual(output)
+    expect(commandFailed(output)).toBe(true)
+    const odd = callOf(call({ tool: 'run_command', status: 'failed', preparedExecution: prepared, result: { output: { stdout: 'ok' } } }))
+    expect(odd.kind === 'command' && odd.output).toBeUndefined()
   })
 
-  it('refuses arguments that do not match the contract', () => {
-    expect(planOf(call({ tool: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'a', status: 'weird' }] }) }))).toBeUndefined()
-    expect(subagentOf(call({ tool: 'Agent', arguments: '{"description": 1}' }))).toBeUndefined()
-    expect(subagentOf(call({ tool: 'Agent', arguments: 'not json' }))).toBeUndefined()
+  it('reads a built-in call whose arguments miss the contract as any tool', () => {
+    expect(callOf(call({ tool: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'a', status: 'weird' }] }) })).kind).toBe('tool')
+    expect(callOf(call({ tool: 'Agent', arguments: '{"description": 1}' })).kind).toBe('tool')
+    expect(callOf(call({ tool: 'Agent', arguments: 'not json' })).kind).toBe('tool')
+  })
+
+  it('names other tools by their title, then their name, with their server', () => {
+    expect(callOf(call({ tool: 'mock__echo', server: 'mock', annotations: { title: 'Echo' } }))).toEqual({ kind: 'tool', name: 'Echo', server: 'mock' })
+    expect(callOf(call({ tool: 'create_scheduled_job', server: 'cron' }))).toEqual({ kind: 'tool', name: 'create_scheduled_job', server: 'cron' })
+  })
+
+  it('reads the call an approval asks about', () => {
+    const params = { threadId: 't', turnId: 'u', itemId: 'c', approvalId: 'a', server: '', tool: 'run_command', arguments: {}, availableDecisions: [], preparedExecution: prepared }
+    expect(approvalCallOf(params).kind).toBe('command')
+    expect(approvalCallOf({ ...params, tool: 'mock__echo', server: 'mock', preparedExecution: undefined })).toEqual({ kind: 'tool', name: 'mock__echo', server: 'mock' })
   })
 
   it('waits for approval only while pending', () => {
@@ -167,15 +174,21 @@ describe('calls', () => {
     const args = JSON.stringify({ questions: [{ id: 'q', header: 'H', question: 'Which?' }] })
     const asked = call({ tool: 'request_user_input', status: 'inProgress', arguments: args, await: { by: 'user', request: {} } })
     expect(waitsForAnswer(asked)).toBe(true)
-    expect(questionsOf(asked)).toEqual([{ id: 'q', header: 'H', question: 'Which?', answers: undefined }])
+    expect(callOf(asked)).toEqual({ kind: 'question', questions: [{ id: 'q', header: 'H', question: 'Which?', answers: undefined }] })
     const answered = { ...asked, status: 'completed' as const, result: { output: { q: { answers: ['Go'] } } } }
     expect(waitsForAnswer(answered)).toBe(false)
-    expect(questionsOf(answered)?.[0]?.answers).toEqual(['Go'])
+    const read = callOf(answered)
+    expect(read.kind === 'question' && read.questions[0]?.answers).toEqual(['Go'])
   })
 
   it('reads plans', () => {
     const c = call({ tool: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'a', status: 'in_progress' }] }) })
-    expect(planOf(c)?.plan).toEqual([{ step: 'a', status: 'in_progress' }])
+    expect(callOf(c)).toEqual({ kind: 'plan', plan: { plan: [{ step: 'a', status: 'in_progress' }] } })
+  })
+
+  it('reads a subagent task and the thread it runs in', () => {
+    const c = call({ tool: 'Agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), await: { by: 'agent', threadId: 'child', request: {} } })
+    expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', threadId: 'child' } })
   })
 })
 
@@ -185,10 +198,9 @@ describe('memory_search', () => {
   it('reads the query and the memories found', () => {
     const found = { memories: [{ id: 'x', scope: 'workspace', workspaceId: 'w', text: 'uses tabs' }] }
     const c = call({ tool: 'memory_search', arguments: JSON.stringify({ query: 'tabs' }), status: 'completed', result: { output: found } })
-    expect(memorySearchOf(c)).toEqual({ query: 'tabs', memories: found.memories })
-    expect(toolLabel(c)).toEqual({ kind: 'memorySearch', query: 'tabs' })
-    expect(memorySearchOf(call({ tool: 'memory_search', arguments: '{', status: 'inProgress' }))).toEqual({ query: undefined, memories: undefined })
-    expect(memorySearchOf(call({ tool: 'mock__echo' }))).toBeUndefined()
+    expect(callOf(c)).toEqual({ kind: 'memorySearch', search: { query: 'tabs', memories: found.memories } })
+    expect(callOf(call({ tool: 'memory_search', arguments: '{', status: 'inProgress' }))).toEqual({ kind: 'memorySearch', search: { query: undefined, memories: undefined } })
+    expect(callOf(call({ tool: 'mock__echo' })).kind).toBe('tool')
   })
 })
 
