@@ -42,8 +42,8 @@
 ### 2.0 窗口布局
 
 - 窗口底色是 `ground`。侧栏直接画在 ground 上，没有边框。
-- 当前屏幕（对话、Memory、Settings、新会话）是一块面板：距窗口上、右、下 8px，`rounded-xl border border-line bg-canvas`。深色主题里面板比 ground 更暗，浅色主题里面板是纯白。
-- 屏幕面板的标题栏高 40px，也是窗口的拖动区；macOS 红绿灯按钮垂直居中在这一行上（`trafficLightPosition` y 21）。侧栏顶部留出同样的 48px（8 + 40），第一项落在标题栏下沿。
+- 当前屏幕（对话、Memory、Settings、新会话）铺满侧栏右边的整个窗口，贴着窗口的上、右、下边，没有圆角，和侧栏之间只有一条 `border-l border-line`；底色 `bg-canvas`。深色主题里屏幕比 ground 更暗，浅色主题里屏幕是纯白。圆角留给屏幕里面的东西（Context 卡片、列表卡片、对话框）。
+- 屏幕的标题栏高 40px，在窗口最上面，也是窗口的拖动区；macOS 红绿灯按钮垂直居中在这一行上（`trafficLightPosition` y 13）。侧栏顶部留出同样的 40px，第一项落在标题栏下沿。
 - **侧栏网格**：每行高 28px，`px-2`；行首 16px 图标槽，图标与文字间距 8px。所以新会话、分组名、会话标题、底部导航的文字都从行内 32px 处开始。会话行没有图标，用 `pl-8` 对齐到同一处。
 - **居中的列**：对话、Settings、Memory 的内容是 `mx-auto max-w-* px-6` 的列。所在的滚动区加 `scroll-centered`（两侧都留滚动条位），列才与滚动区外的东西（对话下面的输入框）对齐。Settings 的标签页放在同一条列里。
 
@@ -466,7 +466,7 @@
 | token | 用于 | 不用于 |
 |---|---|---|
 | `canvas` | 主画布（对话页、Memory、Settings 内容区） | — |
-| `ground` | 窗口底色：侧栏、后端启动页，以及屏幕面板四周露出的部分 | 屏幕面板里的任何东西 |
+| `ground` | 窗口底色：侧栏、后端启动页 | 屏幕里的任何东西 |
 | `surface` | 代码块、工具输出、用户消息气泡、计划、表头 | 浮层、设置列表卡片 |
 | `raised` | 对话框、菜单、toast、气泡提示、**需要用户行动的块** | 流里的普通块 |
 | `hover` | 悬停底色；行内代码底色 | 选中态 |
@@ -550,7 +550,7 @@
 | `rounded-sm` | 4 | 徽标、行内代码、复选框、快捷键提示 |
 | `rounded-md` | 6 | 按钮、输入框、下拉框、侧栏项、菜单项、子标签 |
 | `rounded-lg` | 8 | 对话流里的块（代码块、工具输出、计划、行动块）、列表卡片 |
-| `rounded-xl` | 12 | 屏幕面板、对话框、菜单浮层、toast |
+| `rounded-xl` | 12 | Context 卡片、对话框、菜单浮层、toast（屏幕本身不圆角） |
 | `rounded-2xl` | 16 | 输入框外壳（Composer）、用户消息气泡、排队中的消息 |
 | `rounded-full` | — | 圆点、开关、头像 |
 
@@ -881,7 +881,7 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 | 对话页顶栏 | `text-title` 标题 + `text-small fg-subtle` 的 workspace；状态徽标（3.3）；定时任务、权限、Context 面板开关为 md 图标按钮（开启时 `active`） |
 | 对话流 | 3.1、3.2 |
 | 输入框 | `bg-raised border-line rounded-2xl shadow-sm`，聚焦时 `border-line-strong shadow-md`（不用强调色）；宽度与对话列相同（`max-w-thread px-6`）；运行中右侧主按钮变为 `Stop`（次要样式 + square 图标），输入内容时为 `Send`（追加）；等待用户时上方提示 |
-| Context 面板 | 屏幕面板内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
+| Context 面板 | 屏幕内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
 | Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
 | Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |
 | 对话框 | 3.7 对话框 + 3.5 表单：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方 |
