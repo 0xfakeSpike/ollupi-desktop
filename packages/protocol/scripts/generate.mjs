@@ -22,7 +22,7 @@ const outDir = join(here, '../src/generated')
 const sidecar = join(here, '../../../sidecar')
 const check = process.argv.includes('--check')
 
-// The ollupi the sidecar builds against (its go.mod, including a replace).
+// The ollupi the sidecar builds against (its go.mod).
 const ollupi = execFileSync('go', ['list', '-m', '-f', '{{.Dir}}', 'github.com/0xfakeSpike/ollupi'], { cwd: sidecar, encoding: 'utf8' }).trim()
 const contractPath = join(ollupi, 'gateway/protocol.schema.json')
 const raw = readFileSync(contractPath)

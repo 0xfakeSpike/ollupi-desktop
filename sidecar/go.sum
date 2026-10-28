@@ -1,5 +1,5 @@
-github.com/0xfakeSpike/ollupi v0.1.0 h1:skd1fLuowNDw4B+Gjj/7qjPHRzwLDA1F4xWWyzTCnaM=
-github.com/0xfakeSpike/ollupi v0.1.0/go.mod h1:Rnx/dsqfPB/WD8nqtldshOEwWa+zOwJlT3tY3uBKyHQ=
+github.com/0xfakeSpike/ollupi v0.2.0 h1:mSEMw3GpG5pMYFH3Q1qjnHDn8YW8G0f21uJNsmve7KE=
+github.com/0xfakeSpike/ollupi v0.2.0/go.mod h1:Rnx/dsqfPB/WD8nqtldshOEwWa+zOwJlT3tY3uBKyHQ=
 github.com/coder/websocket v1.8.15 h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=
 github.com/coder/websocket v1.8.15/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
 github.com/golang-jwt/jwt/v5 v5.3.0 h1:pv4AsKCKKZuqlgs5sUmn4x8UlGa0kEVt/puTpKx9vvo=

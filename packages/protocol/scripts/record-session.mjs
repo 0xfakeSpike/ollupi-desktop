@@ -35,9 +35,12 @@ process.on('exit', () => {
 
 const binary = join(tmp, 'ollupid')
 execFileSync('go', ['build', '-o', binary, './cmd/ollupid'], { cwd: sidecar, stdio: 'inherit' })
-const ollupi = execFileSync('go', ['list', '-m', '-f', '{{.Dir}}', 'github.com/0xfakeSpike/ollupi'], { cwd: sidecar, encoding: 'utf8' }).trim()
+// The ollupi module the sidecar requires, from Go's module cache: its
+// version names it.
+const [ollupi, revision] = execFileSync('go', ['list', '-m', '-f', '{{.Dir}}\n{{.Version}}', 'github.com/0xfakeSpike/ollupi'], { cwd: sidecar, encoding: 'utf8' })
+  .trim()
+  .split('\n')
 const contract = readFileSync(join(ollupi, 'gateway/protocol.schema.json'))
-const revision = execFileSync('git', ['-C', ollupi, 'log', '-1', '--format=%h %s'], { encoding: 'utf8' }).trim()
 
 const home = join(tmp, 'home')
 const workspace = join(tmp, 'workspace')
