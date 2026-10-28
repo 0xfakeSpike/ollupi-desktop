@@ -55,7 +55,7 @@ export async function readFile(root: string, path: string): Promise<FilePreview>
 }
 
 /** The real path of root/path, which must stay inside root's real path. */
-async function inside(root: string, path: string): Promise<string> {
+export async function inside(root: string, path: string): Promise<string> {
   if (!isAbsolute(root) || isAbsolute(path)) throw new Error('expected an absolute root and a relative path')
   const base = await realpath(root)
   const full = await realpath(join(base, path))

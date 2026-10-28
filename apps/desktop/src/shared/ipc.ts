@@ -82,6 +82,25 @@ export type FilePreview =
   | { kind: 'image'; size: number; dataUrl: string }
   | { kind: 'binary'; size: number }
 
+/** A file that differs from the last commit, as git sees it under the
+ * workspace. Line counts are absent for a binary or untracked file. */
+export interface FileChange {
+  path: string
+  kind: 'modified' | 'added' | 'deleted' | 'untracked'
+  added?: number
+  removed?: number
+}
+
+/** A workspace's uncommitted changes, or that it is not in a git
+ * repository. */
+export type Changes = { repo: false } | { repo: true; files: FileChange[] }
+
+/** A file's diff against the last commit; only the start of a long one. */
+export interface FileDiff {
+  text: string
+  truncated: boolean
+}
+
 /** Light or dark, or whichever the system uses. */
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
@@ -122,6 +141,11 @@ export interface DesktopApi {
     list(root: string, path: string): Promise<FileEntry[]>
     read(root: string, path: string): Promise<FilePreview>
   }
+  /** A workspace's uncommitted changes, from git. */
+  changes: {
+    list(root: string): Promise<Changes>
+    diff(root: string, path: string, untracked: boolean): Promise<FileDiff>
+  }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
    * OpenAI's, as for the backend. */
@@ -149,6 +173,8 @@ export const IpcChannel = {
   SkillsDefaultFolder: 'skills:defaultFolder',
   FilesList: 'files:list',
   FilesRead: 'files:read',
+  ChangesList: 'changes:list',
+  ChangesDiff: 'changes:diff',
   ListModels: 'models:list',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',

@@ -1,6 +1,6 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, Folder, FolderTree, Gauge, ListChecks, Shield } from 'lucide-react'
+import { ArrowDown, ArrowLeft, FileDiff, Folder, FolderTree, Gauge, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { togglePanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
@@ -8,6 +8,7 @@ import { useWorkspace } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
 import { useStickToBottom } from '../common/useStickToBottom'
+import { ChangesPanel } from './ChangesPanel'
 import { Composer } from './Composer'
 import { FilesPanel } from './FilesPanel'
 import { ContextPanel } from './ContextPanel'
@@ -49,6 +50,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         {workspace && (
           <IconButton label={m.conversation.screen.files} active={panel === 'files'} onClick={() => togglePanel('files')}>
             <FolderTree size={16} />
+          </IconButton>
+        )}
+        {workspace && (
+          <IconButton label={m.conversation.screen.changes} active={panel === 'changes'} onClick={() => togglePanel('changes')}>
+            <FileDiff size={16} />
           </IconButton>
         )}
         <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
@@ -111,6 +117,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         </div>
         {/* One tree per workspace: threads of the same workspace keep its open folders. */}
         {panel === 'files' && workspace && <FilesPanel key={workspace.id} workspace={workspace} />}
+        {panel === 'changes' && workspace && <ChangesPanel key={workspace.id} workspace={workspace} turn={running?.id} />}
         {panel === 'tasks' && <TasksPanel timeline={timeline} />}
         {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
         {panel === 'context' && <ContextPanel timeline={timeline} />}

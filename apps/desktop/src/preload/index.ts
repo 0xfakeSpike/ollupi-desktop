@@ -32,6 +32,10 @@ const api: DesktopApi = {
     list: (root, path) => ipcRenderer.invoke(IpcChannel.FilesList, root, path),
     read: (root, path) => ipcRenderer.invoke(IpcChannel.FilesRead, root, path),
   },
+  changes: {
+    list: (root) => ipcRenderer.invoke(IpcChannel.ChangesList, root),
+    diff: (root, path, untracked) => ipcRenderer.invoke(IpcChannel.ChangesDiff, root, path, untracked),
+  },
   listModels: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, baseUrl, apiKey),
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),

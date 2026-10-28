@@ -7,11 +7,12 @@ import { isAbsolute, join } from 'node:path'
 import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type ColorScheme, type ConfigChange } from '../shared/ipc'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
+import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
 import { listFolder, readFile } from './files'
 import { listModels } from './models'
 
-export function registerIpc(backend: BackendSupervisor, config: BackendConfig, skills: BackendSkills, home: string): void {
+export function registerIpc(backend: BackendSupervisor, config: BackendConfig, skills: BackendSkills, changes: WorkspaceChanges, home: string): void {
   const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
@@ -33,6 +34,10 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, s
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   ipcMain.handle(IpcChannel.FilesList, (_event, root: unknown, path: unknown) => listFolder(text(root), text(path)))
   ipcMain.handle(IpcChannel.FilesRead, (_event, root: unknown, path: unknown) => readFile(text(root), text(path)))
+  ipcMain.handle(IpcChannel.ChangesList, (_event, root: unknown) => changes.list(absolute(root)))
+  ipcMain.handle(IpcChannel.ChangesDiff, (_event, root: unknown, path: unknown, untracked: unknown) =>
+    changes.diff(absolute(root), text(path), untracked === true),
+  )
   ipcMain.handle(IpcChannel.ListModels, (_event, baseUrl: unknown, apiKey: unknown) => {
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, baseUrl, apiKey)
@@ -59,6 +64,11 @@ async function pickDirectory(sender: Electron.WebContents, create: boolean): Pro
   const win = BrowserWindow.fromWebContents(sender)
   const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
   return res.canceled ? undefined : res.filePaths[0]
+}
+
+function absolute(value: unknown): string {
+  if (typeof value !== 'string' || !isAbsolute(value)) throw new Error('expected an absolute path')
+  return value
 }
 
 function text(value: unknown): string {
