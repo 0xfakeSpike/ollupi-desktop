@@ -32,7 +32,7 @@ export function MemoryContext({ item }: { item: ItemRow }) {
 const scopes: MemoryScope[] = ['global', 'general', 'workspace']
 
 /** Memories a conversation sees, by the scope each carries. */
-export function MemoryGroups({ memories }: { memories: MemoryReference[] }) {
+function MemoryGroups({ memories }: { memories: MemoryReference[] }) {
   const m = useT()
   return (
     <div className="flex flex-col gap-3">
