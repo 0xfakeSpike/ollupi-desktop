@@ -4,21 +4,23 @@
 // server can also disconnect later, so the status is read on demand.
 
 import type { ServerStatus } from '@ollupi/protocol'
-import type { BackendConfig, ConfigChange } from '../../../shared/ipc'
+import { BROWSER_SERVER, type BackendConfig, type ConfigChange } from '../../../shared/ipc'
 import { gateway } from '../gateway/connection'
 import { run } from '../gateway/run'
 
 export type McpServer = NonNullable<BackendConfig['mcp']>[number]
 
+/** The servers config.yaml lists; the app's browser is the app's own. */
 export function readMcpStatus(): Promise<ServerStatus[] | undefined> {
-  return run((e) => e.config.mcpStatus, async () => (await gateway().call('mcpServer/list', {})).data)
+  return run((e) => e.config.mcpStatus, async () => (await gateway().call('mcpServer/list', {})).data.filter((s) => s.name !== BROWSER_SERVER))
 }
 
 /** ollupi's rule for a server name (mcp.Connect): it prefixes the server's
- * tool names as <name>__<tool>. Says what is wrong: the format, or another
- * server has the name. */
-export function nameError(name: string, taken: string[]): 'format' | 'taken' | undefined {
+ * tool names as <name>__<tool>. Says what is wrong: the format, another
+ * server has the name, or the app's browser does (the sidecar refuses it). */
+export function nameError(name: string, taken: string[]): 'format' | 'taken' | 'builtin' | undefined {
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/.test(name) || name.includes('__')) return 'format'
+  if (name === BROWSER_SERVER) return 'builtin'
   if (taken.includes(name)) return 'taken'
   return undefined
 }

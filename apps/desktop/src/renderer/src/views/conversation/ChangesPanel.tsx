@@ -30,7 +30,7 @@ export function ChangesPanel({ workspace, turn }: { workspace: WorkspaceRow; /**
   return (
     <SidePanel
       panel="changes"
-      wide
+      width="wide"
       title={t.title}
       closeLabel={t.close}
       actions={

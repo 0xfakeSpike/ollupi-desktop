@@ -61,6 +61,7 @@ export const en = {
   mcpName: {
     format: "1 to 32 letters, digits, '-' or '_', starting with a letter or digit, without '__'.",
     taken: 'Another server has this name.',
+    builtin: 'The app’s built-in browser has this name.',
   },
   skillName: {
     format: '1 to 64 lowercase letters, digits and single hyphens, not starting or ending with one.',
@@ -133,6 +134,7 @@ export const zh: typeof en = {
   mcpName: {
     format: '1 到 32 个字母、数字、“-”或“_”，以字母或数字开头，不能包含“__”。',
     taken: '已有服务器使用这个名称。',
+    builtin: '这个名称是 app 内置浏览器的。',
   },
   skillName: {
     format: '1 到 64 个小写字母、数字或单个连字符，不能以连字符开头或结尾。',

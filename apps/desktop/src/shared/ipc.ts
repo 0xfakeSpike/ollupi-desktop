@@ -101,6 +101,27 @@ export interface FileDiff {
   truncated: boolean
 }
 
+/** The app's browser page as its panel shows it. */
+export interface BrowserState {
+  url: string
+  title: string
+  loading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
+}
+
+/** Where the browser panel shows the page, in the window's content. */
+export interface BrowserBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** The MCP server name the app's browser has in the backend: its tools
+ * are browser__<tool>. config.yaml cannot use it (the sidecar refuses). */
+export const BROWSER_SERVER = 'browser'
+
 /** Light or dark, or whichever the system uses. */
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
@@ -146,6 +167,19 @@ export interface DesktopApi {
     list(root: string): Promise<Changes>
     diff(root: string, path: string, untracked: boolean): Promise<FileDiff>
   }
+  /** The app's browser, which the person and the agent share. */
+  browser: {
+    state(): Promise<BrowserState>
+    /** Shows the page over the panel's area; undefined hides it. */
+    place(bounds: BrowserBounds | undefined): Promise<void>
+    open(url: string): Promise<void>
+    back(): Promise<void>
+    forward(): Promise<void>
+    reload(): Promise<void>
+    onState(listener: (state: BrowserState) => void): () => void
+    /** The agent acted on the page. */
+    onUsed(listener: () => void): () => void
+  }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
    * OpenAI's, as for the backend. */
@@ -175,6 +209,14 @@ export const IpcChannel = {
   FilesRead: 'files:read',
   ChangesList: 'changes:list',
   ChangesDiff: 'changes:diff',
+  BrowserState: 'browser:state',
+  BrowserPlace: 'browser:place',
+  BrowserOpen: 'browser:open',
+  BrowserBack: 'browser:back',
+  BrowserForward: 'browser:forward',
+  BrowserReload: 'browser:reload',
+  BrowserChanged: 'browser:changed',
+  BrowserUsed: 'browser:used',
   ListModels: 'models:list',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',

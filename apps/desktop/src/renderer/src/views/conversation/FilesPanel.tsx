@@ -32,7 +32,7 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
   return (
     <SidePanel
       panel="files"
-      wide
+      width="wide"
       title={workspace.name}
       closeLabel={t.close}
       actions={

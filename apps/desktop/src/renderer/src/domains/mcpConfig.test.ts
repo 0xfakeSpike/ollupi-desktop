@@ -13,6 +13,7 @@ describe('MCP server edits', () => {
     expect(nameError('-x', [])).toBe('format')
     expect(nameError('a'.repeat(33), [])).toBe('format')
     expect(nameError('gh', ['gh'])).toBe('taken')
+    expect(nameError('browser', [])).toBe('builtin')
   })
 
   it('keeps a value it was not given unless it is changed or removed', () => {
