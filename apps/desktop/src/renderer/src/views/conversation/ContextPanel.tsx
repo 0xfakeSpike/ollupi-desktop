@@ -46,7 +46,7 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
   const connection = (c: ModelCall) => timeline?.turns.find((t) => t.id === c.turnId)?.model.connection ?? c.stats.model ?? ''
 
   return (
-    <aside className="my-2 mr-2 flex w-80 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-surface">
+    <aside className="my-2 mr-2 flex w-80 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-canvas">
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-line pr-2 pl-4">
         <h2 className="text-ui font-semibold">{t.title}</h2>
         <IconButton label={t.close} size="sm" onClick={toggleContextPanel}>
