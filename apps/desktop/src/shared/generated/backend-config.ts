@@ -12,14 +12,13 @@ export interface ConfigCheck {
           provider: string;
           base_url?: string;
           api_key?: string;
-          api_key_env?: string;
           names:
             | null
             | {
                 name: string;
                 calls?: number;
                 thinking?: null | boolean;
-                limits?: null | {
+                limits: {
                   context: number;
                   output: number;
                 };
@@ -77,12 +76,6 @@ export interface ConfigCheck {
         id: string;
         provider: string;
         name: string;
-      }[];
-  keys?:
-    | null
-    | {
-        provider: string;
-        from: string;
       }[];
   error?: string;
 }

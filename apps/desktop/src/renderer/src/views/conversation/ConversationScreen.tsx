@@ -1,5 +1,5 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
-import { Badge, IconButton, Spinner } from '@ollupi/ui'
+import { Badge, IconButton, Spinner, useTooltip } from '@ollupi/ui'
 import { ArrowDown, ArrowLeft, Folder, Gauge, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
@@ -28,6 +28,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const [dialog, setDialog] = useState<Dialog>()
   const contextOpen = useNavigation((s) => s.contextPanel)
   const m = useT()
+  const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
 
   return (
     <div className="flex h-full flex-col">
@@ -72,14 +73,18 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               )}
             </div>
             {!atBottom && (
-              <button
-                type="button"
-                aria-label={m.conversation.screen.scrollToLatest}
-                onClick={() => scrollToBottom(true)}
-                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
-              >
-                <ArrowDown size={16} />
-              </button>
+              <>
+                <button
+                  type="button"
+                  aria-label={m.conversation.screen.scrollToLatest}
+                  onClick={() => scrollToBottom(true)}
+                  className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
+                  {...latestTip.trigger}
+                >
+                  <ArrowDown size={16} />
+                </button>
+                {latestTip.tooltip}
+              </>
             )}
           </div>
 

@@ -1,8 +1,9 @@
-import { Badge, Button, cn, Field, palettes, Select, Tabs, type Palette } from '@ollupi/ui'
+import { Badge, Button, cn, Field, palettes, Select, Switch, Tabs, type Palette } from '@ollupi/ui'
 import { FileCog, RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
+import { setRedaction, useSettings } from '../../domains/settings'
 import { useConnection } from '../../gateway/connection'
 import { setLanguage, useLocale, useT, type LanguagePreference, type Messages } from '../../i18n'
 import { locales, systemLocale } from '../../i18n/locale'
@@ -24,21 +25,22 @@ export function SettingsScreen() {
   const current = tabs.find((t) => t.id === tab)!
   return (
     <div className="flex h-full flex-col">
-      {/* The header's row is the content's column, so the tabs sit over it. */}
-      <header className="drag flex h-10 shrink-0 border-b border-line">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-6 px-6">
-          <h1 className="text-ui font-semibold">{m.settings.screen.title}</h1>
-          <Tabs<Tab> label={m.settings.screen.title} tabs={tabs} value={tab} onChange={setTab} />
-        </div>
+      <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
+        <h1 className="text-ui font-semibold">{m.settings.screen.title}</h1>
       </header>
-      <div className="scroll-centered flex-1 overflow-y-auto">
-        <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-8">
-          <p className="text-ui text-fg-muted">{current.description}</p>
-          {tab === 'general' && <General />}
-          {tab === 'models' && <ModelsSection />}
-          {tab === 'mcp' && <McpSection />}
-          {tab === 'tools' && <ToolsSection />}
-        </section>
+      <div className="flex min-h-0 flex-1">
+        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-2">
+          <Tabs<Tab> label={m.settings.screen.title} orientation="vertical" tabs={tabs} value={tab} onChange={setTab} />
+        </nav>
+        <div className="scroll-centered flex-1 overflow-y-auto">
+          <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-8">
+            <p className="text-ui text-fg-muted">{current.description}</p>
+            {tab === 'general' && <General />}
+            {tab === 'models' && <ModelsSection />}
+            {tab === 'mcp' && <McpSection />}
+            {tab === 'tools' && <ToolsSection />}
+          </section>
+        </div>
       </div>
     </div>
   )
@@ -76,6 +78,7 @@ function General() {
         </Select>
       </Field>
       <Appearance />
+      <Redaction />
       <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
         {rows.map(([k, v]) => (
           <div key={k} className="flex min-h-11 items-center gap-4 px-3 py-2.5">
@@ -102,6 +105,21 @@ function General() {
         )}
       </div>
     </>
+  )
+}
+
+/** Off until ollupi's setting is read, so it never shows a guess. */
+function Redaction() {
+  const t = useT().settings.general
+  const settings = useSettings((s) => s.settings)
+  return (
+    <div className="flex items-start gap-4 rounded-lg border border-line px-4 py-4">
+      <div className="min-w-0 flex-1">
+        <div className="text-ui font-medium text-fg">{t.redaction}</div>
+        <div className="mt-0.5 text-small text-fg-muted">{t.redactionHint}</div>
+      </div>
+      <Switch label={t.redaction} checked={settings?.redaction ?? false} disabled={!settings} onChange={(on) => void setRedaction(on)} />
+    </div>
   )
 }
 

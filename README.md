@@ -50,8 +50,8 @@ gateway/    连接本身：session（跟随后端状态连接、断线退避重�
             contract（仅开发构建：对照契约校验收发的每条消息）
 domains/    每个领域一个文件，自带 store、要订阅的网关事件（bind）、
             连接建立后的加载（sync）、断线时清理（disconnect）和用户动作：
-            workspaces、threads、conversation、requests、models、tools、cron、memory，
-            以及纯客户端的 navigation、notices
+            workspaces、threads、conversation、requests、models、tools、cron、memory、
+            settings，以及纯客户端的 navigation、notices
 views/      React 界面：sidebar、draft、conversation（items/ 按 item 类型渲染，tools/
             每种工具调用一份视图，漏一种不能编译）、requests（审批卡、问答卡）、
             cron、memory、settings、backend、common
@@ -71,6 +71,7 @@ session 不认识任何领域的事件：它依次调用各领域的 `bind`、�
 - 父会话在子代理等待用户时也报告"等待中"，所以子代理的审批和提问显示在父会话的子代理卡片上。
 - 定时任务集中在“定时任务”页按工作区管理：连接后用不带 `threadId` 的 `cron/list` 读取全部任务，之后只按 `cron/changed` 通知更新（模型、`cron/*` 调用和调度器推进下次执行时间都会发）；ollupi 在列表回复发出前挡住通知，所以按顺序应用即可。`cron/*` 调用的返回值不直接写入，以通知为准。新建任务只能发到未归档工作区里的顶层会话：归档期间的运行会被跳过，子代理会话不接收消息。执行时间按周期选（每小时、每天、工作日、每周、每月，加时间），由 core 的 `cronSpec` 写成五段 cron；已有任务的 spec 能被 `scheduleOf` 认出时用文字显示，认不出的（模型写的范围、步长等）原样显示。
 - 审批策略"继承"就是不传 `approvalPolicy`。
+- 脱敏开关在 Settings → General，是 ollupi 的全局设置，不写 config.yaml：连接后用 `settings/read` 读取，切换发 `settings/update`，界面只按 `settings/changed` 更新；ollupi 每次调用模型前都读它，所以改动不用重启后端，从下一次模型调用起生效。
 - 内置工具的参数是模型写的 JSON，只有对照契约校验通过才当作计划、问题、子代理任务来显示；命令以 ollupi 冻结的执行内容为准。
 
 ### 契约如何守住
@@ -133,9 +134,9 @@ pnpm --filter @ollupi/desktop dev:renderer
 
 ## 配置（`~/.ollupi/config.yaml`）
 
-ollupi 只在启动时读取配置，所以界面里的配置修改（Settings 的 Models 页、Memory 页的"学习"和"使用"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，不含 API key；按 `provider/name` 展开的模型列表；每个提供方的 key 来源）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
+ollupi 只在启动时读取配置，所以界面里的配置修改（Settings 的 Models 页、Memory 页的"学习"和"使用"开关）一律是"改文件并重启后端"：主进程用 `yaml` 的文档接口改写文件，保留注释；先把改后的内容交给 `ollupid --check-config` 校验，它会用一个临时数据库真实地启动一次 agent，用的是与正式启动完全相同的校验代码；通过后才原子地替换文件并重启。被拒绝的修改不会写进文件。`--check-config` 的输出（解码后的配置，含 API key，不含 MCP 写在文件里的 env/header 值；按 `provider/name` 展开的模型列表）的 TS 类型由 `ollupid --config-schema` 生成（`pnpm config:generate`，`pnpm config:check` 检查是否过期）。
 
-- `models`：按提供方分组的模型，可在 Settings → Models 里管理（应用只记录 key 所在的环境变量名，key 本身留在 `~/.zshrc`）。每个提供方是一个 OpenAI 兼容接口（`provider` 名称唯一且不含 `/`，`base_url`、`api_key_env` 或 `api_key`），`names` 列出它提供的模型；每个模型有自己的 client 和并发上限 `calls`（默认 4），未知模型用 `limits` 声明上下文窗口。模型的 id 是 `provider/name`，即 ollupi 的 connection、`turn/start` 选模型用的键，所以两个提供方可以提供同名模型。第一个提供方的第一个模型是默认。
+- `models`：按提供方分组的模型，可在 Settings → Models 里管理（API key 和 `base_url` 一样直接填在界面里，写进 config.yaml）。每个提供方是一个 OpenAI 兼容接口（`provider` 名称唯一且不含 `/`，`base_url`，没有 key 的接口不写 `api_key`），`names` 列出它提供的模型；每个模型必须用 `limits: { context, output }` 声明上下文窗口和单次回答上限（ollupi 不内置任何模型的上限），并有自己的 client 和并发上限 `calls`（默认 4）。在添加提供方时，界面会从 `{base_url}/models` 获取模型列表供勾选。模型的 id 是 `provider/name`，即 ollupi 的 connection、`turn/start` 选模型用的键，所以两个提供方可以提供同名模型。第一个提供方的第一个模型是默认。
 - `permissions`：agent 级权限（`approval` 审批策略 + `allow`/`ask`/`deny` 规则），工作区和会话在其上叠加。
 - `slots`：同时运行的会话数上限（默认 32）。
 - `shell`：`run_command` 工具与 macOS 沙箱。config.yaml 本身对命令不可读。

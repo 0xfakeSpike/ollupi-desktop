@@ -1,5 +1,7 @@
 // The memory screen: scopes, entries and the learning and use switches.
 
+import type { MemoryFailureCode } from '@ollupi/protocol'
+
 export const en = {
   screen: {
     title: 'Memory',
@@ -19,13 +21,34 @@ export const en = {
     learningOff: 'learning off',
     active: (n: number) => `${n} active`,
     pending: (n: number) => (n === 1 ? '1 turn to learn from' : `${n} turns to learn from`),
+    /** What went wrong while learning, by the code ollupi gives the failure;
+     * said of no time, as both the current failure and a skip use it. */
+    failure: {
+      model_request: 'the model could not be reached',
+      invalid_response: "the model's reply could not be used",
+      evidence: 'the conversation could not be read',
+      storage: 'memories could not be saved',
+    } satisfies Record<MemoryFailureCode, string>,
+    retryAt: (reason: string, time: string, n: number) => `Learning failed: ${reason}; retrying at ${time} (retry ${n})`,
+    retrySoon: (reason: string) => `Learning failed: ${reason}; retrying shortly`,
+    /** Learning is off, so nothing retries until it is turned on. */
+    retryWhenOn: (reason: string) => `Learning failed: ${reason}; it is retried once learning is on`,
+    skipped: (n: number) => (n === 1 ? '1 entry could not be learned from and was skipped' : `${n} entries could not be learned from and were skipped`),
+    lastSkip: (when: string, n: number) => (n === 1 ? `Last skipped ${when}: 1 entry` : `Last skipped ${when}: ${n} entries`),
+    skipIn: 'In',
+    someConversation: 'a conversation',
+    skipReason: (reason: string) => `Why: ${reason}`,
   },
   entry: {
     /** Display names of the kinds ollupi gives memories. */
     kinds: { preference: 'preference', decision: 'decision', procedure: 'procedure', fact: 'fact' },
     editedByYou: 'edited by you',
     toGlobal: 'Move to global',
+    toGlobalHint: 'Every conversation will use it; you can move it back',
     backTo: (place: string) => `Move back to ${place}`,
+    /** What moving back means, by where the memory came from. */
+    backToGeneralHint: 'Only conversations outside any workspace will use it',
+    backToWorkspaceHint: (workspace: string) => `Only conversations in ${workspace} will use it`,
     from: (place: string) => `from ${place}`,
     forget: 'Forget',
     forgetConfirm: 'Forget this memory?',
@@ -63,12 +86,29 @@ export const zh: typeof en = {
     learningOff: '学习已关闭',
     active: (n) => `${n} 条有效`,
     pending: (n) => `${n} 轮待学习`,
+    failure: {
+      model_request: '请求模型失败',
+      invalid_response: '模型返回的内容不合规',
+      evidence: '读取对话内容出错',
+      storage: '保存记忆出错',
+    },
+    retryAt: (reason, time, n) => `上次整理时${reason}，将在 ${time} 重试（第 ${n} 次）`,
+    retrySoon: (reason) => `上次整理时${reason}，稍后重试`,
+    retryWhenOn: (reason) => `上次整理时${reason}，开启学习后会重试`,
+    skipped: (n) => `有 ${n} 条内容未能整理成记忆，已跳过`,
+    lastSkip: (when, n) => `最近一次跳过：${when}，共 ${n} 条`,
+    skipIn: '来自对话',
+    someConversation: '一个对话',
+    skipReason: (reason) => `原因：${reason}`,
   },
   entry: {
     kinds: { preference: '偏好', decision: '决定', procedure: '流程', fact: '事实' },
     editedByYou: '已由你编辑',
     toGlobal: '移到全局',
+    toGlobalHint: '所有会话都会用到这条记忆，之后可以移回来',
     backTo: (place) => `移回${place}`,
+    backToGeneralHint: '只在不属于任何工作区的会话里使用',
+    backToWorkspaceHint: (workspace) => `只在「${workspace}」的会话里使用`,
     from: (place) => `来自${place}`,
     forget: '遗忘',
     forgetConfirm: '遗忘这条记忆？',

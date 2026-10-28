@@ -1,7 +1,7 @@
 // The message box. It knows nothing about threads: the screen decides what
 // submitting means and whether a turn is running.
 
-import { AutoTextarea, cn, IconButton, Kbd } from '@ollupi/ui'
+import { AutoTextarea, cn, IconButton, Kbd, useTooltip } from '@ollupi/ui'
 import { ArrowUp, ListEnd, Square } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { SendMode } from '../../domains/conversation'
@@ -27,6 +27,7 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
   const [sending, setSending] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
   const m = useT()
+  const sendTip = useTooltip({ label: m.conversation.composer.send })
   useEffect(() => input.current?.focus(), [])
 
   const submit = async (mode: SendMode) => {
@@ -82,16 +83,19 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              aria-label={m.conversation.composer.send}
-              title={m.conversation.composer.send}
-              disabled={blocked}
-              onClick={() => void submit('steer')}
-              className="flex size-8 items-center justify-center rounded-full bg-ink text-ink-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
-            >
-              <ArrowUp size={16} strokeWidth={2.5} />
-            </button>
+            <>
+              <button
+                type="button"
+                aria-label={m.conversation.composer.send}
+                disabled={blocked}
+                onClick={() => void submit('steer')}
+                className="flex size-8 items-center justify-center rounded-full bg-ink text-ink-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
+                {...sendTip.trigger}
+              >
+                <ArrowUp size={16} strokeWidth={2.5} />
+              </button>
+              {sendTip.tooltip}
+            </>
           )}
         </div>
       </div>

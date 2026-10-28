@@ -96,14 +96,14 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 }
 
 // checkResult is --check-config's output: the config as the backend decodes
-// it (defaults applied, paths resolved, API keys and the MCP env and header
-// values written in the file left out) with its models as the app selects
-// them and where each provider's key comes from, or why it would not start.
+// it (defaults applied, paths resolved, the MCP env and header values
+// written in the file left out) with its models as the app selects them, or
+// why it would not start. API keys stay in: the app edits them like the base
+// URL.
 type checkResult struct {
 	OK     bool              `json:"ok"`
 	Config *config.Config    `json:"config,omitempty"`
 	Models []config.ModelRef `json:"models,omitempty"`
-	Keys   []config.KeyRef   `json:"keys,omitempty"`
 	Error  string            `json:"error,omitempty"`
 }
 
@@ -114,15 +114,10 @@ func check(path, home string) int {
 	}
 	out := checkResult{Error: errorText(err)}
 	if err == nil {
-		// The result goes to the app's UI, which has no use for keys.
-		keys := cfg.KeyRefs()
-		for i := range cfg.Models {
-			cfg.Models[i].APIKey = ""
-		}
 		for i := range cfg.MCP {
 			cfg.MCP[i] = cfg.MCP[i].Redacted()
 		}
-		out = checkResult{OK: true, Config: &cfg, Models: cfg.ModelRefs(), Keys: keys}
+		out = checkResult{OK: true, Config: &cfg, Models: cfg.ModelRefs()}
 	}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))

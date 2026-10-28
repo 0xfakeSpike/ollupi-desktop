@@ -2,11 +2,12 @@
 // may use. Handlers validate their input; the renderer gets no general shell
 // access.
 
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'electron'
 import { isAbsolute, join } from 'node:path'
 import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type ColorScheme, type ConfigChange } from '../shared/ipc'
 import type { BackendConfig } from './backend/config'
 import type { BackendSupervisor } from './backend/supervisor'
+import { listModels } from './models'
 
 export function registerIpc(backend: BackendSupervisor, config: BackendConfig, home: string): void {
   const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
@@ -15,6 +16,10 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, h
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
   ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
   ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
+  ipcMain.handle(IpcChannel.ListModels, (_event, baseUrl: unknown, apiKey: unknown) => {
+    if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
+    return listModels(net.fetch, baseUrl, apiKey)
+  })
   ipcMain.handle(IpcChannel.PickDirectory, async (event) => {
     const opts: Electron.OpenDialogOptions = { properties: ['openDirectory', 'createDirectory'] }
     const win = BrowserWindow.fromWebContents(event.sender)

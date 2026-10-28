@@ -1,8 +1,8 @@
 // Edits to config.yaml's models, following the backend's rules: providers
 // have distinct names and each serves at least one model; a model is
 // selected by its id, provider/name; the first model of the first provider
-// is the default; memory.model names one of the models by id. API keys stay
-// in the user's environment: the app records only the variable's name.
+// is the default; memory.model names one of the models by id. A provider's
+// API key is written in the file, like its base URL.
 
 import type { BackendConfig, ConfigChange } from '../../../shared/ipc'
 
@@ -15,15 +15,16 @@ export const modelId = (provider: string, name: string): string => `${provider}/
 export interface ProviderFields {
   provider: string
   baseUrl: string
-  /** The environment variable holding the key; empty for an API without one. */
-  keyEnv: string
+  /** Empty for an API without a key. */
+  apiKey: string
 }
 
 export interface ModelFields {
   name: string
   calls: number | undefined
   thinking: boolean | undefined
-  limits: { context: number; output: number } | undefined
+  /** The context window and the most an answer may take of it, in tokens. */
+  limits: { context: number; output: number }
 }
 
 const providers = (c: BackendConfig): Provider[] => c.models ?? []
@@ -33,7 +34,7 @@ function modelValue(m: ModelFields): ProviderModel {
     name: m.name,
     ...(m.calls !== undefined && { calls: m.calls }),
     ...(m.thinking !== undefined && { thinking: m.thinking }),
-    ...(m.limits && { limits: m.limits }),
+    limits: m.limits,
   }
 }
 
@@ -42,27 +43,26 @@ function setOrDelete(path: (string | number)[], value: unknown): ConfigChange {
   return value === undefined || value === '' ? { kind: 'delete', path } : { kind: 'set', path, value }
 }
 
-export function addProvider(config: BackendConfig, p: ProviderFields, first: ModelFields): ConfigChange[] {
+/** A provider serves at least one model, so it comes with its models. */
+export function addProvider(config: BackendConfig, p: ProviderFields, models: ModelFields[]): ConfigChange[] {
   const value = {
     provider: p.provider,
     ...(p.baseUrl && { base_url: p.baseUrl }),
-    ...(p.keyEnv && { api_key_env: p.keyEnv }),
-    names: [modelValue(first)],
+    ...(p.apiKey && { api_key: p.apiKey }),
+    names: models.map(modelValue),
   }
   return [{ kind: 'set', path: ['models', providers(config).length], value }]
 }
 
 /** Renaming a provider changes its models' ids, so memory.model follows when
- * it names one of them. A key written in the file would win over the
- * variable, so choosing a variable removes it. */
+ * it names one of them. */
 export function editProvider(config: BackendConfig, index: number, p: ProviderFields): ConfigChange[] {
   const old = providers(config)[index]!
   const changes: ConfigChange[] = [
     { kind: 'set', path: ['models', index, 'provider'], value: p.provider },
     setOrDelete(['models', index, 'base_url'], p.baseUrl),
-    setOrDelete(['models', index, 'api_key_env'], p.keyEnv),
+    setOrDelete(['models', index, 'api_key'], p.apiKey),
   ]
-  if (p.keyEnv) changes.push({ kind: 'delete', path: ['models', index, 'api_key'] })
   const memory = config.memory.model
   const used = (old.names ?? []).find((m) => modelId(old.provider, m.name) === memory)
   if (used && p.provider !== old.provider) {
@@ -85,9 +85,10 @@ export function removeProvider(config: BackendConfig, index: number): ConfigChan
   return [{ kind: 'delete', path: ['models', index] }, ...forgetMemoryModel(config, ids)]
 }
 
-export function addModel(config: BackendConfig, provider: number, m: ModelFields): ConfigChange[] {
+/** Appends models to a provider, after the ones it serves. */
+export function addModels(config: BackendConfig, provider: number, models: ModelFields[]): ConfigChange[] {
   const names = providers(config)[provider]!.names ?? []
-  return [{ kind: 'set', path: ['models', provider, 'names', names.length], value: modelValue(m) }]
+  return models.map((m, i) => ({ kind: 'set', path: ['models', provider, 'names', names.length + i], value: modelValue(m) }))
 }
 
 /** Renaming a model changes its id, so memory.model follows when it names it. */
@@ -99,7 +100,7 @@ export function editModel(config: BackendConfig, provider: number, index: number
     { kind: 'set', path: [...path, 'name'], value: m.name },
     setOrDelete([...path, 'calls'], m.calls),
     setOrDelete([...path, 'thinking'], m.thinking),
-    setOrDelete([...path, 'limits'], m.limits),
+    { kind: 'set', path: [...path, 'limits'], value: m.limits },
   ]
   if (m.name !== old.name && config.memory.model === modelId(p.provider, old.name)) {
     changes.push({ kind: 'set', path: ['memory', 'model'], value: modelId(p.provider, m.name) })

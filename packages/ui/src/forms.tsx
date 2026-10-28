@@ -104,3 +104,28 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
     </button>
   )
 }
+
+export interface CheckboxProps {
+  checked: boolean
+  onChange(checked: boolean): void
+  /** Beside the box; a click on it toggles too. */
+  children: ReactNode
+  disabled?: boolean
+  className?: string
+}
+
+/** For a form saved as a whole; a setting that applies at once is a Switch. */
+export function Checkbox({ checked, onChange, children, disabled, className }: CheckboxProps) {
+  return (
+    <label className={cn('flex min-w-0 items-center gap-2 text-ui text-fg has-disabled:opacity-50', className)}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-3.5 shrink-0 accent-accent focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+      />
+      {children}
+    </label>
+  )
+}
