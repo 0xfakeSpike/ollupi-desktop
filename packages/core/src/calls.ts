@@ -15,6 +15,7 @@ import {
   type SubagentCall,
   type UserInputQuestion,
 } from '@ollupi/protocol'
+import type { Timeline } from './timeline'
 
 /** repo.ItemRow.WaitsForApproval: approval happens before a call runs, so
  * only a pending call can wait on it. */
@@ -87,6 +88,20 @@ export function callOf(item: ItemRow): ToolCall {
     threadId: item.await?.threadId,
     title: item.annotations?.title,
   })
+}
+
+/** The thread's plan: ollupi keeps none of its own, and each update_plan
+ * call replaces the whole plan, so it is the last loaded call that went
+ * through, from any turn. One ollupi refused (an invalid plan) or the user
+ * declined changed nothing. */
+export function currentPlan(t: Timeline): { plan: Plan; item: ItemRow } | undefined {
+  for (let i = t.items.length - 1; i >= 0; i--) {
+    const item = t.items[i]!
+    if (item.tool !== 'update_plan' || item.status !== 'completed') continue
+    const call = callOf(item)
+    if (call.kind === 'plan') return { plan: call.plan, item }
+  }
+  return undefined
 }
 
 /** The call an approval request asks about. It has not run, so has no
