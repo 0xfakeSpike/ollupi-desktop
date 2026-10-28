@@ -512,6 +512,7 @@
 - 字重只用 `font-normal`、`font-medium`、`font-semibold`。`caption`、`title`、`display` 自带字重，不再叠加。
 - Markdown 里的标题相对正文放大（h1 1.35em、h2 1.2em、h3 1.05em，600），不使用上面的阶梯，因为它们属于内容，不属于界面。
 - Markdown 由 Streamdown 解析（流式输出时先补全没收尾的代码块、表格再渲染），但每个元素都画成普通标签，只用 `.markdown` 里基于 token 的样式，不用它自带的样式类。代码块用 Shiki 高亮，浅色 `github-light`、深色 `github-dark`，跟随外观；代码块底色仍是 `surface`，高亮只改文字颜色。没有对应语言的代码块不高亮。
+- ` ```mermaid ` 代码块画成图：mermaid 的 base 主题，颜色取当前配色的 token（节点 `raised` 底、`line-strong` 边、`fg` 字，连线 `fg-muted`，注释 `warning-soft`），字体用界面字体 13px，换配色或深浅时重画。还在流式输出时显示源码，写错的图保留源码并在下面用 `text-small danger` 说一句原因。图放在和代码块一样的块里（标签 mermaid，可复制源码），图按自身尺寸画、不随列宽缩放（缩放会让宽图的字变小、窄图的字变大），过宽时在块内横向滚动。
 - **字体**：英文、数字和标点用 Inter（`Inter Variable`），中文落到系统的苹方，代码用 JetBrains Mono（`JetBrains Mono Variable`）。两款都通过 `@fontsource-variable/*` 打包进应用（OFL），离线可用，只加载用到的字符区段。字体栈在 theme.css 的 `--ol-font-sans` / `--ol-font-mono`，组件只用 `font-sans` / `font-mono`。
 - **中文标点**：界面语言是中文时（`<html lang="zh-CN">`），字体栈最前面是 `CJK Punctuation`：弯引号、破折号、省略号改用苹方的字形，不让 Inter 画成西文的窄标点。英文界面不受影响。
 - **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。

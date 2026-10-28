@@ -140,6 +140,13 @@ input {
     color: var(--shiki-dark);
   }
 }
+/* A diagram keeps its own size (mermaid's useMaxWidth off); a wide one
+   scrolls sideways in its block. Auto margins centre it only while it
+   fits, so a wide one starts at the left edge instead of overflowing it. */
+.mermaid-diagram svg {
+  display: block;
+  margin-inline: auto;
+}
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--color-line);

@@ -110,6 +110,7 @@ export const en = {
   markdown: {
     copy: 'Copy',
     copied: 'Copied',
+    diagramError: (why: string) => `The diagram could not be drawn: ${why}`,
   },
 }
 
@@ -215,5 +216,6 @@ export const zh: typeof en = {
   markdown: {
     copy: '复制',
     copied: '已复制',
+    diagramError: (why) => `无法画出这张图：${why}`,
   },
 }
