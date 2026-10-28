@@ -18,7 +18,7 @@ export function AgentMessage({ item }: { item: ItemRow }) {
   if (!item.text && !streaming) return null
   return (
     <div className={cn('text-fg', streaming && 'streaming-caret')}>
-      <Markdown text={item.text ?? ''} />
+      <Markdown text={item.text ?? ''} streaming={streaming} />
     </div>
   )
 }
