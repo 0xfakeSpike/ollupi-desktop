@@ -1,6 +1,6 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, Folder, Gauge, ListChecks, Shield } from 'lucide-react'
+import { ArrowDown, ArrowLeft, Folder, FolderTree, Gauge, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { togglePanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
@@ -9,6 +9,7 @@ import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { Composer } from './Composer'
+import { FilesPanel } from './FilesPanel'
 import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
 import { PermissionsPanel } from './PermissionsPanel'
@@ -45,6 +46,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         )}
         {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}
         <div className="flex-1" />
+        {workspace && (
+          <IconButton label={m.conversation.screen.files} active={panel === 'files'} onClick={() => togglePanel('files')}>
+            <FolderTree size={16} />
+          </IconButton>
+        )}
         <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
           <ListChecks size={16} />
         </IconButton>
@@ -103,6 +109,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             />
           )}
         </div>
+        {/* One tree per workspace: threads of the same workspace keep its open folders. */}
+        {panel === 'files' && workspace && <FilesPanel key={workspace.id} workspace={workspace} />}
         {panel === 'tasks' && <TasksPanel timeline={timeline} />}
         {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
         {panel === 'context' && <ContextPanel timeline={timeline} />}

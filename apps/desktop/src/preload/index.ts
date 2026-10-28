@@ -28,6 +28,10 @@ const api: DesktopApi = {
     remove: (name) => ipcRenderer.invoke(IpcChannel.SkillsRemove, name),
     defaultFolder: () => ipcRenderer.invoke(IpcChannel.SkillsDefaultFolder),
   },
+  files: {
+    list: (root, path) => ipcRenderer.invoke(IpcChannel.FilesList, root, path),
+    read: (root, path) => ipcRenderer.invoke(IpcChannel.FilesRead, root, path),
+  },
   listModels: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, baseUrl, apiKey),
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),

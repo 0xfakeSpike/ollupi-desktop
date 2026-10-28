@@ -65,3 +65,16 @@ export function describeSchedule(m: Messages, locale: Locale, s: Schedule): stri
       return d.month(s.date, clock(s.hour, s.minute))
   }
 }
+
+const sizeUnits = ['byte', 'kilobyte', 'megabyte', 'gigabyte'] as const
+
+/** A file's size in the largest unit that keeps it at 1 or more. */
+export function fileSize(locale: Locale, bytes: number): string {
+  let n = bytes
+  let i = 0
+  while (n >= 1024 && i < sizeUnits.length - 1) {
+    n /= 1024
+    i++
+  }
+  return new Intl.NumberFormat(locale, { style: 'unit', unit: sizeUnits[i], unitDisplay: 'short', maximumFractionDigits: i ? 1 : 0 }).format(n)
+}
