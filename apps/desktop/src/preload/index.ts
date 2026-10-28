@@ -2,7 +2,7 @@
 // Electron crosses the bridge.
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IpcChannel, type BackendState, type DesktopApi } from '../shared/ipc'
+import { IpcChannel, type BackendState, type BrowserState, type DesktopApi } from '../shared/ipc'
 
 const api: DesktopApi = {
   info: () => ipcRenderer.invoke(IpcChannel.Info),
@@ -35,6 +35,24 @@ const api: DesktopApi = {
   changes: {
     list: (root) => ipcRenderer.invoke(IpcChannel.ChangesList, root),
     diff: (root, path, untracked) => ipcRenderer.invoke(IpcChannel.ChangesDiff, root, path, untracked),
+  },
+  browser: {
+    state: () => ipcRenderer.invoke(IpcChannel.BrowserState),
+    place: (bounds) => ipcRenderer.invoke(IpcChannel.BrowserPlace, bounds),
+    open: (url) => ipcRenderer.invoke(IpcChannel.BrowserOpen, url),
+    back: () => ipcRenderer.invoke(IpcChannel.BrowserBack),
+    forward: () => ipcRenderer.invoke(IpcChannel.BrowserForward),
+    reload: () => ipcRenderer.invoke(IpcChannel.BrowserReload),
+    onState: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, state: BrowserState) => listener(state)
+      ipcRenderer.on(IpcChannel.BrowserChanged, wrapped)
+      return () => ipcRenderer.off(IpcChannel.BrowserChanged, wrapped)
+    },
+    onUsed: (listener) => {
+      const wrapped = () => listener()
+      ipcRenderer.on(IpcChannel.BrowserUsed, wrapped)
+      return () => ipcRenderer.off(IpcChannel.BrowserUsed, wrapped)
+    },
   },
   listModels: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, baseUrl, apiKey),
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),

@@ -8,6 +8,8 @@ import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
+import { AgentBrowser } from './browser/browser'
+import { BrowserServer } from './browser/server'
 import { WorkspaceChanges } from './changes'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
@@ -19,8 +21,12 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   const home = backendHome()
-  const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env: backendEnv })
-  const config = new BackendConfig({ binary: backendBinary(), home, env: backendEnv, restart: () => backend.restart() })
+  const browser = new AgentBrowser()
+  const browserServer = new BrowserServer(browser, app.getVersion())
+  // Every start and check of the backend connects to the app's browser.
+  const env = async () => ({ ...(await backendEnv()), ...browserServer.env() })
+  const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env })
+  const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
   const skills = new BackendSkills({ binary: backendBinary(), home, restart: () => backend.restart(), trash: (path) => shell.trashItem(path) })
 
   app.on('second-instance', () => {
@@ -33,9 +39,10 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), home)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), browser, home)
     createMainWindow()
-    void backend.start()
+    // The backend connects to the browser's server as it starts.
+    void browserServer.listen().then(() => backend.start())
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     })

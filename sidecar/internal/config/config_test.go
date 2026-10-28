@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTemplateParses(t *testing.T) {
 	cfg, err := Parse([]byte(Template))
@@ -76,5 +79,12 @@ func TestValidateRejects(t *testing.T) {
 		if _, err := Parse([]byte(raw)); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
+	}
+}
+
+func TestBrowserNameIsTaken(t *testing.T) {
+	raw := "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nmcp: [{name: browser, url: 'https://example.test/mcp'}]\n"
+	if _, err := Parse([]byte(raw)); err == nil || !strings.Contains(err.Error(), "built-in browser") {
+		t.Fatalf("err = %v", err)
 	}
 }

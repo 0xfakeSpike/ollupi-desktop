@@ -4,7 +4,7 @@
 import { create } from 'zustand'
 
 /** What a conversation shows beside it. */
-export type Panel = 'files' | 'changes' | 'tasks' | 'permissions' | 'context'
+export type Panel = 'browser' | 'files' | 'changes' | 'tasks' | 'permissions' | 'context'
 
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
@@ -54,4 +54,10 @@ export function useOpenThreadId(): string | undefined {
 export function openThreadId(): string | undefined {
   const s = useNavigation.getState().screen
   return s.kind === 'thread' ? s.threadId : undefined
+}
+
+/** The agent acted in the app's browser: a conversation on screen shows it,
+ * so the person sees what it does. */
+export function showBrowser(): void {
+  useNavigation.setState((s) => (s.screen.kind === 'thread' ? { panel: 'browser' } : s))
 }

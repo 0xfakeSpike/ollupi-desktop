@@ -1,6 +1,6 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, FileDiff, Folder, FolderTree, Gauge, ListChecks, Shield } from 'lucide-react'
+import { ArrowDown, ArrowLeft, FileDiff, Folder, FolderTree, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { togglePanel, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
@@ -8,6 +8,7 @@ import { useWorkspace } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
 import { useStickToBottom } from '../common/useStickToBottom'
+import { BrowserPanel } from './BrowserPanel'
 import { ChangesPanel } from './ChangesPanel'
 import { Composer } from './Composer'
 import { FilesPanel } from './FilesPanel'
@@ -47,6 +48,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         )}
         {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}
         <div className="flex-1" />
+        <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
+          <Globe size={16} />
+        </IconButton>
         {workspace && (
           <IconButton label={m.conversation.screen.files} active={panel === 'files'} onClick={() => togglePanel('files')}>
             <FolderTree size={16} />
@@ -115,6 +119,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             />
           )}
         </div>
+        {panel === 'browser' && <BrowserPanel />}
         {/* One tree per workspace: threads of the same workspace keep its open folders. */}
         {panel === 'files' && workspace && <FilesPanel key={workspace.id} workspace={workspace} />}
         {panel === 'changes' && workspace && <ChangesPanel key={workspace.id} workspace={workspace} turn={running?.id} />}

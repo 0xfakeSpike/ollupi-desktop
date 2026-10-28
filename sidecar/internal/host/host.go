@@ -42,6 +42,9 @@ type Options struct {
 	AllowedOrigins []string
 	// Version is the backend's, which MCP servers see as the client's.
 	Version string
+	// Browser is the app's built-in browser server, connected beside the
+	// config's servers; nil outside the app.
+	Browser *config.MCPServer
 }
 
 type Host struct {
@@ -92,7 +95,11 @@ func New(opts Options) (_ *Host, err error) {
 		providers = append(providers, runner)
 	}
 
-	servers, err := mcpServers(cfg.MCP)
+	list := cfg.MCP
+	if opts.Browser != nil {
+		list = append([]config.MCPServer{*opts.Browser}, list...)
+	}
+	servers, err := mcpServers(list)
 	if err != nil {
 		return nil, err
 	}
@@ -174,13 +181,13 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 // validates the rest (permission rules against the tool registry, each
 // model's context budget), against a throwaway database, then stops it.
 // Nothing is served and the real database is not opened.
-func Check(home string, cfg config.Config) error {
+func Check(home string, cfg config.Config, browser *config.MCPServer) error {
 	data, err := os.MkdirTemp("", "ollupid-check-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(data)
-	h, err := New(Options{Home: home, DataHome: data, Token: "check", Config: cfg, Version: "check"})
+	h, err := New(Options{Home: home, DataHome: data, Token: "check", Config: cfg, Version: "check", Browser: browser})
 	if err != nil {
 		return err
 	}

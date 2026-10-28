@@ -4,15 +4,23 @@
 
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'electron'
 import { isAbsolute, join } from 'node:path'
-import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type ColorScheme, type ConfigChange } from '../shared/ipc'
+import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type BrowserBounds, type BrowserState, type ColorScheme, type ConfigChange } from '../shared/ipc'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
+import type { AgentBrowser } from './browser/browser'
 import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
 import { listFolder, readFile } from './files'
 import { listModels } from './models'
 
-export function registerIpc(backend: BackendSupervisor, config: BackendConfig, skills: BackendSkills, changes: WorkspaceChanges, home: string): void {
+export function registerIpc(
+  backend: BackendSupervisor,
+  config: BackendConfig,
+  skills: BackendSkills,
+  changes: WorkspaceChanges,
+  browser: AgentBrowser,
+  home: string,
+): void {
   const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
@@ -38,6 +46,12 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, s
   ipcMain.handle(IpcChannel.ChangesDiff, (_event, root: unknown, path: unknown, untracked: unknown) =>
     changes.diff(absolute(root), text(path), untracked === true),
   )
+  ipcMain.handle(IpcChannel.BrowserState, () => browser.state())
+  ipcMain.handle(IpcChannel.BrowserPlace, (_event, bounds: unknown) => browser.place(validBounds(bounds)))
+  ipcMain.handle(IpcChannel.BrowserOpen, (_event, url: unknown) => browser.open(text(url)))
+  ipcMain.handle(IpcChannel.BrowserBack, () => browser.back())
+  ipcMain.handle(IpcChannel.BrowserForward, () => browser.forward())
+  ipcMain.handle(IpcChannel.BrowserReload, () => browser.reload())
   ipcMain.handle(IpcChannel.ListModels, (_event, baseUrl: unknown, apiKey: unknown) => {
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, baseUrl, apiKey)
@@ -53,9 +67,12 @@ export function registerIpc(backend: BackendSupervisor, config: BackendConfig, s
     nativeTheme.themeSource = scheme as ColorScheme
   })
 
-  backend.on('state', (state: BackendState) => {
-    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IpcChannel.BackendChanged, state)
-  })
+  const send = (channel: string, ...args: unknown[]) => {
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, ...args)
+  }
+  backend.on('state', (state: BackendState) => send(IpcChannel.BackendChanged, state))
+  browser.on('state', (state: BrowserState) => send(IpcChannel.BrowserChanged, state))
+  browser.on('used', () => send(IpcChannel.BrowserUsed))
 }
 
 /** A folder the user chooses; create lets them make a new one. */
@@ -64,6 +81,14 @@ async function pickDirectory(sender: Electron.WebContents, create: boolean): Pro
   const win = BrowserWindow.fromWebContents(sender)
   const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
   return res.canceled ? undefined : res.filePaths[0]
+}
+
+function validBounds(value: unknown): BrowserBounds | undefined {
+  if (value === undefined || value === null) return undefined
+  const b = value as BrowserBounds
+  const whole = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0
+  if (!whole(b.x) || !whole(b.y) || !whole(b.width) || !whole(b.height)) throw new Error('expected bounds')
+  return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) }
 }
 
 function absolute(value: unknown): string {

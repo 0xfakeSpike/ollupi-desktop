@@ -131,6 +131,10 @@ type MCPServer struct {
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
+// BrowserServer names the app's built-in browser, which the desktop serves
+// as an MCP server of its own; config.yaml cannot name another one so.
+const BrowserServer = "browser"
+
 var variable = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
 // Expand replaces each ${NAME} in s with that environment variable, which
@@ -268,6 +272,11 @@ func (c Config) Validate() error {
 	}
 	if c.Memory.Model != "" && !ids[c.Memory.Model] {
 		return fmt.Errorf("memory.model %q is not a model listed under models (provider/name)", c.Memory.Model)
+	}
+	for _, s := range c.MCP {
+		if s.Name == BrowserServer {
+			return fmt.Errorf("mcp: the name %s is the app's built-in browser; choose another", BrowserServer)
+		}
 	}
 	if c.Slots < 0 {
 		return errors.New("slots must not be negative")
