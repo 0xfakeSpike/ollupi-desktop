@@ -881,7 +881,7 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 | 对话页顶栏 | `text-title` 标题 + `text-small fg-subtle` 的 workspace；状态徽标（3.3）；定时任务、权限、Context 面板开关为 md 图标按钮（开启时 `active`） |
 | 对话流 | 3.1、3.2 |
 | 输入框 | `bg-raised border-line rounded-2xl shadow-sm`，聚焦时 `border-line-strong shadow-md`（不用强调色）；宽度与对话列相同（`max-w-thread px-6`）；运行中右侧主按钮变为 `Stop`（次要样式 + square 图标），输入内容时为 `Send`（追加）；等待用户时上方提示 |
-| Context 面板 | 屏幕面板内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-surface`，不用左侧分隔线；卡片自带标题行，3.9 |
+| Context 面板 | 屏幕面板内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
 | Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
 | Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |
 | 对话框 | 3.7 对话框 + 3.5 表单：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方 |
