@@ -8,6 +8,7 @@ import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
+import { WorkspaceChanges } from './changes'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { createMainWindow } from './window'
@@ -32,7 +33,7 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
-    registerIpc(backend, config, skills, home)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), home)
     createMainWindow()
     void backend.start()
     app.on('activate', () => {

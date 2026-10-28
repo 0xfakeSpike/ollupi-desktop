@@ -47,6 +47,10 @@ export const en = {
     list: 'Could not read the folder',
     read: 'Could not read the file',
   },
+  changes: {
+    list: 'Could not read the changes',
+    diff: 'Could not read the diff',
+  },
   skills: {
     load: 'Could not read the skills',
     read: 'Could not read SKILL.md',
@@ -114,6 +118,10 @@ export const zh: typeof en = {
   files: {
     list: '无法读取文件夹',
     read: '无法读取文件',
+  },
+  changes: {
+    list: '无法读取改动',
+    diff: '无法读取差异',
   },
   skills: {
     load: '无法读取技能',
