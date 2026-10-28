@@ -16,6 +16,7 @@ import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
 import { Streamdown, type Components } from 'streamdown'
 import { useT } from '../../i18n'
+import { MermaidBlock } from './Mermaid'
 
 export function CodeBlock({ code, label }: { code: string; label?: string }) {
   const html = useHighlighted(code, label)
@@ -104,7 +105,8 @@ const components: Components = {
   // sends it here rather than to inlineCode.
   code: ({ className, children }) => {
     const language = /language-([\w-]+)/.exec(className ?? '')?.[1]
-    return <CodeBlock code={flatten(children).replace(/\n$/, '')} label={language} />
+    const code = flatten(children).replace(/\n$/, '')
+    return language === 'mermaid' ? <MermaidBlock code={code} /> : <CodeBlock code={code} label={language} />
   },
   inlineCode: ({ children }) => <code>{children}</code>,
   a: ({ href, children }) => (
