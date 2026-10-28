@@ -3,7 +3,7 @@ module github.com/0xfakeSpike/ollupi-desktop/sidecar
 go 1.25.0
 
 require (
-	github.com/0xfakeSpike/ollupi v0.0.0
+	github.com/0xfakeSpike/ollupi v0.1.0
 	github.com/google/jsonschema-go v0.4.2
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -30,6 +30,3 @@ require (
 	gorm.io/driver/sqlite v1.6.0 // indirect
 	gorm.io/gorm v1.31.2 // indirect
 )
-
-// Develop against the sibling checkout; drop this once ollupi is tagged.
-replace github.com/0xfakeSpike/ollupi => ../../ollupi

@@ -5,3 +5,5 @@ release/
 apps/desktop/resources/bin/
 *.log
 .DS_Store
+go.work
+go.work.sum
