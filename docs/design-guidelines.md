@@ -495,7 +495,7 @@
 | `success` | diff 的 `+n`；用量条之外几乎不用。成功默认不着色 |
 | `warning` | 普通审批的描边和图标；用量接近自动压缩点；可恢复的提醒 |
 | `danger` / `danger-fg` | 失败（图标、退出码、错误文字）；沙箱外/不可逆审批；危险按钮；diff 的 `−m` |
-| `chart-1`…`chart-4` | 图表的分类色（Context 面板的组成部分），见 3.9；不用于界面状态 |
+| `chart-1`…`chart-4` | 图表的分类色（Context 面板的组成部分、对话里 mermaid 饼图的扇区），见 3.9；不用于界面状态 |
 | `*-soft` | 只做徽标的底，或 toast/错误块里图标后面的小块底，面积不超过一行 |
 
 ### 2.3 字号
@@ -512,7 +512,7 @@
 - 字重只用 `font-normal`、`font-medium`、`font-semibold`。`caption`、`title`、`display` 自带字重，不再叠加。
 - Markdown 里的标题相对正文放大（h1 1.35em、h2 1.2em、h3 1.05em，600），不使用上面的阶梯，因为它们属于内容，不属于界面。
 - Markdown 由 Streamdown 解析（流式输出时先补全没收尾的代码块、表格再渲染），但每个元素都画成普通标签，只用 `.markdown` 里基于 token 的样式，不用它自带的样式类。代码块用 Shiki 高亮，浅色 `github-light`、深色 `github-dark`，跟随外观；代码块底色仍是 `surface`，高亮只改文字颜色。没有对应语言的代码块不高亮。
-- ` ```mermaid ` 代码块画成图：mermaid 的 base 主题，颜色取当前配色的 token（节点 `raised` 底、`line-strong` 边、`fg` 字，连线 `fg-muted`，注释 `warning-soft`），字体用界面字体 13px，换配色或深浅时重画。还在流式输出时显示源码，写错的图保留源码并在下面用 `text-small danger` 说一句原因。图放在和代码块一样的块里（标签 mermaid，可复制源码），图按自身尺寸画、不随列宽缩放（缩放会让宽图的字变小、窄图的字变大），过宽时在块内横向滚动。
+- ` ```mermaid ` 代码块画成图。流程图、状态图、时序图、类图、ER 图和 xy 图由 beautiful-mermaid 画：扁平、细线，颜色直接写成 token 的 CSS 变量（`surface` 底、节点 `raised` 底 `line-strong` 边、`fg` 字，连线 `fg-muted`，强调 `accent`），换配色或深浅不用重画。判断节点（菱形）是按标签最长一行定边长的正方形，一行写完的问句会把它撑得比旁边的步骤大好几倍，所以作者没换行的判断标签按词（中文按分词）均匀断成几行，取正方形接近最小时行数最少的那种，不留单独一两个字的末行。其余类型（饼图、甘特图、思维导图等）由 mermaid 的 base 主题画，颜色取同样的 token，饼图扇区用 `chart-1`…`chart-4`、扇区之间用 `surface` 隔开而不描黑边，字都是 13px；mermaid 在第一张这样的图出现时才加载，换配色或深浅时重画。字体用界面字体 13px。还在流式输出时显示源码，写错的图保留源码并在下面用 `text-small danger` 说一句原因。图放在和代码块一样的块里（标签 mermaid，可复制源码），图按自身尺寸画、不随列宽缩放（缩放会让宽图的字变小、窄图的字变大），过宽时在块内横向滚动。
 - **字体**：英文、数字和标点用 Inter（`Inter Variable`），中文落到系统的苹方，代码用 JetBrains Mono（`JetBrains Mono Variable`）。两款都通过 `@fontsource-variable/*` 打包进应用（OFL），离线可用，只加载用到的字符区段。字体栈在 theme.css 的 `--ol-font-sans` / `--ol-font-mono`，组件只用 `font-sans` / `font-mono`。
 - **中文标点**：界面语言是中文时（`<html lang="zh-CN">`），字体栈最前面是 `CJK Punctuation`：弯引号、破折号、省略号改用苹方的字形，不让 Inter 画成西文的窄标点。英文界面不受影响。
 - **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。
