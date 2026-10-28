@@ -4,14 +4,16 @@
 // lifts a deny above it. An unset policy inherits: the field is left out.
 
 import type { ApprovalPolicy, PermissionSettings } from '@ollupi/protocol'
-import { Button, Field, Select, Textarea } from '@ollupi/ui'
-import { useState } from 'react'
+import { Button, cn, Field, Select, Textarea } from '@ollupi/ui'
+import { ChevronRight } from 'lucide-react'
+import { useId, useState } from 'react'
 import { useT, type Messages } from '../../i18n'
 
-const policies = (m: Messages): { value: ApprovalPolicy; label: string }[] => [
-  { value: 'untrusted', label: m.settings.permissions.policies.untrusted },
-  { value: 'on-request', label: m.settings.permissions.policies.onRequest },
-  { value: 'never', label: m.settings.permissions.policies.never },
+/** Strictest first, so the order itself reads as how much is asked. */
+const policies = (m: Messages): { value: ApprovalPolicy; label: string; hint: string }[] => [
+  { value: 'untrusted', ...m.settings.permissions.policies.untrusted },
+  { value: 'on-request', ...m.settings.permissions.policies.onRequest },
+  { value: 'never', ...m.settings.permissions.policies.never },
 ]
 
 const INHERIT = ''
@@ -37,6 +39,10 @@ export function PermissionEditor({
     deny: (value.permissions.deny ?? []).join('\n'),
   })
   const [saving, setSaving] = useState(false)
+  const count = kinds.reduce((n, k) => n + (value.permissions[k]?.length ?? 0), 0)
+  // The policy is enough for most people; rules already written stay in view.
+  const [exceptions, setExceptions] = useState(count > 0)
+  const exceptionsId = useId()
 
   const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
   const next: PermissionSettings = {
@@ -56,7 +62,10 @@ export function PermissionEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label={m.settings.permissions.policy} hint={policy === INHERIT ? m.settings.permissions.inheritHint(inheritFrom) : undefined}>
+      <Field
+        label={m.settings.permissions.policy}
+        hint={policy === INHERIT ? m.settings.permissions.inheritHint(inheritFrom) : policies(m).find((p) => p.value === policy)?.hint}
+      >
         <Select value={policy} onChange={(e) => setPolicy(e.target.value as ApprovalPolicy | typeof INHERIT)}>
           <option value={INHERIT}>{m.settings.permissions.inherit}</option>
           {policies(m).map((p) => (
@@ -66,18 +75,36 @@ export function PermissionEditor({
           ))}
         </Select>
       </Field>
-      {kinds.map((kind) => (
-        <Field key={kind} label={m.settings.permissions.kinds[kind].label} hint={m.settings.permissions.kinds[kind].hint}>
-          <Textarea
-            rows={3}
-            spellCheck={false}
-            className="font-mono text-small"
-            value={rules[kind]}
-            onChange={(e) => setRules({ ...rules, [kind]: e.target.value })}
-            placeholder={m.settings.permissions.rulesPlaceholder}
-          />
-        </Field>
-      ))}
+      <div className="flex flex-col gap-4 border-t border-line pt-4">
+        <button
+          type="button"
+          aria-expanded={exceptions}
+          aria-controls={exceptionsId}
+          onClick={() => setExceptions(!exceptions)}
+          className="-mx-1 flex items-center gap-1 self-start rounded-md px-1 text-left text-ui font-medium text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        >
+          <ChevronRight size={14} aria-hidden className={cn('shrink-0 text-fg-subtle transition duration-160 ease-standard', exceptions && 'rotate-90')} />
+          {m.settings.permissions.exceptions}
+          {!exceptions && count > 0 && <span className="ml-1 text-small font-normal text-fg-subtle">{m.settings.permissions.exceptionsCount(count)}</span>}
+        </button>
+        {exceptions && (
+          <div id={exceptionsId} className="flex flex-col gap-4">
+            <p className="text-small text-fg-muted">{m.settings.permissions.exceptionsHint}</p>
+            {kinds.map((kind) => (
+              <Field key={kind} label={m.settings.permissions.kinds[kind].label} hint={m.settings.permissions.kinds[kind].hint}>
+                <Textarea
+                  rows={3}
+                  spellCheck={false}
+                  className="font-mono text-small"
+                  value={rules[kind]}
+                  onChange={(e) => setRules({ ...rules, [kind]: e.target.value })}
+                  placeholder={m.settings.permissions.rulesPlaceholder}
+                />
+              </Field>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="flex justify-end">
         <Button variant="primary" disabled={unchanged} loading={saving} onClick={() => void save()}>
           {m.settings.permissions.save}

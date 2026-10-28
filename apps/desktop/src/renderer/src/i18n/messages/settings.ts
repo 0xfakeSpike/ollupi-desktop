@@ -170,17 +170,34 @@ export const en = {
     policy: 'Approval policy',
     inheritHint: (from: string) => `Uses the policy from ${from}.`,
     inherit: 'Inherit',
+    /** Strictest first. The hint says what each one runs without asking,
+     * by ollupi's rules (permission.Policy): deny rules hold under all of
+     * them, and ask rules still ask. */
     policies: {
-      untrusted: 'Untrusted: ask before anything not known to be safe',
-      onRequest: 'On request: ask when a rule or the sandbox requires it',
-      never: 'Never ask',
+      untrusted: {
+        label: 'Strict',
+        hint: 'Only reading files on this computer runs on its own. Anything that changes something or goes online asks you first.',
+      },
+      onRequest: {
+        label: 'Balanced',
+        hint: 'Reading, and commands inside the sandbox, run on its own. Other changes, and commands that need to leave the sandbox, ask you first.',
+      },
+      never: {
+        label: 'Relaxed',
+        hint: 'Runs without asking, except what your ask rules name. Commands that need to leave the sandbox are refused, since nobody is asked.',
+      },
     },
+    /** Allow, ask and deny rules, by what each does for the user. */
+    exceptions: 'Exceptions (advanced)',
+    exceptionsCount: (n: number) => (n === 1 ? '1 rule' : `${n} rules`),
+    exceptionsHint:
+      'Set apart from the policy, for particular actions. Most people need none. One per line: a tool’s name, or the name with what it applies to in brackets; run_command(git:*) is every git command.',
     kinds: {
-      allow: { label: 'Allow rules', hint: 'Run without asking.' },
-      ask: { label: 'Ask rules', hint: 'Always ask first.' },
-      deny: { label: 'Deny rules', hint: 'Never run; wins over allow and ask.' },
+      allow: { label: 'Always allow', hint: 'Done without asking you.' },
+      ask: { label: 'Always ask me', hint: 'Asks you first, even when the policy would not.' },
+      deny: { label: 'Never allow', hint: 'Never done; wins over the two above.' },
     },
-    rulesPlaceholder: 'One rule per line: a tool name, or Tool(specifier)\ne.g. run_command(git:*)',
+    rulesPlaceholder: 'run_command(git:*)',
     save: 'Save permissions',
     fromWorkspace: 'the workspace',
     fromAgent: 'the agent defaults',
@@ -362,16 +379,19 @@ export const zh: typeof en = {
     inheritHint: (from) => `使用${from}的策略。`,
     inherit: '继承',
     policies: {
-      untrusted: '不信任：凡是不确定安全的操作都先询问',
-      onRequest: '按需：规则或沙箱要求时询问',
-      never: '从不询问',
+      untrusted: { label: '严格', hint: '只有读取本机文件的操作会直接执行；会改动内容或联网的操作都先问你。' },
+      onRequest: { label: '适中', hint: '读取内容、在沙箱里运行的命令会直接执行；其他改动，以及要跑到沙箱外的命令，先问你。' },
+      never: { label: '宽松', hint: '不再询问，直接执行（询问规则里写的除外）；要跑到沙箱外的命令会被拒绝，因为没人可以批准。' },
     },
+    exceptions: '例外（高级）',
+    exceptionsCount: (n) => `${n} 条规则`,
+    exceptionsHint: '在审批策略之外，单独为个别操作设定。大多数情况下不需要。每行一条：工具名，或工具名加括号写明适用范围，例如 run_command(git:*) 表示所有 git 命令。',
     kinds: {
-      allow: { label: '允许规则', hint: '直接运行，不询问。' },
-      ask: { label: '询问规则', hint: '总是先询问。' },
-      deny: { label: '拒绝规则', hint: '从不运行；优先于允许和询问。' },
+      allow: { label: '总是允许', hint: '直接做，不问你。' },
+      ask: { label: '总是先问我', hint: '即使审批策略允许，也先问你。' },
+      deny: { label: '禁止', hint: '永远不做，优先于上面两条。' },
     },
-    rulesPlaceholder: '每行一条规则：工具名，或 Tool(specifier)\n例如 run_command(git:*)',
+    rulesPlaceholder: 'run_command(git:*)',
     save: '保存权限',
     fromWorkspace: '工作区',
     fromAgent: '代理默认设置',
