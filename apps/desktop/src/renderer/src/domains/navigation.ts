@@ -56,8 +56,8 @@ export function openThreadId(): string | undefined {
   return s.kind === 'thread' ? s.threadId : undefined
 }
 
-/** The agent acted in the app's browser: a conversation on screen shows it,
- * so the person sees what it does. */
-export function showBrowser(): void {
-  useNavigation.setState((s) => (s.screen.kind === 'thread' ? { panel: 'browser' } : s))
+/** A thread's agent acted in its browser tab: that conversation, if it is
+ * on screen, shows it, so the person sees what it does. */
+export function showBrowser(thread: string): void {
+  useNavigation.setState((s) => (s.screen.kind === 'thread' && s.screen.threadId === thread ? { panel: 'browser' } : s))
 }

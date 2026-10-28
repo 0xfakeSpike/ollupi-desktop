@@ -89,6 +89,8 @@ export const snapshotScript = (limit: number) => `(() => {
     for (const child of el.children) walk(child, text ? depth + 1 : depth)
     if (el.shadowRoot) for (const child of el.shadowRoot.children) walk(child, depth)
   }
+  window.__ollupiRole = roleOf
+  window.__ollupiName = nameOf
   if (document.body) walk(document.body, 0)
   if (cut) lines.push('[the page goes on; scroll and take another snapshot to read more]')
   return lines.join('\\n')
@@ -126,3 +128,11 @@ export const focusScript = (ref: string) => `(() => {
 })()`
 
 export const scrollScript = (down: boolean) => `window.scrollBy(0, ${down ? '' : '-'}Math.round(window.innerHeight * 0.8))`
+
+/** What an element is, as a person would name it, for the description of
+ * an action on it. */
+export const describeScript = (ref: string) => `(() => {
+  const el = window.__ollupiRefs?.get(${JSON.stringify(ref)})
+  if (!el || !el.isConnected) return { error: 'no element ${ref} on the page now; take a new snapshot' }
+  return { role: window.__ollupiRole(el), name: window.__ollupiName(el) }
+})()`

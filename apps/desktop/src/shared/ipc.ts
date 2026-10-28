@@ -118,9 +118,9 @@ export interface BrowserBounds {
   height: number
 }
 
-/** The MCP server name the app's browser has in the backend: its tools
- * are browser__<tool>. config.yaml cannot use it (the sidecar refuses). */
-export const BROWSER_SERVER = 'browser'
+/** The tool provider the app's browser is in the backend, whose tools are
+ * browser_<action>; config.yaml cannot give an MCP server the name. */
+export const BROWSER_PROVIDER = 'browser'
 
 /** Light or dark, or whichever the system uses. */
 export type ColorScheme = 'system' | 'light' | 'dark'
@@ -167,18 +167,19 @@ export interface DesktopApi {
     list(root: string): Promise<Changes>
     diff(root: string, path: string, untracked: boolean): Promise<FileDiff>
   }
-  /** The app's browser, which the person and the agent share. */
+  /** The app's browser: a tab per thread, which the person and that
+   * thread's agent share. */
   browser: {
-    state(): Promise<BrowserState>
-    /** Shows the page over the panel's area; undefined hides it. */
-    place(bounds: BrowserBounds | undefined): Promise<void>
-    open(url: string): Promise<void>
-    back(): Promise<void>
-    forward(): Promise<void>
-    reload(): Promise<void>
-    onState(listener: (state: BrowserState) => void): () => void
-    /** The agent acted on the page. */
-    onUsed(listener: () => void): () => void
+    state(thread: string): Promise<BrowserState>
+    /** Shows the thread's tab over the panel's area; undefined hides it. */
+    place(thread: string, bounds: BrowserBounds | undefined): Promise<void>
+    open(thread: string, url: string): Promise<void>
+    back(thread: string): Promise<void>
+    forward(thread: string): Promise<void>
+    reload(thread: string): Promise<void>
+    onState(listener: (thread: string, state: BrowserState) => void): () => void
+    /** The thread's agent acted in its tab. */
+    onUsed(listener: (thread: string) => void): () => void
   }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is

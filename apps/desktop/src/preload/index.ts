@@ -37,19 +37,19 @@ const api: DesktopApi = {
     diff: (root, path, untracked) => ipcRenderer.invoke(IpcChannel.ChangesDiff, root, path, untracked),
   },
   browser: {
-    state: () => ipcRenderer.invoke(IpcChannel.BrowserState),
-    place: (bounds) => ipcRenderer.invoke(IpcChannel.BrowserPlace, bounds),
-    open: (url) => ipcRenderer.invoke(IpcChannel.BrowserOpen, url),
-    back: () => ipcRenderer.invoke(IpcChannel.BrowserBack),
-    forward: () => ipcRenderer.invoke(IpcChannel.BrowserForward),
-    reload: () => ipcRenderer.invoke(IpcChannel.BrowserReload),
+    state: (thread) => ipcRenderer.invoke(IpcChannel.BrowserState, thread),
+    place: (thread, bounds) => ipcRenderer.invoke(IpcChannel.BrowserPlace, thread, bounds),
+    open: (thread, url) => ipcRenderer.invoke(IpcChannel.BrowserOpen, thread, url),
+    back: (thread) => ipcRenderer.invoke(IpcChannel.BrowserBack, thread),
+    forward: (thread) => ipcRenderer.invoke(IpcChannel.BrowserForward, thread),
+    reload: (thread) => ipcRenderer.invoke(IpcChannel.BrowserReload, thread),
     onState: (listener) => {
-      const wrapped = (_e: IpcRendererEvent, state: BrowserState) => listener(state)
+      const wrapped = (_e: IpcRendererEvent, thread: string, state: BrowserState) => listener(thread, state)
       ipcRenderer.on(IpcChannel.BrowserChanged, wrapped)
       return () => ipcRenderer.off(IpcChannel.BrowserChanged, wrapped)
     },
     onUsed: (listener) => {
-      const wrapped = () => listener()
+      const wrapped = (_e: IpcRendererEvent, thread: string) => listener(thread)
       ipcRenderer.on(IpcChannel.BrowserUsed, wrapped)
       return () => ipcRenderer.off(IpcChannel.BrowserUsed, wrapped)
     },
