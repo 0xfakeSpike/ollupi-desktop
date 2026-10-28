@@ -123,6 +123,20 @@ function messages() {
 // ajv's standalone code, emitted verbatim as tools.validate.js: compiled
 // here, so the renderer needs no eval (its CSP forbids it). Formats such as
 // date-time are not checked.
+//
+// ajv writes its runtime helpers as require() calls even in ESM output, and
+// the renderer loads this file as a module, where require does not exist.
+// The one the contract needs, a string's length in code points (what
+// minLength and maxLength count), is written inline; any other stops the
+// generation rather than break the app.
+function inlineRuntime(code) {
+  const runtime = { 'require("ajv/dist/runtime/ucs2length").default': '((s) => [...s].length)' }
+  for (const [call, inline] of Object.entries(runtime)) code = code.replaceAll(call, inline)
+  const left = code.match(/require\([^)]*\)/)
+  if (left) throw new Error(`tools.validate.js would call ${left[0]}: write it inline in generate.mjs`)
+  return code
+}
+
 function tools() {
   const ajv = new Ajv2020({ code: { source: true, esm: true }, strict: true, formats: { 'date-time': true } })
   ajv.addSchema({ $id: 'ollupi-protocol', $schema: contract.$schema, $defs: contract.$defs })
@@ -132,7 +146,7 @@ function tools() {
       guards.push({ name, part, fn: `${part}_${name.replace(/[^A-Za-z0-9]/g, '_')}`, def: ref(schema) })
     }
   }
-  const code = standaloneCode(ajv, Object.fromEntries(guards.map((g) => [g.fn, `ollupi-protocol#/$defs/${g.def}`])))
+  const code = inlineRuntime(standaloneCode(ajv, Object.fromEntries(guards.map((g) => [g.fn, `ollupi-protocol#/$defs/${g.def}`]))))
   const dts = guards.map((g) => `export declare function ${g.fn}(value: unknown): boolean`).join('\n') + '\n'
   const ts = [
     `import type { BuiltinTools } from './messages'`,

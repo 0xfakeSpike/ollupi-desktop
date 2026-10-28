@@ -8,7 +8,7 @@ import addFormats from 'ajv-formats'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import contract from './generated/protocol.schema.json'
-import { ErrorCode, PROTOCOL_SHA256 } from './index'
+import { ErrorCode, isToolPart, PROTOCOL_SHA256 } from './index'
 
 interface Recorded {
   direction: 'in' | 'out'
@@ -71,5 +71,20 @@ describe('recorded session', () => {
     }
     expect(problems).toEqual([])
     expect(checked).toBe(fixture.messages.length)
+  })
+})
+
+describe('tool validators', () => {
+  // The renderer loads tools.validate.js as a module, where require does not
+  // exist: one left in stops the app from starting.
+  it('need nothing a module cannot load', () => {
+    expect(readFileSync(new URL('./generated/tools.validate.js', import.meta.url), 'utf8')).not.toMatch(/require\(/)
+  })
+
+  it('count a string by its characters, as the contract does', () => {
+    const task = (description: string) => isToolPart('Agent', 'arguments', { description, prompt: 'p' })
+    expect(task('🙂'.repeat(80))).toBe(true)
+    expect(task('a'.repeat(81))).toBe(false)
+    expect(task('')).toBe(false)
   })
 })
