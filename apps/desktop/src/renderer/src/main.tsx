@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { startAppearance } from './domains/appearance'
 import { showBrowser } from './domains/navigation'
+import { startUpdate } from './domains/update'
 import { startSession } from './gateway/session'
 import { startLocale } from './i18n/locale'
 import { desktop } from './platform/desktop'
@@ -13,6 +14,7 @@ startLocale()
 startAppearance()
 void startSession()
 desktop.browser.onUsed(showBrowser)
+startUpdate()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

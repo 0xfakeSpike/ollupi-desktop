@@ -1,5 +1,5 @@
-// The app's frame: the sidebar, the connection, the backend screen and the
-// contract banner.
+// The app's frame: the sidebar, the connection, the backend screen, the
+// app's updates and the contract banner.
 
 import type { ReactNode } from 'react'
 
@@ -45,6 +45,26 @@ export const en = {
       exited: (how: string) => `the backend exited unexpectedly (${how})`,
       reported: 'the backend failed to start',
     },
+  },
+  update: {
+    title: 'Updates',
+    unsupported: 'Updates apply to the installed app.',
+    idle: 'Ollupi checks for a new version on its own.',
+    checking: 'Checking for a new version…',
+    latest: 'Ollupi is up to date.',
+    available: (version: string) => `Ollupi ${version} is available.`,
+    downloading: (version: string, percent: number) => `Downloading Ollupi ${version}… ${percent}%`,
+    ready: (version: string) => `Ollupi ${version} is ready to install.`,
+    readyHint: 'Restart to finish, or it installs when you quit Ollupi.',
+    checkFailed: 'Couldn’t check for a new version.',
+    downloadFailed: (version: string) => `Couldn’t update to Ollupi ${version}.`,
+    location: (path: string) => `Ollupi can’t replace itself at ${path}. Move it into Applications and open it from there.`,
+    check: 'Check for updates',
+    install: 'Download and install',
+    restart: 'Restart now',
+    retry: 'Retry',
+    later: 'Later',
+    notes: 'What’s new',
   },
   contractBanner: (server: string, ui: string) =>
     `The backend and the app were built from different ollupi protocol versions (backend ${server}, app ${ui}). Rebuild the backend or regenerate the protocol.`,
@@ -92,6 +112,26 @@ export const zh: typeof en = {
       exited: (how) => `后端意外退出（${how}）`,
       reported: '后端启动失败',
     },
+  },
+  update: {
+    title: '更新',
+    unsupported: '更新只对安装好的应用生效。',
+    idle: 'Ollupi 会自动检查新版本。',
+    checking: '正在检查新版本…',
+    latest: 'Ollupi 已是最新版本。',
+    available: (version) => `Ollupi ${version} 可以更新了。`,
+    downloading: (version, percent) => `正在下载 Ollupi ${version}… ${percent}%`,
+    ready: (version) => `Ollupi ${version} 已下载好。`,
+    readyHint: '重启即可完成安装；不重启的话，退出 Ollupi 时也会安装。',
+    checkFailed: '检查新版本失败。',
+    downloadFailed: (version) => `更新到 Ollupi ${version} 失败。`,
+    location: (path) => `Ollupi 无法替换 ${path} 处的自己。请把它移到“应用程序”文件夹，再从那里打开。`,
+    check: '检查更新',
+    install: '下载并安装',
+    restart: '立即重启',
+    retry: '重试',
+    later: '稍后',
+    notes: '更新内容',
   },
   contractBanner: (server, ui) => `后端和应用基于不同版本的 ollupi 协议构建（后端 ${server}，应用 ${ui}）。请重新构建后端或重新生成协议。`,
 }

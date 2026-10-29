@@ -6,6 +6,7 @@ import { go, leaveSettings, useNavigation, type SettingsTab } from '../../domain
 import { useThreads } from '../../domains/threads'
 import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
+import { UpdatePrompt } from '../common/Update'
 import { ConnectionStatus } from './ConnectionStatus'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { ThreadGroup } from './ThreadGroup'
@@ -58,6 +59,7 @@ function MainSidebar() {
         <ArchivedWorkspaces workspaces={workspaces.filter((w) => w.archivedAt)} />
       </div>
       <div className="flex flex-col gap-0.5 px-2 pt-2 pb-3">
+        <UpdatePrompt />
         <NavButton icon={<Brain size={16} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
           {m.memory}
         </NavButton>

@@ -9,6 +9,7 @@ import { useConnection } from '../../gateway/connection'
 import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18n'
 import { locales, systemLocale } from '../../i18n/locale'
 import { desktop } from '../../platform/desktop'
+import { UpdateSettings } from '../common/Update'
 import { ModelsSection } from './ModelsSection'
 
 /** One category of settings; the sidebar lists them while settings are
@@ -64,6 +65,7 @@ function General() {
       </Field>
       <Appearance />
       <Redaction />
+      <UpdateSettings />
       <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
         {rows.map(([k, v]) => (
           <div key={k} className="flex min-h-11 items-center gap-4 px-3 py-2.5">

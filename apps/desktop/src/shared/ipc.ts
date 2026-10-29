@@ -122,6 +122,28 @@ export interface BrowserBounds {
  * browser_<action>; config.yaml cannot give an MCP server the name. */
 export const BROWSER_PROVIDER = 'browser'
 
+/** The app's own updates, from its GitHub releases. unsupported is a build
+ * not running from an installed .app (development). A downloaded update is
+ * ready: it is installed when the app quits. */
+export type UpdateState =
+  | { status: 'unsupported' }
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'latest' }
+  | { status: 'available'; version: string }
+  | { status: 'downloading'; version: string; received: number; total: number }
+  | { status: 'ready'; version: string }
+  /** version is the release that failed to download; undefined when the
+   * check failed. */
+  | { status: 'failed'; version: string | undefined; failure: UpdateFailure }
+
+/** The app's GitHub releases, which it updates from. */
+export const RELEASES_URL = 'https://github.com/0xfakeSpike/ollupi-desktop/releases'
+
+/** Why an update failed. location: the app's folder cannot be written, so
+ * the app cannot be replaced where it is (e.g. run from the dmg). */
+export type UpdateFailure = { kind: 'location'; path: string } | { kind: 'error'; message: string }
+
 /** Light or dark, or whichever the system uses. */
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
@@ -185,6 +207,16 @@ export interface DesktopApi {
    * as the API would not answer the renderer's origin. An empty base URL is
    * OpenAI's, as for the backend. */
   listModels(baseUrl: string, apiKey: string): Promise<ModelList>
+  /** The app checks for a newer release itself; downloading one waits for
+   * the person to agree. */
+  update: {
+    state(): Promise<UpdateState>
+    check(): Promise<void>
+    download(): Promise<void>
+    /** Quits, installs the downloaded update and reopens the app. */
+    restart(): Promise<void>
+    onState(listener: (state: UpdateState) => void): () => void
+  }
   pickDirectory(): Promise<string | undefined>
   openPath(path: string): Promise<void>
   /** Sets the window's scheme, which the renderer's prefers-color-scheme
@@ -219,6 +251,11 @@ export const IpcChannel = {
   BrowserChanged: 'browser:changed',
   BrowserUsed: 'browser:used',
   ListModels: 'models:list',
+  UpdateState: 'update:state',
+  UpdateCheck: 'update:check',
+  UpdateDownload: 'update:download',
+  UpdateRestart: 'update:restart',
+  UpdateChanged: 'update:changed',
   PickDirectory: 'dialog:pickDirectory',
   OpenPath: 'shell:openPath',
   SetColorScheme: 'theme:setColorScheme',

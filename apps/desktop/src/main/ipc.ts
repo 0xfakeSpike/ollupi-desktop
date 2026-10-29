@@ -4,7 +4,7 @@
 
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'electron'
 import { isAbsolute, join } from 'node:path'
-import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type BrowserBounds, type BrowserState, type ColorScheme, type ConfigChange } from '../shared/ipc'
+import { colorSchemes, IpcChannel, type AppInfo, type BackendState, type BrowserBounds, type BrowserState, type ColorScheme, type ConfigChange, type UpdateState } from '../shared/ipc'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
 import type { AgentBrowser } from './browser/browser'
@@ -12,6 +12,7 @@ import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
 import { listFolder, readFile } from './files'
 import { listModels } from './models'
+import type { AppUpdater } from './update'
 
 export function registerIpc(
   backend: BackendSupervisor,
@@ -19,6 +20,7 @@ export function registerIpc(
   skills: BackendSkills,
   changes: WorkspaceChanges,
   browser: AgentBrowser,
+  updater: AppUpdater,
   home: string,
 ): void {
   const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
@@ -56,6 +58,10 @@ export function registerIpc(
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, baseUrl, apiKey)
   })
+  ipcMain.handle(IpcChannel.UpdateState, () => updater.state)
+  ipcMain.handle(IpcChannel.UpdateCheck, () => updater.check())
+  ipcMain.handle(IpcChannel.UpdateDownload, () => updater.download())
+  ipcMain.handle(IpcChannel.UpdateRestart, () => updater.restart())
   ipcMain.handle(IpcChannel.PickDirectory, (event) => pickDirectory(event.sender, true))
   ipcMain.handle(IpcChannel.OpenPath, async (_event, path: unknown) => {
     if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('expected an absolute path')
@@ -73,6 +79,7 @@ export function registerIpc(
   backend.on('state', (state: BackendState) => send(IpcChannel.BackendChanged, state))
   browser.on('state', (thread: string, state: BrowserState) => send(IpcChannel.BrowserChanged, thread, state))
   browser.on('used', (thread: string) => send(IpcChannel.BrowserUsed, thread))
+  updater.on('state', (state: UpdateState) => send(IpcChannel.UpdateChanged, state))
 }
 
 /** A folder the user chooses; create lets them make a new one. */
