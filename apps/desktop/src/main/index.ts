@@ -1,7 +1,7 @@
 // Main process entry: app lifecycle only. It wires the backend supervisor,
 // IPC and the window together; each concern lives in its own module.
 
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, net, shell } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
@@ -13,6 +13,7 @@ import { BrowserEndpoint } from './browser/endpoint'
 import { WorkspaceChanges } from './changes'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
+import { AppUpdater, bundleOf } from './update'
 import { createMainWindow } from './window'
 
 registerAppScheme()
@@ -28,6 +29,14 @@ if (!app.requestSingleInstanceLock()) {
   const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env })
   const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
   const skills = new BackendSkills({ binary: backendBinary(), home, restart: () => backend.restart(), trash: (path) => shell.trashItem(path) })
+  const updater = new AppUpdater({
+    fetch: net.fetch,
+    version: app.getVersion(),
+    arch: process.arch,
+    bundle: app.isPackaged ? bundleOf(app.getPath('exe')) : undefined,
+    staging: join(app.getPath('userData'), 'update'),
+    quit: () => app.quit(),
+  })
 
   app.on('second-instance', () => {
     const win = BrowserWindow.getAllWindows()[0]
@@ -39,8 +48,9 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), browser, home)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), browser, updater, home)
     createMainWindow()
+    updater.start()
     // The backend's browser tools reach the endpoint from its start.
     void browserEndpoint.listen().then(() => backend.start())
     app.on('activate', () => {
@@ -54,7 +64,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   // Quitting (menu, Cmd+Q, or the SIGINT/SIGTERM Electron turns into a quit)
-  // waits for the backend to stop.
+  // waits for the backend to stop, then installs a downloaded update.
   let stopping = false
   app.on('before-quit', (event) => {
     if (stopping) return
@@ -62,6 +72,9 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault()
     // Quit again from a fresh task: re-quitting from a microtask while this
     // quit unwinds hangs Electron when a window-all-closed listener exists.
-    void backend.stop().finally(() => setTimeout(() => app.quit(), 0))
+    void backend.stop().finally(() => {
+      updater.install()
+      setTimeout(() => app.quit(), 0)
+    })
   })
 }

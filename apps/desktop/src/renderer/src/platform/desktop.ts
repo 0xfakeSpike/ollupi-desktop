@@ -37,6 +37,8 @@ function browserShim(): DesktopApi | undefined {
       onUsed: () => () => {},
     },
     listModels: unavailable,
+    // Not the app: nothing to update.
+    update: { state: async () => ({ status: 'unsupported' }), check: async () => {}, download: unavailable, restart: unavailable, onState: () => () => {} },
     pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
     openPath: async () => {},
     // A browser follows its own scheme.
@@ -67,6 +69,7 @@ export const desktop: DesktopApi = window.desktop ??
       onUsed: () => () => {},
     },
     listModels: unavailable,
+    update: { state: unavailable, check: unavailable, download: unavailable, restart: unavailable, onState: () => () => {} },
     pickDirectory: unavailable,
     openPath: unavailable,
     setColorScheme: unavailable,

@@ -2,7 +2,7 @@
 // Electron crosses the bridge.
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IpcChannel, type BackendState, type BrowserState, type DesktopApi } from '../shared/ipc'
+import { IpcChannel, type BackendState, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
 
 const api: DesktopApi = {
   info: () => ipcRenderer.invoke(IpcChannel.Info),
@@ -55,6 +55,17 @@ const api: DesktopApi = {
     },
   },
   listModels: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, baseUrl, apiKey),
+  update: {
+    state: () => ipcRenderer.invoke(IpcChannel.UpdateState),
+    check: () => ipcRenderer.invoke(IpcChannel.UpdateCheck),
+    download: () => ipcRenderer.invoke(IpcChannel.UpdateDownload),
+    restart: () => ipcRenderer.invoke(IpcChannel.UpdateRestart),
+    onState: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, state: UpdateState) => listener(state)
+      ipcRenderer.on(IpcChannel.UpdateChanged, wrapped)
+      return () => ipcRenderer.off(IpcChannel.UpdateChanged, wrapped)
+    },
+  },
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
   setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),

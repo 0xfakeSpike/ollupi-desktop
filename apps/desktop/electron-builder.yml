@@ -13,11 +13,19 @@ extraResources:
 mac:
   category: public.app-category.developer-tools
   minimumSystemVersion: '12.0'
-  target: [dmg]
+  # The dmg is for a first install; the app updates itself from the zip,
+  # which latest-mac.yml lists with its sha512 (src/main/update.ts).
+  target: [dmg, zip]
   artifactName: ${productName}-${version}-${arch}.${ext}
   # No Developer ID yet: sign ad hoc, so Apple silicon runs the bundle once
   # the user lets Gatekeeper open it. Hardened runtime needs a real identity.
   identity: '-'
   hardenedRuntime: false
+# Gives the release latest-mac.yml, which the app's updater reads from the
+# latest GitHub release. Releases are uploaded by hand (--publish never).
+publish:
+  provider: github
+  owner: 0xfakeSpike
+  repo: ollupi-desktop
 dmg:
   title: ${productName} ${version}
