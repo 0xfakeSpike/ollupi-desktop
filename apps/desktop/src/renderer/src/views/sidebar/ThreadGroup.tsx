@@ -1,7 +1,7 @@
 import { isWorking, needsUser } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
-import { Archive, ChevronRight, Folder, FolderOpen, MessagesSquare, Plus, Settings2 } from 'lucide-react'
+import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Plus, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { go, useOpenThreadId } from '../../domains/navigation'
@@ -33,9 +33,9 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           className="flex min-w-0 flex-1 items-center gap-2 text-left text-small font-medium text-fg-subtle transition-colors duration-100 ease-standard hover:text-fg-muted"
         >
           <span className="flex size-4 shrink-0 items-center justify-center">
-            {workspace ? <Folder size={14} /> : <MessagesSquare size={14} />}
+            {workspace ? <Folder size={14} /> : <Inbox size={14} />}
           </span>
-          <span className="truncate">{workspace ? workspace.name : m.threads}</span>
+          <span className="truncate">{workspace ? workspace.name : m.noWorkspace}</span>
           <ChevronRight
             size={14}
             aria-hidden
@@ -43,7 +43,8 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           />
         </button>
         {workspace && (
-          <div className="flex opacity-0 transition-opacity duration-100 ease-standard group-focus-within:opacity-100 group-hover:opacity-100">
+          // Takes room only when shown, so the name uses the row's width.
+          <div className="hidden group-focus-within:flex group-hover:flex">
             <IconButton label={m.revealFolder} size="sm" onClick={() => void desktop.openPath(workspace.rootPath)}>
               <FolderOpen size={14} />
             </IconButton>

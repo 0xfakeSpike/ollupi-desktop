@@ -1,46 +1,31 @@
-import { Badge, Button, cn, Field, palettes, Select, Switch, Tabs, type Palette } from '@ollupi/ui'
+import { Badge, Button, cn, Field, palettes, Select, Switch, type Palette } from '@ollupi/ui'
 import { FileCog, RotateCw } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
+import type { SettingsTab } from '../../domains/navigation'
 import { setRedaction, useSettings } from '../../domains/settings'
 import { useConnection } from '../../gateway/connection'
-import { setLanguage, useLocale, useT, type LanguagePreference, type Messages } from '../../i18n'
+import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18n'
 import { locales, systemLocale } from '../../i18n/locale'
 import { desktop } from '../../platform/desktop'
-import { McpSection } from './McpSection'
 import { ModelsSection } from './ModelsSection'
-import { ToolsSection } from './ToolsSection'
 
-type Tab = 'general' | 'models' | 'mcp' | 'tools'
-
-const tabIds: Tab[] = ['general', 'models', 'mcp', 'tools']
-
-const tabsOf = (m: Messages) => tabIds.map((id) => ({ id, ...m.settings.screen.tabs[id] }))
-
-export function SettingsScreen() {
-  const m = useT()
-  const [tab, setTab] = useState<Tab>('general')
-  const tabs = tabsOf(m)
-  const current = tabs.find((t) => t.id === tab)!
+/** One category of settings; the sidebar lists them while settings are
+ * open (SettingsSidebar). */
+export function SettingsScreen({ tab }: { tab: SettingsTab }) {
+  const current = useT().settings.screen.tabs[tab]
   return (
     <div className="flex h-full flex-col">
       <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
-        <h1 className="text-ui font-semibold">{m.settings.screen.title}</h1>
+        <h1 className="text-ui font-semibold">{current.label}</h1>
       </header>
-      <div className="flex min-h-0 flex-1">
-        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-2">
-          <Tabs<Tab> label={m.settings.screen.title} orientation="vertical" tabs={tabs} value={tab} onChange={setTab} />
-        </nav>
-        <div className="scroll-centered flex-1 overflow-y-auto">
-          <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-8">
-            <p className="text-ui text-fg-muted">{current.description}</p>
-            {tab === 'general' && <General />}
-            {tab === 'models' && <ModelsSection />}
-            {tab === 'mcp' && <McpSection />}
-            {tab === 'tools' && <ToolsSection />}
-          </section>
-        </div>
+      <div className="scroll-centered flex-1 overflow-y-auto">
+        <section className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-8">
+          <p className="text-ui text-fg-muted">{current.description}</p>
+          {tab === 'general' && <General />}
+          {tab === 'models' && <ModelsSection />}
+        </section>
       </div>
     </div>
   )

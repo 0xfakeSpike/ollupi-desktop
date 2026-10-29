@@ -1,5 +1,5 @@
-// The settings screen, its sections, and the permission dialogs of a
-// workspace and a thread.
+// The settings screen, its sections, the capabilities screen's MCP and
+// tools sections, and the permission dialogs of a workspace and a thread.
 
 import { createElement, Fragment, type ReactNode } from 'react'
 
@@ -14,11 +14,6 @@ export const en = {
         label: 'Models',
         description: 'Grouped by the API that serves them; a model is selected as provider/name. Saving checks the change with the backend, then restarts it.',
       },
-      mcp: {
-        label: 'MCP',
-        description: 'MCP servers give the agent their tools as <name>__<tool>. The backend connects them at start and skips one it cannot use.',
-      },
-      tools: { label: 'Tools', description: 'What the agent can call. Permission rules name these tools.' },
     },
   },
 
@@ -224,11 +219,6 @@ export const zh: typeof en = {
         label: '模型',
         description: '按提供模型的 API 分组；模型以 提供方/名称 的形式选择。保存时先由后端检查改动，再重启后端。',
       },
-      mcp: {
-        label: 'MCP',
-        description: 'MCP 服务器以 <name>__<tool> 的名字为代理提供工具。后端在启动时连接它们，无法使用的会被跳过。',
-      },
-      tools: { label: '工具', description: '代理可以调用的工具。权限规则以这些名字指定工具。' },
     },
   },
 

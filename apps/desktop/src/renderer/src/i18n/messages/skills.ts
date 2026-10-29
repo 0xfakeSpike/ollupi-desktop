@@ -1,10 +1,8 @@
-// The skills screen: the skills folder, its skills, and writing one.
+// The capabilities screen's skills: the skills folder, its skills, and
+// writing one.
 
 export const en = {
   screen: {
-    title: 'Skills',
-    intro:
-      'A skill is a folder with a SKILL.md: a name, a description of when to use it, and instructions the agent follows once it activates the skill. The agent sees every description and loads the rest when it needs it.',
     off: 'Skills are off',
     offHint: 'Turn them on to keep skills in a folder in the backend’s data folder. You can choose another folder afterwards.',
     turnOn: 'Turn on',
@@ -22,6 +20,7 @@ export const en = {
     import: 'Import folder…',
     importHint: 'Copied in under its own name, which must be the skill’s name.',
     restarts: 'Saving checks the skill with the backend’s rules, then restarts the backend, which loads skills at start.',
+    reload: 'Reload',
   },
   skill: {
     version: (v: string) => `v${v}`,
@@ -50,9 +49,6 @@ export const en = {
 
 export const zh: typeof en = {
   screen: {
-    title: '技能',
-    intro:
-      '技能是一个带 SKILL.md 的文件夹：名称、何时使用的描述，以及代理启用该技能后遵循的指令。代理能看到所有技能的描述，需要时再加载其余内容。',
     off: '技能未开启',
     offHint: '开启后，技能保存在后端数据文件夹中的一个文件夹里，之后也可以换成其他文件夹。',
     turnOn: '开启',
@@ -70,6 +66,7 @@ export const zh: typeof en = {
     import: '导入文件夹…',
     importHint: '以原文件夹名复制进来，文件夹名必须与技能名称一致。',
     restarts: '保存时会按后端的规则检查技能，然后重启后端，后端在启动时加载技能。',
+    reload: '刷新',
   },
   skill: {
     version: (v) => `v${v}`,
