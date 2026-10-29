@@ -5,6 +5,7 @@
 // outside React, such as a failed action's notice, with t().
 
 import { useLocale, type Locale } from './locale'
+import * as capabilities from './messages/capabilities'
 import * as common from './messages/common'
 import * as conversation from './messages/conversation'
 import * as cron from './messages/cron'
@@ -22,6 +23,7 @@ const en = {
   requests: requests.en,
   memory: memory.en,
   skills: skills.en,
+  capabilities: capabilities.en,
   cron: cron.en,
   settings: settings.en,
   errors: errors.en,
@@ -38,6 +40,7 @@ const catalogs: Record<Locale, Messages> = {
     requests: requests.zh,
     memory: memory.zh,
     skills: skills.zh,
+    capabilities: capabilities.zh,
     cron: cron.zh,
     settings: settings.zh,
     errors: errors.zh,

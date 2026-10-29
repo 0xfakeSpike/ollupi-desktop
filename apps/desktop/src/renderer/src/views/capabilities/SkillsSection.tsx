@@ -1,5 +1,5 @@
-// The skills folder config.yaml's skills_dir names, and the skills in it as
-// the agent loads them. The agent reads the folder only at start and will
+// The capabilities screen's skills: the folder config.yaml's skills_dir
+// names, and the skills in it as the agent loads them. The agent reads the folder only at start and will
 // not start with a skill it cannot load, so every change is checked with
 // its own rules first and then restarts the backend.
 
@@ -27,7 +27,7 @@ import { desktop } from '../../platform/desktop'
 /** Resource files a skill shows before the rest are counted. */
 const shownFiles = 8
 
-export function SkillsScreen() {
+export function SkillsSection() {
   const m = useT()
   const s = m.skills.screen
   const [list, setList] = useState<SkillList>()
@@ -56,91 +56,82 @@ export function SkillsScreen() {
     connected && list?.ok && loaded !== undefined && list.dir !== '' && [...loaded].sort().join('\n') !== [...names].sort().join('\n')
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
-        <h1 className="text-ui font-semibold">{s.title}</h1>
-        <div className="flex-1" />
-        <IconButton label={m.common.reload} onClick={() => void reload()}>
-          <RotateCw size={16} />
-        </IconButton>
-      </header>
-      <div className="scroll-centered flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-5 px-6 py-6">
-          <p className="text-ui text-fg-muted">{s.intro}</p>
-          {!list ? (
-            <div className="flex justify-center py-12 text-fg-subtle">
-              <Spinner />
-            </div>
-          ) : !list.dir ? (
-            list.ok ? (
-              <EmptyState
-                icon={<Sparkles size={20} />}
-                title={s.off}
-                action={
-                  <Button variant="primary" loading={busy} onClick={() => void act(turnOn)}>
-                    {s.turnOn}
-                  </Button>
-                }
-              >
-                {s.offHint}
-              </EmptyState>
-            ) : (
-              <Callout tone="danger">
-                {s.unreadable} <span className="selectable font-mono text-small">{list.error}</span>
-              </Callout>
-            )
-          ) : (
-            <>
-              <Folder dir={list.dir} busy={busy} onChange={() => void act(chooseFolder)} onOff={() => void act(turnOff)} />
-              {stale && (
-                <Callout tone="warning">
-                  <div className="flex items-center gap-3">
-                    <span className="flex-1">{s.stale}</span>
-                    <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
-                      {m.common.restartBackend}
-                    </Button>
-                  </div>
-                </Callout>
-              )}
-              {!list.ok ? (
-                <Callout tone="danger">
-                  <p>{s.broken}</p>
-                  <pre className="selectable mt-1 font-mono text-small whitespace-pre-wrap text-fg-muted">{list.error}</pre>
-                </Callout>
-              ) : skills.length === 0 ? (
-                <EmptyState icon={<Sparkles size={20} />} title={s.empty}>
-                  {s.emptyHint}
-                </EmptyState>
-              ) : (
-                <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
-                  {skills.map((x) => (
-                    <SkillRow
-                      key={x.name}
-                      skill={x}
-                      dir={list.dir}
-                      onEdit={() => setEditing({ name: x.name })}
-                      onRemove={() => {
-                        if (confirm(m.skills.skill.confirmRemove(x.name))) void act(() => removeSkill(x.name))
-                      }}
-                    />
-                  ))}
-                </ul>
-              )}
-              {list.ok && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button icon={<Plus size={14} />} onClick={() => setEditing({})}>
-                    {s.newSkill}
-                  </Button>
-                  <Button icon={<FolderInput size={14} />} loading={busy} onClick={() => void act(importSkill)}>
-                    {s.import}
-                  </Button>
-                  <span className="text-small text-fg-subtle">{s.importHint}</span>
-                </div>
-              )}
-            </>
-          )}
+    <>
+      {!list ? (
+        <div className="flex justify-center py-12 text-fg-subtle">
+          <Spinner />
         </div>
-      </div>
+      ) : !list.dir ? (
+        list.ok ? (
+          <EmptyState
+            icon={<Sparkles size={20} />}
+            title={s.off}
+            action={
+              <Button variant="primary" loading={busy} onClick={() => void act(turnOn)}>
+                {s.turnOn}
+              </Button>
+            }
+          >
+            {s.offHint}
+          </EmptyState>
+        ) : (
+          <Callout tone="danger">
+            {s.unreadable} <span className="selectable font-mono text-small">{list.error}</span>
+          </Callout>
+        )
+      ) : (
+        <>
+          <Folder dir={list.dir} busy={busy} onChange={() => void act(chooseFolder)} onOff={() => void act(turnOff)} />
+          {stale && (
+            <Callout tone="warning">
+              <div className="flex items-center gap-3">
+                <span className="flex-1">{s.stale}</span>
+                <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
+                  {m.common.restartBackend}
+                </Button>
+              </div>
+            </Callout>
+          )}
+          {!list.ok ? (
+            <Callout tone="danger">
+              <p>{s.broken}</p>
+              <pre className="selectable mt-1 font-mono text-small whitespace-pre-wrap text-fg-muted">{list.error}</pre>
+            </Callout>
+          ) : skills.length === 0 ? (
+            <EmptyState icon={<Sparkles size={20} />} title={s.empty}>
+              {s.emptyHint}
+            </EmptyState>
+          ) : (
+            <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
+              {skills.map((x) => (
+                <SkillRow
+                  key={x.name}
+                  skill={x}
+                  dir={list.dir}
+                  onEdit={() => setEditing({ name: x.name })}
+                  onRemove={() => {
+                    if (confirm(m.skills.skill.confirmRemove(x.name))) void act(() => removeSkill(x.name))
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+          {list.ok && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button icon={<Plus size={14} />} onClick={() => setEditing({})}>
+                {s.newSkill}
+              </Button>
+              <Button icon={<FolderInput size={14} />} loading={busy} onClick={() => void act(importSkill)}>
+                {s.import}
+              </Button>
+              <Button variant="ghost" icon={<RotateCw size={14} />} onClick={() => void reload()}>
+                {s.reload}
+              </Button>
+              <span className="text-small text-fg-subtle">{s.importHint}</span>
+            </div>
+          )}
+        </>
+      )}
       {editing &&
         (editing.name === undefined ? (
           <NewSkillDialog
@@ -169,7 +160,7 @@ export function SkillsScreen() {
             }}
           />
         ))}
-    </div>
+    </>
   )
 }
 

@@ -6,13 +6,17 @@ import { create } from 'zustand'
 /** What a conversation shows beside it. */
 export type Panel = 'browser' | 'files' | 'changes' | 'tasks' | 'permissions' | 'context'
 
+/** What the agent can do, from where. */
+export type CapabilityTab = 'skills' | 'mcp' | 'tools'
+export type SettingsTab = 'general' | 'models'
+
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
   | { kind: 'thread'; threadId: string }
   | { kind: 'memory' }
-  | { kind: 'skills' }
   | { kind: 'cron' }
-  | { kind: 'settings' }
+  | { kind: 'capabilities'; tab: CapabilityTab }
+  | { kind: 'settings'; tab: SettingsTab }
 
 interface NavigationStore {
   screen: Screen
@@ -21,17 +25,29 @@ interface NavigationStore {
   model: string | undefined
   /** Stays open across threads, like a pane. */
   panel: Panel | undefined
+  /** Where settings goes back to: the screen open before them. */
+  beforeSettings: Screen
 }
 
 export const useNavigation = create<NavigationStore>()(() => ({
   screen: { kind: 'draft', workspaceId: undefined },
   model: undefined,
   panel: undefined,
+  beforeSettings: { kind: 'draft', workspaceId: undefined },
 }))
 
 /** A model choice belongs to the conversation it was made in. */
 export function go(screen: Screen): void {
-  useNavigation.setState((s) => ({ screen, model: sameThread(s.screen, screen) ? s.model : undefined }))
+  useNavigation.setState((s) => ({
+    screen,
+    model: sameThread(s.screen, screen) ? s.model : undefined,
+    beforeSettings: screen.kind === 'settings' && s.screen.kind !== 'settings' ? s.screen : s.beforeSettings,
+  }))
+}
+
+/** Leaves settings for the screen open before them. */
+export function leaveSettings(): void {
+  go(useNavigation.getState().beforeSettings)
 }
 
 /** Shows the panel, or closes it when it is the one showing. */

@@ -5,13 +5,13 @@ import { useConnection } from '../gateway/connection'
 import { useNavigation } from '../domains/navigation'
 import { useT } from '../i18n'
 import { BackendScreen } from './backend/BackendScreen'
+import { CapabilitiesScreen } from './capabilities/CapabilitiesScreen'
 import { Toasts } from './common/Toasts'
 import { ConversationScreen } from './conversation/ConversationScreen'
 import { DraftScreen } from './draft/DraftScreen'
 import { CronScreen } from './cron/CronScreen'
 import { MemoryScreen } from './memory/MemoryScreen'
 import { SettingsScreen } from './settings/SettingsScreen'
-import { SkillsScreen } from './skills/SkillsScreen'
 import { Sidebar } from './sidebar/Sidebar'
 
 export function App() {
@@ -63,11 +63,11 @@ function CurrentScreen() {
       return <ConversationScreen key={screen.threadId} threadId={screen.threadId} />
     case 'memory':
       return <MemoryScreen />
-    case 'skills':
-      return <SkillsScreen />
     case 'cron':
       return <CronScreen />
+    case 'capabilities':
+      return <CapabilitiesScreen tab={screen.tab} />
     case 'settings':
-      return <SettingsScreen />
+      return <SettingsScreen tab={screen.tab} />
   }
 }
