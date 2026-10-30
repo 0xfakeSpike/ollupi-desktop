@@ -13,7 +13,6 @@ import {
   setThread,
   timelineFromPage,
   titleFromMessage,
-  upsertThread,
   upsertTurn,
   type Timeline,
   type TimelineEvent,
@@ -25,7 +24,6 @@ import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { messageInput } from './attachments'
 import { chooseModel, focusItem, go, openThreadId, useNavigation } from './navigation'
-import { useThreads } from './threads'
 
 /** Items per page; the gateway also cuts a page at about 4 MB and then
  * reports hasMore. */
@@ -128,8 +126,8 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
   return run((e) => e.thread.start, async () => {
     const title = titleFromMessage(text, files.map((f) => f.name))
     const { thread } = await gateway().call('thread/start', { workspaceId, title: title || undefined, permissions: {} })
+    // thread/started has put it in the list already.
     store(thread.id, emptyTimeline(thread))
-    useThreads.setState((s) => ({ list: upsertThread(s.list, thread) }))
     const model = useNavigation.getState().model
     go({ kind: 'thread', threadId: thread.id })
     chooseModel(model)
@@ -186,9 +184,8 @@ export function interrupt(threadId: string): Promise<void | undefined> {
 
 export function updateThreadPermissions(threadId: string, settings: PermissionSettings): Promise<boolean> {
   return run((e) => e.thread.permissions, async () => {
-    const { thread } = await gateway().call('thread/updatePermissions', { threadId, ...settings })
-    update(threadId, (t) => setThread(t, thread))
-    useThreads.setState((s) => ({ list: upsertThread(s.list, thread) }))
+    // thread/changed brings the new row to the thread and the list.
+    await gateway().call('thread/updatePermissions', { threadId, ...settings })
     return true
   }).then(Boolean)
 }

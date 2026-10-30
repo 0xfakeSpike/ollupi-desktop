@@ -79,7 +79,7 @@
 
 - 审批〔引擎〕
   - 工具调用请求审批，决定：允许一次 / 在此会话中允许 / 拒绝
-  - 总是允许：把规则写入工作区、会话或上级会话
+  - 总是允许：把规则写入工作区、会话或上级会话，界面的权限设置随即更新
   - 审批前冻结目录、命令和环境变量，执行时校验仍与批准内容一致
 - 结构化提问〔引擎〕：`request_user_input`，回答成为工具结果
 - 界面〔桌面〕
@@ -120,7 +120,7 @@
   - `Agent`、`update_plan`、`request_user_input`、`read_tool_output`、`memory_search`
   - 技能：`list_skills`、`activate_skill`、`read_skill_resource`
   - 定时任务：`create_` / `pause_` / `delete_` / `list_scheduled_jobs`
-  - `run_command`：沙箱内执行命令，可申请提权
+  - `run_command`：沙箱内执行命令，可申请提权；不在工作区的会话在 `~/.ollupi/scratch` 里执行
   - `edit_file`、`write_file`：只写沙箱允许的目录；审批的是冻结的 diff，执行前确认文件未被改过；规则可按路径匹配
   - `web_fetch`：读取公网页面，HTML 转成类 Markdown 正文；只连公网地址，同域跳转跟随、跨域只返回新地址；按域名审批
   - 工具太多放不下时延迟加载，`load_tools` 按需载入

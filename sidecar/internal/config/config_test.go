@@ -14,7 +14,7 @@ func TestTemplateParses(t *testing.T) {
 	if ID(p.Provider, p.Names[0].Name) != "openai/gpt-5.2" {
 		t.Fatalf("default model = %s/%s", p.Provider, p.Names[0].Name)
 	}
-	if !cfg.Shell.Enabled || cfg.Shell.SandboxMode != "workspace-write" || cfg.Permissions.Settings().ApprovalPolicy != "on-request" {
+	if !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Permissions.Settings().ApprovalPolicy != "on-request" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }

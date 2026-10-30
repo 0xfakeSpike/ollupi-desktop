@@ -60,11 +60,6 @@ function MemoryGroup({ title, memories }: { title: string; memories: MemoryRefer
   )
 }
 
-export function ToolProgress({ item }: { item: ItemRow }) {
-  if (!item.text) return null
-  return <div className="truncate pl-5 font-mono text-small text-fg-subtle">{item.text}</div>
-}
-
 /** The first line says what failed; a longer message opens below it. */
 export function ErrorItem({ item }: { item: ItemRow }) {
   const text = item.error || item.text || ''

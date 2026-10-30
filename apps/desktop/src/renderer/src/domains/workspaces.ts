@@ -1,6 +1,6 @@
-// Workspaces: project folders threads run in. The gateway answers each
-// change with the row and also sends workspace/changed; both carry the
-// stored row, so applying either is the same.
+// Workspaces: project folders threads run in. ollupi sends every change as
+// workspace/changed (an "always allow" answer included), before it answers
+// the call that made it, so the calls below leave the list to it.
 
 import { compareWorkspaces, upsertWorkspace } from '@ollupi/core'
 import type { PermissionSettings, WorkspaceRow } from '@ollupi/protocol'
@@ -37,26 +37,25 @@ export function addWorkspace(): Promise<void | undefined> {
     const path = await desktop.pickDirectory()
     if (!path) return
     const { workspace } = await gateway().call('workspace/add', { path })
-    apply(workspace)
     go({ kind: 'draft', workspaceId: workspace.id })
   })
 }
 
 export function renameWorkspace(workspaceId: string, name: string): Promise<void | undefined> {
   return run((e) => e.workspace.rename, async () => {
-    apply((await gateway().call('workspace/rename', { workspaceId, name })).workspace)
+    await gateway().call('workspace/rename', { workspaceId, name })
   })
 }
 
 export function setArchived(workspaceId: string, archived: boolean): Promise<void | undefined> {
   return run((e) => (archived ? e.workspace.archive : e.workspace.restore), async () => {
-    apply((await gateway().call('workspace/archive', { workspaceId, archived })).workspace)
+    await gateway().call('workspace/archive', { workspaceId, archived })
   })
 }
 
 export function updateWorkspacePermissions(workspaceId: string, settings: PermissionSettings): Promise<boolean> {
   return run((e) => e.workspace.permissions, async () => {
-    apply((await gateway().call('workspace/updatePermissions', { workspaceId, ...settings })).workspace)
+    await gateway().call('workspace/updatePermissions', { workspaceId, ...settings })
     return true
   }).then(Boolean)
 }

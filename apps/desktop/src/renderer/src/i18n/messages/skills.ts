@@ -24,7 +24,6 @@ export const en = {
   },
   skill: {
     version: (v: string) => `v${v}`,
-    tools: 'Tools',
     files: (n: number) => (n === 1 ? '1 file' : `${n} files`),
     more: (n: number) => `+${n} more`,
     edit: (name: string) => `Edit ${name}`,
@@ -70,7 +69,6 @@ export const zh: typeof en = {
   },
   skill: {
     version: (v) => `v${v}`,
-    tools: '工具',
     files: (n) => `${n} 个文件`,
     more: (n) => `还有 ${n} 个`,
     edit: (name) => `编辑 ${name}`,

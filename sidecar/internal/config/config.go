@@ -1,6 +1,6 @@
 // Package config is the backend's configuration file, <home>/config.yaml:
 // the agent-level settings ollupi takes once at start (models and the APIs
-// that serve them, default permissions, the shell tool, MCP servers, memory,
+// that serve them, default permissions, the workspace tools, MCP servers, memory,
 // slots). It only describes; host turns it into running components.
 package config
 
@@ -17,7 +17,7 @@ import (
 
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
 	"github.com/0xfakeSpike/ollupi/repo"
-	"github.com/0xfakeSpike/ollupi/tools/shell"
+	"github.com/0xfakeSpike/ollupi/tools/workspace"
 	"gopkg.in/yaml.v3"
 )
 
@@ -33,8 +33,9 @@ type Config struct {
 	Tools       []string    `json:"tools,omitempty"`
 	Permissions Permissions `json:"permissions"`
 	// Slots caps how many threads run at once; 0 uses ollupi's default.
-	Slots int   `json:"slots,omitempty"`
-	Shell Shell `json:"shell"`
+	Slots int `json:"slots,omitempty"`
+	// Workspace turns on run_command, edit_file and write_file.
+	Workspace Workspace `json:"workspace"`
 	// MCP are the MCP servers whose tools the agent gets, as
 	// <name>__<tool>. One that cannot start is skipped.
 	MCP       []MCPServer `json:"mcp,omitempty"`
@@ -122,9 +123,9 @@ func (p Permissions) Settings() repo.PermissionSettings {
 	}
 }
 
-type Shell struct {
+type Workspace struct {
 	Enabled bool `json:"enabled"`
-	shell.Config
+	workspace.Config
 }
 
 type Memory struct {
@@ -226,7 +227,7 @@ func LoadFile(path, home string) (Config, error) {
 }
 
 // Parse decodes YAML by way of JSON so the file uses the json tags ollupi
-// defines on its shell types. Unknown keys are errors.
+// defines on its workspace types. Unknown keys are errors.
 func Parse(raw []byte) (Config, error) {
 	var tree any
 	if err := yaml.Unmarshal(raw, &tree); err != nil {

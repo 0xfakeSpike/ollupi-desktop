@@ -188,7 +188,6 @@ function Folder({ dir, busy, onChange, onOff }: { dir: string; busy: boolean; on
 function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string; onEdit(): void; onRemove(): void }) {
   const m = useT().skills.skill
   const files = skill.resources ?? []
-  const tools = skill.allowed_tools ?? []
   return (
     <li className="group flex flex-col gap-1.5 px-4 py-3">
       <div className="flex items-center gap-2">
@@ -208,16 +207,6 @@ function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string;
         </div>
       </div>
       <p className="selectable text-ui whitespace-pre-wrap text-fg-muted">{skill.description}</p>
-      {tools.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 text-small text-fg-subtle">
-          <span className="mr-1">{m.tools}</span>
-          {tools.map((t) => (
-            <code key={t} className="rounded-sm bg-hover px-1.5 py-0.5 font-mono text-small text-fg-muted">
-              {t}
-            </code>
-          ))}
-        </div>
-      )}
       {files.length > 0 && (
         <div className="flex flex-wrap items-center gap-1 text-small text-fg-subtle">
           <span className="mr-1">{m.files(files.length)}</span>

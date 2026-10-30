@@ -17,7 +17,6 @@ export interface SkillsCheck {
               path: string;
               byte_size: number;
             }[];
-        allowed_tools: null | string[];
         byte_size: number;
       }[];
   error?: string;

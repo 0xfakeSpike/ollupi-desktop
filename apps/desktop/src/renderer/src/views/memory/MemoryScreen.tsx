@@ -164,10 +164,10 @@ function StatusLine({ status }: { status: MemoryStatus }) {
         <span>{m.memory.status.active(status.active)}</span>
         {status.generationEnabled && status.pending > 0 && <span>· {m.memory.status.pending(status.pending)}</span>}
       </div>
-      {status.lastError && (
-        <FailureLine failure={status.lastError} learning={status.generationEnabled} attempts={status.attempts ?? 0} nextAttempt={status.nextAttempt} />
+      {status.lastFailure && (
+        <FailureLine failure={status.lastFailure} learning={status.generationEnabled} attempts={status.attempts ?? 0} nextAttempt={status.nextAttempt} />
       )}
-      {status.failed > 0 && <SkipLine skipped={status.failed} skip={status.lastSkip} />}
+      {status.skipped > 0 && <SkipLine skipped={status.skipped} skip={status.lastSkip} />}
     </div>
   )
 }
