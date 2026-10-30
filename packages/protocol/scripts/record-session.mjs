@@ -154,6 +154,12 @@ await call('workspace/list', {})
 const { thread } = await call('thread/start', { workspaceId: ws1.id, permissions: {} })
 
 await turn(thread.id, 'Hello there\nsecond line')
+// A file goes by its path; ollupi copies it into the thread's attachments.
+const notes = join(tmp, 'notes.txt')
+writeFileSync(notes, 'indent with two spaces\n')
+const attached = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'read the attached notes' }, { type: 'file', path: notes }] })
+await completed(attached.turn.id)
+await call('attachment/read', { threadId: thread.id, attachmentId: attached.turn.attachments[0].id })
 await turn(thread.id, 'run ls please')
 await turn(thread.id, 'please ask me which language')
 await turn(thread.id, 'make a plan')

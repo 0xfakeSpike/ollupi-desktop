@@ -11,7 +11,7 @@ package host
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -219,7 +219,7 @@ func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 func (h *Host) close() {
 	for i := len(h.closers) - 1; i >= 0; i-- {
 		if err := h.closers[i](); err != nil {
-			log.Printf("host: close: %v", err)
+			slog.Warn("host component not closed", "err", err)
 		}
 	}
 	h.closers = nil

@@ -20,7 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -38,7 +38,8 @@ import (
 )
 
 func main() {
-	log.SetOutput(os.Stderr)
+	// ollupi logs through slog's default logger; the app keeps stderr in its log file.
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	home := flag.String("home", defaultHome(), "data and config directory")
 	listen := flag.String("listen", "127.0.0.1:0", "gateway listen address")
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
@@ -65,7 +66,7 @@ func main() {
 
 	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
 		handshake.Fatal(err, filepath.Join(*home, config.FileName))
-		log.Printf("ollupid: %v", err)
+		slog.Error("ollupid stopped", "err", err)
 		os.Exit(1)
 	}
 }
@@ -196,7 +197,7 @@ func printSkills(out skillsResult) int {
 func printSchema[T any]() int {
 	s, err := jsonschema.For[T](nil)
 	if err != nil {
-		log.Printf("ollupid: %v", err)
+		slog.Error("schema not generated", "err", err)
 		return 1
 	}
 	out, _ := json.MarshalIndent(s, "", "  ")

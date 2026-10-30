@@ -19,11 +19,13 @@ function browserShim(): DesktopApi | undefined {
   if (!url || !token) return undefined
   const state: BackendState = { status: 'ready', url, token, version: 'browser' }
   return {
-    info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '' }),
+    info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '' }),
     backend: { state: async () => state, restart: async () => {}, onState: () => () => {} },
     // A sidecar started by hand: the browser cannot reach its config file.
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
+    // A browser gives a file no path.
+    attachments: { pathOf: () => undefined, writeTemp: unavailable, removeTemp: unavailable },
     files: { list: unavailable, read: unavailable },
     changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
     terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
@@ -62,6 +64,7 @@ export const desktop: DesktopApi = window.desktop ??
     backend: { state: unavailable, restart: unavailable, onState: unavailable },
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
+    attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
     files: { list: unavailable, read: unavailable },
     changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
     terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },

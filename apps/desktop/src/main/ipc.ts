@@ -6,6 +6,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'el
 import { writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
 import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type BackendState, type BrowserBounds, type BrowserState, type ColorScheme, type ConfigChange, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
 import type { AgentBrowser } from './browser/browser'
@@ -24,10 +25,12 @@ export function registerIpc(
   changes: WorkspaceChanges,
   browser: AgentBrowser,
   terminals: Terminals,
+  attachments: TempAttachments,
   updater: AppUpdater,
   home: string,
+  backendLog: string,
 ): void {
-  const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml') }
+  const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml'), backendLog }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
@@ -60,6 +63,11 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.ChangesDiff, (_event, root: unknown, path: unknown, untracked: unknown) =>
     changes.diff(absolute(root), text(path), untracked === true),
   )
+  ipcMain.handle(IpcChannel.AttachmentsWrite, (_event, name: unknown, data: unknown) => {
+    if (!(data instanceof Uint8Array)) throw new Error('expected bytes')
+    return attachments.write(text(name), data)
+  })
+  ipcMain.handle(IpcChannel.AttachmentsRemove, (_event, path: unknown) => attachments.remove(absolute(path)))
   ipcMain.handle(IpcChannel.TerminalOpen, (_event, key: unknown, cwd: unknown, cols: unknown, rows: unknown) =>
     terminals.open(text(key), absolute(cwd), size(cols), size(rows)),
   )

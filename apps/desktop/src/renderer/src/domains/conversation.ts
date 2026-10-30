@@ -22,7 +22,7 @@ import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
-import { messageInput } from './attachments'
+import { withMessageInput } from './attachments'
 import { chooseModel, focusItem, go, openThreadId, useNavigation } from './navigation'
 
 /** Items per page; the gateway also cuts a page at about 4 MB and then
@@ -131,7 +131,7 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
     const model = useNavigation.getState().model
     go({ kind: 'thread', threadId: thread.id })
     chooseModel(model)
-    await startTurn(thread.id, await messageInput(text, files))
+    await withMessageInput(text, files, (input) => startTurn(thread.id, input))
     return true
   }).then(Boolean)
 }
@@ -151,19 +151,20 @@ export interface Message {
  * is what the message needs. */
 export function sendMessage(threadId: string, { text, files }: Message, mode: SendMode): Promise<boolean> {
   return run((e) => e.thread.send, async () => {
-    const input = await messageInput(text, files)
-    const t = useTimelines.getState().byThread[threadId]
-    const running = t && activeTurn(t)
-    if (running && mode === 'steer') {
-      try {
-        await gateway().call('turn/steer', { threadId, input, expectedTurnId: running.id })
-        return true
-      } catch (err) {
-        const ended = err instanceof RpcError && (err.code === ErrorCode.noActiveTurn || err.code === ErrorCode.turnMismatch)
-        if (!ended) throw err
+    await withMessageInput(text, files, async (input) => {
+      const t = useTimelines.getState().byThread[threadId]
+      const running = t && activeTurn(t)
+      if (running && mode === 'steer') {
+        try {
+          await gateway().call('turn/steer', { threadId, input, expectedTurnId: running.id })
+          return
+        } catch (err) {
+          const ended = err instanceof RpcError && (err.code === ErrorCode.noActiveTurn || err.code === ErrorCode.turnMismatch)
+          if (!ended) throw err
+        }
       }
-    }
-    await startTurn(threadId, input)
+      await startTurn(threadId, input)
+    })
     return true
   }).then(Boolean)
 }

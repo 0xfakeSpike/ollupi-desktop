@@ -1,7 +1,7 @@
 // Exposes DesktopApi to the sandboxed renderer. Nothing else from Node or
 // Electron crosses the bridge.
 
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { IpcChannel, type BackendState, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
 
 const api: DesktopApi = {
@@ -27,6 +27,11 @@ const api: DesktopApi = {
     import: () => ipcRenderer.invoke(IpcChannel.SkillsImport),
     remove: (name) => ipcRenderer.invoke(IpcChannel.SkillsRemove, name),
     defaultFolder: () => ipcRenderer.invoke(IpcChannel.SkillsDefaultFolder),
+  },
+  attachments: {
+    pathOf: (file) => webUtils.getPathForFile(file) || undefined,
+    writeTemp: (name, data) => ipcRenderer.invoke(IpcChannel.AttachmentsWrite, name, data),
+    removeTemp: (path) => ipcRenderer.invoke(IpcChannel.AttachmentsRemove, path),
   },
   files: {
     list: (root, path) => ipcRenderer.invoke(IpcChannel.FilesList, root, path),

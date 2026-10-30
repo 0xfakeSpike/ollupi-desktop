@@ -23,6 +23,7 @@ export const en = {
     app: 'App',
     backendStatus: { starting: 'starting', ready: 'ready', failed: 'failed', stopped: 'stopped' },
     openConfig: 'Open config.yaml',
+    openLog: 'Open backend log',
     redaction: 'Redaction',
     redactionHint:
       'Phone numbers, ID and bank card numbers, email addresses and keys are replaced with placeholders before anything reaches a model; tools that need the real value still get it. Off, content goes to the model as it is. Applies from the next model call, in every thread.',
@@ -238,6 +239,7 @@ export const zh: typeof en = {
     app: '应用',
     backendStatus: { starting: '启动中', ready: '就绪', failed: '失败', stopped: '已停止' },
     openConfig: '打开 config.yaml',
+    openLog: '打开后端日志',
     redaction: '脱敏',
     redactionHint: '手机号、身份证号、银行卡号、邮箱和密钥等在发给模型前替换成占位符；需要真实值的工具仍拿到真实值。关闭后内容原样发给模型。从下一次模型调用起生效，对所有会话有效。',
   },
