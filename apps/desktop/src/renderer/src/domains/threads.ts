@@ -1,11 +1,12 @@
 // The sidebar's thread list. It mirrors thread/list for each workspace and
 // for threads outside any: top-level threads that are not archived, newest
 // first, with status from thread/status/changed and rows from the turn
-// notifications and thread/changed. The archived threads are a list of
-// their own, read when the sidebar shows it. Renaming, archiving and
-// deleting a thread are here too.
+// notifications and thread/changed. Each group is read a page at a time,
+// the next page on request. The archived threads are a list of their own,
+// read when the sidebar shows it. Renaming, archiving and deleting a
+// thread are here too.
 
-import { compareThreads, removeThread, setThreadStatus, upsertThread } from '@ollupi/core'
+import { compareThreads, removeThread, setThreadStatus, threadCursor, upsertThread } from '@ollupi/core'
 import type { ThreadRow, ThreadSummary } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
@@ -14,14 +15,28 @@ import { run } from '../gateway/run'
 import { go, openThreadId } from './navigation'
 import { activeWorkspaces, useWorkspaces } from './workspaces'
 
-/** thread/list's maximum; it has no cursor, so each group shows at most this. */
-const THREADS_PER_GROUP = 100
+const PAGE_SIZE = 50
 
-export const useThreads = create<{ list: ThreadSummary[] }>()(() => ({ list: [] }))
+/** more: whether a group has threads past those read, by workspace id
+ * ('' for threads outside any). */
+export const useThreads = create<{ list: ThreadSummary[]; more: Record<string, boolean> }>()(() => ({ list: [], more: {} }))
 
 /** thread/list with archived: across every workspace, newest first.
  * Undefined until the sidebar first shows it. */
-export const useArchivedThreads = create<{ list: ThreadRow[] | undefined }>()(() => ({ list: undefined }))
+export const useArchivedThreads = create<{ list: ThreadRow[] | undefined; more: boolean }>()(() => ({ list: undefined, more: false }))
+
+const groupKey = (t: Pick<ThreadRow, 'workspaceId'>) => t.workspaceId ?? ''
+
+/** Reads a group's first page, or the page after the threads already read. */
+async function readGroup(workspaceId: string, from: 'start' | 'more'): Promise<void> {
+  const read = useThreads.getState().list.filter((t) => groupKey(t) === workspaceId)
+  const last = from === 'more' ? read.at(-1) : undefined
+  const page = await gateway().call('thread/list', { workspaceId, after: last && threadCursor(last), limit: PAGE_SIZE })
+  useThreads.setState((s) => ({
+    list: page.data.reduce((acc, t) => upsertThread(acc, t, t.status), s.list),
+    more: { ...s.more, [workspaceId]: page.hasMore },
+  }))
+}
 
 const update = (fn: (list: ThreadSummary[]) => ThreadSummary[]) => useThreads.setState((s) => ({ list: fn(s.list) }))
 
@@ -53,9 +68,7 @@ export const threadsDomain: Domain = {
         const was = new Set(activeWorkspaces(before.list).map((w) => w.id))
         for (const w of activeWorkspaces(now.list)) {
           if (!was.has(w.id) && before.list.some((b) => b.id === w.id)) {
-            void client.call('thread/list', { workspaceId: w.id, limit: THREADS_PER_GROUP }).then(({ data }) =>
-              update((l) => data.reduce((acc, t) => upsertThread(acc, t, t.status), l)),
-            )
+            void readGroup(w.id, 'start')
           }
         }
       }),
@@ -65,17 +78,28 @@ export const threadsDomain: Domain = {
   // Runs after workspaces have synced (session order).
   sync: async (client) => {
     const scopes = ['', ...activeWorkspaces(useWorkspaces.getState().list).map((w) => w.id)]
-    const pages = await Promise.all(scopes.map((workspaceId) => client.call('thread/list', { workspaceId, limit: THREADS_PER_GROUP })))
-    useThreads.setState({ list: pages.flatMap((p) => p.data).sort(compareThreads) })
-    if (useArchivedThreads.getState().list) await loadArchivedThreads()
+    const pages = await Promise.all(scopes.map((workspaceId) => client.call('thread/list', { workspaceId, limit: PAGE_SIZE })))
+    useThreads.setState({
+      list: pages.flatMap((p) => p.data).sort(compareThreads),
+      more: Object.fromEntries(scopes.map((w, i) => [w, pages[i]!.hasMore])),
+    })
+    if (useArchivedThreads.getState().list) await loadArchivedThreads('start')
   },
-  disconnect: () => useArchivedThreads.setState({ list: undefined }),
+  disconnect: () => useArchivedThreads.setState({ list: undefined, more: false }),
 }
 
-export function loadArchivedThreads(): Promise<void | undefined> {
+/** The next page of a group: a workspace's threads, or those outside any. */
+export function loadMoreThreads(workspaceId: string | undefined): Promise<void | undefined> {
+  return run((e) => e.thread.list, () => readGroup(workspaceId ?? '', 'more'))
+}
+
+export function loadArchivedThreads(from: 'start' | 'more'): Promise<void | undefined> {
   return run((e) => e.thread.archived, async () => {
-    const { data } = await gateway().call('thread/list', { archived: true, limit: THREADS_PER_GROUP })
-    useArchivedThreads.setState({ list: data })
+    const read = from === 'more' ? (useArchivedThreads.getState().list ?? []) : []
+    const last = read.at(-1)
+    const page = await gateway().call('thread/list', { archived: true, after: last && threadCursor(last), limit: PAGE_SIZE })
+    const known = new Set(read.map((t) => t.id))
+    useArchivedThreads.setState({ list: [...read, ...page.data.filter((t) => !known.has(t.id))], more: page.hasMore })
   })
 }
 

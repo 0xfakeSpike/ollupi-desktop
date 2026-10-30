@@ -63,6 +63,7 @@ export const conversationDomain: Domain = {
       client.on('turn/started', (params) => apply({ method: 'turn/started', params })),
       client.on('turn/completed', (params) => apply({ method: 'turn/completed', params })),
       client.on('item/started', (params) => apply({ method: 'item/started', params })),
+      client.on('item/updated', (params) => apply({ method: 'item/updated', params })),
       client.on('item/completed', (params) => apply({ method: 'item/completed', params })),
       client.on('item/agentMessage/delta', (params) => apply({ method: 'item/agentMessage/delta', params })),
       client.on('item/reasoning/textDelta', (params) => apply({ method: 'item/reasoning/textDelta', params })),

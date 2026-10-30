@@ -490,7 +490,10 @@ function useModelForm(provider: string, type: ApiType, model: ProviderModel | un
   const [name, setName] = useState(model?.name ?? '')
   const [calls, setCalls] = useState(model?.calls ? String(model.calls) : '')
   const [thinking, setThinking] = useState(model?.thinking == null ? DEFAULT : String(model.thinking))
-  const [images, setImages] = useState(model ? !!model.images : imagesByDefault(type))
+  // Until chosen, a new model takes images as its API's models do, even
+  // when the provider's type changes.
+  const [imagesChosen, setImages] = useState<boolean>()
+  const images = imagesChosen ?? (model ? !!model.images : imagesByDefault(type))
   const [context, setContext] = useState(model ? String(model.limits.context) : '')
   const [output, setOutput] = useState(model ? String(model.limits.output) : '')
 

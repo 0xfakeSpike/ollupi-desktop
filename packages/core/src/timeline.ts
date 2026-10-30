@@ -12,6 +12,7 @@ export type TimelineEventName =
   | 'turn/started'
   | 'turn/completed'
   | 'item/started'
+  | 'item/updated'
   | 'item/completed'
   | 'item/agentMessage/delta'
   | 'item/reasoning/textDelta'
@@ -20,7 +21,9 @@ export type TimelineEvent = { [N in TimelineEventName]: { method: N; params: Ser
 
 /** Applies one notification to the thread's timeline: turn notifications
  * carry the turn and the thread as stored after it, item notifications the
- * item as stored, deltas the text streamed since. */
+ * item as stored (item/updated when an unfinished one changes, such as a
+ * call's execution frozen before it is approved), deltas the text streamed
+ * since. */
 export function applyEvent(t: Timeline, e: TimelineEvent): Timeline {
   switch (e.method) {
     case 'turn/queued':
@@ -28,6 +31,7 @@ export function applyEvent(t: Timeline, e: TimelineEvent): Timeline {
     case 'turn/completed':
       return upsertTurn(setThread(t, e.params.thread), e.params.turn)
     case 'item/started':
+    case 'item/updated':
     case 'item/completed':
       return upsertItem(t, e.params.item)
     case 'item/agentMessage/delta':

@@ -15,10 +15,11 @@ import { threadTitle } from '../../i18n/format'
 export function ArchivedThreads() {
   const [open, setOpen] = useState(false)
   const list = useArchivedThreads((s) => s.list)
+  const more = useArchivedThreads((s) => s.more)
   const m = useT().shell.sidebar
 
   const toggle = () => {
-    if (!open && !list) void loadArchivedThreads()
+    if (!open && !list) void loadArchivedThreads('start')
     setOpen(!open)
   }
 
@@ -33,7 +34,7 @@ export function ArchivedThreads() {
         <span className="flex size-4 shrink-0 items-center justify-center">
           <MessageSquareOff size={14} />
         </span>
-        {list ? m.archivedThreads(list.length) : m.archivedThreadsTitle}
+        {list ? m.archivedThreads(more ? `${list.length}+` : String(list.length)) : m.archivedThreadsTitle}
         <ChevronRight size={14} aria-hidden className={cn('shrink-0 opacity-0 transition duration-160 ease-standard group-hover:opacity-100', open && 'rotate-90 opacity-100')} />
       </button>
       {open && (
@@ -45,6 +46,13 @@ export function ArchivedThreads() {
           )}
           {list?.length === 0 && <li className="flex h-7 items-center pl-8 text-small text-fg-subtle">{m.noArchivedThreads}</li>}
           {list?.map((t) => <ArchivedThread key={t.id} thread={t} />)}
+          {more && (
+            <li>
+              <button type="button" onClick={() => void loadArchivedThreads('more')} className="flex h-7 items-center pl-8 text-small text-fg-subtle hover:text-fg-muted">
+                {m.loadMore}
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </section>
