@@ -33,6 +33,9 @@ interface NavigationStore {
   /** An item to bring into view once its thread shows it, e.g. a message
    * a search found. */
   focus: { threadId: string; itemId: string } | undefined
+  /** The file the Files panel shows, a path relative to its workspace's
+   * root; undefined shows the tree. */
+  file: { workspaceId: string; path: string } | undefined
 }
 
 export const useNavigation = create<NavigationStore>()(() => ({
@@ -41,6 +44,7 @@ export const useNavigation = create<NavigationStore>()(() => ({
   panel: undefined,
   beforeSettings: { kind: 'draft', workspaceId: undefined },
   focus: undefined,
+  file: undefined,
 }))
 
 /** A model choice belongs to the conversation it was made in. */
@@ -60,6 +64,12 @@ export function leaveSettings(): void {
 /** Shows the panel, or closes it when it is the one showing. */
 export function togglePanel(panel: Panel): void {
   useNavigation.setState((s) => ({ panel: s.panel === panel ? undefined : panel }))
+}
+
+/** Shows a workspace's file in the Files panel, opening it; undefined goes
+ * back to the tree. */
+export function showFile(workspaceId: string, path: string | undefined): void {
+  useNavigation.setState(path === undefined ? { file: undefined } : { panel: 'files', file: { workspaceId, path } })
 }
 
 export function focusItem(focus: NavigationStore['focus']): void {

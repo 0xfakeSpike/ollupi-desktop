@@ -4,6 +4,7 @@
 import {
   activeTurn,
   groupByTurn,
+  groupReads,
   needsUser,
   queuedTurns,
   waitingOnUser,
@@ -23,6 +24,8 @@ import { duration, usageLine } from '../../i18n/format'
 import { markFound } from '../common/found'
 import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
+import { ThreadWorkspace } from './tools/read'
+import { ReadsRow } from './tools/ReadsRow'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
@@ -38,16 +41,18 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   useFocusedItem(timeline)
 
   return (
-    <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-6 pb-10">
-      {timeline.hasMore && <LoadOlder threadId={threadId} />}
-      {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
-      {groups.map((g) => (
-        <TurnSection key={g.turn.id} group={g} working={working && g.turn.id === running?.id} jobName={jobNames(g.turn)} />
-      ))}
-      {queued.map((t) => (
-        <QueuedTurn key={t.id} turn={t} jobName={jobNames(t)} />
-      ))}
-    </div>
+    <ThreadWorkspace.Provider value={timeline.thread.workspaceId || undefined}>
+      <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-6 pb-10">
+        {timeline.hasMore && <LoadOlder threadId={threadId} />}
+        {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
+        {groups.map((g) => (
+          <TurnSection key={g.turn.id} group={g} working={working && g.turn.id === running?.id} jobName={jobNames(g.turn)} />
+        ))}
+        {queued.map((t) => (
+          <QueuedTurn key={t.id} turn={t} jobName={jobNames(t)} />
+        ))}
+      </div>
+    </ThreadWorkspace.Provider>
   )
 }
 
@@ -98,16 +103,21 @@ function LoadOlder({ threadId }: { threadId: string }) {
 
 function TurnSection({ group, working, jobName }: { group: TurnGroup; working: boolean; jobName: string | undefined }) {
   const { turn, items } = group
+  const shown = useMemo(() => groupReads(items), [items])
   const m = useT()
   return (
     <section className="flex flex-col gap-3">
       {jobName && <ScheduledBy name={jobName} />}
-      {items.map((item) => (
-        // Takes no box, so the section's gap stays; a search finds the item by it.
-        <div key={item.id} data-item-id={item.id} className="contents">
-          <ItemView item={item} />
-        </div>
-      ))}
+      {shown.map((g) =>
+        g.kind === 'reads' ? (
+          <ReadsRow key={g.items[0]!.id} group={g} />
+        ) : (
+          // Takes no box, so the section's gap stays; a search finds the item by it.
+          <div key={g.item.id} data-item-id={g.item.id} className="contents">
+            <ItemView item={g.item} />
+          </div>
+        ),
+      )}
       {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-ui">{m.conversation.timeline.working}</div>}
       <TurnOutcome turn={turn} />
     </section>

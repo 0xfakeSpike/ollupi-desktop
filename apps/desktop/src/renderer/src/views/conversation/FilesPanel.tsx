@@ -9,6 +9,7 @@ import { ArrowLeft, ChevronRight, ExternalLink, File, Folder, RotateCw } from 'l
 import { useEffect, useState } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
 import { readFolder, readPreview } from '../../domains/files'
+import { showFile, useNavigation } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
 import { desktop } from '../../platform/desktop'
@@ -19,7 +20,9 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
   const t = useT().conversation.files
   const root = workspace.rootPath
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
-  const [file, setFile] = useState<string>()
+  // Kept with navigation, so a path in the conversation can open its file here.
+  const file = useNavigation((s) => (s.file?.workspaceId === workspace.id ? s.file.path : undefined))
+  const setFile = (path: string | undefined) => showFile(workspace.id, path)
   // Bumped by reload: every open folder and the open file read again.
   const [version, setVersion] = useState(0)
   const toggle = (path: string) =>

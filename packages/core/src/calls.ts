@@ -11,9 +11,15 @@ import {
   type CommandOutput,
   type FileChange,
   type FileOutput,
+  type Glob,
+  type GlobOutput,
+  type Grep,
+  type GrepOutput,
   type ItemRow,
   type Plan,
   type Prepared,
+  type ReadFile,
+  type ReadFileOutput,
   type SubagentCall,
   type UserInputQuestion,
 } from '@ollupi/protocol'
@@ -73,6 +79,9 @@ interface CallFacts {
 export type ToolCall =
   | { kind: 'command'; command: FrozenCommand; output: CommandOutput | undefined }
   | { kind: 'file'; tool: FileTool; change: FileChange; output: FileOutput | undefined }
+  | { kind: 'read'; args: ReadFile; output: ReadFileOutput | undefined }
+  | { kind: 'glob'; args: Glob; output: GlobOutput | undefined }
+  | { kind: 'grep'; args: Grep; output: GrepOutput | undefined }
   | { kind: 'plan'; plan: Plan }
   | { kind: 'question'; questions: QuestionAndAnswer[] }
   | { kind: 'subagent'; task: SubagentTask }
@@ -140,6 +149,15 @@ function classify(c: CallFacts): ToolCall {
       if (!change) break
       return { kind: 'file', tool: builtin, change, output: isToolPart(builtin, 'output', c.output) ? c.output : undefined }
     }
+    case 'read_file':
+      if (isToolPart('read_file', 'arguments', c.arguments)) return { kind: 'read', args: c.arguments, output: isToolPart('read_file', 'output', c.output) ? c.output : undefined }
+      break
+    case 'glob':
+      if (isToolPart('glob', 'arguments', c.arguments)) return { kind: 'glob', args: c.arguments, output: isToolPart('glob', 'output', c.output) ? c.output : undefined }
+      break
+    case 'grep':
+      if (isToolPart('grep', 'arguments', c.arguments)) return { kind: 'grep', args: c.arguments, output: isToolPart('grep', 'output', c.output) ? c.output : undefined }
+      break
     case 'update_plan':
       if (isToolPart('update_plan', 'arguments', c.arguments)) return { kind: 'plan', plan: c.arguments }
       break
@@ -155,6 +173,46 @@ function classify(c: CallFacts): ToolCall {
       break
   }
   return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
+}
+
+/** The calls that only look at files: read_file, glob and grep. */
+export type ReadCall = Extract<ToolCall, { kind: 'read' | 'glob' | 'grep' }>
+
+export function isReadCall(call: ToolCall): call is ReadCall {
+  return call.kind === 'read' || call.kind === 'glob' || call.kind === 'grep'
+}
+
+/** A timeline's items as drawn: one item, or a run of read calls next to
+ * each other, which an agent makes many of while it looks around. */
+export type ItemGroup = { kind: 'item'; item: ItemRow } | { kind: 'reads'; items: ItemRow[]; calls: ReadCall[] }
+
+/** Puts two or more read calls in a row into one group. A call that waits
+ * on the person (an ask rule) stays on its own, so its request shows. */
+export function groupReads(items: readonly ItemRow[]): ItemGroup[] {
+  const out: ItemGroup[] = []
+  let run: { items: ItemRow[]; calls: ReadCall[] } = { items: [], calls: [] }
+  const flush = () => {
+    if (run.items.length === 1) out.push({ kind: 'item', item: run.items[0]! })
+    else if (run.items.length > 1) out.push({ kind: 'reads', ...run })
+    run = { items: [], calls: [] }
+  }
+  for (const item of items) {
+    const call = item.type === 'toolCall' && !waitsForApproval(item) ? callOf(item) : undefined
+    if (call && isReadCall(call)) {
+      run.items.push(item)
+      run.calls.push(call)
+      continue
+    }
+    flush()
+    out.push({ kind: 'item', item })
+  }
+  flush()
+  return out
+}
+
+/** The text of a read_file window without its line numbers ("12\tcode"). */
+export function readText(output: ReadFileOutput): string {
+  return (output.text ?? '').replace(/^\d+\t/gm, '')
 }
 
 /** The tools that write a file: edit_file replaces parts of it, write_file

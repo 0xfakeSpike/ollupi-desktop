@@ -61,6 +61,12 @@ function callLine(item: ItemRow, w: MarkdownWords): string {
       return fence('sh', `$ ${commandLine(call.command)}`)
     case 'file':
       return `${createsFile(call.change) ? '+' : '~'} \`${call.change.path}\`\n\n${fence('diff', call.change.diff)}`
+    case 'read':
+      return `\`read_file\` \`${call.args.path}\``
+    case 'glob':
+      return `\`glob\` \`${call.args.pattern}\`${call.args.path ? ` in \`${call.args.path}\`` : ''}`
+    case 'grep':
+      return `\`grep\` \`${call.args.pattern}\`${call.args.path ? ` in \`${call.args.path}\`` : ''}`
     case 'plan':
       return `${w.plan}:\n${call.plan.plan.map((s) => `- [${s.status === 'completed' ? 'x' : ' '}] ${s.step}`).join('\n')}`
     case 'question':

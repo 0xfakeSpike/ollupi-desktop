@@ -45,11 +45,18 @@ http
         await sleep(25)
       }
     }
-    const call = async (name, args) => {
-      const fn = tools.find((t) => t === name || t?.endsWith(name)) || name
-      send({ tool_calls: [{ index: 0, id: `call_${n}`, type: 'function', function: { name: fn, arguments: JSON.stringify(args) } }] })
+    // Several calls in one answer, as a model looking around makes them.
+    const calls = async (list) => {
+      const tool_calls = list.map(([name, args], index) => ({
+        index,
+        id: `call_${n}_${index}`,
+        type: 'function',
+        function: { name: tools.find((t) => t === name || t?.endsWith(name)) || name, arguments: JSON.stringify(args) },
+      }))
+      send({ tool_calls })
       send({}, 'tool_calls')
     }
+    const call = (name, args) => calls([[name, args]])
 
     send({ role: 'assistant', content: '' })
     if (last.role === 'tool') {
@@ -92,6 +99,15 @@ http
     } else if (/^write notes/i.test(userText)) {
       await stream('content', 'Writing the notes.')
       await call('write_file', { path: 'notes.md', content: '# Notes\n\n- first\n- second\n' })
+    } else if (/^read readme/i.test(userText)) {
+      await call('read_file', { path: 'README.md' })
+    } else if (/^look around/i.test(userText)) {
+      await stream('content', 'Looking around the project.')
+      await calls([
+        ['glob', { pattern: '**/*.md' }],
+        ['grep', { pattern: 'demo', context: 1 }],
+        ['read_file', { path: 'README.md', limit: 20 }],
+      ])
     } else if (/^fetch page/i.test(userText)) {
       await stream('content', 'Reading the page.')
       await call('web_fetch', { url: 'https://example.com/' })

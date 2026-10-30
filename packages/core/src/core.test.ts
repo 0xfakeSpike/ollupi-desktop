@@ -13,6 +13,8 @@ import {
   currentPlan,
   groupByTurn,
   groupByWorkspace,
+  groupReads,
+  readText,
   promptMemory,
   prependPage,
   refreshFromPage,
@@ -212,6 +214,24 @@ describe('calls', () => {
   it('reads a subagent task and the thread it runs in', () => {
     const c = call({ tool: 'Agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), await: { by: 'agent', threadId: 'child', request: {} } })
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', threadId: 'child' } })
+  })
+
+  it('reads read_file, glob and grep with their outputs', () => {
+    const output = { path: 'a.go', text: '3\tfunc A() {}\n4\t}\n', startLine: 3, endLine: 4, totalLines: 4, size: 30 }
+    const read = callOf(call({ tool: 'read_file', status: 'completed', arguments: JSON.stringify({ path: 'a.go', offset: 3 }), result: { output } }))
+    expect(read).toEqual({ kind: 'read', args: { path: 'a.go', offset: 3 }, output })
+    expect(read.kind === 'read' && read.output && readText(read.output)).toBe('func A() {}\n}\n')
+    expect(callOf(call({ tool: 'glob', arguments: JSON.stringify({ pattern: '**/*.go' }) }))).toEqual({ kind: 'glob', args: { pattern: '**/*.go' }, output: undefined })
+    expect(callOf(call({ tool: 'grep', arguments: JSON.stringify({ pattern: 'x', context: 99 }) })).kind).toBe('tool')
+  })
+
+  it('groups read calls next to each other, but not one that waits on the person', () => {
+    const read = (id: string, seq: number, extra: Partial<ItemRow> = {}) =>
+      item(id, seq, { type: 'toolCall', status: 'completed', tool: 'read_file', arguments: JSON.stringify({ path: id }), ...extra })
+    const text = item('m', 3, { type: 'agentMessage', text: 'hi' })
+    const asked = read('r5', 6, { status: 'pending', approval: { id: 'ap', requestedAt: '' } })
+    const groups = groupReads([read('r1', 1), read('r2', 2), text, read('r3', 4), read('r4', 5), asked, read('r6', 7)])
+    expect(groups.map((g) => (g.kind === 'item' ? g.item.id : g.items.map((i) => i.id).join('+')))).toEqual(['r1+r2', 'm', 'r3+r4', 'r5', 'r6'])
   })
 
   it('reads tools the contract does not type as generic calls', () => {
