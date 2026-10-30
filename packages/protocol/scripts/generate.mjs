@@ -146,7 +146,15 @@ function tools() {
       guards.push({ name, part, fn: `${part}_${name.replace(/[^A-Za-z0-9]/g, '_')}`, def: ref(schema) })
     }
   }
-  const code = inlineRuntime(standaloneCode(ajv, Object.fromEntries(guards.map((g) => [g.fn, `ollupi-protocol#/$defs/${g.def}`]))))
+  // ajv writes a schema's validator once per export naming it, so two tools
+  // sharing a definition (edit_file and write_file's FileOutput) would
+  // declare it twice: each definition is compiled once, and the other
+  // guards on it alias that export.
+  const first = new Map()
+  for (const g of guards) if (!first.has(g.def)) first.set(g.def, g.fn)
+  const compiled = standaloneCode(ajv, Object.fromEntries([...first].map(([def, fn]) => [fn, `ollupi-protocol#/$defs/${def}`])))
+  const aliases = guards.filter((g) => first.get(g.def) !== g.fn).map((g) => `export const ${g.fn} = ${first.get(g.def)};`)
+  const code = inlineRuntime([compiled, ...aliases].join('\n'))
   const dts = guards.map((g) => `export declare function ${g.fn}(value: unknown): boolean`).join('\n') + '\n'
   const ts = [
     `import type { BuiltinTools } from './messages'`,

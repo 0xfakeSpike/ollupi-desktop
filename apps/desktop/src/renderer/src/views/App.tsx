@@ -2,7 +2,8 @@
 // shell with the sidebar and the current screen.
 
 import { useConnection } from '../gateway/connection'
-import { useNavigation } from '../domains/navigation'
+import { useEffect } from 'react'
+import { go, useNavigation } from '../domains/navigation'
 import { useT } from '../i18n'
 import { BackendScreen } from './backend/BackendScreen'
 import { CapabilitiesScreen } from './capabilities/CapabilitiesScreen'
@@ -11,10 +12,12 @@ import { ConversationScreen } from './conversation/ConversationScreen'
 import { DraftScreen } from './draft/DraftScreen'
 import { CronScreen } from './cron/CronScreen'
 import { MemoryScreen } from './memory/MemoryScreen'
+import { SearchScreen } from './search/SearchScreen'
 import { SettingsScreen } from './settings/SettingsScreen'
 import { Sidebar } from './sidebar/Sidebar'
 
 export function App() {
+  useSearchShortcut()
   const synced = useConnection((s) => s.synced)
   const failed = useConnection((s) => s.backend.status === 'failed')
   // After the first sync the UI stays up through reconnects and restarts
@@ -41,6 +44,20 @@ export function App() {
   )
 }
 
+/** ⌘K opens search from anywhere, as in most Mac apps. */
+function useSearchShortcut(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        go({ kind: 'search' })
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+}
+
 /** The backend serves a different contract than the UI was built from, so
  * the UI's types may not describe what it receives. */
 function ContractBanner() {
@@ -61,6 +78,8 @@ function CurrentScreen() {
       return <DraftScreen workspaceId={screen.workspaceId} />
     case 'thread':
       return <ConversationScreen key={screen.threadId} threadId={screen.threadId} />
+    case 'search':
+      return <SearchScreen />
     case 'memory':
       return <MemoryScreen />
     case 'cron':

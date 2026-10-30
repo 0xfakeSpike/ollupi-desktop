@@ -1,6 +1,6 @@
 import { groupByWorkspace } from '@ollupi/core'
 import { cn } from '@ollupi/ui'
-import { ArrowLeft, Blocks, Brain, CalendarClock, Cpu, FolderPlus, Settings, SlidersHorizontal, SquarePen } from 'lucide-react'
+import { ArrowLeft, Blocks, Brain, CalendarClock, Cpu, FolderPlus, Search, Settings, SlidersHorizontal, SquarePen } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { go, leaveSettings, useNavigation, type SettingsTab } from '../../domains/navigation'
 import { useThreads } from '../../domains/threads'
@@ -8,6 +8,7 @@ import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { UpdatePrompt } from '../common/Update'
 import { ConnectionStatus } from './ConnectionStatus'
+import { ArchivedThreads } from './ArchivedThreads'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { ThreadGroup } from './ThreadGroup'
 
@@ -33,6 +34,9 @@ function MainSidebar() {
         <NavButton icon={<SquarePen size={16} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
           {m.newThread}
         </NavButton>
+        <NavButton icon={<Search size={16} />} active={screen.kind === 'search'} onClick={() => go({ kind: 'search' })} shortcut="⌘K">
+          {m.search}
+        </NavButton>
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         {groups
@@ -56,6 +60,7 @@ function MainSidebar() {
           .map((g) => (
             <ThreadGroup key="none" workspace={undefined} threads={g.threads} />
           ))}
+        <ArchivedThreads />
         <ArchivedWorkspaces workspaces={workspaces.filter((w) => w.archivedAt)} />
       </div>
       <div className="flex flex-col gap-0.5 px-2 pt-2 pb-3">
@@ -109,7 +114,7 @@ function SettingsSidebar({ tab }: { tab: SettingsTab }) {
 }
 
 /** Sidebar rows share one grid: a 16px icon slot at 8px, the label at 32px. */
-function NavButton({ icon, active, onClick, children }: { icon: ReactNode; active?: boolean; onClick(): void; children: ReactNode }) {
+function NavButton({ icon, active, onClick, shortcut, children }: { icon: ReactNode; active?: boolean; onClick(): void; shortcut?: string; children: ReactNode }) {
   return (
     <button
       type="button"
@@ -122,7 +127,8 @@ function NavButton({ icon, active, onClick, children }: { icon: ReactNode; activ
       )}
     >
       <span className="flex size-4 shrink-0 items-center justify-center text-fg-muted">{icon}</span>
-      {children}
+      <span className="flex-1">{children}</span>
+      {shortcut && <span className="text-small font-normal text-fg-subtle">{shortcut}</span>}
     </button>
   )
 }

@@ -12,7 +12,7 @@ let home: string
 let restarts: number
 let skills: BackendSkills
 
-const config = (skillsDir: string) => `name: test\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nskills_dir: ${skillsDir}\n`
+const config = (skillsDir: string) => `name: test\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nskills_dir: ${skillsDir}\n`
 const skillFile = (name: string, body = 'Do it.') => `---\nname: ${name}\ndescription: Says hello.\n---\n\n${body}\n`
 
 beforeAll(async () => {

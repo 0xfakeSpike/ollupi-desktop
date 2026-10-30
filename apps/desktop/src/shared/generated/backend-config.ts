@@ -10,6 +10,7 @@ export interface ConfigCheck {
       | null
       | {
           provider: string;
+          type: string;
           base_url?: string;
           api_key?: string;
           names:
@@ -18,6 +19,7 @@ export interface ConfigCheck {
                 name: string;
                 calls?: number;
                 thinking?: null | boolean;
+                images?: boolean;
                 limits: {
                   context: number;
                   output: number;

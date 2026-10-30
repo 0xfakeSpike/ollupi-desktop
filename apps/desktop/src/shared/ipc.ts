@@ -44,14 +44,18 @@ export type ConfigChange =
   | { kind: 'delete'; path: (string | number)[] }
   | { kind: 'move'; path: (string | number)[]; to: number }
 
+/** The API a provider speaks (config.yaml's type), which picks the
+ * backend's client for it. */
+export const apiTypes = ['openai', 'anthropic', 'gemini'] as const
+export type ApiType = (typeof apiTypes)[number]
+
 /** One model an API lists, with its limits when the API says them. */
 export interface ListedModel {
   name: string
   limits?: { context: number; output: number }
 }
 
-/** The models an OpenAI-compatible API lists at GET {base_url}/models, or
- * why it could not be asked. */
+/** The models a provider's API lists, or why it could not be asked. */
 export type ModelList = { ok: true; models: ListedModel[] } | { ok: false; error: string }
 
 /** One skill as the agent loads it from its SKILL.md. */
@@ -83,12 +87,21 @@ export type FilePreview =
   | { kind: 'binary'; size: number }
 
 /** A file that differs from the last commit, as git sees it under the
- * workspace. Line counts are absent for a binary or untracked file. */
+ * workspace. Line counts are absent for a binary or untracked file. staged
+ * is how much of the change the index holds: all of it, part of it (more
+ * changed in the working tree since), or none. */
 export interface FileChange {
   path: string
   kind: 'modified' | 'added' | 'deleted' | 'untracked'
+  staged: 'all' | 'part' | 'none'
   added?: number
   removed?: number
+}
+
+/** A commit just made: its short hash and subject. */
+export interface Commit {
+  hash: string
+  subject: string
 }
 
 /** A workspace's uncommitted changes, or that it is not in a git
@@ -148,6 +161,13 @@ export type UpdateFailure = { kind: 'location'; path: string } | { kind: 'error'
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
 
+/** A system notification about a thread; clicking it opens the thread. */
+export interface ThreadNotice {
+  threadId: string
+  title: string
+  body: string
+}
+
 export interface DesktopApi {
   info(): Promise<AppInfo>
   backend: {
@@ -184,10 +204,30 @@ export interface DesktopApi {
     list(root: string, path: string): Promise<FileEntry[]>
     read(root: string, path: string): Promise<FilePreview>
   }
-  /** A workspace's uncommitted changes, from git. */
+  /** A workspace's uncommitted changes, from git, and what the person does
+   * with them. Paths are relative to the root, inside it. */
   changes: {
     list(root: string): Promise<Changes>
     diff(root: string, path: string, untracked: boolean): Promise<FileDiff>
+    stage(root: string, paths: string[]): Promise<void>
+    unstage(root: string, paths: string[]): Promise<void>
+    /** Puts the file back as the last commit has it. Content no commit
+     * holds (a new file) goes to the Trash rather than away. */
+    discard(root: string, file: FileChange): Promise<void>
+    /** Commits what is staged. */
+    commit(root: string, message: string): Promise<Commit>
+  }
+  /** The person's own shell in a workspace's folder, a terminal per key
+   * (the workspace). It keeps running while no panel shows it. */
+  terminal: {
+    /** Starts the shell unless it runs, and answers its output so far. */
+    open(key: string, cwd: string, cols: number, rows: number): Promise<string>
+    write(key: string, text: string): Promise<void>
+    resize(key: string, cols: number, rows: number): Promise<void>
+    /** Ends the shell. */
+    close(key: string): Promise<void>
+    onData(listener: (key: string, text: string) => void): () => void
+    onExit(listener: (key: string, code: number) => void): () => void
   }
   /** The app's browser: a tab per thread, which the person and that
    * thread's agent share. */
@@ -205,8 +245,8 @@ export interface DesktopApi {
   }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
-   * OpenAI's, as for the backend. */
-  listModels(baseUrl: string, apiKey: string): Promise<ModelList>
+   * the API's own, as for the backend. */
+  listModels(type: ApiType, baseUrl: string, apiKey: string): Promise<ModelList>
   /** The app checks for a newer release itself; downloading one waits for
    * the person to agree. */
   update: {
@@ -217,7 +257,17 @@ export interface DesktopApi {
     restart(): Promise<void>
     onState(listener: (state: UpdateState) => void): () => void
   }
+  /** Shows a system notification, only while no window of the app is in
+   * front: the person is looking elsewhere. */
+  notify(notice: ThreadNotice): Promise<void>
+  /** The person clicked a notification; the window is already in front. */
+  onNoticeClicked(listener: (threadId: string) => void): () => void
+  /** The Dock's badge: how many threads wait on the person; 0 clears it. */
+  setBadge(count: number): Promise<void>
   pickDirectory(): Promise<string | undefined>
+  /** Asks where to save text, suggesting a file name in Documents, and
+   * writes it there; undefined when the person cancelled. */
+  saveFile(name: string, text: string): Promise<string | undefined>
   openPath(path: string): Promise<void>
   /** Sets the window's scheme, which the renderer's prefers-color-scheme
    * and the native window chrome both follow. */
@@ -242,6 +292,16 @@ export const IpcChannel = {
   FilesRead: 'files:read',
   ChangesList: 'changes:list',
   ChangesDiff: 'changes:diff',
+  ChangesStage: 'changes:stage',
+  ChangesUnstage: 'changes:unstage',
+  ChangesDiscard: 'changes:discard',
+  ChangesCommit: 'changes:commit',
+  TerminalOpen: 'terminal:open',
+  TerminalWrite: 'terminal:write',
+  TerminalResize: 'terminal:resize',
+  TerminalClose: 'terminal:close',
+  TerminalData: 'terminal:data',
+  TerminalExit: 'terminal:exit',
   BrowserState: 'browser:state',
   BrowserPlace: 'browser:place',
   BrowserOpen: 'browser:open',
@@ -256,7 +316,11 @@ export const IpcChannel = {
   UpdateDownload: 'update:download',
   UpdateRestart: 'update:restart',
   UpdateChanged: 'update:changed',
+  Notify: 'app:notify',
+  NoticeClicked: 'app:noticeClicked',
+  SetBadge: 'app:setBadge',
   PickDirectory: 'dialog:pickDirectory',
+  SaveFile: 'dialog:saveFile',
   OpenPath: 'shell:openPath',
   SetColorScheme: 'theme:setColorScheme',
 } as const

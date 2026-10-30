@@ -4,7 +4,7 @@
 import { create } from 'zustand'
 
 /** What a conversation shows beside it. */
-export type Panel = 'browser' | 'files' | 'changes' | 'tasks' | 'permissions' | 'context'
+export type Panel = 'browser' | 'files' | 'changes' | 'terminal' | 'tasks' | 'permissions' | 'context'
 
 /** What the agent can do, from where. */
 export type CapabilityTab = 'skills' | 'mcp' | 'tools'
@@ -13,6 +13,7 @@ export type SettingsTab = 'general' | 'models'
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
   | { kind: 'thread'; threadId: string }
+  | { kind: 'search' }
   | { kind: 'memory' }
   | { kind: 'cron' }
   | { kind: 'capabilities'; tab: CapabilityTab }
@@ -27,6 +28,9 @@ interface NavigationStore {
   panel: Panel | undefined
   /** Where settings goes back to: the screen open before them. */
   beforeSettings: Screen
+  /** An item to bring into view once its thread shows it, e.g. a message
+   * a search found. */
+  focus: { threadId: string; itemId: string } | undefined
 }
 
 export const useNavigation = create<NavigationStore>()(() => ({
@@ -34,6 +38,7 @@ export const useNavigation = create<NavigationStore>()(() => ({
   model: undefined,
   panel: undefined,
   beforeSettings: { kind: 'draft', workspaceId: undefined },
+  focus: undefined,
 }))
 
 /** A model choice belongs to the conversation it was made in. */
@@ -53,6 +58,10 @@ export function leaveSettings(): void {
 /** Shows the panel, or closes it when it is the one showing. */
 export function togglePanel(panel: Panel): void {
   useNavigation.setState((s) => ({ panel: s.panel === panel ? undefined : panel }))
+}
+
+export function focusItem(focus: NavigationStore['focus']): void {
+  useNavigation.setState({ focus })
 }
 
 export function chooseModel(model: string | undefined): void {

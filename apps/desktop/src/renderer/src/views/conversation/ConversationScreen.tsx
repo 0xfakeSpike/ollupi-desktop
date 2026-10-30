@@ -1,12 +1,15 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
-import { Badge, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArrowDown, ArrowLeft, FileDiff, Folder, FolderTree, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
+import { Badge, Button, IconButton, Spinner, useTooltip } from '@ollupi/ui'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Download, FileDiff, Folder, FolderTree, Gauge, Globe, ListChecks, Shield, SquareTerminal } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
+import { exportThread, type ExportFormat } from '../../domains/export'
 import { togglePanel, useNavigation } from '../../domains/navigation'
-import { useThreadSummary } from '../../domains/threads'
+import { archiveThread, renameThread, useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
+import { useState } from 'react'
 import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
+import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { BrowserPanel } from './BrowserPanel'
 import { ChangesPanel } from './ChangesPanel'
@@ -16,6 +19,7 @@ import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
 import { PermissionsPanel } from './PermissionsPanel'
 import { TasksPanel } from './TasksPanel'
+import { TerminalPanel } from './TerminalPanel'
 import { TimelineView } from './TimelineView'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
@@ -25,6 +29,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const workspace = useWorkspace(thread?.workspaceId)
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
+  // ollupi takes no messages in an archived thread (threadArchived).
+  const archived = !!thread?.archivedAt
+  const [renaming, setRenaming] = useState(false)
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
   const panel = useNavigation((s) => s.panel)
   const m = useT()
@@ -38,7 +45,27 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             <ArrowLeft size={14} />
           </IconButton>
         )}
-        <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
+        {renaming && thread ? (
+          <TitleInput
+            initial={thread.title}
+            label={m.conversation.screen.rename}
+            className="h-7 w-80 text-ui font-semibold"
+            onSave={(title) => renameThread(threadId, title)}
+            onDone={() => setRenaming(false)}
+          />
+        ) : thread && !parent ? (
+          // Renaming is for threads the person started; a subagent's is named by its task.
+          <button
+            type="button"
+            title={m.conversation.screen.rename}
+            onClick={() => setRenaming(true)}
+            className="-mx-1 min-w-0 truncate rounded-md px-1 text-ui font-semibold text-fg hover:bg-hover"
+          >
+            {threadTitle(m, thread)}
+          </button>
+        ) : (
+          <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
+        )}
         {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
         {workspace && (
           <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={workspace.rootPath}>
@@ -61,6 +88,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             <FileDiff size={16} />
           </IconButton>
         )}
+        {workspace && (
+          <IconButton label={m.conversation.screen.terminal} active={panel === 'terminal'} onClick={() => togglePanel('terminal')}>
+            <SquareTerminal size={16} />
+          </IconButton>
+        )}
         <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
           <ListChecks size={16} />
         </IconButton>
@@ -72,6 +104,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         <IconButton label={m.conversation.screen.context} active={panel === 'context'} onClick={() => togglePanel('context')}>
           <Gauge size={16} />
         </IconButton>
+        {thread && <ExportButton threadId={threadId} />}
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -102,7 +135,14 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             )}
           </div>
 
-          {parent ? (
+          {archived ? (
+            <div className="flex items-center justify-center gap-3 px-6 pb-5 text-small text-fg-subtle">
+              {m.conversation.screen.archived}
+              <Button size="sm" icon={<ArchiveRestore size={14} />} onClick={() => void archiveThread(threadId, false)}>
+                {m.conversation.screen.restore}
+              </Button>
+            </div>
+          ) : parent ? (
             // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
             // it works on the task its parent gave it and reports back there.
             <p className="px-6 pb-5 text-center text-small text-fg-subtle">
@@ -113,7 +153,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               placeholder={running ? m.conversation.screen.addToTurn : m.conversation.screen.reply}
               running={!!running}
               disabled={!timeline}
-              onSubmit={(text, mode) => sendMessage(threadId, text, mode)}
+              onSubmit={(message, mode) => sendMessage(threadId, message, mode)}
               onStop={() => void interrupt(threadId)}
               toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
             />
@@ -124,10 +164,36 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         {/* One tree per workspace: threads of the same workspace keep its open folders. */}
         {panel === 'files' && workspace && <FilesPanel key={workspace.id} workspace={workspace} />}
         {panel === 'changes' && workspace && <ChangesPanel key={workspace.id} workspace={workspace} turn={running?.id} />}
+        {panel === 'terminal' && workspace && <TerminalPanel key={workspace.id} workspace={workspace} />}
         {panel === 'tasks' && <TasksPanel timeline={timeline} />}
         {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
         {panel === 'context' && <ContextPanel timeline={timeline} />}
       </div>
     </div>
+  )
+}
+
+/** A menu of formats, as a native select under an icon: picking one saves
+ * the thread in it. */
+function ExportButton({ threadId }: { threadId: string }) {
+  const t = useT().conversation.export
+  const tip = useTooltip({ label: t.label })
+  return (
+    <label className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg" {...tip.trigger}>
+      <Download size={16} />
+      <select
+        aria-label={t.label}
+        value=""
+        className="absolute inset-0 cursor-pointer opacity-0"
+        onChange={(e) => void exportThread(threadId, e.target.value as ExportFormat)}
+      >
+        <option value="" disabled>
+          {t.label}
+        </option>
+        <option value="markdown">{t.markdown}</option>
+        <option value="json">{t.json}</option>
+      </select>
+      {tip.tooltip}
+    </label>
   )
 }

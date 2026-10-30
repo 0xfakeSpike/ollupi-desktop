@@ -16,7 +16,9 @@ import {
   promptMemory,
   prependPage,
   refreshFromPage,
+  removeThread,
   timelineFromPage,
+  titleFromMessage,
   upsertItem,
   upsertThread,
   upsertTurn,
@@ -31,7 +33,7 @@ import {
 
 const thread = (extra: Partial<ThreadRow> = {}): ThreadRow => ({
   id: 'th',
-  preview: 'hello',
+  title: 'hello',
   settings: { permissions: {} },
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -44,7 +46,7 @@ const turn = (id: string, seq: number, status: TurnRow['status'] = 'completed'):
   seq,
   status,
   model: { name: 'm', connection: 'm' },
-  usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 },
+  usage: { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 },
   startedAt: '2026-01-01T00:00:00Z',
 })
 
@@ -108,8 +110,21 @@ describe('threads', () => {
     list = upsertThread(list, thread({ id: 'b', createdAt: '2026-01-02T00:00:00Z' }))
     list = upsertThread(list, thread({ id: 'c', updatedAt: '2026-02-01T00:00:00Z' }))
     expect(list.map((t) => t.id)).toEqual(['c', 'b', 'a'])
-    list = upsertThread(list, thread({ id: 'a', preview: 'renamed' }))
-    expect(list.find((t) => t.id === 'a')).toMatchObject({ preview: 'renamed', status: 'active' })
+    list = upsertThread(list, thread({ id: 'a', title: 'renamed' }))
+    expect(list.find((t) => t.id === 'a')).toMatchObject({ title: 'renamed', status: 'active' })
+  })
+
+  it('drops a thread once archived or deleted', () => {
+    const list = upsertThread(upsertThread([], thread({ id: 'a' })), thread({ id: 'b' }))
+    expect(upsertThread(list, thread({ id: 'a', archivedAt: '2026-03-01T00:00:00Z' })).map((t) => t.id)).toEqual(['b'])
+    expect(removeThread(list, 'b').map((t) => t.id)).toEqual(['a'])
+  })
+
+  it('titles a thread from the first line of its first message', () => {
+    expect(titleFromMessage('\n  Fix   the build \nthen deploy')).toBe('Fix the build')
+    expect(titleFromMessage('x'.repeat(80))).toBe('x'.repeat(60) + '…')
+    expect(titleFromMessage('', ['screenshot.png'])).toBe('screenshot.png')
+    expect(titleFromMessage('')).toBe('')
   })
 
   it('keeps subagent threads out of the list', () => {
@@ -232,7 +247,7 @@ describe('context', () => {
       page(
         [
           item('mem', 1, { type: 'memoryContext', memory: [{ id: 'x', scope: 'global', text: 'likes tea' }] }),
-          item('a', 2, { contextStats: stats, usage: { inputTokens: 5, cachedInputTokens: 0, outputTokens: 1 } }),
+          item('a', 2, { contextStats: stats, usage: { inputTokens: 5, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 1 } }),
           item('tool', 3, { type: 'toolCall' }),
           item('c', 4, { type: 'contextCompaction', contextStats: { ...stats, estimatedTokens: 900 } }),
         ],

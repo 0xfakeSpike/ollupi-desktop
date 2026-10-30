@@ -13,12 +13,14 @@ import {
 import type { ItemRow, TurnRow } from '@ollupi/protocol'
 import { Button, Callout } from '@ollupi/ui'
 import { CalendarClock, Clock, OctagonX } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { loadOlder } from '../../domains/conversation'
 import { useCron } from '../../domains/cron'
+import { focusItem, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
 import { useT } from '../../i18n'
 import { duration, usageLine } from '../../i18n/format'
+import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
@@ -32,6 +34,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   const working = !!running && !waitingOnUser(timeline) && !needsUser(summary?.status)
   const jobNames = useJobNames()
   const m = useT()
+  useFocusedItem(timeline)
 
   return (
     <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-6 pb-10">
@@ -45,6 +48,27 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
       ))}
     </div>
   )
+}
+
+/** Brings the item a search led to into view, once it is loaded, and marks
+ * it for a moment. */
+function useFocusedItem(timeline: Timeline): void {
+  const focus = useNavigation((s) => s.focus)
+  const threadId = timeline.thread.id
+  const loaded = !!focus && focus.threadId === threadId && timeline.items.some((i) => i.id === focus.itemId)
+  useEffect(() => {
+    if (!loaded || !focus) return
+    // After the frame that lays the item out.
+    const frame = requestAnimationFrame(() => {
+      focusItem(undefined)
+      const el = document.querySelector(`[data-item-id="${CSS.escape(focus.itemId)}"]`)?.firstElementChild
+      if (!(el instanceof HTMLElement)) return
+      el.scrollIntoView({ block: 'center' })
+      el.classList.add('found')
+      el.addEventListener('animationend', () => el.classList.remove('found'), { once: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [loaded, focus])
 }
 
 /** Names of the scheduled tasks that started turns: the turn stores only
@@ -82,7 +106,10 @@ function TurnSection({ group, working, jobName }: { group: TurnGroup; working: b
     <section className="flex flex-col gap-3">
       {jobName && <ScheduledBy name={jobName} />}
       {items.map((item) => (
-        <ItemView key={item.id} item={item} />
+        // Takes no box, so the section's gap stays; a search finds the item by it.
+        <div key={item.id} data-item-id={item.id} className="contents">
+          <ItemView item={item} />
+        </div>
       ))}
       {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-ui">{m.conversation.timeline.working}</div>}
       <TurnOutcome turn={turn} />
@@ -135,7 +162,10 @@ function QueuedTurn({ turn, jobName }: { turn: TurnRow; jobName: string | undefi
   return (
     <div className="flex flex-col items-end gap-1">
       {jobName && <ScheduledBy name={jobName} />}
-      <div className="max-w-4/5 rounded-2xl border border-dashed border-line-strong px-4 py-2 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
+      <Attachments attachments={turn.attachments} className="opacity-70" />
+      {turn.input && (
+        <div className="max-w-4/5 rounded-2xl border border-dashed border-line-strong px-4 py-2 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
+      )}
       <span className="flex items-center gap-1 text-small text-fg-subtle">
         <Clock size={14} /> {m.conversation.timeline.queued}
       </span>

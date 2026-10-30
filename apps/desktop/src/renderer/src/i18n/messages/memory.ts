@@ -13,6 +13,8 @@ export const en = {
       'Memories are kept globally, for conversations outside workspaces, or per workspace; other scopes have some. Choose one on the left.',
     emptyYet: 'Nothing remembered yet',
     emptyYetHint: 'Memories are distilled from finished turns while learning is on.',
+    search: 'Search memories',
+    noMatch: 'No memory here matches.',
   },
   status: {
     used: 'used in conversations',
@@ -78,6 +80,8 @@ export const zh: typeof en = {
     emptyHereHint: '记忆按全局、工作区之外的会话或各个工作区分别保存；其他范围里有记忆，可在左侧选择。',
     emptyYet: '还没有记忆',
     emptyYetHint: '开启学习后，记忆会从已完成的轮中提炼出来。',
+    search: '搜索记忆',
+    noMatch: '这里没有匹配的记忆。',
   },
   status: {
     used: '在会话中使用',

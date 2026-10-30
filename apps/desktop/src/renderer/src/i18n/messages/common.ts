@@ -23,8 +23,10 @@ export const en = {
     m: (m: number, s: number) => `${m}m ${s}s`,
   },
   usage: {
-    line: (input: string, output: string) => `${input} in · ${output} out`,
-    lineCached: (input: string, cached: string, output: string) => `${input} in · ${cached} cached · ${output} out`,
+    input: (n: string) => `${n} in`,
+    cached: (n: string) => `${n} cached`,
+    cacheWrite: (n: string) => `${n} written to cache`,
+    output: (n: string) => `${n} out`,
   },
   tool: {
     plan: 'Updated the plan',
@@ -69,8 +71,10 @@ export const zh: typeof en = {
     m: (m, s) => `${m} 分 ${s} 秒`,
   },
   usage: {
-    line: (input, output) => `输入 ${input} · 输出 ${output}`,
-    lineCached: (input, cached, output) => `输入 ${input} · 缓存 ${cached} · 输出 ${output}`,
+    input: (n) => `输入 ${n}`,
+    cached: (n) => `缓存 ${n}`,
+    cacheWrite: (n) => `写入缓存 ${n}`,
+    output: (n) => `输出 ${n}`,
   },
   tool: {
     plan: '更新了计划',

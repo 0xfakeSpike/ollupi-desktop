@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
@@ -41,11 +42,14 @@ type Config struct {
 	SkillsDir string      `json:"skills_dir,omitempty"`
 }
 
-// Provider is one OpenAI-compatible API and the models it serves. Its name
-// identifies it: two providers may serve models of the same name.
+// Provider is one API and the models it serves. Its name identifies it: two
+// providers may serve models of the same name.
 type Provider struct {
 	Provider string `json:"provider"`
-	BaseURL  string `json:"base_url,omitempty"`
+	// Type is the API the provider speaks: openai (any OpenAI-compatible
+	// API), anthropic or gemini.
+	Type    APIType `json:"type"`
+	BaseURL string  `json:"base_url,omitempty"`
 	// APIKey is written in the file, like BaseURL; empty for an API that
 	// takes no key.
 	APIKey string  `json:"api_key,omitempty"`
@@ -59,10 +63,24 @@ type Model struct {
 	Name     string `json:"name"`
 	Calls    int    `json:"calls,omitempty"`
 	Thinking *bool  `json:"thinking,omitempty"`
+	// Images says the model accepts images; ollupi refuses to send one to a
+	// model without it.
+	Images bool `json:"images,omitempty"`
 	// Limits is the model's context window and how much of it an answer
 	// may take; ollupi fits a conversation into it.
 	Limits llm.Limits `json:"limits"`
 }
+
+// APIType is the API a provider speaks, which picks ollupi's client for it.
+type APIType string
+
+const (
+	APIOpenAI    APIType = "openai"
+	APIAnthropic APIType = "anthropic"
+	APIGemini    APIType = "gemini"
+)
+
+var APITypes = []APIType{APIOpenAI, APIAnthropic, APIGemini}
 
 // ID is a model's ollupi connection: the key a turn selects it by. A
 // provider's model names are unique and provider names are unique, so the
@@ -244,6 +262,9 @@ func (c Config) Validate() error {
 			return fmt.Errorf("models: provider %q is listed twice", p.Provider)
 		}
 		providers[p.Provider] = true
+		if !slices.Contains(APITypes, p.Type) {
+			return fmt.Errorf("models: provider %s: type must be one of %q, got %q", p.Provider, APITypes, p.Type)
+		}
 		if len(p.Names) == 0 {
 			return fmt.Errorf("models: provider %s lists no models", p.Provider)
 		}

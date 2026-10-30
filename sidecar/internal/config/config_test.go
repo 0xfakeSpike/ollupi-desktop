@@ -21,8 +21,8 @@ func TestTemplateParses(t *testing.T) {
 
 func TestSameModelAtTwoProviders(t *testing.T) {
 	raw := "name: x\nmodels:\n" +
-		"  - {provider: a, names: [{name: deepseek-flash, calls: 2, limits: {context: 1000, output: 100}}]}\n" +
-		"  - {provider: b, names: [{name: deepseek-flash, calls: 8, limits: {context: 1000, output: 100}}]}\n" +
+		"  - {provider: a, type: openai, names: [{name: deepseek-flash, calls: 2, limits: {context: 1000, output: 100}}]}\n" +
+		"  - {provider: b, type: openai, names: [{name: deepseek-flash, calls: 8, limits: {context: 1000, output: 100}}]}\n" +
 		"memory: {generate: true, model: b/deepseek-flash}\n"
 	cfg, err := Parse([]byte(raw))
 	if err != nil {
@@ -35,7 +35,7 @@ func TestSameModelAtTwoProviders(t *testing.T) {
 
 func TestMCPServers(t *testing.T) {
 	t.Setenv("MCP_TEST_TOKEN", "s3cret")
-	raw := "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nmcp:\n" +
+	raw := "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nmcp:\n" +
 		"  - {name: fs, command: npx, args: [-y, server], env: {ROOT: /tmp, KEY: '${MCP_TEST_TOKEN}'}}\n" +
 		"  - {name: gh, url: 'https://example.test/mcp', headers: {Authorization: 'Bearer ${MCP_TEST_TOKEN}', X-Team: literal}}\n"
 	cfg, err := Parse([]byte(raw))
@@ -58,16 +58,18 @@ func TestMCPServers(t *testing.T) {
 }
 
 func TestValidateRejects(t *testing.T) {
-	one := "models: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n"
+	one := "models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n"
 	cases := map[string]string{
 		"no models":          "name: x\nmodels: []\n",
-		"provider no models": "name: x\nmodels: [{provider: p, names: []}]\n",
+		"provider no models": "name: x\nmodels: [{provider: p, type: openai, names: []}]\n",
 		"provider no name":   "name: x\nmodels: [{names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"provider with /":    "name: x\nmodels: [{provider: a/b, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"provider twice":     "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}, {provider: p, names: [{name: n, limits: {context: 1000, output: 100}}]}]\n",
-		"model twice":        "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}, {name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"no limits":          "name: x\nmodels: [{provider: p, names: [{name: m}]}]\n",
-		"negative calls":     "name: x\nmodels: [{provider: p, names: [{name: m, calls: -1, limits: {context: 1000, output: 100}}]}]\n",
+		"provider with /":    "name: x\nmodels: [{provider: a/b, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"provider twice":     "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}, {provider: p, type: openai, names: [{name: n, limits: {context: 1000, output: 100}}]}]\n",
+		"model twice":        "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}, {name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"no limits":          "name: x\nmodels: [{provider: p, type: openai, names: [{name: m}]}]\n",
+		"provider no type":   "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"provider bad type":  "name: x\nmodels: [{provider: p, type: claude, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"negative calls":     "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, calls: -1, limits: {context: 1000, output: 100}}]}]\n",
 		"memory needs model": "name: x\n" + one + "memory: {generate: true}\n",
 		"memory bad model":   "name: x\n" + one + "memory: {model: p/other}\n",
 		"memory bare name":   "name: x\n" + one + "memory: {model: m}\n",
@@ -83,7 +85,7 @@ func TestValidateRejects(t *testing.T) {
 }
 
 func TestBrowserNameIsTaken(t *testing.T) {
-	raw := "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nmcp: [{name: browser, url: 'https://example.test/mcp'}]\n"
+	raw := "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nmcp: [{name: browser, url: 'https://example.test/mcp'}]\n"
 	if _, err := Parse([]byte(raw)); err == nil || !strings.Contains(err.Error(), "built-in browser") {
 		t.Fatalf("err = %v", err)
 	}

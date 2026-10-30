@@ -4,7 +4,7 @@
 // server itself returns for the thread at the end (thread/read). If the
 // live updates ever diverged from the stored state, this fails.
 
-import type { ThreadPageResult, ThreadRow } from '@ollupi/protocol'
+import type { ThreadPageResult, ThreadRow, Usage } from '@ollupi/protocol'
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { applyEvent, emptyTimeline, modelCalls, timelineFromPage, type TimelineEvent, type TimelineEventName } from './index'
@@ -61,7 +61,12 @@ it("a turn's usage is the sum of its model calls' usage", () => {
   expect(calls.length).toBeGreaterThan(5)
   for (const turn of final.turns.filter((u) => u.status === 'completed')) {
     const mine = calls.filter((c) => c.turnId === turn.id)
-    const sum = (k: 'inputTokens' | 'cachedInputTokens' | 'outputTokens') => mine.reduce((n, c) => n + (c.usage?.[k] ?? 0), 0)
-    expect({ inputTokens: sum('inputTokens'), cachedInputTokens: sum('cachedInputTokens'), outputTokens: sum('outputTokens') }).toEqual(turn.usage)
+    const sum = (k: keyof Usage) => mine.reduce((n, c) => n + (c.usage?.[k] ?? 0), 0)
+    expect({
+      inputTokens: sum('inputTokens'),
+      cachedInputTokens: sum('cachedInputTokens'),
+      cacheWriteInputTokens: sum('cacheWriteInputTokens'),
+      outputTokens: sum('outputTokens'),
+    }).toEqual(turn.usage)
   }
 })

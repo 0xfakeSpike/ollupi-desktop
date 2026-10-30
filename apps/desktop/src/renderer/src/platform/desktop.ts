@@ -25,7 +25,8 @@ function browserShim(): DesktopApi | undefined {
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
     files: { list: unavailable, read: unavailable },
-    changes: { list: unavailable, diff: unavailable },
+    changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
+    terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
     browser: {
       state: unavailable,
       place: unavailable,
@@ -39,7 +40,12 @@ function browserShim(): DesktopApi | undefined {
     listModels: unavailable,
     // Not the app: nothing to update.
     update: { state: async () => ({ status: 'unsupported' }), check: async () => {}, download: unavailable, restart: unavailable, onState: () => () => {} },
+    // A tab of a browser has no Dock and no notifications of its own.
+    notify: async () => {},
+    onNoticeClicked: () => () => {},
+    setBadge: async () => {},
     pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
+    saveFile: unavailable,
     openPath: async () => {},
     // A browser follows its own scheme.
     setColorScheme: async () => {},
@@ -57,7 +63,8 @@ export const desktop: DesktopApi = window.desktop ??
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
     files: { list: unavailable, read: unavailable },
-    changes: { list: unavailable, diff: unavailable },
+    changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
+    terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
     browser: {
       state: unavailable,
       place: unavailable,
@@ -70,7 +77,11 @@ export const desktop: DesktopApi = window.desktop ??
     },
     listModels: unavailable,
     update: { state: unavailable, check: unavailable, download: unavailable, restart: unavailable, onState: () => () => {} },
+    notify: unavailable,
+    onNoticeClicked: () => () => {},
+    setBadge: unavailable,
     pickDirectory: unavailable,
+    saveFile: unavailable,
     openPath: unavailable,
     setColorScheme: unavailable,
   }

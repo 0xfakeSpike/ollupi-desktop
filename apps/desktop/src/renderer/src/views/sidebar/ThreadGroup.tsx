@@ -1,14 +1,16 @@
 import { isWorking, needsUser } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
-import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Plus, Settings2 } from 'lucide-react'
+import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Pencil, Plus, Settings2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { go, useOpenThreadId } from '../../domains/navigation'
+import { archiveThread, deleteThread, renameThread } from '../../domains/threads'
 import { setArchived } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
 import { desktop } from '../../platform/desktop'
+import { TitleInput } from '../common/TitleInput'
 import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
 const SHOWN = 8
@@ -82,28 +84,59 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
 
 function ThreadEntry({ thread }: { thread: ThreadSummary }) {
   const active = useOpenThreadId() === thread.id
+  const [renaming, setRenaming] = useState(false)
   const m = useT()
   const locale = useLocale((s) => s.locale)
+  const title = threadTitle(m, thread)
+  const s = m.shell.sidebar
+  if (renaming) {
+    return (
+      <li className="flex h-7 items-center pr-1 pl-7">
+        <TitleInput initial={thread.title} label={s.renameThread} className="h-6 w-full text-ui" onSave={(t) => renameThread(thread.id, t)} onDone={() => setRenaming(false)} />
+      </li>
+    )
+  }
   return (
-    <li>
+    <li className="group relative">
       <button
         type="button"
         onClick={() => void openThread(thread.id)}
+        onDoubleClick={() => setRenaming(true)}
         className={cn(
           'flex h-7 w-full items-center gap-2 rounded-md pr-2 pl-8 text-left text-ui transition-colors duration-100 ease-standard',
           'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
           active ? 'bg-selected font-medium text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
         )}
       >
-        <span className="min-w-0 flex-1 truncate">{threadTitle(m, thread)}</span>
-        {needsUser(thread.status) ? (
-          <span className="size-1.5 shrink-0 rounded-full bg-accent" title={m.shell.sidebar.waiting} />
-        ) : isWorking(thread.status) ? (
-          <Spinner size={14} className="shrink-0 text-fg-subtle" />
-        ) : (
-          <span className="shrink-0 text-small font-normal text-fg-subtle tabular-nums">{relativeTime(m, locale, thread.updatedAt)}</span>
-        )}
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <span className="flex shrink-0 items-center group-focus-within:invisible group-hover:invisible">
+          {needsUser(thread.status) ? (
+            <span className="size-1.5 rounded-full bg-accent" title={s.waiting} />
+          ) : isWorking(thread.status) ? (
+            <Spinner size={14} className="text-fg-subtle" />
+          ) : (
+            <span className="text-small font-normal text-fg-subtle tabular-nums">{relativeTime(m, locale, thread.updatedAt)}</span>
+          )}
+        </span>
       </button>
+      {/* Beside the row rather than in it: a button may not hold buttons. */}
+      <div className="absolute inset-y-0 right-0.5 hidden items-center group-focus-within:flex group-hover:flex">
+        <IconButton label={s.renameThread} size="sm" onClick={() => setRenaming(true)}>
+          <Pencil size={13} />
+        </IconButton>
+        <IconButton label={s.archiveThread} size="sm" onClick={() => void archiveThread(thread.id, true)}>
+          <Archive size={13} />
+        </IconButton>
+        <IconButton
+          label={s.deleteThread}
+          size="sm"
+          onClick={() => {
+            if (confirm(s.deleteThreadConfirm(title))) void deleteThread(thread.id)
+          }}
+        >
+          <Trash2 size={13} />
+        </IconButton>
+      </div>
     </li>
   )
 }

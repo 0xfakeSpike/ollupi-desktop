@@ -28,16 +28,25 @@ export function duration(m: Messages, startIso: string, endIso: string | null | 
   return m.common.span.m(d.m, d.s)
 }
 
+/** Input counts the cached part and the part written to the cache; each
+ * is named only when there is some. */
 export function usageLine(m: Messages, u: Usage): string {
   if (u.inputTokens + u.outputTokens === 0) return ''
-  const [input, output] = [formatTokens(u.inputTokens), formatTokens(u.outputTokens)]
-  return u.cachedInputTokens ? m.common.usage.lineCached(input, formatTokens(u.cachedInputTokens), output) : m.common.usage.line(input, output)
+  const t = m.common.usage
+  return [
+    t.input(formatTokens(u.inputTokens)),
+    u.cachedInputTokens > 0 && t.cached(formatTokens(u.cachedInputTokens)),
+    u.cacheWriteInputTokens > 0 && t.cacheWrite(formatTokens(u.cacheWriteInputTokens)),
+    t.output(formatTokens(u.outputTokens)),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
-/** The server sets preview to the first line of the first turn's input when
- * that turn starts; before then the thread has no title of its own. */
-export function threadTitle(m: Messages, thread: Pick<ThreadRow, 'preview'>): string {
-  return thread.preview || m.common.newThread
+/** A thread's title is what the app gave it when starting it (from the
+ * first message) or the person renamed it to; it may be empty. */
+export function threadTitle(m: Messages, thread: Pick<ThreadRow, 'title'>): string {
+  return thread.title || m.common.newThread
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')

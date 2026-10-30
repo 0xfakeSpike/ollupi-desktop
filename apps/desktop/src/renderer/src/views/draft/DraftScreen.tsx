@@ -27,7 +27,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       </div>
       <Composer
         placeholder={m.conversation.draft.placeholder}
-        onSubmit={(text) => startThread(workspaceId, text)}
+        onSubmit={(message) => startThread(workspaceId, message)}
         toolbar={
           <>
             <WorkspacePicker workspaceId={workspaceId} />

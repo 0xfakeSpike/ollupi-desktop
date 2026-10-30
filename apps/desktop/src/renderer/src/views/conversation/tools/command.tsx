@@ -25,6 +25,7 @@ export const command: ToolView<Command> = {
     title: (m, call) => (call.command.escalated ? m.requests.approval.commandOutside : m.requests.approval.command),
     // Approving runs exactly this program, arguments and directory.
     Body: ({ call }) => <CodeBlock code={commandLine(call.command)} label={`sh · ${call.command.cwd}`} />,
+    showsContent: true,
   },
 }
 

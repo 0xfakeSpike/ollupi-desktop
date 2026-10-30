@@ -11,7 +11,9 @@ import * as conversation from './messages/conversation'
 import * as cron from './messages/cron'
 import * as errors from './messages/errors'
 import * as memory from './messages/memory'
+import * as notifications from './messages/notifications'
 import * as requests from './messages/requests'
+import * as search from './messages/search'
 import * as settings from './messages/settings'
 import * as shell from './messages/shell'
 import * as skills from './messages/skills'
@@ -26,6 +28,8 @@ const en = {
   capabilities: capabilities.en,
   cron: cron.en,
   settings: settings.en,
+  notifications: notifications.en,
+  search: search.en,
   errors: errors.en,
 }
 
@@ -43,6 +47,8 @@ const catalogs: Record<Locale, Messages> = {
     capabilities: capabilities.zh,
     cron: cron.zh,
     settings: settings.zh,
+    notifications: notifications.zh,
+    search: search.zh,
     errors: errors.zh,
   },
 }

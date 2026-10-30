@@ -7,7 +7,7 @@
 // current. The cron/* calls below change tasks; their results are not
 // applied here, the notification is.
 
-import type { CronJobView } from '@ollupi/protocol'
+import type { CronJobView, ThreadRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -24,8 +24,24 @@ function applyChange(id: string, job: CronJobView | null): void {
   })
 }
 
+/** A task shows its thread's title and whether it is archived (when ollupi
+ * sends it nothing); those change with the thread, not the task. */
+function applyThread(thread: ThreadRow): void {
+  useCron.setState((s) =>
+    s.jobs?.some((j) => j.threadId === thread.id)
+      ? { jobs: s.jobs.map((j) => (j.threadId === thread.id ? { ...j, threadTitle: thread.title, threadArchived: !!thread.archivedAt } : j)) }
+      : s,
+  )
+}
+
 export const cronDomain: Domain = {
-  bind: (client) => client.on('cron/changed', ({ id, job }) => applyChange(id, job)),
+  bind: (client) => {
+    const offs = [
+      client.on('cron/changed', ({ id, job }) => applyChange(id, job)),
+      client.on('thread/changed', ({ thread }) => thread && applyThread(thread)),
+    ]
+    return () => offs.forEach((off) => off())
+  },
   sync: async (client) => {
     useCron.setState({ jobs: (await client.call('cron/list', {})).data })
   },

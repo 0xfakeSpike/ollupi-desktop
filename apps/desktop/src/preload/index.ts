@@ -35,6 +35,26 @@ const api: DesktopApi = {
   changes: {
     list: (root) => ipcRenderer.invoke(IpcChannel.ChangesList, root),
     diff: (root, path, untracked) => ipcRenderer.invoke(IpcChannel.ChangesDiff, root, path, untracked),
+    stage: (root, paths) => ipcRenderer.invoke(IpcChannel.ChangesStage, root, paths),
+    unstage: (root, paths) => ipcRenderer.invoke(IpcChannel.ChangesUnstage, root, paths),
+    discard: (root, file) => ipcRenderer.invoke(IpcChannel.ChangesDiscard, root, file),
+    commit: (root, message) => ipcRenderer.invoke(IpcChannel.ChangesCommit, root, message),
+  },
+  terminal: {
+    open: (key, cwd, cols, rows) => ipcRenderer.invoke(IpcChannel.TerminalOpen, key, cwd, cols, rows),
+    write: (key, text) => ipcRenderer.invoke(IpcChannel.TerminalWrite, key, text),
+    resize: (key, cols, rows) => ipcRenderer.invoke(IpcChannel.TerminalResize, key, cols, rows),
+    close: (key) => ipcRenderer.invoke(IpcChannel.TerminalClose, key),
+    onData: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, key: string, text: string) => listener(key, text)
+      ipcRenderer.on(IpcChannel.TerminalData, wrapped)
+      return () => ipcRenderer.off(IpcChannel.TerminalData, wrapped)
+    },
+    onExit: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, key: string, code: number) => listener(key, code)
+      ipcRenderer.on(IpcChannel.TerminalExit, wrapped)
+      return () => ipcRenderer.off(IpcChannel.TerminalExit, wrapped)
+    },
   },
   browser: {
     state: (thread) => ipcRenderer.invoke(IpcChannel.BrowserState, thread),
@@ -54,7 +74,7 @@ const api: DesktopApi = {
       return () => ipcRenderer.off(IpcChannel.BrowserUsed, wrapped)
     },
   },
-  listModels: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, baseUrl, apiKey),
+  listModels: (type, baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, type, baseUrl, apiKey),
   update: {
     state: () => ipcRenderer.invoke(IpcChannel.UpdateState),
     check: () => ipcRenderer.invoke(IpcChannel.UpdateCheck),
@@ -66,7 +86,15 @@ const api: DesktopApi = {
       return () => ipcRenderer.off(IpcChannel.UpdateChanged, wrapped)
     },
   },
+  notify: (notice) => ipcRenderer.invoke(IpcChannel.Notify, notice),
+  onNoticeClicked: (listener) => {
+    const wrapped = (_e: IpcRendererEvent, threadId: string) => listener(threadId)
+    ipcRenderer.on(IpcChannel.NoticeClicked, wrapped)
+    return () => ipcRenderer.off(IpcChannel.NoticeClicked, wrapped)
+  },
+  setBadge: (count) => ipcRenderer.invoke(IpcChannel.SetBadge, count),
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
+  saveFile: (name, text) => ipcRenderer.invoke(IpcChannel.SaveFile, name, text),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
   setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),
 }
