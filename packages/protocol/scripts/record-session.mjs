@@ -52,6 +52,7 @@ writeFileSync(
   `name: ollupi
 models:
   - provider: mock
+    type: openai
     base_url: http://127.0.0.1:${PORT}/v1
     api_key: test
     names:

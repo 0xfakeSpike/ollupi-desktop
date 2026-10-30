@@ -11,6 +11,7 @@ import { BackendSupervisor } from './backend/supervisor'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
 import { WorkspaceChanges } from './changes'
+import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { AppUpdater, bundleOf } from './update'
@@ -24,6 +25,7 @@ if (!app.requestSingleInstanceLock()) {
   const home = backendHome()
   const browser = new AgentBrowser()
   const browserEndpoint = new BrowserEndpoint(browser)
+  const terminals = new Terminals()
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env })
@@ -48,7 +50,7 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv }), browser, updater, home)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, terminals, updater, home)
     createMainWindow()
     updater.start()
     // The backend's browser tools reach the endpoint from its start.
@@ -72,6 +74,7 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault()
     // Quit again from a fresh task: re-quitting from a microtask while this
     // quit unwinds hangs Electron when a window-all-closed listener exists.
+    terminals.closeAll()
     void backend.stop().finally(() => {
       updater.install()
       setTimeout(() => app.quit(), 0)

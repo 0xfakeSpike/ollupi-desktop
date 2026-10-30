@@ -65,6 +65,14 @@ export const requestsDomain: Domain = {
   disconnect: () => useRequests.setState({ byItem: {} }),
 }
 
+/** Calls listener with each request as it arrives. After a reconnect the
+ * gateway sends the pending ones again, so a request may arrive twice. */
+export function onRequest(listener: (r: PendingRequest) => void): () => void {
+  return useRequests.subscribe((now, before) => {
+    for (const [id, r] of Object.entries(now.byItem)) if (!(id in before.byItem)) listener(r)
+  })
+}
+
 export function usePendingRequest(itemId: string): PendingRequest | undefined {
   return useRequests((s) => s.byItem[itemId])
 }

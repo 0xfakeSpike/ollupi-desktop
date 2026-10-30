@@ -4,11 +4,13 @@ import { Lightbulb } from 'lucide-react'
 import { useT } from '../../../i18n'
 import { duration } from '../../../i18n/format'
 import { Markdown } from '../../common/Markdown'
+import { Attachments } from './Attachments'
 
 export function UserMessage({ item }: { item: ItemRow }) {
   return (
-    <div className="flex justify-end">
-      <div className="selectable max-w-4/5 rounded-2xl bg-surface px-4 py-2 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>
+    <div className="flex flex-col items-end gap-2">
+      <Attachments attachments={item.attachments} />
+      {item.text && <div className="selectable max-w-4/5 rounded-2xl bg-surface px-4 py-2 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>}
     </div>
   )
 }

@@ -1,20 +1,22 @@
-// config.yaml's models: the providers (OpenAI-compatible APIs) and the
-// models each serves. ollupi reads them at start, so every saved change is
+// config.yaml's models: the providers (each an API of one type: OpenAI
+// compatible, Anthropic or Gemini) and the models each serves. ollupi reads them at start, so every saved change is
 // checked by the backend, written, and the backend restarted. A provider's
 // API key is written there too, like its base URL.
 
-import { Badge, Button, Callout, Checkbox, Dialog, Field, IconButton, Input, Select, Spinner } from '@ollupi/ui'
+import { Badge, Button, Callout, Checkbox, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import type { ConfigChange, ListedModel } from '../../../../shared/ipc'
+import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
 import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
 import {
   addModels,
   addProvider,
+  apiTypeOf,
   cannotRemove,
   cannotRemoveProvider,
   editModel,
   editProvider,
+  imagesByDefault,
   makeDefault,
   modelId,
   removeModel,
@@ -159,7 +161,10 @@ function ProviderCard({
     <div className="flex flex-col rounded-lg border border-line">
       <div className="flex items-start gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0 flex-1">
-          <div className="text-ui font-medium text-fg">{p.provider}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-ui font-medium text-fg">{p.provider}</span>
+            <Badge>{m.settings.models.types[apiTypeOf(p)].label}</Badge>
+          </div>
           <div className="selectable mt-0.5 truncate font-mono text-small text-fg-subtle">{p.base_url || c.noBaseUrl}</div>
           <div className="mt-1 flex items-center gap-1.5 text-small text-fg-muted">
             <KeyRound size={14} />
@@ -217,6 +222,7 @@ function ModelDetails({ model }: { model: ProviderModel }) {
   const parts = [
     model.calls ? d.calls(model.calls) : undefined,
     model.thinking === true ? d.thinkingOn : model.thinking === false ? d.thinkingOff : undefined,
+    model.images ? d.images : undefined,
     d.limits(model.limits.context.toLocaleString(locale), model.limits.output.toLocaleString(locale)),
   ].filter(Boolean)
   if (parts.length === 0) return null
@@ -240,11 +246,12 @@ function ProviderDialog({
   const m = useT()
   const t = m.settings.models.provider
   const [name, setName] = useState(provider?.provider ?? '')
+  const [type, setType] = useState<ApiType>(provider ? apiTypeOf(provider) : 'openai')
   const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? '')
   const [apiKey, setApiKey] = useState(provider?.api_key ?? '')
   const [showKey, setShowKey] = useState(false)
-  const first = useModelForm(name.trim() || 'provider', undefined, [])
-  const { list, retry } = useModelList(baseUrl, apiKey)
+  const first = useModelForm(name.trim() || 'provider', type, undefined, [])
+  const { list, retry } = useModelList(type, baseUrl, apiKey)
   // The checked models, each with its limits as typed.
   const [picked, setPicked] = useState<Picked>({})
   const [saving, setSaving] = useState(false)
@@ -258,7 +265,7 @@ function ProviderDialog({
   const chosen = offered.map((m) => m.name).filter((n) => picked[n])
   const chosenModels = chosen.flatMap((n): ModelFields[] => {
     const limits = limitsOf(picked[n]!.context, picked[n]!.output)
-    return limits ? [{ name: n, calls: undefined, thinking: undefined, limits }] : []
+    return limits ? [{ name: n, calls: undefined, thinking: undefined, images: imagesByDefault(type), limits }] : []
   })
   // A new provider's models come from the list when the API gives one;
   // otherwise its first model is typed in.
@@ -269,7 +276,7 @@ function ProviderDialog({
   const save = async () => {
     setSaving(true)
     await onSave(
-      { provider: trimmed, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() },
+      { provider: trimmed, type, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() },
       fromList || provider ? chosenModels : [first.fields],
     )
     setSaving(false)
@@ -297,12 +304,21 @@ function ProviderDialog({
         >
           <Input value={name} autoFocus spellCheck={false} placeholder="deepseek" onChange={(e) => setName(e.target.value)} />
         </Field>
+        <Field label={t.type} hint={m.settings.models.types[type].hint}>
+          <Select className="max-w-60" value={type} onChange={(e) => setType(e.target.value as ApiType)}>
+            {apiTypes.map((a) => (
+              <option key={a} value={a}>
+                {m.settings.models.types[a].label}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label={t.baseUrl} hint={t.baseUrlHint}>
           <Input
             value={baseUrl}
             spellCheck={false}
             className="font-mono text-small"
-            placeholder="https://api.deepseek.com"
+            placeholder={placeholders[type].baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
           />
         </Field>
@@ -314,7 +330,7 @@ function ProviderDialog({
               autoComplete="off"
               spellCheck={false}
               className="font-mono text-small"
-              placeholder="sk-..."
+              placeholder={placeholders[type].apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
             <IconButton label={showKey ? t.hideKey : t.showKey} size="sm" onClick={() => setShowKey(!showKey)}>
@@ -341,6 +357,14 @@ function ProviderDialog({
       </div>
     </Dialog>
   )
+}
+
+/** What each API's base URL and key look like; an empty base URL is the
+ * API's own. */
+const placeholders: Record<ApiType, { baseUrl: string; apiKey: string }> = {
+  openai: { baseUrl: 'https://api.deepseek.com', apiKey: 'sk-...' },
+  anthropic: { baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant-...' },
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com', apiKey: 'AIza...' },
 }
 
 /** Why there is no list to choose from, while there is none. existing is
@@ -460,12 +484,13 @@ const DEFAULT = ''
 
 /** The fields of one model, for a model dialog and a new provider's first
  * model: the form, its value, and whether it can be saved. */
-function useModelForm(provider: string, model: ProviderModel | undefined, taken: string[], suggested: string[] = []) {
+function useModelForm(provider: string, type: ApiType, model: ProviderModel | undefined, taken: string[], suggested: string[] = []) {
   const m = useT()
   const t = m.settings.models.model
   const [name, setName] = useState(model?.name ?? '')
   const [calls, setCalls] = useState(model?.calls ? String(model.calls) : '')
   const [thinking, setThinking] = useState(model?.thinking == null ? DEFAULT : String(model.thinking))
+  const [images, setImages] = useState(model ? !!model.images : imagesByDefault(type))
   const [context, setContext] = useState(model ? String(model.limits.context) : '')
   const [output, setOutput] = useState(model ? String(model.limits.output) : '')
 
@@ -482,6 +507,7 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
     name: trimmed,
     calls: count(calls),
     thinking: thinking === DEFAULT ? undefined : thinking === 'true',
+    images,
     limits: limits ?? { context: 0, output: 0 },
   }
   const form = (
@@ -517,6 +543,13 @@ function useModelForm(provider: string, model: ProviderModel | undefined, taken:
           <option value="false">{t.off}</option>
         </Select>
       </Field>
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="text-ui font-medium text-fg">{t.images}</div>
+          <div className="mt-0.5 text-small text-fg-muted">{t.imagesHint}</div>
+        </div>
+        <Switch label={t.images} checked={images} onChange={setImages} />
+      </div>
       <Field label={t.limits} error={limitsError} hint={t.limitsHint}>
         <div className="flex gap-2">
           <Input value={context} inputMode="numeric" placeholder={t.context} onChange={(e) => setContext(e.target.value)} />
@@ -544,10 +577,10 @@ function ModelDialog({
 }) {
   const m = useT()
   // The name can be picked from what the API lists and the provider does not serve.
-  const { list } = useModelList(p.base_url ?? '', p.api_key ?? '')
+  const { list } = useModelList(apiTypeOf(p), p.base_url ?? '', p.api_key ?? '')
   const suggested = list.status === 'listed' ? list.models.map((m) => m.name).filter((n) => !taken.includes(n)) : []
   const provider = p.provider
-  const { form, fields, invalid } = useModelForm(provider, model, taken, suggested)
+  const { form, fields, invalid } = useModelForm(provider, apiTypeOf(p), model, taken, suggested)
   const [saving, setSaving] = useState(false)
   const save = async () => {
     setSaving(true)

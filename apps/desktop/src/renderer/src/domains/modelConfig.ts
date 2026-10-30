@@ -1,10 +1,11 @@
 // Edits to config.yaml's models, following the backend's rules: providers
-// have distinct names and each serves at least one model; a model is
+// have distinct names, each speaks one API type and serves at least one
+// model; a model is
 // selected by its id, provider/name; the first model of the first provider
 // is the default; memory.model names one of the models by id. A provider's
 // API key is written in the file, like its base URL.
 
-import type { BackendConfig, ConfigChange } from '../../../shared/ipc'
+import type { ApiType, BackendConfig, ConfigChange } from '../../../shared/ipc'
 
 export type Provider = NonNullable<BackendConfig['models']>[number]
 export type ProviderModel = NonNullable<Provider['names']>[number]
@@ -14,6 +15,7 @@ export const modelId = (provider: string, name: string): string => `${provider}/
 
 export interface ProviderFields {
   provider: string
+  type: ApiType
   baseUrl: string
   /** Empty for an API without a key. */
   apiKey: string
@@ -23,6 +25,8 @@ export interface ModelFields {
   name: string
   calls: number | undefined
   thinking: boolean | undefined
+  /** The model accepts images; ollupi sends it none otherwise. */
+  images: boolean
   /** The context window and the most an answer may take of it, in tokens. */
   limits: { context: number; output: number }
 }
@@ -34,8 +38,20 @@ function modelValue(m: ModelFields): ProviderModel {
     name: m.name,
     ...(m.calls !== undefined && { calls: m.calls }),
     ...(m.thinking !== undefined && { thinking: m.thinking }),
+    ...(m.images && { images: true }),
     limits: m.limits,
   }
+}
+
+/** The models of Anthropic's and Gemini's APIs all take images; an
+ * OpenAI-compatible API's may or may not. */
+export function imagesByDefault(type: ApiType): boolean {
+  return type !== 'openai'
+}
+
+/** A provider's type as config.yaml has it; the backend refuses any other. */
+export function apiTypeOf(p: Provider): ApiType {
+  return p.type as ApiType
 }
 
 /** Sets a key to a value, or removes it when there is none. */
@@ -47,6 +63,7 @@ function setOrDelete(path: (string | number)[], value: unknown): ConfigChange {
 export function addProvider(config: BackendConfig, p: ProviderFields, models: ModelFields[]): ConfigChange[] {
   const value = {
     provider: p.provider,
+    type: p.type,
     ...(p.baseUrl && { base_url: p.baseUrl }),
     ...(p.apiKey && { api_key: p.apiKey }),
     names: models.map(modelValue),
@@ -60,6 +77,7 @@ export function editProvider(config: BackendConfig, index: number, p: ProviderFi
   const old = providers(config)[index]!
   const changes: ConfigChange[] = [
     { kind: 'set', path: ['models', index, 'provider'], value: p.provider },
+    { kind: 'set', path: ['models', index, 'type'], value: p.type },
     setOrDelete(['models', index, 'base_url'], p.baseUrl),
     setOrDelete(['models', index, 'api_key'], p.apiKey),
   ]
@@ -100,6 +118,7 @@ export function editModel(config: BackendConfig, provider: number, index: number
     { kind: 'set', path: [...path, 'name'], value: m.name },
     setOrDelete([...path, 'calls'], m.calls),
     setOrDelete([...path, 'thinking'], m.thinking),
+    setOrDelete([...path, 'images'], m.images || undefined),
     { kind: 'set', path: [...path, 'limits'], value: m.limits },
   ]
   if (m.name !== old.name && config.memory.model === modelId(p.provider, old.name)) {

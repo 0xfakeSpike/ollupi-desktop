@@ -1,6 +1,7 @@
 // Package host assembles one ollupi backend from a Config, following the
 // assembly ollupi's README describes: the database, one model client per
-// model, the tool providers (cron, shell, the app's browser, MCP servers),
+// model, the tool providers (cron, shell and its file tools, web_fetch, the
+// app's browser, MCP servers),
 // memory, the agent and the gateway. It owns their lifetimes: New builds
 // everything without starting anything, Start starts the agent and its
 // sibling goroutines, Serve serves the gateway until the context ends and
@@ -29,6 +30,7 @@ import (
 	"github.com/0xfakeSpike/ollupi/tools/cron"
 	"github.com/0xfakeSpike/ollupi/tools/mcp"
 	"github.com/0xfakeSpike/ollupi/tools/shell"
+	"github.com/0xfakeSpike/ollupi/tools/web"
 )
 
 type Options struct {
@@ -96,6 +98,7 @@ func New(opts Options) (_ *Host, err error) {
 		providers = append(providers, runner)
 	}
 
+	providers = append(providers, web.New(web.Options{}))
 	if opts.Browser != nil {
 		providers = append(providers, browser.New(*opts.Browser))
 	}
@@ -128,9 +131,11 @@ func New(opts Options) (_ *Host, err error) {
 		// nothing until it connects.
 		Unavailable: connected.Unavailable(),
 		SkillsDir:   cfg.SkillsDir,
-		Memory:      h.memory,
-		DB:          db,
-		OnEvent:     func(e agent.Event) { deliver(e) },
+		// Images and files sent with messages live beside the database.
+		AttachmentsDir: filepath.Join(dataHome, "attachments"),
+		Memory:         h.memory,
+		DB:             db,
+		OnEvent:        func(e agent.Event) { deliver(e) },
 	})
 	h.gateway, err = gateway.NewServer(h.agent, gateway.Options{
 		Token:          opts.Token,
@@ -212,20 +217,38 @@ func (h *Host) close() {
 	h.closers = nil
 }
 
-// modelClients gives each model its own ollupi connection and client, so
-// calls caps that model alone (ollupi: each model connection has its own
-// cap). The models keep the file's order; the first is the default.
-func modelClients(providers []config.Provider) ([]llm.Model, map[string]*llm.OpenAI, error) {
+// modelClients gives each model its own ollupi connection and client, of
+// the provider's API type, so calls caps that model alone (ollupi: each
+// model connection has its own cap). The models keep the file's order; the
+// first is the default.
+func modelClients(providers []config.Provider) ([]llm.Model, map[string]llm.Client, error) {
 	var models []llm.Model
-	clients := map[string]*llm.OpenAI{}
+	clients := map[string]llm.Client{}
 	for _, p := range providers {
 		for _, m := range p.Names {
 			id := config.ID(p.Provider, m.Name)
-			clients[id] = llm.NewOpenAI(p.BaseURL, p.APIKey, m.Calls, map[string]llm.Limits{m.Name: m.Limits})
-			models = append(models, llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking})
+			client, err := modelClient(p, m)
+			if err != nil {
+				return nil, nil, fmt.Errorf("models: %s: %w", id, err)
+			}
+			clients[id] = client
+			models = append(models, llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking, Images: m.Images})
 		}
 	}
 	return models, clients, nil
+}
+
+func modelClient(p config.Provider, m config.Model) (llm.Client, error) {
+	limits := map[string]llm.Limits{m.Name: m.Limits}
+	switch p.Type {
+	case config.APIOpenAI:
+		return llm.NewOpenAI(p.BaseURL, p.APIKey, m.Calls, limits), nil
+	case config.APIAnthropic:
+		return llm.NewAnthropic(p.BaseURL, p.APIKey, m.Calls, limits), nil
+	case config.APIGemini:
+		return llm.NewGemini(p.BaseURL, p.APIKey, m.Calls, limits)
+	}
+	return nil, fmt.Errorf("unknown API type %q", p.Type)
 }
 
 // mcpServers resolves the ${NAME} references in env and header values. A
@@ -282,9 +305,9 @@ func shellRunner(home string, cfg config.Config) (*shell.Runner, error) {
 
 // memoryManager extracts with the model memory.model names, through that
 // model's client, so extraction shares its calls with the model's turns.
-func memoryManager(db *repo.DB, models []llm.Model, clients map[string]*llm.OpenAI, m config.Memory) (*memory.Manager, error) {
+func memoryManager(db *repo.DB, models []llm.Model, clients map[string]llm.Client, m config.Memory) (*memory.Manager, error) {
 	opts := memory.Options{Use: m.Use, Generate: m.Generate}
-	var client *llm.OpenAI
+	var client llm.Client
 	if m.Model != "" {
 		i := slices.IndexFunc(models, func(x llm.Model) bool { return x.Connection == m.Model })
 		opts.Model, client = models[i], clients[m.Model]

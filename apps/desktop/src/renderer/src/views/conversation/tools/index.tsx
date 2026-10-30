@@ -6,6 +6,7 @@ import { callOf, type ToolCall, type ToolKind } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { useMemo } from 'react'
 import { command } from './command'
+import { file } from './file'
 import { plan } from './plan'
 import { question } from './question'
 import { subagent } from './subagent'
@@ -14,6 +15,7 @@ import type { ToolView } from './types'
 
 const views: { [K in ToolKind]: ToolView<Extract<ToolCall, { kind: K }>> } = {
   command,
+  file,
   plan,
   question,
   subagent,

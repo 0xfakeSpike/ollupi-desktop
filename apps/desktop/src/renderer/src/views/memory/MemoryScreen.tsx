@@ -5,10 +5,11 @@
 
 import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
 import { Badge, Button, cn, EmptyState, IconButton, Spinner, Tabs, Textarea } from '@ollupi/ui'
-import { ArrowRightLeft, Brain, ChevronRight, Pencil, RotateCw, Trash2 } from 'lucide-react'
+import { ArrowRightLeft, Brain, ChevronRight, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
 import { editMemory, forgetMemory, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
+import { shownResult, useSearch } from '../../domains/search'
 import { useThreadSummary } from '../../domains/threads'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
@@ -36,6 +37,13 @@ export function MemoryScreen() {
   const workspaces = useWorkspaces((s) => s.list)
   const [scope, setScope] = useState('global')
   const [data, setData] = useState<{ status: MemoryStatus; scopes: MemoryScopes }>()
+  const [query, setQuery] = useState('')
+  const [searched, setSearched] = useState(0)
+  // A workspace's search also finds global memories; the list keeps this tab's.
+  const found = shownResult(useSearch(query, scope === 'global' || scope === 'general' ? '' : scope, searched))?.memories?.filter(
+    (e) => placeKey(placeOf(e)) === scope,
+  )
+  const searching = !!query.trim()
   const [loading, setLoading] = useState(true)
   const workspaceIds = workspaces.map((w) => w.id).join('\n')
 
@@ -53,20 +61,28 @@ export function MemoryScreen() {
 
   const update = (change: (rows: MemoryRow[]) => MemoryRow[]) =>
     setData((d) => d && { ...d, scopes: new Map([...d.scopes].map(([k, rows]) => [k, change(rows)])) })
-  const replace = (row: MemoryRow) => update((rows) => rows.map((e) => (e.id === row.id ? row : e)))
-  const remove = (id: string) => update((rows) => rows.filter((e) => e.id !== id))
-  const moved = (row: MemoryRow) =>
+  const replace = (row: MemoryRow) => {
+    update((rows) => rows.map((e) => (e.id === row.id ? row : e)))
+    setSearched((n) => n + 1)
+  }
+  const remove = (id: string) => {
+    update((rows) => rows.filter((e) => e.id !== id))
+    setSearched((n) => n + 1)
+  }
+  const moved = (row: MemoryRow) => {
+    setSearched((n) => n + 1)
     setData((d) => {
       if (!d) return d
       const to = placeKey(placeOf(row))
       return { ...d, scopes: new Map([...d.scopes].map(([k, rows]) => [k, [...rows.filter((e) => e.id !== row.id), ...(k === to ? [row] : [])]])) }
     })
+  }
   const places = placesOf(m, workspaces)
   const placeLabel = (key: string) => places.find((p) => placeKey(p.place) === key)?.label ?? key
 
   // memory/list returns every status; only active memories are used.
   const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
-  const active = activeIn(scope)
+  const active = searching ? (found ?? []) : activeIn(scope)
   const scopes = places.map((p) => ({ id: placeKey(p.place), label: p.label, detail: data && String(activeIn(placeKey(p.place)).length) }))
   const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
@@ -88,7 +104,20 @@ export function MemoryScreen() {
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
             <MemorySettings status={data?.status} />
             {data && <StatusLine status={data.status} />}
-            {loading && !data ? (
+            <label className="flex h-8 items-center gap-2 rounded-md border border-line-strong px-2.5 focus-within:border-accent focus-within:ring-3 focus-within:ring-focus">
+              <Search size={14} className="shrink-0 text-fg-subtle" />
+              <input
+                value={query}
+                aria-label={m.memory.screen.search}
+                placeholder={m.memory.screen.search}
+                spellCheck={false}
+                onChange={(e) => setQuery(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-subtle"
+              />
+            </label>
+            {searching && found?.length === 0 ? (
+              <p className="text-small text-fg-subtle">{m.memory.screen.noMatch}</p>
+            ) : loading && !data ? (
               <div className="flex justify-center py-12 text-fg-subtle">
                 <Spinner />
               </div>

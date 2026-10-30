@@ -9,6 +9,8 @@ import {
   type ApprovalRequestParams,
   type BuiltinToolName,
   type CommandOutput,
+  type FileChange,
+  type FileOutput,
   type ItemRow,
   type Plan,
   type Prepared,
@@ -70,6 +72,7 @@ interface CallFacts {
  * any other tool: they are the model's own JSON text. */
 export type ToolCall =
   | { kind: 'command'; command: FrozenCommand; output: CommandOutput | undefined }
+  | { kind: 'file'; tool: FileTool; change: FileChange; output: FileOutput | undefined }
   | { kind: 'plan'; plan: Plan }
   | { kind: 'question'; questions: QuestionAndAnswer[] }
   | { kind: 'subagent'; task: SubagentTask }
@@ -129,6 +132,14 @@ function classify(c: CallFacts): ToolCall {
       if (!p?.program) break
       return { kind: 'command', command: { ...p, program: p.program }, output: isToolPart('run_command', 'output', c.output) ? c.output : undefined }
     }
+    case 'edit_file':
+    case 'write_file': {
+      // Like a command, the change is frozen before approval: exactly this
+      // diff is written, and only while the file is still as it was read.
+      const change = c.prepared?.files?.[0]
+      if (!change) break
+      return { kind: 'file', tool: builtin, change, output: isToolPart(builtin, 'output', c.output) ? c.output : undefined }
+    }
     case 'update_plan':
       if (isToolPart('update_plan', 'arguments', c.arguments)) return { kind: 'plan', plan: c.arguments }
       break
@@ -144,6 +155,16 @@ function classify(c: CallFacts): ToolCall {
       break
   }
   return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
+}
+
+/** The tools that write a file: edit_file replaces parts of it, write_file
+ * all of it. */
+export type FileTool = Extract<BuiltinToolName, 'edit_file' | 'write_file'>
+
+/** A call that writes a file that did not exist: before is the digest of
+ * the file as read, and there was none. */
+export function createsFile(change: FileChange): boolean {
+  return change.before === undefined
 }
 
 /** The frozen execution of a command that has a program to run. */

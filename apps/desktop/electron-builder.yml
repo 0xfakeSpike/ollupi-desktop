@@ -6,6 +6,12 @@ directories:
 files:
   - out/**
   - package.json
+# The terminal's node-pty loads its native module and runs its spawn-helper
+# from disk, outside the asar. Its prebuilt binaries use Node-API, so they
+# load in Electron as they are, for either arch: nothing is rebuilt.
+asarUnpack:
+  - node_modules/node-pty/**
+npmRebuild: false
 extraResources:
   # The sidecar built for the arch being packaged (pnpm sidecar:release).
   - from: resources/bin/${arch}

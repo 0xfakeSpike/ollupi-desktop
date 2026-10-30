@@ -1,7 +1,8 @@
 // The sidebar's thread list follows thread/list (repo.ThreadRows): only
-// top-level threads, ordered by updated_at then created_at, newest first.
-// Live updates must keep that, since thread/started also announces the
-// threads subagents run in.
+// top-level threads that are not archived, ordered by updated_at then
+// created_at, newest first. Live updates must keep that, since
+// thread/started also announces the threads subagents run in, and
+// thread/changed the threads archived or deleted.
 
 import type { ThreadRow, ThreadStatus, ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 
@@ -13,14 +14,33 @@ export function compareThreads(a: ThreadRow, b: ThreadRow): number {
   return b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt)
 }
 
-/** Inserts or refreshes a top-level thread. Its status comes from
- * thread/status/changed, so a known one is kept when only the row changed;
- * a thread seen for the first time without one is idle (thread/start). */
+/** Inserts or refreshes a top-level thread, or drops it once archived. Its
+ * status comes from thread/status/changed, so a known one is kept when only
+ * the row changed; a thread seen for the first time without one is idle
+ * (thread/start). */
 export function upsertThread(list: readonly ThreadSummary[], thread: ThreadRow, status?: ThreadStatus): ThreadSummary[] {
   if (!isTopLevel(thread)) return list.slice()
+  if (thread.archivedAt) return removeThread(list, thread.id)
   const known = list.find((t) => t.id === thread.id)
   const next: ThreadSummary = { ...thread, status: status ?? known?.status ?? 'idle' }
   return [...list.filter((t) => t.id !== thread.id), next].sort(compareThreads)
+}
+
+export function removeThread(list: readonly ThreadSummary[], threadId: string): ThreadSummary[] {
+  return list.filter((t) => t.id !== threadId)
+}
+
+/** ollupi stores a title only when the app gives one (thread/start,
+ * thread/rename), up to this many characters. */
+export const MAX_TITLE_LENGTH = 120
+const TITLE_FROM_MESSAGE = 60
+
+/** The title a thread starts with: the first line of its first message,
+ * cut short, or the name of its first attachment when it has no text. */
+export function titleFromMessage(text: string, attachmentNames: readonly string[] = []): string {
+  const line = text.split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).find(Boolean) ?? attachmentNames[0]?.trim() ?? ''
+  const chars = Array.from(line)
+  return chars.length > TITLE_FROM_MESSAGE ? chars.slice(0, TITLE_FROM_MESSAGE).join('').trimEnd() + '…' : line
 }
 
 export function setThreadStatus(list: readonly ThreadSummary[], threadId: string, status: ThreadStatus): ThreadSummary[] {

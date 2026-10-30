@@ -1,5 +1,5 @@
 // Asks to allow one tool call, which the view of its kind words and shows
-// (a command its frozen execution). A call that leaves the sandbox is the
+// (a command its frozen execution, a file edit its frozen diff). A call that leaves the sandbox is the
 // dangerous tier: it says what that means, its primary action says so too,
 // and it can only be allowed once. Where an allow rule would let the same
 // call run, ollupi suggests one: always allowing saves it, and the card says
@@ -47,8 +47,8 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
     >
       {outside && <p className="text-ui text-fg">{m.requests.approval.outsideConsequence}</p>}
       {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
-      {/* What the call does, in its tool's words; a command's view already shows the command. */}
-      {p.content && call.kind !== 'command' && <p className="selectable text-ui text-fg">{p.content}</p>}
+      {/* What the call does, in its tool's words (web_fetch's URL), unless its view shows it already (a command, a diff). */}
+      {p.content && !approval.showsContent && <p className="selectable text-ui break-all text-fg">{p.content}</p>}
       <approval.Body call={call} params={p} />
       {exec?.justification && <p className="selectable text-ui text-fg-muted">“{exec.justification}”</p>}
       {decisions.includes('acceptAlways') && rules.length > 0 && (

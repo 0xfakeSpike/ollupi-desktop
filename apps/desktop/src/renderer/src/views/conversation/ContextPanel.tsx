@@ -179,13 +179,15 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
 
 /** What the call sent and got back, as the API reported it. The cached
  * input is the prompt's leading part, so it comes first, in a lighter step
- * of the input's colour. */
+ * of the input's colour; then what this call wrote to the cache, which the
+ * next call can read from it. */
 function LastCall({ call }: { call: ModelCall }) {
   const u = call.usage!
   const t = useT().conversation.context
   const segments: Segment[] = [
     { key: 'cached', label: t.cachedInput, tokens: u.cachedInputTokens, color: 'bg-chart-1/45' },
-    { key: 'uncached', label: t.uncachedInput, tokens: Math.max(0, u.inputTokens - u.cachedInputTokens), color: 'bg-chart-1' },
+    { key: 'cacheWrite', label: t.cacheWriteInput, tokens: u.cacheWriteInputTokens, color: 'bg-chart-1/70' },
+    { key: 'uncached', label: t.uncachedInput, tokens: Math.max(0, u.inputTokens - u.cachedInputTokens - u.cacheWriteInputTokens), color: 'bg-chart-1' },
     { key: 'output', label: t.output, tokens: u.outputTokens, color: 'bg-chart-2' },
   ].filter((s) => s.tokens > 0)
   return (

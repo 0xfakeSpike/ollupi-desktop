@@ -102,13 +102,19 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
           ) : (
             <code className="selectable font-mono text-small text-fg-muted">{job.spec}</code>
           )}
-          {job.parentThreadId ? <Badge tone="danger">{m.cron.subagent}</Badge> : archived && <Badge>{m.cron.archived}</Badge>}
+          {job.parentThreadId ? (
+            <Badge tone="danger">{m.cron.subagent}</Badge>
+          ) : archived ? (
+            <Badge>{m.cron.archived}</Badge>
+          ) : (
+            job.threadArchived && <Badge>{m.cron.threadArchived}</Badge>
+          )}
         </div>
         <p className="selectable mt-0.5 line-clamp-2 text-small text-fg-muted">{job.prompt}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-small text-fg-subtle">
           <span>{m.cron.inThread}</span>
           <button type="button" className="min-w-0 truncate text-fg-muted hover:text-fg hover:underline" onClick={() => void openThread(job.threadId)}>
-            {threadTitle(m, { preview: job.threadPreview })}
+            {threadTitle(m, { title: job.threadTitle })}
           </button>
           {showWorkspace && <span>· {workspace?.name ?? m.cron.general}</span>}
         </div>

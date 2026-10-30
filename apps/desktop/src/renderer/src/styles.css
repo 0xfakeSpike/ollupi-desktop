@@ -220,6 +220,20 @@ code,
   animation: caret-blink 1s steps(1) infinite;
 }
 
+/* An item a search led to, marked for a moment once it is in view. */
+@keyframes found {
+  from {
+    box-shadow: 0 0 0 3px var(--color-focus);
+  }
+  to {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+.found {
+  border-radius: var(--radius-lg);
+  animation: found 2s ease-out;
+}
+
 @keyframes shimmer {
   from {
     background-position: 200% 0;

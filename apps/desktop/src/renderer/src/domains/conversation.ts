@@ -12,17 +12,19 @@ import {
   refreshFromPage,
   setThread,
   timelineFromPage,
+  titleFromMessage,
   upsertThread,
   upsertTurn,
   type Timeline,
   type TimelineEvent,
 } from '@ollupi/core'
-import { ErrorCode, type PermissionSettings } from '@ollupi/protocol'
+import { ErrorCode, type PermissionSettings, type UserInput } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
-import { chooseModel, go, openThreadId, useNavigation } from './navigation'
+import { messageInput } from './attachments'
+import { chooseModel, focusItem, go, openThreadId, useNavigation } from './navigation'
 import { useThreads } from './threads'
 
 /** Items per page; the gateway also cuts a page at about 4 MB and then
@@ -48,6 +50,15 @@ export const conversationDomain: Domain = {
   bind: (client) => {
     const apply = (e: TimelineEvent) => update(e.params.threadId, (t) => applyEvent(t, e))
     const offs = [
+      // A renamed or archived thread changes its row; a deleted one is gone.
+      client.on('thread/changed', ({ threadId, thread }) =>
+        thread
+          ? update(threadId, (t) => setThread(t, thread))
+          : useTimelines.setState((s) => {
+              const { [threadId]: _, ...rest } = s.byThread
+              return { byThread: rest }
+            }),
+      ),
       client.on('turn/queued', (params) => apply({ method: 'turn/queued', params })),
       client.on('turn/started', (params) => apply({ method: 'turn/started', params })),
       client.on('turn/completed', (params) => apply({ method: 'turn/completed', params })),
@@ -84,6 +95,22 @@ export function openThread(threadId: string): Promise<void | undefined> {
   })
 }
 
+/** Opens a thread at one of its items: earlier pages are read until the
+ * item's seq is loaded, then the timeline brings it into view. */
+export async function openThreadAt(threadId: string, itemId: string, seq: number): Promise<void> {
+  await openThread(threadId)
+  await run((e) => e.thread.earlier, async () => {
+    for (;;) {
+      const t = useTimelines.getState().byThread[threadId]
+      const beforeSeq = t && oldestSeq(t)
+      if (!t?.hasMore || beforeSeq === undefined || beforeSeq <= seq) return
+      const page = await gateway().call('thread/read', { threadId, beforeSeq, limit: PAGE_SIZE })
+      update(threadId, (cur) => prependPage(cur, page))
+    }
+  })
+  focusItem({ threadId, itemId })
+}
+
 export function loadOlder(threadId: string): Promise<void | undefined> {
   return run((e) => e.thread.earlier, async () => {
     const t = useTimelines.getState().byThread[threadId]
@@ -94,48 +121,57 @@ export function loadOlder(threadId: string): Promise<void | undefined> {
   })
 }
 
-/** Starts a thread from the draft screen with its first message. */
-export function startThread(workspaceId: string | undefined, text: string): Promise<boolean> {
+/** Starts a thread from the draft screen with its first message, which
+ * also names it. */
+export function startThread(workspaceId: string | undefined, { text, files }: Message): Promise<boolean> {
   return run((e) => e.thread.start, async () => {
-    const { thread } = await gateway().call('thread/start', { workspaceId, permissions: {} })
+    const title = titleFromMessage(text, files.map((f) => f.name))
+    const { thread } = await gateway().call('thread/start', { workspaceId, title: title || undefined, permissions: {} })
     store(thread.id, emptyTimeline(thread))
     useThreads.setState((s) => ({ list: upsertThread(s.list, thread) }))
     const model = useNavigation.getState().model
     go({ kind: 'thread', threadId: thread.id })
     chooseModel(model)
-    await startTurn(thread.id, text)
+    await startTurn(thread.id, await messageInput(text, files))
     return true
   }).then(Boolean)
 }
 
 export type SendMode = 'steer' | 'queue'
 
+/** What the person sends: text, files, or both. */
+export interface Message {
+  text: string
+  files: File[]
+}
+
 /** Sends a message. While a turn runs, "steer" adds it to that turn
  * (turn/steer) and "queue" makes it a new turn that starts after it; on an
  * idle thread both start a turn. A steer that loses the race with the turn
  * ending (NoActiveTurn, TurnMismatch) is sent as a new turn instead, which
  * is what the message needs. */
-export function sendMessage(threadId: string, text: string, mode: SendMode): Promise<boolean> {
+export function sendMessage(threadId: string, { text, files }: Message, mode: SendMode): Promise<boolean> {
   return run((e) => e.thread.send, async () => {
+    const input = await messageInput(text, files)
     const t = useTimelines.getState().byThread[threadId]
     const running = t && activeTurn(t)
     if (running && mode === 'steer') {
       try {
-        await gateway().call('turn/steer', { threadId, input: [{ type: 'text', text }], expectedTurnId: running.id })
+        await gateway().call('turn/steer', { threadId, input, expectedTurnId: running.id })
         return true
       } catch (err) {
         const ended = err instanceof RpcError && (err.code === ErrorCode.noActiveTurn || err.code === ErrorCode.turnMismatch)
         if (!ended) throw err
       }
     }
-    await startTurn(threadId, text)
+    await startTurn(threadId, input)
     return true
   }).then(Boolean)
 }
 
-async function startTurn(threadId: string, text: string): Promise<void> {
+async function startTurn(threadId: string, input: UserInput[]): Promise<void> {
   const connection = useNavigation.getState().model
-  const { turn } = await gateway().call('turn/start', { threadId, input: [{ type: 'text', text }], connection })
+  const { turn } = await gateway().call('turn/start', { threadId, input, connection })
   update(threadId, (t) => upsertTurn(t, turn))
 }
 

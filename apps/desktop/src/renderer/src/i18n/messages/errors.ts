@@ -22,7 +22,14 @@ export const en = {
     send: 'Could not send the message',
     stop: 'Could not stop the turn',
     permissions: 'Could not save the thread permissions',
+    rename: 'Could not rename the thread',
+    archive: 'Could not archive the thread',
+    restore: 'Could not restore the thread',
+    delete: 'Could not delete the thread',
+    export: 'Could not export the thread',
+    archived: 'Could not list archived threads',
   },
+  search: 'Could not search',
   cron: {
     create: 'Could not create the task',
     pause: 'Could not pause the task',
@@ -50,6 +57,10 @@ export const en = {
   changes: {
     list: 'Could not read the changes',
     diff: 'Could not read the diff',
+    stage: 'Could not stage the changes',
+    unstage: 'Could not unstage the changes',
+    discard: 'Could not discard the changes',
+    commit: 'Could not commit',
   },
   skills: {
     load: 'Could not read the skills',
@@ -95,7 +106,14 @@ export const zh: typeof en = {
     send: '无法发送消息',
     stop: '无法停止这一轮',
     permissions: '无法保存会话权限',
+    rename: '无法重命名会话',
+    archive: '无法归档会话',
+    restore: '无法恢复会话',
+    delete: '无法删除会话',
+    export: '无法导出会话',
+    archived: '无法列出已归档的会话',
   },
+  search: '无法搜索',
   cron: {
     create: '无法创建任务',
     pause: '无法暂停任务',
@@ -123,6 +141,10 @@ export const zh: typeof en = {
   changes: {
     list: '无法读取改动',
     diff: '无法读取差异',
+    stage: '无法暂存改动',
+    unstage: '无法取消暂存',
+    discard: '无法丢弃改动',
+    commit: '无法提交',
   },
   skills: {
     load: '无法读取技能',

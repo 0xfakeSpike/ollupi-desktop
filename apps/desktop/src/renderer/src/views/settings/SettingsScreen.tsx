@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
 import type { SettingsTab } from '../../domains/navigation'
+import { noticeKinds, setNotification, useNotificationPrefs } from '../../domains/notifications'
 import { setRedaction, useSettings } from '../../domains/settings'
 import { useConnection } from '../../gateway/connection'
 import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18n'
@@ -64,6 +65,7 @@ function General() {
         </Select>
       </Field>
       <Appearance />
+      <Notifications />
       <Redaction />
       <UpdateSettings />
       <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
@@ -92,6 +94,25 @@ function General() {
         )}
       </div>
     </>
+  )
+}
+
+function Notifications() {
+  const t = useT().notifications.settings
+  const prefs = useNotificationPrefs()
+  return (
+    <div className="rounded-lg border border-line px-4 py-4">
+      <div className="text-ui font-medium text-fg">{t.title}</div>
+      <div className="mt-0.5 text-small text-fg-muted">{t.hint}</div>
+      <div className="mt-3 flex flex-col gap-2">
+        {noticeKinds.map((kind) => (
+          <div key={kind} className="flex items-center gap-4">
+            <span className="min-w-0 flex-1 text-ui text-fg">{t.kinds[kind]}</span>
+            <Switch label={t.kinds[kind]} checked={prefs[kind]} onChange={(on) => setNotification(kind, on)} />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 

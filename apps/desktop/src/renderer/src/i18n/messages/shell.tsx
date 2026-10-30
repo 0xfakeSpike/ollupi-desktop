@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 export const en = {
   sidebar: {
     newThread: 'New thread',
+    search: 'Search',
     addWorkspace: 'Add workspace',
     memory: 'Memory',
     cron: 'Scheduled tasks',
@@ -23,6 +24,15 @@ export const en = {
     newThreadIn: (name: string) => `New thread in ${name}`,
     archived: (n: number) => `Archived · ${n}`,
     restore: (name: string) => `Restore ${name}`,
+    renameThread: 'Rename',
+    archiveThread: 'Archive',
+    deleteThread: 'Delete',
+    deleteThreadConfirm: (title: string) =>
+      `Delete "${title}"? Its messages, attachments, subagent threads and scheduled tasks are deleted too. Files its commands changed stay as they are.`,
+    archivedThreads: (n: number) => `Archived threads · ${n}`,
+    archivedThreadsTitle: 'Archived threads',
+    noArchivedThreads: 'No archived threads',
+    restoreThread: (title: string) => `Restore ${title}`,
   },
   connection: {
     connected: 'Connected',
@@ -73,6 +83,7 @@ export const en = {
 export const zh: typeof en = {
   sidebar: {
     newThread: '新会话',
+    search: '搜索',
     addWorkspace: '添加工作区',
     memory: '记忆',
     cron: '定时任务',
@@ -90,6 +101,14 @@ export const zh: typeof en = {
     newThreadIn: (name) => `在 ${name} 中新建会话`,
     archived: (n) => `已归档 · ${n}`,
     restore: (name) => `恢复 ${name}`,
+    renameThread: '重命名',
+    archiveThread: '归档',
+    deleteThread: '删除',
+    deleteThreadConfirm: (title) => `删除“${title}”？它的消息、附件、子代理会话和定时任务会一并删除；命令改过的文件不受影响。`,
+    archivedThreads: (n) => `已归档会话 · ${n}`,
+    archivedThreadsTitle: '已归档会话',
+    noArchivedThreads: '没有已归档的会话',
+    restoreThread: (title) => `恢复 ${title}`,
   },
   connection: {
     connected: '已连接',
