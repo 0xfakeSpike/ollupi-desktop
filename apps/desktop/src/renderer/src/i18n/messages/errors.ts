@@ -28,6 +28,7 @@ export const en = {
     delete: 'Could not delete the thread',
     export: 'Could not export the thread',
     archived: 'Could not list archived threads',
+    list: 'Could not list more threads',
   },
   search: 'Could not search',
   cron: {
@@ -112,6 +113,7 @@ export const zh: typeof en = {
     delete: '无法删除会话',
     export: '无法导出会话',
     archived: '无法列出已归档的会话',
+    list: '无法列出更多会话',
   },
   search: '无法搜索',
   cron: {

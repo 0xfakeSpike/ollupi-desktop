@@ -17,6 +17,7 @@ import {
   prependPage,
   refreshFromPage,
   removeThread,
+  threadCursor,
   timelineFromPage,
   titleFromMessage,
   upsertItem,
@@ -125,6 +126,12 @@ describe('threads', () => {
     expect(titleFromMessage('x'.repeat(80))).toBe('x'.repeat(60) + '…')
     expect(titleFromMessage('', ['screenshot.png'])).toBe('screenshot.png')
     expect(titleFromMessage('')).toBe('')
+  })
+
+  it('orders threads updated and created together by id, as thread/list does', () => {
+    const list = upsertThread(upsertThread([], thread({ id: 'a' })), thread({ id: 'b' }))
+    expect(list.map((t) => t.id)).toEqual(['b', 'a'])
+    expect(threadCursor(list[1]!)).toEqual({ updatedAt: list[1]!.updatedAt, createdAt: list[1]!.createdAt, id: 'a' })
   })
 
   it('keeps subagent threads out of the list', () => {

@@ -20,6 +20,7 @@ import { focusItem, useNavigation } from '../../domains/navigation'
 import { useThreadSummary } from '../../domains/threads'
 import { useT } from '../../i18n'
 import { duration, usageLine } from '../../i18n/format'
+import { markFound } from '../common/found'
 import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
 
@@ -61,11 +62,7 @@ function useFocusedItem(timeline: Timeline): void {
     // After the frame that lays the item out.
     const frame = requestAnimationFrame(() => {
       focusItem(undefined)
-      const el = document.querySelector(`[data-item-id="${CSS.escape(focus.itemId)}"]`)?.firstElementChild
-      if (!(el instanceof HTMLElement)) return
-      el.scrollIntoView({ block: 'center' })
-      el.classList.add('found')
-      el.addEventListener('animationend', () => el.classList.remove('found'), { once: true })
+      markFound(document.querySelector(`[data-item-id="${CSS.escape(focus.itemId)}"]`)?.firstElementChild)
     })
     return () => cancelAnimationFrame(frame)
   }, [loaded, focus])

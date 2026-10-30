@@ -1,7 +1,7 @@
 // Main process entry: app lifecycle only. It wires the backend supervisor,
 // IPC and the window together; each concern lives in its own module.
 
-import { app, BrowserWindow, net, shell } from 'electron'
+import { app, net, shell } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
@@ -15,7 +15,7 @@ import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { AppUpdater, bundleOf } from './update'
-import { createMainWindow } from './window'
+import { createMainWindow, showMainWindow } from './window'
 
 registerAppScheme()
 
@@ -40,27 +40,25 @@ if (!app.requestSingleInstanceLock()) {
     quit: () => app.quit(),
   })
 
-  app.on('second-instance', () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (win?.isMinimized()) win.restore()
-    win?.focus()
-  })
+  app.on('second-instance', () => showMainWindow())
+  // Closing the window hides it on macOS, until the app quits.
+  const keepOnClose = () => process.platform === 'darwin' && !stopping
 
   void app.whenReady().then(() => {
     // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, terminals, updater, home)
-    createMainWindow()
+    createMainWindow(keepOnClose)
     updater.start()
     // The backend's browser tools reach the endpoint from its start.
     void browserEndpoint.listen().then(() => backend.start())
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+      if (!showMainWindow()) createMainWindow(keepOnClose)
     })
   })
 
-  // On macOS the backend keeps running turns while no window is open.
+  // On macOS the backend keeps running turns while no window shows.
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
   })

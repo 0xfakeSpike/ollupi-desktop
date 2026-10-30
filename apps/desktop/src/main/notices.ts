@@ -5,6 +5,7 @@
 
 import { app, BrowserWindow, Notification } from 'electron'
 import type { ThreadNotice } from '../shared/ipc'
+import { showMainWindow } from './window'
 
 /** Held until clicked or closed: a notification the garbage collector takes
  * no longer reports its click. */
@@ -16,12 +17,7 @@ export function showNotice(notice: ThreadNotice, onClick: (threadId: string) => 
   shown.add(n)
   n.on('click', () => {
     shown.delete(n)
-    const win = BrowserWindow.getAllWindows()[0]
-    if (win) {
-      if (win.isMinimized()) win.restore()
-      win.show()
-      win.focus()
-    }
+    showMainWindow()
     onClick(notice.threadId)
   })
   n.on('close', () => shown.delete(n))

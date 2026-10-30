@@ -27,7 +27,11 @@ http
     const tools = (p.tools || []).map((t) => t.function?.name)
     const last = p.messages.at(-1)
     const lastUser = [...p.messages].reverse().find((m) => m.role === 'user')
-    const userText = typeof lastUser?.content === 'string' ? lastUser.content : JSON.stringify(lastUser?.content)
+    // What the person wrote: the text parts of a message with attachments,
+    // without the send time ollupi puts before it.
+    const content = lastUser?.content
+    const words = typeof content === 'string' ? content : Array.isArray(content) ? content.filter((c) => c.type === 'text').map((c) => c.text).join('\n') : ''
+    const userText = words.replace(/^\[sent [^\]]*\]\s*/, '')
 
     res.writeHead(200, { 'content-type': 'text/event-stream' })
     const id = `chatcmpl-${++n}`
@@ -85,10 +89,10 @@ http
     } else if (/delegate/i.test(userText)) {
       await stream('content', 'Handing this to a subagent.')
       await call('Agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })
-    } else if (/write notes/i.test(userText)) {
+    } else if (/^write notes/i.test(userText)) {
       await stream('content', 'Writing the notes.')
       await call('write_file', { path: 'notes.md', content: '# Notes\n\n- first\n- second\n' })
-    } else if (/fetch page/i.test(userText)) {
+    } else if (/^fetch page/i.test(userText)) {
       await stream('content', 'Reading the page.')
       await call('web_fetch', { url: 'https://example.com/' })
     } else if (/search memory/i.test(userText)) {

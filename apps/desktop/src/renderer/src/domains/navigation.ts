@@ -14,8 +14,10 @@ export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
   | { kind: 'thread'; threadId: string }
   | { kind: 'search' }
-  | { kind: 'memory' }
-  | { kind: 'cron' }
+  /** found: a memory a search led to, with the scope that lists it. */
+  | { kind: 'memory'; found?: { id: string; scope: string } }
+  /** found: a task a search led to. */
+  | { kind: 'cron'; found?: string }
   | { kind: 'capabilities'; tab: CapabilityTab }
   | { kind: 'settings'; tab: SettingsTab }
 

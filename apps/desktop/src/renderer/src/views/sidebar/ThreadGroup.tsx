@@ -2,10 +2,10 @@ import { isWorking, needsUser } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
 import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Pencil, Plus, Settings2, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
 import { go, useOpenThreadId } from '../../domains/navigation'
-import { archiveThread, deleteThread, renameThread } from '../../domains/threads'
+import { archiveThread, deleteThread, loadMoreThreads, renameThread, useThreads } from '../../domains/threads'
 import { setArchived } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
@@ -20,6 +20,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
   const [settings, setSettings] = useState(false)
+  const more = useThreads((s) => s.more[workspace?.id ?? ''] ?? false)
   const m = useT().shell.sidebar
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
@@ -68,17 +69,33 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
             <ThreadEntry key={t.id} thread={t} />
           ))}
           {workspace && threads.length === 0 && <li className="flex h-7 items-center pl-8 text-small text-fg-subtle">{m.noThreads}</li>}
-          {threads.length > SHOWN && (
-            <li>
-              <button type="button" onClick={() => setAll(!all)} className="flex h-7 items-center pl-8 text-small text-fg-subtle hover:text-fg-muted">
-                {all ? m.showLess : m.showMore(threads.length - SHOWN)}
-              </button>
-            </li>
+          {/* The threads read so far show 8 at first; past them, the next page is read. */}
+          {threads.length > SHOWN && !all && <MoreButton onClick={() => setAll(true)}>{m.showMore(threads.length - SHOWN)}</MoreButton>}
+          {(all || threads.length <= SHOWN) && more && (
+            <MoreButton
+              onClick={() => {
+                setAll(true)
+                void loadMoreThreads(workspace?.id)
+              }}
+            >
+              {m.loadMore}
+            </MoreButton>
           )}
+          {all && threads.length > SHOWN && <MoreButton onClick={() => setAll(false)}>{m.showLess}</MoreButton>}
         </ul>
       )}
       {workspace && settings && <WorkspaceSettingsDialog workspace={workspace} onClose={() => setSettings(false)} />}
     </section>
+  )
+}
+
+function MoreButton({ onClick, children }: { onClick(): void; children: ReactNode }) {
+  return (
+    <li>
+      <button type="button" onClick={onClick} className="flex h-7 items-center pl-8 text-small text-fg-subtle hover:text-fg-muted">
+        {children}
+      </button>
+    </li>
   )
 }
 

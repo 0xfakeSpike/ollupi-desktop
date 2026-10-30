@@ -81,9 +81,9 @@ function CurrentScreen() {
     case 'search':
       return <SearchScreen />
     case 'memory':
-      return <MemoryScreen />
+      return <MemoryScreen found={screen.found} />
     case 'cron':
-      return <CronScreen />
+      return <CronScreen found={screen.found} />
     case 'capabilities':
       return <CapabilitiesScreen tab={screen.tab} />
     case 'settings':

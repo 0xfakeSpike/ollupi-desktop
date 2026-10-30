@@ -1,17 +1,22 @@
 // The sidebar's thread list follows thread/list (repo.ThreadRows): only
-// top-level threads that are not archived, ordered by updated_at then
-// created_at, newest first. Live updates must keep that, since
+// top-level threads that are not archived, ordered by updated_at, then
+// created_at, then id, newest first, a page at a time. Live updates must keep that, since
 // thread/started also announces the threads subagents run in, and
 // thread/changed the threads archived or deleted.
 
-import type { ThreadRow, ThreadStatus, ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
+import type { ThreadCursor, ThreadRow, ThreadStatus, ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 
 export function isTopLevel(thread: Pick<ThreadRow, 'parentThreadId'>): boolean {
   return !thread.parentThreadId
 }
 
 export function compareThreads(a: ThreadRow, b: ThreadRow): number {
-  return b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt)
+  return b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)
+}
+
+/** Where the next page of thread/list starts: after this thread. */
+export function threadCursor(t: ThreadRow): ThreadCursor {
+  return { updatedAt: t.updatedAt, createdAt: t.createdAt, id: t.id }
 }
 
 /** Inserts or refreshes a top-level thread, or drops it once archived. Its

@@ -7,6 +7,7 @@ import { Badge, cn, EmptyState, Select, Spinner } from '@ollupi/ui'
 import { Bot, Brain, CalendarClock, MessageSquare, Search, User } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { openThread, openThreadAt } from '../../domains/conversation'
+import { placeKey, placeOf } from '../../domains/memory'
 import { go } from '../../domains/navigation'
 import { queryTerms, shownResult, useSearch, useSearchScreen } from '../../domains/search'
 import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
@@ -176,7 +177,7 @@ function MessageResult({ hit, terms }: { hit: MessageHit; terms: string[] }) {
 function TaskResult({ job, terms }: { job: CronJobView; terms: string[] }) {
   const m = useT()
   return (
-    <Row icon={<CalendarClock size={14} />} onOpen={() => go({ kind: 'cron' })}>
+    <Row icon={<CalendarClock size={14} />} onOpen={() => go({ kind: 'cron', found: job.id })}>
       <span className="text-ui text-fg">
         <Highlight text={job.name} terms={terms} />
       </span>
@@ -192,7 +193,7 @@ function MemoryResult({ memory, terms }: { memory: MemoryRow; terms: string[] })
   const m = useT()
   const workspace = useWorkspaceName()
   return (
-    <Row icon={<Brain size={14} />} onOpen={() => go({ kind: 'memory' })}>
+    <Row icon={<Brain size={14} />} onOpen={() => go({ kind: 'memory', found: { id: memory.id, scope: placeKey(placeOf(memory)) } })}>
       <span className="line-clamp-2 text-ui break-words text-fg">
         <Highlight text={memory.text} terms={terms} />
       </span>

@@ -4,7 +4,7 @@
     {
       "name": "renderer",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@ollupi/desktop", "exec", "electron-vite", "dev", "--rendererOnly"],
+      "runtimeArgs": ["--filter", "@ollupi/desktop", "dev:renderer"],
       "port": 5173
     }
   ]

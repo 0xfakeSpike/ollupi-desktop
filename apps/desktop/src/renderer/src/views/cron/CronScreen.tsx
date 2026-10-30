@@ -14,6 +14,7 @@ import { useThreads } from '../../domains/threads'
 import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { describeSchedule, relativeTime, threadTitle } from '../../i18n/format'
+import { useFound } from '../common/found'
 import { defaultSchedule, SchedulePicker } from './SchedulePicker'
 
 /** The list shown: every task, those outside any workspace, or one
@@ -23,9 +24,10 @@ const GENERAL = 'general'
 
 const placeOf = (job: { workspaceId?: string }): string => job.workspaceId ?? GENERAL
 
-export function CronScreen() {
+export function CronScreen({ found }: { found?: string }) {
   const m = useT()
   const jobs = useCron((s) => s.jobs)
+  useFound(found, !!jobs)
   const workspaces = useWorkspaces((s) => s.list)
   const [place, setPlace] = useState(ALL)
 
@@ -91,7 +93,7 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
   // as written.
   const schedule = scheduleOf(job.spec)
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
+    <li data-found-id={job.id} className="flex items-start gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2 text-ui">
           <span className="font-medium text-fg">{job.name}</span>

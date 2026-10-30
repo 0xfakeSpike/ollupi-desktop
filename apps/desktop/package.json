@@ -15,7 +15,7 @@
     "preview": "electron-vite preview",
     "package": "electron-vite build && electron-builder --mac --dir --publish never",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
-    "dev:renderer": "electron-vite dev --rendererOnly",
+    "dev:renderer": "vite --config vite.renderer.config.ts",
     "config:generate": "node scripts/generate-config.mjs",
     "config:check": "node scripts/generate-config.mjs --check",
     "test": "vitest run",

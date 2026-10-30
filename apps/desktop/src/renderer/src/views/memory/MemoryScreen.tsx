@@ -15,6 +15,7 @@ import { useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { useLocale, useT, type Messages } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
+import { useFound } from '../common/found'
 import { MemorySettings } from './MemorySettings'
 
 /** The places a memory can be in, as the list names them. */
@@ -32,15 +33,15 @@ function kindLabel(m: Messages, kind: string): string {
   return Object.hasOwn(kinds, kind) ? kinds[kind]! : kind
 }
 
-export function MemoryScreen() {
+export function MemoryScreen({ found }: { found?: { id: string; scope: string } }) {
   const m = useT()
   const workspaces = useWorkspaces((s) => s.list)
-  const [scope, setScope] = useState('global')
+  const [scope, setScope] = useState(found?.scope ?? 'global')
   const [data, setData] = useState<{ status: MemoryStatus; scopes: MemoryScopes }>()
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState(0)
   // A workspace's search also finds global memories; the list keeps this tab's.
-  const found = shownResult(useSearch(query, scope === 'global' || scope === 'general' ? '' : scope, searched))?.memories?.filter(
+  const matches = shownResult(useSearch(query, scope === 'global' || scope === 'general' ? '' : scope, searched))?.memories?.filter(
     (e) => placeKey(placeOf(e)) === scope,
   )
   const searching = !!query.trim()
@@ -82,8 +83,9 @@ export function MemoryScreen() {
 
   // memory/list returns every status; only active memories are used.
   const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
-  const active = searching ? (found ?? []) : activeIn(scope)
+  const active = searching ? (matches ?? []) : activeIn(scope)
   const scopes = places.map((p) => ({ id: placeKey(p.place), label: p.label, detail: data && String(activeIn(placeKey(p.place)).length) }))
+  useFound(found?.id, !!data)
   const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
   return (
@@ -115,7 +117,7 @@ export function MemoryScreen() {
                 className="min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-subtle"
               />
             </label>
-            {searching && found?.length === 0 ? (
+            {searching && matches?.length === 0 ? (
               <p className="text-small text-fg-subtle">{m.memory.screen.noMatch}</p>
             ) : loading && !data ? (
               <div className="flex justify-center py-12 text-fg-subtle">
@@ -286,7 +288,7 @@ function Entry({
   }
 
   return (
-    <li className="group flex flex-col gap-1.5 px-4 py-3">
+    <li data-found-id={entry.id} className="group flex flex-col gap-1.5 px-4 py-3">
       <div className="flex items-center gap-2 text-small">
         <span className="font-medium text-fg">{entry.topic}</span>
         <Badge>{kindLabel(m, entry.kind)}</Badge>
