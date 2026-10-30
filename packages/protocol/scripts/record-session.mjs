@@ -62,7 +62,7 @@ permissions:
   approval: on-request
   # broken does not connect: the rule is kept and matches nothing.
   deny: [broken__delete_everything]
-shell:
+workspace:
   enabled: true
   sandbox_mode: workspace-write
 mcp:

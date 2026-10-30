@@ -1,6 +1,6 @@
 // Package host assembles one ollupi backend from a Config, following the
 // assembly ollupi's README describes: the database, one model client per
-// model, the tool providers (cron, shell and its file tools, web_fetch, the
+// model, the tool providers (cron, the workspace's commands and file tools, web_fetch, the
 // app's browser, MCP servers),
 // memory, the agent and the gateway. It owns their lifetimes: New builds
 // everything without starting anything, Start starts the agent and its
@@ -29,12 +29,13 @@ import (
 	"github.com/0xfakeSpike/ollupi/tools"
 	"github.com/0xfakeSpike/ollupi/tools/cron"
 	"github.com/0xfakeSpike/ollupi/tools/mcp"
-	"github.com/0xfakeSpike/ollupi/tools/shell"
 	"github.com/0xfakeSpike/ollupi/tools/web"
+	"github.com/0xfakeSpike/ollupi/tools/workspace"
 )
 
 type Options struct {
-	// Home is where config, scratch and skills paths resolve.
+	// Home is where config and skills paths resolve; commands outside a
+	// workspace run in its scratch folder (ollupi makes it).
 	Home string
 	// DataHome holds the database (<DataHome>/data); empty means Home.
 	DataHome string
@@ -89,13 +90,19 @@ func New(opts Options) (_ *Host, err error) {
 	var cronChanged func(id, threadID string)
 	h.jobs = cron.New(db, time.Local, func(id, threadID string) { cronChanged(id, threadID) })
 	providers := []tools.Provider{h.jobs}
-	if cfg.Shell.Enabled {
-		runner, err := shellRunner(opts.Home, cfg)
+	if cfg.Workspace.Enabled {
+		ws, err := workspace.New(workspace.Options{
+			Config: cfg.Workspace.Config,
+			Agent:  workspace.AgentFiles{Home: opts.Home, SkillsDir: cfg.SkillsDir},
+			// Commands must not read the API keys in the config file.
+			DenyRead:  []string{filepath.Join(opts.Home, config.FileName)},
+			EnvMarker: "OLLUPI_SANDBOX",
+		})
 		if err != nil {
 			return nil, err
 		}
-		h.closers = append(h.closers, runner.Close)
-		providers = append(providers, runner)
+		h.closers = append(h.closers, ws.Close)
+		providers = append(providers, ws)
 	}
 
 	providers = append(providers, web.New(web.Options{}))
@@ -138,6 +145,7 @@ func New(opts Options) (_ *Host, err error) {
 		OnEvent:        func(e agent.Event) { deliver(e) },
 	})
 	h.gateway, err = gateway.NewServer(h.agent, gateway.Options{
+		DB:             db,
 		Token:          opts.Token,
 		AllowedOrigins: opts.AllowedOrigins,
 		Memory:         h.memory,
@@ -282,25 +290,6 @@ func mcpServers(list []config.MCPServer) ([]mcp.Server, error) {
 		out = append(out, mcp.Server{Name: s.Name, Command: s.Command, Args: s.Args, Env: env, URL: s.URL, Headers: headers})
 	}
 	return out, nil
-}
-
-func shellRunner(home string, cfg config.Config) (*shell.Runner, error) {
-	sc := cfg.Shell.Config
-	if len(sc.WorkspaceDirs) == 0 {
-		// Outside a workspace commands run in a scratch folder, never in home.
-		scratch := filepath.Join(home, "scratch")
-		if err := os.MkdirAll(scratch, 0o755); err != nil {
-			return nil, err
-		}
-		sc.WorkspaceDirs = []string{scratch}
-	}
-	return shell.NewRunner(shell.Options{
-		Config: sc,
-		Agent:  shell.AgentFiles{Home: home, SkillsDir: cfg.SkillsDir},
-		// Commands must not read the API keys in the config file.
-		DenyRead:  []string{filepath.Join(home, config.FileName)},
-		EnvMarker: "OLLUPI_SANDBOX",
-	})
 }
 
 // memoryManager extracts with the model memory.model names, through that

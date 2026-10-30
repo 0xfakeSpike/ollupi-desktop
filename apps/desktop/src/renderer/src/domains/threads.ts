@@ -105,8 +105,7 @@ export function loadArchivedThreads(from: 'start' | 'more'): Promise<void | unde
 
 export function renameThread(threadId: string, title: string): Promise<boolean> {
   return run((e) => e.thread.rename, async () => {
-    const { thread } = await gateway().call('thread/rename', { threadId, title })
-    changed(threadId, thread)
+    await gateway().call('thread/rename', { threadId, title })
     return true
   }).then(Boolean)
 }
@@ -114,8 +113,7 @@ export function renameThread(threadId: string, title: string): Promise<boolean> 
 /** ollupi refuses to archive a thread while a turn runs in it (threadBusy). */
 export function archiveThread(threadId: string, archived: boolean): Promise<boolean> {
   return run((e) => (archived ? e.thread.archive : e.thread.restore), async () => {
-    const { thread } = await gateway().call('thread/archive', { threadId, archived })
-    changed(threadId, thread)
+    await gateway().call('thread/archive', { threadId, archived })
     return true
   }).then(Boolean)
 }
@@ -125,7 +123,6 @@ export function archiveThread(threadId: string, archived: boolean): Promise<bool
 export function deleteThread(threadId: string): Promise<boolean> {
   return run((e) => e.thread.delete, async () => {
     await gateway().call('thread/delete', { threadId })
-    changed(threadId, null)
     return true
   }).then(Boolean)
 }

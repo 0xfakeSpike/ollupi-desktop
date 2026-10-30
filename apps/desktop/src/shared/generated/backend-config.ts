@@ -34,7 +34,7 @@ export interface ConfigCheck {
       deny?: null | string[];
     };
     slots?: number;
-    shell: {
+    workspace: {
       enabled: boolean;
       workspace_dirs: null | string[];
       command_timeout_sec: number;

@@ -24,7 +24,7 @@ const config = (memory: BackendConfig['memory']): BackendConfig =>
       { provider: 'local', type: 'openai', names: [{ name: 'qwen3:32b', limits }] },
     ],
     permissions: {},
-    shell: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
+    workspace: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
     memory,
   }) as BackendConfig
 
