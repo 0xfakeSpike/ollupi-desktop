@@ -1,5 +1,5 @@
 import { Badge, Button, cn, Field, palettes, Select, Switch, type Palette } from '@ollupi/ui'
-import { FileCog, RotateCw } from 'lucide-react'
+import { FileCog, RotateCw, ScrollText } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
@@ -90,6 +90,11 @@ function General() {
         {info?.configPath && (
           <Button icon={<FileCog size={14} />} onClick={() => void desktop.openPath(info.configPath)}>
             {m.settings.general.openConfig}
+          </Button>
+        )}
+        {info?.backendLog && (
+          <Button icon={<ScrollText size={14} />} onClick={() => void desktop.openPath(info.backendLog)}>
+            {m.settings.general.openLog}
           </Button>
         )}
       </div>

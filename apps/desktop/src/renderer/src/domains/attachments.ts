@@ -1,13 +1,16 @@
-// Images and files sent with a message. ollupi decides what it takes (PNG,
-// JPEG, GIF and WebP images, text files, up to ten a message) and stores
-// them with the thread; a message's attachments come back on its item and
-// turn, and their content through attachment/read, which is kept here once
-// read so a thumbnail is fetched once.
+// Images and files sent with a message. ollupi takes each by its path on
+// this machine and copies it while it takes the message; it decides from
+// the content what it accepts (PNG, JPEG, GIF and WebP images, text files,
+// up to ten a message) and stores the copies with the thread. A message's
+// attachments come back on its item and turn, and their content through
+// attachment/read, which is kept here once read so a thumbnail is fetched
+// once.
 
 import type { Attachment, UserInput } from '@ollupi/protocol'
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
+import { desktop } from '../platform/desktop'
 
 /** A file the person picked, pasted or dropped, before it is sent. */
 export interface DraftAttachment {
@@ -27,22 +30,25 @@ export function releaseDraft(d: DraftAttachment): void {
   if (d.preview) URL.revokeObjectURL(d.preview)
 }
 
-/** A message as the gateway takes it: its text, then each file as base64. */
-export async function messageInput(text: string, files: readonly File[]): Promise<UserInput[]> {
-  const parts: UserInput[] = text ? [{ type: 'text', text }] : []
-  for (const file of files) {
-    parts.push({ type: file.type.startsWith('image/') ? 'image' : 'file', name: file.name, mimeType: file.type || undefined, data: await base64(file) })
+/** Sends a message as the gateway takes it: its text, then each file by
+ * path. A file that has none (pasted, or dragged from a web page) is
+ * written to a temporary file first, removed once send returns: by then
+ * ollupi has copied it, or refused the message. The file's type is left to
+ * ollupi, which reads it from the content; the browser's guess goes by the
+ * name (a .ts file would be a video). */
+export async function withMessageInput<T>(text: string, files: readonly File[], send: (input: UserInput[]) => Promise<T>): Promise<T> {
+  const temps: string[] = []
+  try {
+    const parts: UserInput[] = text ? [{ type: 'text', text }] : []
+    for (const file of files) {
+      let path = desktop.attachments.pathOf(file)
+      if (!path) temps.push((path = await desktop.attachments.writeTemp(file.name, new Uint8Array(await file.arrayBuffer()))))
+      parts.push({ type: 'file', path, name: file.name })
+    }
+    return await send(parts)
+  } finally {
+    for (const path of temps) void desktop.attachments.removeTemp(path)
   }
-  return parts
-}
-
-function base64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ''))
-    reader.onerror = () => reject(reader.error ?? new Error(`cannot read ${file.name}`))
-    reader.readAsDataURL(file)
-  })
 }
 
 /** Data URLs of attachments read so far, by attachment id; null while one

@@ -10,6 +10,7 @@ import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
+import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
@@ -26,9 +27,11 @@ if (!app.requestSingleInstanceLock()) {
   const browser = new AgentBrowser()
   const browserEndpoint = new BrowserEndpoint(browser)
   const terminals = new Terminals()
+  const attachments = new TempAttachments(join(app.getPath('temp'), 'Ollupi', 'attachments'))
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
-  const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env })
+  const backendLog = join(app.getPath('logs'), 'backend.log')
+  const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env, logFile: backendLog })
   const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
   const skills = new BackendSkills({ binary: backendBinary(), home, restart: () => backend.restart(), trash: (path) => shell.trashItem(path) })
   const updater = new AppUpdater({
@@ -48,7 +51,8 @@ if (!app.requestSingleInstanceLock()) {
     // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, terminals, updater, home)
+    void attachments.clear()
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, terminals, attachments, updater, home, backendLog)
     createMainWindow(keepOnClose)
     updater.start()
     // The backend's browser tools reach the endpoint from its start.

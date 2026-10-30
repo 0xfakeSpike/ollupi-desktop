@@ -35,6 +35,8 @@ export interface AppInfo {
   /** The backend's data and config directory. */
   home: string
   configPath: string
+  /** The backend's log file. */
+  backendLog: string
 }
 
 /** One edit to config.yaml, by key path, e.g. ['memory', 'generate']. A move
@@ -198,6 +200,17 @@ export interface DesktopApi {
      * skills_dir value that names it. */
     defaultFolder(): Promise<string>
   }
+  /** Files sent with a message. ollupi takes a file by its path and copies
+   * it while it takes the message. */
+  attachments: {
+    /** The file's path on this machine; undefined for one that exists only
+     * in memory, such as a pasted screenshot. */
+    pathOf(file: File): string | undefined
+    /** Writes a file that has no path to a temporary one, to send it. */
+    writeTemp(name: string, data: Uint8Array): Promise<string>
+    /** Removes a temporary file once its message is sent or refused. */
+    removeTemp(path: string): Promise<void>
+  }
   /** A workspace's files, read-only; path is relative to the root, and
    * nothing outside the root is read. */
   files: {
@@ -288,6 +301,8 @@ export const IpcChannel = {
   SkillsImport: 'skills:import',
   SkillsRemove: 'skills:remove',
   SkillsDefaultFolder: 'skills:defaultFolder',
+  AttachmentsWrite: 'attachments:write',
+  AttachmentsRemove: 'attachments:remove',
   FilesList: 'files:list',
   FilesRead: 'files:read',
   ChangesList: 'changes:list',
