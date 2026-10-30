@@ -192,6 +192,21 @@ export const en = {
     openSubagent: 'Open conversation',
     editFile: (path: string) => `Edit ${path}`,
     createFile: (path: string) => `Create ${path}`,
+    readFile: (path: string) => `Read ${path}`,
+    lines: (start: number, end: number, total: number) => (start === 1 && end === total ? `${total} lines` : `lines ${start}–${end} of ${total}`),
+    binaryFile: (type: string, size: string) => `not text · ${type} · ${size}`,
+    glob: (pattern: string, path: string) => (path === '.' ? `Find ${pattern}` : `Find ${pattern} in ${path}`),
+    files: (n: number) => (n === 1 ? '1 file' : `${n} files`),
+    grep: (pattern: string, path: string) => (path === '.' ? `Search ${pattern}` : `Search ${pattern} in ${path}`),
+    matches: (n: number, files: number) => `${n === 1 ? '1 match' : `${n} matches`} in ${files === 1 ? '1 file' : `${files} files`}`,
+    more: 'more not shown',
+    openInFiles: 'Open in Files',
+    skipped: (n: number) => `${n} closed to reading`,
+    reads: (read: number, glob: number, grep: number) =>
+      [read && (read === 1 ? 'Read a file' : `Read ${read} files`), glob && (glob === 1 ? 'found files once' : `found files ${glob} times`), grep && (grep === 1 ? 'searched once' : `searched ${grep} times`)]
+        .filter(Boolean)
+        .join(', ')
+        .replace(/^./, (c) => c.toUpperCase()),
   },
   markdown: {
     copy: 'Copy',
@@ -386,6 +401,17 @@ export const zh: typeof en = {
     openSubagent: '打开会话',
     editFile: (path) => `修改 ${path}`,
     createFile: (path) => `新建 ${path}`,
+    readFile: (path) => `读取 ${path}`,
+    lines: (start, end, total) => (start === 1 && end === total ? `${total} 行` : `第 ${start}–${end} 行，共 ${total} 行`),
+    binaryFile: (type, size) => `非文本 · ${type} · ${size}`,
+    glob: (pattern, path) => (path === '.' ? `查找 ${pattern}` : `在 ${path} 查找 ${pattern}`),
+    files: (n) => `${n} 个文件`,
+    grep: (pattern, path) => (path === '.' ? `搜索 ${pattern}` : `在 ${path} 搜索 ${pattern}`),
+    matches: (n, files) => `${files} 个文件中 ${n} 处`,
+    more: '更多未显示',
+    openInFiles: '在文件面板中打开',
+    skipped: (n) => `${n} 个禁止读取`,
+    reads: (read, glob, grep) => [read && `读了 ${read} 个文件`, glob && `查找文件 ${glob} 次`, grep && `搜索 ${grep} 次`].filter(Boolean).join('，'),
   },
   markdown: {
     copy: '复制',

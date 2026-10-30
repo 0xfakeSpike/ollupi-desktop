@@ -4,8 +4,9 @@
 // exercises every message kind the UI handles: streaming, an approval, a
 // question, a plan, a scheduled task created by the model, a subagent, an
 // MCP tool call (mock-mcp.mjs, beside a server that cannot start), the
-// memory snapshot and a memory_search call, queued
-// turns, the cron, workspace, memory, settings, MCP and permission methods,
+// memory snapshot and a memory_search call, a file attached by path,
+// read_file alone and with glob and grep in one answer, queued turns, the
+// cron, workspace, memory, settings, MCP and permission methods,
 // and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
 // with its direction.
@@ -167,6 +168,8 @@ await turn(thread.id, 'please schedule a morning brief')
 await turn(thread.id, 'delegate the weather check')
 await turn(thread.id, 'use the mcp echo tool')
 await turn(thread.id, 'search memory for my indentation style')
+await turn(thread.id, 'read readme')
+await turn(thread.id, 'look around the project')
 
 // Two messages at once: the second waits as a queued turn.
 const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of two' }] })

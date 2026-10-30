@@ -9,6 +9,7 @@ import { command } from './command'
 import { file } from './file'
 import { plan } from './plan'
 import { question } from './question'
+import { glob, grep, read } from './read'
 import { subagent } from './subagent'
 import { tool } from './tool'
 import type { ToolView } from './types'
@@ -16,6 +17,9 @@ import type { ToolView } from './types'
 const views: { [K in ToolKind]: ToolView<Extract<ToolCall, { kind: K }>> } = {
   command,
   file,
+  read,
+  glob,
+  grep,
   plan,
   question,
   subagent,
