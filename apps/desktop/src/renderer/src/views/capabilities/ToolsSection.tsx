@@ -1,20 +1,30 @@
-// The tools the agent offers its model, by provider, with the hints ollupi
-// uses for permissions (tools.Annotations).
+// The tools the agent has built in, from ollupi and this app's browser, by
+// provider, with the hints ollupi uses for permissions (tools.Annotations).
+// MCP servers' tools are listed under their servers.
 
 import type { Annotations, ToolDescriptor } from '@ollupi/protocol'
 import { Badge } from '@ollupi/ui'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { readMcpStatus } from '../../domains/mcpConfig'
 import { useTools } from '../../domains/tools'
+import { useConnection } from '../../gateway/connection'
 import { useT } from '../../i18n'
 
 export function ToolsSection() {
   const tools = useTools((s) => s.list)
+  // An MCP server is its tools' provider: the running backend names them.
+  const [servers, setServers] = useState<string[]>()
+  const connected = useConnection((s) => s.gateway === 'connected')
+  useEffect(() => {
+    if (connected) void readMcpStatus().then((list) => setServers(list?.map((s) => s.name) ?? []))
+  }, [connected])
   const byProvider = useMemo(() => {
     const groups = new Map<string, ToolDescriptor[]>()
-    for (const t of tools) groups.set(t.provider, [...(groups.get(t.provider) ?? []), t])
+    for (const t of tools) if (!servers?.includes(t.provider)) groups.set(t.provider, [...(groups.get(t.provider) ?? []), t])
     return [...groups]
-  }, [tools])
+  }, [tools, servers])
 
+  if (!servers) return null
   return (
     <div className="flex flex-col gap-3">
       {byProvider.map(([provider, list]) => (

@@ -1,5 +1,5 @@
 // The capabilities screen: what the agent can do, from skills, MCP servers
-// and the tools they and the backend give it.
+// and the tools it has built in.
 
 export const en = {
   title: 'Capabilities',
@@ -13,7 +13,11 @@ export const en = {
       label: 'MCP',
       description: 'MCP servers give the agent their tools as <name>__<tool>. The backend connects them at start and skips one it cannot use.',
     },
-    tools: { label: 'Tools', description: 'Everything the agent can call. Permission rules name these tools.' },
+    tools: {
+      label: 'Built-in tools',
+      description:
+        "The tools that come with the agent, from ollupi and this app; MCP servers' tools are listed under MCP. Permission rules name tools by these names.",
+    },
   },
 }
 
@@ -29,6 +33,9 @@ export const zh: typeof en = {
       label: 'MCP',
       description: 'MCP 服务器以 <name>__<tool> 的名字为代理提供工具。后端在启动时连接它们，无法使用的会被跳过。',
     },
-    tools: { label: '工具', description: '代理可以调用的全部工具。权限规则以这些名字指定工具。' },
+    tools: {
+      label: '内置工具',
+      description: '代理自带的工具，来自 ollupi 和这个应用；MCP 服务器的工具列在 MCP 里。权限规则以这些名字指定工具。',
+    },
   },
 }
