@@ -1,8 +1,13 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/0xfakeSpike/ollupi/agent/skills"
 )
 
 func TestTemplateParses(t *testing.T) {
@@ -17,6 +22,44 @@ func TestTemplateParses(t *testing.T) {
 	if !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Permissions.Settings().ApprovalPolicy != "on-request" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
+}
+
+func TestFirstLoadWritesStarterSkills(t *testing.T) {
+	home := t.TempDir()
+	kept := filepath.Join(home, "skills", "zhou-shenghua-woodcut-style", "SKILL.md")
+	cfg, err := Load(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SkillsDir != filepath.Join(home, "skills") {
+		t.Fatalf("skills_dir = %s", cfg.SkillsDir)
+	}
+	catalog, err := skills.New(cfg.SkillsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if names := skillNames(catalog.All()); !slices.Contains(names, "zhou-shenghua-woodcut-style") {
+		t.Fatalf("starter skills = %v", names)
+	}
+
+	// Later starts leave the folder to the user.
+	if err := os.WriteFile(kept, []byte("edited"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(home); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(kept); string(b) != "edited" {
+		t.Fatalf("SKILL.md = %q", b)
+	}
+}
+
+func skillNames(all []skills.Skill) []string {
+	var names []string
+	for _, s := range all {
+		names = append(names, s.Name)
+	}
+	return names
 }
 
 func TestSameModelAtTwoProviders(t *testing.T) {

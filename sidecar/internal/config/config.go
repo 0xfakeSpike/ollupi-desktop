@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -197,16 +198,49 @@ func (s MCPServer) Redacted() MCPServer {
 	return s
 }
 
-// Load reads <home>/config.yaml, writing the starter template first when
-// there is none.
+// Load reads <home>/config.yaml, writing the starter template and skills
+// first when there is none.
 func Load(home string) (Config, error) {
 	path := filepath.Join(home, FileName)
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		// The skills go first: a start that fails copying them tries again.
+		if err := writeStarterSkills(filepath.Join(home, "skills")); err != nil {
+			return Config{}, fmt.Errorf("write starter skills: %w", err)
+		}
 		if err := os.WriteFile(path, []byte(Template), 0o600); err != nil {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
 	}
 	return LoadFile(path, home)
+}
+
+// writeStarterSkills copies each starter skill into dir, leaving a folder
+// already there of the same name as it is.
+func writeStarterSkills(dir string) error {
+	root, err := fs.Sub(starterSkills, "skills")
+	if err != nil {
+		return err
+	}
+	entries, err := fs.ReadDir(root, ".")
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		target := filepath.Join(dir, e.Name())
+		if _, err := os.Stat(target); err == nil {
+			continue
+		}
+		skill, err := fs.Sub(root, e.Name())
+		if err != nil {
+			return err
+		}
+		// A half-copied skill would be left as it is on the next try.
+		if err := os.CopyFS(target, skill); err != nil {
+			os.RemoveAll(target)
+			return err
+		}
+	}
+	return nil
 }
 
 // LoadFile reads a config file for a backend whose home is home: a
