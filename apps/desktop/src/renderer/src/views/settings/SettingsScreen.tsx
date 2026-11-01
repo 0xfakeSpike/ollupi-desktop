@@ -12,7 +12,9 @@ import { desktop } from '../../platform/desktop'
 import { UpdateSettings } from '../common/Update'
 import { ModelsSection } from './ModelsSection'
 
-const sections = ['general', 'language', 'appearance', 'notifications', 'models', 'redaction', 'update'] as const
+/** Most used first: models are where keys, providers and balances live;
+ * redaction is switched as the work changes; what is set once comes last. */
+const sections = ['models', 'redaction', 'notifications', 'appearance', 'general', 'update', 'language'] as const
 type Section = (typeof sections)[number]
 
 const bodies: Record<Section, () => ReactNode> = {
@@ -34,7 +36,7 @@ const REACHED = 64
 export function SettingsScreen() {
   const t = useT().settings.screen
   const page = useRef<HTMLDivElement>(null)
-  const [current, setCurrent] = useState<Section>('general')
+  const [current, setCurrent] = useState<Section>(sections[0])
   // A jump marks its section until the person scrolls: one near the end
   // cannot reach the top, and the page would otherwise mark the last.
   const jumped = useRef<Section | undefined>(undefined)
