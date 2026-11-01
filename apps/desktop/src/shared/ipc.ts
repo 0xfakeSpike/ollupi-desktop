@@ -144,7 +144,8 @@ export type UpdateState =
   | { status: 'unsupported' }
   | { status: 'idle' }
   | { status: 'checking' }
-  | { status: 'latest' }
+  /** current is the running version, which no release is newer than. */
+  | { status: 'latest'; current: string }
   | { status: 'available'; version: string }
   | { status: 'downloading'; version: string; received: number; total: number }
   | { status: 'ready'; version: string }

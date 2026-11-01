@@ -79,7 +79,7 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
       const latest = releaseFile(parse(await res.text()), this.opts.arch)
       if (!newer(latest.version, this.opts.version)) {
         this.release = undefined
-        this.set({ status: 'latest' })
+        this.set({ status: 'latest', current: this.opts.version })
         return
       }
       this.release = latest

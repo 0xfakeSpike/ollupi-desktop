@@ -119,7 +119,7 @@ describe('AppUpdater', () => {
     const { fetch } = await release('0.2.0')
     const { u } = updater(fetch)
     await u.check()
-    expect(u.state).toEqual({ status: 'latest' })
+    expect(u.state).toEqual({ status: 'latest', current: '0.2.0' })
   })
 
   it('reports a failed check', async () => {

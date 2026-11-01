@@ -114,7 +114,7 @@ function headline(state: UpdateState, m: Messages['shell']['update']): string {
     case 'checking':
       return m.checking
     case 'latest':
-      return m.latest
+      return m.latest(state.current)
     case 'available':
       return m.available(state.version)
     case 'downloading':
