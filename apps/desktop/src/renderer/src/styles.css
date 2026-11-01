@@ -257,3 +257,36 @@ code,
     color: var(--color-fg-muted);
   }
 }
+
+/* The draft's wolf pup rises from behind the message box in pixel steps,
+   and shows the eyes, mouth and head turn its pose calls for. */
+.pup [data-look] {
+  display: none;
+}
+.pup[data-eyes='left'] [data-look='left'],
+.pup[data-eyes='right'] [data-look='right'],
+.pup[data-eyes='shut'] [data-look='shut'] {
+  display: inline;
+}
+.pup[data-mouth='open'] [data-shut-mouth] {
+  display: none;
+}
+.pup[data-eyes='left'] [data-head] {
+  transform: translateX(-12px);
+}
+.pup[data-eyes='right'] [data-head] {
+  transform: translateX(12px);
+}
+@keyframes peek {
+  from {
+    transform: translateY(100%);
+  }
+}
+.peek {
+  animation: peek 420ms steps(5, end) 200ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .peek {
+    animation: var(--animate-fade);
+  }
+}
