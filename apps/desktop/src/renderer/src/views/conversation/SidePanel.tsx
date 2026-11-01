@@ -16,6 +16,9 @@ const MIN_WIDTH = 260
 const CONVERSATION_ROOM = 360
 /** How far an arrow key moves the edge. */
 const STEP = 24
+/** For content the main process lays over the panel, such as the browser's
+ * page: it would cover the edge and take its pointer, so it starts past it. */
+export const CLEAR_OF_EDGE = 'ml-1.5'
 
 function stored(): Partial<Record<Panel, number>> {
   try {
