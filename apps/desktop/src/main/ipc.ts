@@ -14,6 +14,7 @@ import type { AgentBrowser } from './browser/browser'
 import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
 import { listFolder, readFile } from './files'
+import { providerBalance } from './balance'
 import { listModels } from './models'
 import { setBadge, showNotice } from './notices'
 import type { Terminals } from './terminal'
@@ -93,6 +94,7 @@ export function registerIpc(
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
     return listModels(net.fetch, type as ApiType, baseUrl, apiKey)
   })
+  ipcMain.handle(IpcChannel.Balance, (_event, baseUrl: unknown, apiKey: unknown) => providerBalance(net.fetch, text(baseUrl), text(apiKey)))
   ipcMain.handle(IpcChannel.UpdateState, () => updater.state)
   ipcMain.handle(IpcChannel.UpdateCheck, () => updater.check())
   ipcMain.handle(IpcChannel.UpdateDownload, () => updater.download())

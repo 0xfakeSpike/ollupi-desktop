@@ -136,6 +136,11 @@ export interface BrowserState {
   canGoForward: boolean
 }
 
+/** A provider account's balance, in each currency it holds. */
+export interface Balance {
+  amounts: { currency: string; amount: number }[]
+}
+
 /** A page the person keeps in the browser. */
 export interface Bookmark {
   url: string
@@ -302,6 +307,9 @@ export interface DesktopApi {
    * as the API would not answer the renderer's origin. An empty base URL is
    * the API's own, as for the backend. */
   listModels(type: ApiType, baseUrl: string, apiKey: string): Promise<ModelList>
+  /** What the provider's account has left, when its API tells the key;
+   * undefined for any other provider or when the request fails. */
+  balance(baseUrl: string, apiKey: string): Promise<Balance | undefined>
   /** The app checks for a newer release itself; downloading one waits for
    * the person to agree. */
   update: {
@@ -374,6 +382,7 @@ export const IpcChannel = {
   BrowserChanged: 'browser:changed',
   BrowserUsed: 'browser:used',
   ListModels: 'models:list',
+  Balance: 'models:balance',
   UpdateState: 'update:state',
   UpdateCheck: 'update:check',
   UpdateDownload: 'update:download',

@@ -88,6 +88,7 @@ const api: DesktopApi = {
     },
   },
   listModels: (type, baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, type, baseUrl, apiKey),
+  balance: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.Balance, baseUrl, apiKey),
   update: {
     state: () => ipcRenderer.invoke(IpcChannel.UpdateState),
     check: () => ipcRenderer.invoke(IpcChannel.UpdateCheck),

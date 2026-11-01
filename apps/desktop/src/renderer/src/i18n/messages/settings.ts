@@ -59,6 +59,8 @@ export const en = {
     card: {
       noBaseUrl: 'No base URL',
       keySet: 'API key set',
+      balance: (amount: string) => `Balance ${amount}`,
+      refreshBalance: 'Refresh balance',
       noKey: 'No API key',
       edit: (name: string) => `Edit ${name}`,
       remove: (name: string) => `Remove ${name}`,
@@ -281,6 +283,8 @@ export const zh: typeof en = {
     card: {
       noBaseUrl: '无 Base URL',
       keySet: '已填写 API 密钥',
+      balance: (amount) => `余额 ${amount}`,
+      refreshBalance: '刷新余额',
       noKey: '无 API 密钥',
       edit: (name) => `编辑 ${name}`,
       remove: (name) => `删除 ${name}`,

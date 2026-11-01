@@ -44,6 +44,7 @@ function browserShim(): DesktopApi | undefined {
       onUsed: () => () => {},
     },
     listModels: unavailable,
+    balance: async () => undefined,
     // Not the app: nothing to update.
     update: { state: async () => ({ status: 'unsupported' }), check: async () => {}, download: unavailable, restart: unavailable, onState: () => () => {} },
     // A tab of a browser has no Dock and no notifications of its own.
@@ -87,6 +88,7 @@ export const desktop: DesktopApi = window.desktop ??
       onUsed: () => () => {},
     },
     listModels: unavailable,
+    balance: async () => undefined,
     update: { state: unavailable, check: unavailable, download: unavailable, restart: unavailable, onState: () => () => {} },
     notify: unavailable,
     onNoticeClicked: () => () => {},
