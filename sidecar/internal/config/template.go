@@ -1,13 +1,5 @@
 package config
 
-import "embed"
-
-// starterSkills are written to <home>/skills on first start, one folder per
-// skill, alongside the Template that names that folder.
-//
-//go:embed skills
-var starterSkills embed.FS
-
 // Template is written to <home>/config.yaml on first start.
 const Template = `# Ollupi desktop backend. Restart the backend from the app after editing.
 name: ollupi
