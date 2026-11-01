@@ -19,13 +19,15 @@ export interface ComposerProps {
   onStop?(): void
   /** Controls on the toolbar's left (model, workspace...). */
   toolbar?: ReactNode
+  /** Sits on the box's top edge, near its right end, behind the box. */
+  perch?: ReactNode
 }
 
 /** The two ways to send while a turn runs: into it, or after it. */
 const pill =
   'flex h-8 items-center gap-1.5 rounded-full px-3 text-small font-medium transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25'
 
-export function Composer({ placeholder, running, disabled, onSubmit, onStop, toolbar }: ComposerProps) {
+export function Composer({ placeholder, running, disabled, onSubmit, onStop, toolbar, perch }: ComposerProps) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<DraftAttachment[]>([])
   const [sending, setSending] = useState(false)
@@ -94,13 +96,18 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
   }
 
   return (
-    <div className="mx-auto w-full max-w-thread px-6 pb-3">
+    <div className="relative mx-auto w-full max-w-thread px-6 pb-3">
+      {perch && (
+        <div aria-hidden className="pointer-events-none absolute right-14 bottom-full">
+          {perch}
+        </div>
+      )}
       <div
         onDragOver={onDragOver}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          'rounded-2xl border border-line bg-raised shadow-sm transition duration-160 ease-standard focus-within:border-line-strong focus-within:shadow-md',
+          'relative rounded-2xl border border-line bg-raised shadow-sm transition duration-160 ease-standard focus-within:border-line-strong focus-within:shadow-md',
           dragging && 'border-accent ring-3 ring-focus',
         )}
       >

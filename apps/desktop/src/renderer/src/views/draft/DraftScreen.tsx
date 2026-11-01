@@ -8,6 +8,7 @@ import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../
 import { useT } from '../../i18n'
 import { Composer } from '../conversation/Composer'
 import { ModelPicker } from '../conversation/ModelPicker'
+import { Pup } from './Pup'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
@@ -28,6 +29,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       <Composer
         placeholder={m.conversation.draft.placeholder}
         onSubmit={(message) => startThread(workspaceId, message)}
+        perch={<Pup />}
         toolbar={
           <>
             <WorkspacePicker workspaceId={workspaceId} />
