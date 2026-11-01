@@ -5,7 +5,7 @@
 
 import { cn, IconButton } from '@ollupi/ui'
 import { X } from 'lucide-react'
-import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { togglePanel, type Panel } from '../../domains/navigation'
 import { useT } from '../../i18n'
@@ -77,6 +77,11 @@ export function SidePanel({
   const aside = useRef<HTMLElement>(null)
   const t = useT().conversation.screen
 
+  // A panel closed mid-drag, as when the screen changes, ends its drag:
+  // otherwise the cursor it set stays on every screen.
+  const stopDrag = useRef<() => void>(undefined)
+  useEffect(() => () => stopDrag.current?.(), [])
+
   /** A width within what the conversation beside it leaves. */
   const fit = (w: number) => {
     const room = aside.current?.parentElement?.getBoundingClientRect().width ?? Infinity
@@ -93,18 +98,23 @@ export function SidePanel({
     handle.setPointerCapture(e.pointerId)
     usePanelWidths.setState({ resizing: true })
     document.body.style.cursor = 'col-resize'
-    const move = (ev: globalThis.PointerEvent) => setWidth(panel, fit(startWidth + startX - ev.clientX))
+    // A button let go where the window does not see it, over a region that
+    // moves the window, ends the drag at the next move.
+    const move = (ev: globalThis.PointerEvent) => {
+      if (!(ev.buttons & 1)) end()
+      else setWidth(panel, fit(startWidth + startX - ev.clientX))
+    }
     const end = () => {
       handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', end)
-      handle.removeEventListener('pointercancel', end)
+      handle.removeEventListener('lostpointercapture', end)
+      stopDrag.current = undefined
       document.body.style.cursor = ''
       usePanelWidths.setState({ resizing: false })
       save()
     }
     handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', end)
-    handle.addEventListener('pointercancel', end)
+    handle.addEventListener('lostpointercapture', end)
+    stopDrag.current = end
   }
 
   const nudge = (e: KeyboardEvent<HTMLDivElement>) => {
