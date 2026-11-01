@@ -77,6 +77,9 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BrowserState, (_event, thread: unknown) => browser.state(text(thread)))
   ipcMain.handle(IpcChannel.BrowserPlace, (_event, thread: unknown, bounds: unknown) => browser.place(text(thread), validBounds(bounds)))
   ipcMain.handle(IpcChannel.BrowserOpen, (_event, thread: unknown, url: unknown) => browser.open(text(thread), text(url)))
+  ipcMain.handle(IpcChannel.BrowserNewTab, (_event, thread: unknown) => void browser.newTab(text(thread)))
+  ipcMain.handle(IpcChannel.BrowserSelectTab, (_event, thread: unknown, id: unknown) => browser.select(text(thread), tabId(id)))
+  ipcMain.handle(IpcChannel.BrowserCloseTab, (_event, thread: unknown, id: unknown) => browser.close(text(thread), tabId(id)))
   ipcMain.handle(IpcChannel.BrowserBack, (_event, thread: unknown) => browser.back(text(thread)))
   ipcMain.handle(IpcChannel.BrowserForward, (_event, thread: unknown) => browser.forward(text(thread)))
   ipcMain.handle(IpcChannel.BrowserReload, (_event, thread: unknown) => browser.reload(text(thread)))
@@ -154,6 +157,11 @@ function absolute(value: unknown): string {
 /** A terminal's columns or rows. */
 function size(value: unknown): number {
   if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 1000) throw new Error('expected a terminal size')
+  return value as number
+}
+
+function tabId(value: unknown): number {
+  if (!Number.isInteger(value)) throw new Error('expected a tab id')
   return value as number
 }
 

@@ -116,8 +116,19 @@ export interface FileDiff {
   truncated: boolean
 }
 
-/** The app's browser page as its panel shows it. */
+/** One of a thread's browser tabs; id is its page's. */
+export interface BrowserTab {
+  id: number
+  url: string
+  title: string
+  loading: boolean
+}
+
+/** A thread's browser tabs as its panel shows them, and the active one's
+ * page; an empty page when there is none. */
 export interface BrowserState {
+  tabs: BrowserTab[]
+  active: number | undefined
   url: string
   title: string
   loading: boolean
@@ -243,13 +254,19 @@ export interface DesktopApi {
     onData(listener: (key: string, text: string) => void): () => void
     onExit(listener: (key: string, code: number) => void): () => void
   }
-  /** The app's browser: a tab per thread, which the person and that
-   * thread's agent share. */
+  /** The app's browser: each thread's tabs, which the person and that
+   * thread's agent share. The agent acts in the active one; open, back,
+   * forward and reload act in it too. */
   browser: {
     state(thread: string): Promise<BrowserState>
-    /** Shows the thread's tab over the panel's area; undefined hides it. */
+    /** Shows the thread's active tab over the panel's area; undefined hides
+     * it. */
     place(thread: string, bounds: BrowserBounds | undefined): Promise<void>
     open(thread: string, url: string): Promise<void>
+    /** Opens an empty tab after the active one and makes it active. */
+    newTab(thread: string): Promise<void>
+    selectTab(thread: string, id: number): Promise<void>
+    closeTab(thread: string, id: number): Promise<void>
     back(thread: string): Promise<void>
     forward(thread: string): Promise<void>
     reload(thread: string): Promise<void>
@@ -321,6 +338,9 @@ export const IpcChannel = {
   BrowserState: 'browser:state',
   BrowserPlace: 'browser:place',
   BrowserOpen: 'browser:open',
+  BrowserNewTab: 'browser:newTab',
+  BrowserSelectTab: 'browser:selectTab',
+  BrowserCloseTab: 'browser:closeTab',
   BrowserBack: 'browser:back',
   BrowserForward: 'browser:forward',
   BrowserReload: 'browser:reload',
