@@ -170,6 +170,10 @@ export interface BrowserBounds {
  * browser_<action>; config.yaml cannot give an MCP server the name. */
 export const BROWSER_PROVIDER = 'browser'
 
+/** Whose tabs a draft's browser panel shows, as a thread's are by its id:
+ * the draft's thread takes them when it starts. */
+export const DRAFT_BROWSER = 'draft'
+
 /** The app's own updates, from its GitHub releases. unsupported is a build
  * not running from an installed .app (development). A downloaded update is
  * ready: it is installed when the app quits. */
@@ -289,6 +293,8 @@ export interface DesktopApi {
     newTab(thread: string): Promise<void>
     selectTab(thread: string, id: number): Promise<void>
     closeTab(thread: string, id: number): Promise<void>
+    /** Gives a draft's tabs to the thread it started. */
+    handOver(from: string, to: string): Promise<void>
     /** The person's bookmarks, and Chrome's to open; add and remove change
      * the person's and answer with them. */
     bookmarks: {
@@ -373,6 +379,7 @@ export const IpcChannel = {
   BrowserNewTab: 'browser:newTab',
   BrowserSelectTab: 'browser:selectTab',
   BrowserCloseTab: 'browser:closeTab',
+  BrowserHandOver: 'browser:handOver',
   BookmarksList: 'bookmarks:list',
   BookmarksAdd: 'bookmarks:add',
   BookmarksRemove: 'bookmarks:remove',

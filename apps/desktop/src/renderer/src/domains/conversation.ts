@@ -19,11 +19,13 @@ import {
 } from '@ollupi/core'
 import { ErrorCode, type PermissionSettings, type UserInput } from '@ollupi/protocol'
 import { create } from 'zustand'
+import { DRAFT_BROWSER } from '../../../shared/ipc'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { withMessageInput } from './attachments'
 import { chooseModel, focusItem, go, openThreadId, useNavigation } from './navigation'
+import { desktop } from '../platform/desktop'
 
 /** Items per page; the gateway also cuts a page at about 4 MB and then
  * reports hasMore. */
@@ -128,6 +130,8 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
     const { thread } = await gateway().call('thread/start', { workspaceId, title: title || undefined, permissions: {} })
     // thread/started has put it in the list already.
     store(thread.id, emptyTimeline(thread))
+    // The pages the draft opened are the thread's, before its agent acts.
+    await desktop.browser.handOver(DRAFT_BROWSER, thread.id)
     const model = useNavigation.getState().model
     go({ kind: 'thread', threadId: thread.id })
     chooseModel(model)

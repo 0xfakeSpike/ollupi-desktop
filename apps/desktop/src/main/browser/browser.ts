@@ -1,5 +1,7 @@
 // The app's own browser: each thread has its tabs, which the person and
-// that thread's agent share; the agent acts in the one the panel shows. The
+// that thread's agent share; the agent acts in the one the panel shows. A
+// draft's tabs are kept as the draft's until its thread starts and takes
+// them. The
 // active tab is a view laid over its conversation's browser panel when that
 // is open, and every tab keeps running when it is not. The tabs share one
 // session, apart from the app's and persisted, so sites stay signed in; it
@@ -33,8 +35,10 @@ export interface Description {
   text: string
 }
 
-/** A thread's tabs in order, and the one shown and acted in. */
+/** A thread's tabs in order, and the one shown and acted in. thread
+ * changes when a draft's thread takes them. */
 interface Strip {
+  thread: string
   tabs: WebContentsView[]
   active: WebContentsView | undefined
 }
@@ -116,6 +120,26 @@ export class AgentBrowser extends EventEmitter {
 
   reload(thread: string): void {
     this.strips.get(thread)?.active?.webContents.reload()
+  }
+
+  /** Gives the tabs of one owner, a draft, to a thread: after any it has,
+   * the draft's active one shown. */
+  handOver(from: string, to: string): void {
+    const strip = this.strips.get(from)
+    if (!strip || from === to) return
+    this.strips.delete(from)
+    const kept = this.strips.get(to)
+    if (kept) {
+      kept.tabs.push(...strip.tabs)
+      kept.active = strip.active ?? kept.active
+    } else {
+      strip.thread = to
+      this.strips.set(to, strip)
+    }
+    if (this.shown?.thread === from) this.shown = { thread: to, bounds: this.shown.bounds }
+    this.layAll()
+    this.changed(from)
+    this.changed(to)
   }
 
   /** What an action would do in the thread's active tab. */
@@ -223,11 +247,14 @@ export class AgentBrowser extends EventEmitter {
     configure()
     let strip = this.strips.get(thread)
     if (!strip) {
-      strip = { tabs: [], active: undefined }
-      this.strips.set(thread, strip)
-      win.on('closed', () => this.strips.delete(thread))
+      const created: Strip = { thread, tabs: [], active: undefined }
+      strip = created
+      this.strips.set(thread, created)
+      win.on('closed', () => this.strips.delete(created.thread))
     }
     const view = new WebContentsView({ webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false } })
+    // The strip the tab is in now: a draft's moves to its thread.
+    const owner = () => [...this.strips.values()].find((s) => s.tabs.includes(view))
     win.contentView.addChildView(view)
     const at = strip.active ? strip.tabs.indexOf(strip.active) + 1 : strip.tabs.length
     strip.tabs.splice(at, 0, view)
@@ -236,21 +263,26 @@ export class AgentBrowser extends EventEmitter {
     const wc = view.webContents
     // A link that opens a window opens in a new tab.
     wc.setWindowOpenHandler(({ url }) => {
-      void this.newTab(thread).webContents.loadURL(url)
+      const now = owner()
+      if (now) void this.newTab(now.thread).webContents.loadURL(url)
       return { action: 'deny' }
     })
     for (const event of ['did-navigate', 'did-navigate-in-page', 'page-title-updated', 'did-start-loading', 'did-stop-loading'] as const) {
-      wc.on(event as 'did-stop-loading', () => this.changed(thread))
+      wc.on(event as 'did-stop-loading', () => {
+        const now = owner()
+        if (now) this.changed(now.thread)
+      })
     }
     // Closed from the panel, or by the page itself.
     wc.once('destroyed', () => {
-      const i = strip.tabs.indexOf(view)
-      if (i < 0) return
-      strip.tabs.splice(i, 1)
+      const now = owner()
+      if (!now) return
+      const i = now.tabs.indexOf(view)
+      now.tabs.splice(i, 1)
       if (!win.isDestroyed()) win.contentView.removeChildView(view)
-      if (strip.active === view) strip.active = strip.tabs[Math.min(i, strip.tabs.length - 1)]
+      if (now.active === view) now.active = now.tabs[Math.min(i, now.tabs.length - 1)]
       this.layAll()
-      this.changed(thread)
+      this.changed(now.thread)
     })
     return view
   }
