@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
 	"github.com/0xfakeSpike/ollupi/repo"
 	"github.com/0xfakeSpike/ollupi/tools/workspace"
@@ -214,23 +215,22 @@ func Load(home string) (Config, error) {
 	return LoadFile(path, home)
 }
 
-// writeStarterSkills copies each starter skill into dir, leaving a folder
-// already there of the same name as it is.
+// writeStarterSkills copies each skill the desktop ships into dir, leaving
+// a folder already there of the same name as it is.
 func writeStarterSkills(dir string) error {
-	root, err := fs.Sub(starterSkills, "skills")
-	if err != nil {
-		return err
-	}
-	entries, err := fs.ReadDir(root, ".")
+	entries, err := fs.ReadDir(skills.FS, ".")
 	if err != nil {
 		return err
 	}
 	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
 		target := filepath.Join(dir, e.Name())
 		if _, err := os.Stat(target); err == nil {
 			continue
 		}
-		skill, err := fs.Sub(root, e.Name())
+		skill, err := fs.Sub(skills.FS, e.Name())
 		if err != nil {
 			return err
 		}
