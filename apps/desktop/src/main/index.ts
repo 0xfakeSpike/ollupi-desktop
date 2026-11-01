@@ -8,6 +8,7 @@ import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
+import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
 import { TempAttachments } from './attachments'
@@ -26,6 +27,7 @@ if (!app.requestSingleInstanceLock()) {
   const home = backendHome()
   const browser = new AgentBrowser()
   const browserEndpoint = new BrowserEndpoint(browser)
+  const bookmarks = new Bookmarks(join(app.getPath('userData'), 'bookmarks.json'), join(app.getPath('appData'), 'Google', 'Chrome'))
   const terminals = new Terminals()
   const attachments = new TempAttachments(join(app.getPath('temp'), 'Ollupi', 'attachments'))
   // Every start and check of the backend reaches the app's browser.
@@ -52,7 +54,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, terminals, attachments, updater, home, backendLog)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, terminals, attachments, updater, home, backendLog)
     createMainWindow(keepOnClose)
     updater.start()
     // The backend's browser tools reach the endpoint from its start.

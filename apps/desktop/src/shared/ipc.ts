@@ -136,6 +136,23 @@ export interface BrowserState {
   canGoForward: boolean
 }
 
+/** A page the person keeps in the browser. */
+export interface Bookmark {
+  url: string
+  title: string
+}
+
+/** A Chrome profile's bookmarks, each with the folders it is in. */
+export interface ChromeBookmarks {
+  profile: string
+  bookmarks: (Bookmark & { folder: string })[]
+}
+
+export interface BookmarkList {
+  own: Bookmark[]
+  chrome: ChromeBookmarks[]
+}
+
 /** Where the browser panel shows the page, in the window's content. */
 export interface BrowserBounds {
   x: number
@@ -267,6 +284,13 @@ export interface DesktopApi {
     newTab(thread: string): Promise<void>
     selectTab(thread: string, id: number): Promise<void>
     closeTab(thread: string, id: number): Promise<void>
+    /** The person's bookmarks, and Chrome's to open; add and remove change
+     * the person's and answer with them. */
+    bookmarks: {
+      list(): Promise<BookmarkList>
+      add(url: string, title: string): Promise<Bookmark[]>
+      remove(url: string): Promise<Bookmark[]>
+    }
     back(thread: string): Promise<void>
     forward(thread: string): Promise<void>
     reload(thread: string): Promise<void>
@@ -341,6 +365,9 @@ export const IpcChannel = {
   BrowserNewTab: 'browser:newTab',
   BrowserSelectTab: 'browser:selectTab',
   BrowserCloseTab: 'browser:closeTab',
+  BookmarksList: 'bookmarks:list',
+  BookmarksAdd: 'bookmarks:add',
+  BookmarksRemove: 'bookmarks:remove',
   BrowserBack: 'browser:back',
   BrowserForward: 'browser:forward',
   BrowserReload: 'browser:reload',
