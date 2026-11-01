@@ -14,6 +14,7 @@ const heights: Record<FieldSize, string> = { md: 'h-7', lg: 'h-8' }
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   size?: FieldSize
+  ref?: Ref<HTMLInputElement>
 }
 
 export function Input({ size = 'md', className, ...rest }: InputProps) {

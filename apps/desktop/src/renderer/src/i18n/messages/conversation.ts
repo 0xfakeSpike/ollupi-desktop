@@ -8,6 +8,7 @@ const join = (...parts: ReactNode[]): ReactNode => createElement(Fragment, null,
 
 export const en = {
   screen: {
+    resizePanel: 'Resize the panel; double-click for its own width',
     back: 'Back to the parent thread',
     untitled: 'Thread',
     subagent: 'Subagent',
@@ -93,6 +94,11 @@ export const en = {
     address: 'Address',
     addressPlaceholder: 'Type an address, or ask the agent to open a page',
     empty: 'The agent opens pages here when it browses, and you can watch or take over. You can also type an address above.',
+    tabs: 'Tabs',
+    newTab: 'New tab',
+    untitled: 'New tab',
+    closeTab: (title: string) => `Close ${title}`,
+    agentActsHere: 'The agent works in the tab shown.',
   },
   files: {
     title: 'Files',
@@ -219,6 +225,7 @@ export const en = {
 
 export const zh: typeof en = {
   screen: {
+    resizePanel: '拖动调整面板宽度；双击恢复默认宽度',
     back: '返回父会话',
     untitled: '会话',
     subagent: '子代理',
@@ -304,6 +311,11 @@ export const zh: typeof en = {
     address: '地址',
     addressPlaceholder: '输入网址，或让代理打开网页',
     empty: '代理浏览网页时会在这里打开，你可以看着它操作，也可以自己接手。也可以在上面输入网址。',
+    tabs: '标签页',
+    newTab: '新建标签页',
+    untitled: '新标签页',
+    closeTab: (title) => `关闭 ${title}`,
+    agentActsHere: '代理在当前显示的标签页里操作。',
   },
   files: {
     title: '文件',

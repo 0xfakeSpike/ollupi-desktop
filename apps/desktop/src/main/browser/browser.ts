@@ -1,8 +1,9 @@
-// The app's own browser: a tab per thread, which the person and that
-// thread's agent share. A tab is a view laid over its conversation's
-// browser panel when that is open, and keeps running when it is not. The
-// tabs share one session, apart from the app's and persisted, so sites stay
-// signed in; it grants no device permissions and downloads nothing.
+// The app's own browser: each thread has its tabs, which the person and
+// that thread's agent share; the agent acts in the one the panel shows. The
+// active tab is a view laid over its conversation's browser panel when that
+// is open, and every tab keeps running when it is not. The tabs share one
+// session, apart from the app's and persisted, so sites stay signed in; it
+// grants no device permissions and downloads nothing.
 //
 // The sidecar's browser provider asks for two things, by thread: what an
 // action would do (its description and the tab's host, which permissions
@@ -10,7 +11,7 @@
 
 import { BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
-import type { BrowserState } from '../../shared/ipc'
+import type { BrowserState, BrowserTab } from '../../shared/ipc'
 import { normalize } from './address'
 import { clickScript, describeScript, focusScript, locateScript, scrollScript, snapshotScript, WORLD } from './page'
 
@@ -31,55 +32,92 @@ export interface Description {
   text: string
 }
 
-const blank: BrowserState = { url: '', title: '', loading: false, canGoBack: false, canGoForward: false }
+/** A thread's tabs in order, and the one shown and acted in. */
+interface Strip {
+  tabs: WebContentsView[]
+  active: WebContentsView | undefined
+}
 
-/** Emits 'state' (thread, BrowserState) as a tab changes, and 'used'
- * (thread) when the agent acts in it. */
+/** Emits 'state' (thread, BrowserState) as a thread's tabs change, and
+ * 'used' (thread) when the agent acts in one. */
 export class AgentBrowser extends EventEmitter {
-  private readonly tabs = new Map<string, WebContentsView>()
-  /** The thread whose tab the panel shows, and where. */
+  private readonly strips = new Map<string, Strip>()
+  /** The thread whose active tab the panel shows, and where. */
   private shown: { thread: string; bounds: Rectangle } | undefined
 
   state(thread: string): BrowserState {
-    const wc = this.tabs.get(thread)?.webContents
-    if (!wc || wc.isDestroyed()) return blank
+    const strip = this.strips.get(thread)
+    const tabs: BrowserTab[] = (strip?.tabs ?? []).map((v) => ({
+      id: v.webContents.id,
+      url: v.webContents.getURL(),
+      title: v.webContents.getTitle(),
+      loading: v.webContents.isLoading(),
+    }))
+    const wc = strip?.active?.webContents
     return {
-      url: wc.getURL(),
-      title: wc.getTitle(),
-      loading: wc.isLoading(),
-      canGoBack: wc.navigationHistory.canGoBack(),
-      canGoForward: wc.navigationHistory.canGoForward(),
+      tabs,
+      active: wc?.id,
+      url: wc?.getURL() ?? '',
+      title: wc?.getTitle() ?? '',
+      loading: wc?.isLoading() ?? false,
+      canGoBack: wc?.navigationHistory.canGoBack() ?? false,
+      canGoForward: wc?.navigationHistory.canGoForward() ?? false,
     }
   }
 
-  /** Shows a thread's tab over its panel's area, in the window's content,
-   * and hides every other; undefined hides it. */
+  /** Shows a thread's active tab over its panel's area, in the window's
+   * content, and hides every other; undefined hides it. */
   place(thread: string, bounds: Rectangle | undefined): void {
     if (bounds && bounds.width > 0 && bounds.height > 0) this.shown = { thread, bounds }
     else if (this.shown?.thread === thread) this.shown = undefined
-    for (const [t, view] of this.tabs) this.lay(t, view)
+    this.layAll()
   }
 
+  /** Loads an address in the active tab, opening one when there is none. */
   async open(thread: string, url: string): Promise<void> {
     const target = address(url)
-    await this.tab(thread).webContents.loadURL(target).catch(() => {
+    const view = this.strips.get(thread)?.active ?? this.newTab(thread)
+    await view.webContents.loadURL(target).catch(() => {
       // A failed load shows its error page; the state says where it is.
     })
   }
 
+  /** Opens an empty tab after the active one and makes it active. */
+  newTab(thread: string): WebContentsView {
+    const view = this.add(thread)
+    this.changed(thread)
+    return view
+  }
+
+  select(thread: string, id: number): void {
+    const strip = this.strips.get(thread)
+    const view = strip?.tabs.find((v) => v.webContents.id === id)
+    if (!strip || !view) return
+    strip.active = view
+    this.layAll()
+    this.changed(thread)
+  }
+
+  close(thread: string, id: number): void {
+    this.strips
+      .get(thread)
+      ?.tabs.find((v) => v.webContents.id === id)
+      ?.webContents.close()
+  }
+
   back(thread: string): void {
-    this.tabs.get(thread)?.webContents.navigationHistory.goBack()
+    this.strips.get(thread)?.active?.webContents.navigationHistory.goBack()
   }
 
   forward(thread: string): void {
-    this.tabs.get(thread)?.webContents.navigationHistory.goForward()
+    this.strips.get(thread)?.active?.webContents.navigationHistory.goForward()
   }
 
   reload(thread: string): void {
-    this.tabs.get(thread)?.webContents.reload()
+    this.strips.get(thread)?.active?.webContents.reload()
   }
 
-  /** What an action would do in the thread's tab. */
+  /** What an action would do in the thread's active tab. */
   async describe(thread: string, action: string, args: Record<string, unknown>): Promise<Description> {
     if (action === 'navigate') {
       const url = address(text(args, 'url'))
@@ -105,8 +143,8 @@ export class AgentBrowser extends EventEmitter {
     }
   }
 
-  /** Does an action in the thread's tab, and answers with the page as it
-   * then is. */
+  /** Does an action in the thread's active tab, and answers with the page
+   * as it then is: a link that opens a tab leaves the agent in it. */
   async call(thread: string, action: string, args: Record<string, unknown>): Promise<string> {
     this.emit('used', thread)
     switch (action) {
@@ -155,41 +193,64 @@ export class AgentBrowser extends EventEmitter {
     wc.sendInputEvent({ type: 'mouseUp', x: at.x, y: at.y, button: 'left', clickCount: 1 })
   }
 
-  /** The thread's tab with a page open in it. */
+  /** The thread's active tab with a page open in it. */
   private page(thread: string): Electron.WebContents {
-    const wc = this.tabs.get(thread)?.webContents
+    const wc = this.strips.get(thread)?.active?.webContents
     if (!wc || wc.isDestroyed() || !wc.getURL()) throw new Refusal('no page is open in this conversation; use navigate first')
     return wc
   }
 
-  private lay(thread: string, view: WebContentsView): void {
-    const on = this.shown?.thread === thread
-    if (on) view.setBounds(this.shown!.bounds)
-    view.setVisible(on)
+  private changed(thread: string): void {
+    this.emit('state', thread, this.state(thread))
   }
 
-  /** The thread's tab, made in the app's window on first use. */
-  private tab(thread: string): WebContentsView {
-    const known = this.tabs.get(thread)
-    if (known && !known.webContents.isDestroyed()) return known
+  private layAll(): void {
+    for (const [thread, strip] of this.strips) {
+      for (const view of strip.tabs) {
+        const on = this.shown?.thread === thread && strip.active === view
+        if (on) view.setBounds(this.shown!.bounds)
+        view.setVisible(on)
+      }
+    }
+  }
+
+  /** A new tab in the app's window, after the thread's active one, made
+   * active. */
+  private add(thread: string): WebContentsView {
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) throw new Refusal('the app window is closed, so the browser cannot be used')
     configure()
+    let strip = this.strips.get(thread)
+    if (!strip) {
+      strip = { tabs: [], active: undefined }
+      this.strips.set(thread, strip)
+      win.on('closed', () => this.strips.delete(thread))
+    }
     const view = new WebContentsView({ webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false } })
     win.contentView.addChildView(view)
-    this.lay(thread, view)
+    const at = strip.active ? strip.tabs.indexOf(strip.active) + 1 : strip.tabs.length
+    strip.tabs.splice(at, 0, view)
+    strip.active = view
+    this.layAll()
     const wc = view.webContents
-    // A link that opens a window opens in the same tab.
+    // A link that opens a window opens in a new tab.
     wc.setWindowOpenHandler(({ url }) => {
-      void wc.loadURL(url)
+      void this.newTab(thread).webContents.loadURL(url)
       return { action: 'deny' }
     })
-    const changed = () => this.emit('state', thread, this.state(thread))
     for (const event of ['did-navigate', 'did-navigate-in-page', 'page-title-updated', 'did-start-loading', 'did-stop-loading'] as const) {
-      wc.on(event as 'did-stop-loading', changed)
+      wc.on(event as 'did-stop-loading', () => this.changed(thread))
     }
-    win.on('closed', () => this.tabs.delete(thread))
-    this.tabs.set(thread, view)
+    // Closed from the panel, or by the page itself.
+    wc.once('destroyed', () => {
+      const i = strip.tabs.indexOf(view)
+      if (i < 0) return
+      strip.tabs.splice(i, 1)
+      if (!win.isDestroyed()) win.contentView.removeChildView(view)
+      if (strip.active === view) strip.active = strip.tabs[Math.min(i, strip.tabs.length - 1)]
+      this.layAll()
+      this.changed(thread)
+    })
     return view
   }
 }

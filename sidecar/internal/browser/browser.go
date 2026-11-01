@@ -1,11 +1,11 @@
 // Package browser gives the agent the app's built-in browser as a tool
-// provider. The desktop owns the browser, one tab per thread, and answers
+// provider. The desktop owns the browser, each thread's tabs, and answers
 // on a loopback endpoint behind a token; this package names the tools and
-// asks the desktop, for the thread that calls, both to act and to say what
-// an action would do. That description is the call's permission content:
-// its match is the tab's host, so rules and approvals go by site, and
-// ollupi works it out again before an approved call runs, so a tab that
-// moved to another site is asked about again.
+// asks the desktop, for the thread that calls, both to act in its active
+// tab and to say what an action would do. That description is the call's
+// permission content: its match is the tab's host, so rules and approvals
+// go by site, and ollupi works it out again before an approved call runs,
+// so a tab that moved to another site is asked about again.
 package browser
 
 import (
@@ -44,7 +44,7 @@ func New(e Endpoint) *Provider {
 }
 
 func (p *Provider) Name() (string, string) {
-	return Name, "The app's built-in browser, which the user sees beside the conversation; each thread has its own tab."
+	return Name, "The app's built-in browser, which the user sees beside the conversation; each thread has its own tabs, and these tools act in the one the user sees."
 }
 
 type tool struct {
@@ -69,7 +69,7 @@ func object(properties map[string]any, required ...string) map[string]any {
 var catalog = []tool{
 	{
 		action:      "navigate",
-		description: "Open a web page in this conversation's tab of the app's built-in browser, which the user sees beside the conversation. Answers with the page as text; each element you can act on has a ref such as e3.",
+		description: "Open a web page in this conversation's tab of the app's built-in browser, the one the user sees beside the conversation; a link that opens a new tab moves you to it. Answers with the page as text; each element you can act on has a ref such as e3.",
 		schema:      object(map[string]any{"url": map[string]any{"type": "string", "description": "The address; https:// is added when it has no scheme (http:// for localhost)."}}, "url"),
 		annotations: tools.Annotations{Title: "Open page", ReadOnlyHint: true, OpenWorldHint: tools.Hint(true)},
 		described:   true,
@@ -129,7 +129,7 @@ func (p *Provider) ToolList(context.Context) ([]*tools.Spec, error) {
 			Description: t.description,
 			InputSchema: t.schema,
 			Annotations: &a,
-			// A thread's calls share its tab, so none runs beside another.
+			// A thread's calls share its active tab, so none runs beside another.
 			Serial: true,
 		}
 		if t.described {
