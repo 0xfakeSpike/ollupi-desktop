@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Bookmark, BookmarkList, BrowserState, BrowserTab } from '../../../../shared/ipc'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
-import { SidePanel, usePanelWidths } from './SidePanel'
+import { CLEAR_OF_EDGE, SidePanel, usePanelWidths } from './SidePanel'
 
 export function BrowserPanel({ thread }: { thread: string }) {
   const t = useT().conversation.browser
@@ -126,7 +126,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
           />
         )}
       </form>
-      <div ref={area} className="relative min-h-0 flex-1">
+      <div ref={area} className={cn('relative min-h-0 flex-1', CLEAR_OF_EDGE)}>
         {!open && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
             <Globe size={20} className="text-fg-subtle" />
