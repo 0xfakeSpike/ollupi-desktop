@@ -51,6 +51,7 @@ const turn = (id: string, seq: number, status: TurnRow['status'] = 'completed'):
   status,
   model: { name: 'm', connection: 'm' },
   usage: { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 },
+  createdAt: '2026-01-01T00:00:00Z',
   startedAt: '2026-01-01T00:00:00Z',
 })
 
@@ -89,6 +90,13 @@ describe('timeline', () => {
     expect(activeTurn(t)?.id).toBe('u2')
     t = upsertTurn(t, turn('u2', 2))
     expect(activeTurn(t)).toBeUndefined()
+  })
+
+  it('counts a turn out of its slot as under way, but not a queued one', () => {
+    for (const status of ['ready', 'waitingOnApproval', 'waitingOnUserInput', 'waitingOnAgent'] as const) {
+      expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, status)])))?.id).toBe('u1')
+    }
+    expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, 'queued')])))).toBeUndefined()
   })
 
   it('keeps older loaded history when refreshing from the latest page', () => {

@@ -106,9 +106,16 @@ export function appendDelta(t: Timeline, itemId: string, delta: string): Timelin
   return { ...t, items }
 }
 
-/** The turn running now; a thread runs at most one at a time. */
+/** repo.TurnStatus.Active: started and not ended. In a slot it is
+ * inProgress; out of one it is ready for the next slot or waiting on what
+ * its calls await. */
+export function turnActive(status: TurnRow['status']): boolean {
+  return status !== 'queued' && status !== 'completed' && status !== 'interrupted' && status !== 'failed'
+}
+
+/** The turn under way; a thread has at most one. */
 export function activeTurn(t: Timeline): TurnRow | undefined {
-  return t.turns.find((turn) => turn.status === 'inProgress')
+  return t.turns.find((turn) => turnActive(turn.status))
 }
 
 /** repo.ThreadState.PendingRequests for this thread alone: a call of the
