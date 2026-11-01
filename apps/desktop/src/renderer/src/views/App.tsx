@@ -87,6 +87,6 @@ function CurrentScreen() {
     case 'capabilities':
       return <CapabilitiesScreen tab={screen.tab} />
     case 'settings':
-      return <SettingsScreen tab={screen.tab} />
+      return <SettingsScreen />
   }
 }

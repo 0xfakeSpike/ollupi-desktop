@@ -36,13 +36,11 @@ export const en = {
   newThread: 'New thread',
 
   language: {
-    label: 'Language',
-    hint: 'The language of the app itself. Conversations keep the language they are written in.',
     system: (name: string) => `System (${name})`,
     names: { en: 'English', 'zh-CN': '简体中文' },
   },
   appearance: {
-    scheme: 'Appearance',
+    scheme: 'Light or dark',
     schemes: { system: 'System', light: 'Light', dark: 'Dark' },
     palette: 'Palette',
     palettes: { plum: 'Plum', paper: 'Paper', mist: 'Mist', indigo: 'Indigo', bronze: 'Bronze', teal: 'Teal' },
@@ -84,13 +82,11 @@ export const zh: typeof en = {
   newThread: '新会话',
 
   language: {
-    label: '语言',
-    hint: '应用界面的语言。会话内容保持原来的语言。',
     system: (name) => `跟随系统（${name}）`,
     names: { en: 'English', 'zh-CN': '简体中文' },
   },
   appearance: {
-    scheme: '外观',
+    scheme: '明暗',
     schemes: { system: '跟随系统', light: '浅色', dark: '深色' },
     palette: '配色',
     palettes: { plum: '梅子', paper: '宣纸', mist: '雾蓝', indigo: '靛紫', bronze: '古铜', teal: '黛蓝' },

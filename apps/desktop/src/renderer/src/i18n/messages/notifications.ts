@@ -7,8 +7,6 @@ export const en = {
   failed: (error: string) => (error ? `The turn failed: ${error}` : 'The turn failed'),
 
   settings: {
-    title: 'Notifications',
-    hint: 'Shown only while Ollupi is not in front. Clicking one opens its thread. The Dock badge counts the threads waiting for you.',
     kinds: {
       approval: 'An approval is needed',
       question: 'The agent asks a question',
@@ -25,8 +23,6 @@ export const zh: typeof en = {
   failed: (error) => (error ? `这一轮失败了：${error}` : '这一轮失败了'),
 
   settings: {
-    title: '通知',
-    hint: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。',
     kinds: {
       approval: '需要审批',
       question: '代理向你提问',

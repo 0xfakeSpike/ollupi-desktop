@@ -42,7 +42,8 @@ export function UpdatePrompt() {
   )
 }
 
-/** The settings row: what the updater is doing, and the next step. */
+/** The settings section's body: what the updater is doing, and the next
+ * step. */
 export function UpdateSettings() {
   const state = useUpdate((s) => s.state)
   const m = useT().shell.update
@@ -50,8 +51,7 @@ export function UpdateSettings() {
     <div className="flex flex-col gap-3 rounded-lg border border-line px-4 py-4">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <div className="text-ui font-medium text-fg">{m.title}</div>
-          <div className="selectable mt-0.5 text-small break-words text-fg-muted">{headline(state, m)}</div>
+          <div className="selectable text-ui break-words text-fg">{headline(state, m)}</div>
           {detail(state, m) && <div className="selectable mt-0.5 text-small break-words text-fg-muted">{detail(state, m)}</div>}
         </div>
         <Action state={state} />

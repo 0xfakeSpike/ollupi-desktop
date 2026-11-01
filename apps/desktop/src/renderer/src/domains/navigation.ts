@@ -8,7 +8,6 @@ export type Panel = 'browser' | 'files' | 'changes' | 'terminal' | 'tasks' | 'pe
 
 /** What the agent can do, from where. */
 export type CapabilityTab = 'skills' | 'mcp' | 'tools'
-export type SettingsTab = 'general' | 'models'
 
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
@@ -19,7 +18,7 @@ export type Screen =
   /** found: a task a search led to. */
   | { kind: 'cron'; found?: string }
   | { kind: 'capabilities'; tab: CapabilityTab }
-  | { kind: 'settings'; tab: SettingsTab }
+  | { kind: 'settings' }
 
 interface NavigationStore {
   screen: Screen
@@ -28,8 +27,6 @@ interface NavigationStore {
   model: string | undefined
   /** Stays open across threads, like a pane. */
   panel: Panel | undefined
-  /** Where settings goes back to: the screen open before them. */
-  beforeSettings: Screen
   /** An item to bring into view once its thread shows it, e.g. a message
    * a search found. */
   focus: { threadId: string; itemId: string } | undefined
@@ -42,7 +39,6 @@ export const useNavigation = create<NavigationStore>()(() => ({
   screen: { kind: 'draft', workspaceId: undefined },
   model: undefined,
   panel: undefined,
-  beforeSettings: { kind: 'draft', workspaceId: undefined },
   focus: undefined,
   file: undefined,
 }))
@@ -52,13 +48,7 @@ export function go(screen: Screen): void {
   useNavigation.setState((s) => ({
     screen,
     model: sameThread(s.screen, screen) ? s.model : undefined,
-    beforeSettings: screen.kind === 'settings' && s.screen.kind !== 'settings' ? s.screen : s.beforeSettings,
   }))
-}
-
-/** Leaves settings for the screen open before them. */
-export function leaveSettings(): void {
-  go(useNavigation.getState().beforeSettings)
 }
 
 /** Shows the panel, or closes it when it is the one showing. */
