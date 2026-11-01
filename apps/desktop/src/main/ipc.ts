@@ -83,6 +83,7 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BrowserNewTab, (_event, thread: unknown) => void browser.newTab(text(thread)))
   ipcMain.handle(IpcChannel.BrowserSelectTab, (_event, thread: unknown, id: unknown) => browser.select(text(thread), tabId(id)))
   ipcMain.handle(IpcChannel.BrowserCloseTab, (_event, thread: unknown, id: unknown) => browser.close(text(thread), tabId(id)))
+  ipcMain.handle(IpcChannel.BrowserHandOver, (_event, from: unknown, to: unknown) => browser.handOver(text(from), text(to)))
   ipcMain.handle(IpcChannel.BookmarksList, () => bookmarks.list())
   ipcMain.handle(IpcChannel.BookmarksAdd, (_event, url: unknown, title: unknown) => bookmarks.add(text(url), text(title)))
   ipcMain.handle(IpcChannel.BookmarksRemove, (_event, url: unknown) => bookmarks.remove(text(url)))

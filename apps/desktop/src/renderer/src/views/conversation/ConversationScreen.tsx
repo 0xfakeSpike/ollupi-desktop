@@ -1,6 +1,6 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, Button, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Download, FileDiff, Folder, FolderTree, Gauge, Globe, ListChecks, Shield, SquareTerminal } from 'lucide-react'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Download, Folder, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { exportThread, type ExportFormat } from '../../domains/export'
 import { togglePanel, useNavigation } from '../../domains/navigation'
@@ -12,15 +12,13 @@ import { threadTitle } from '../../i18n/format'
 import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { BrowserPanel } from './BrowserPanel'
-import { ChangesPanel } from './ChangesPanel'
 import { Composer } from './Composer'
-import { FilesPanel } from './FilesPanel'
 import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
 import { PermissionsPanel } from './PermissionsPanel'
 import { TasksPanel } from './TasksPanel'
-import { TerminalPanel } from './TerminalPanel'
 import { TimelineView } from './TimelineView'
+import { WorkspacePanel, WorkspacePanelButtons } from './WorkspacePanels'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
   const timeline = useTimeline(threadId)
@@ -78,21 +76,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
           <Globe size={16} />
         </IconButton>
-        {workspace && (
-          <IconButton label={m.conversation.screen.files} active={panel === 'files'} onClick={() => togglePanel('files')}>
-            <FolderTree size={16} />
-          </IconButton>
-        )}
-        {workspace && (
-          <IconButton label={m.conversation.screen.changes} active={panel === 'changes'} onClick={() => togglePanel('changes')}>
-            <FileDiff size={16} />
-          </IconButton>
-        )}
-        {workspace && (
-          <IconButton label={m.conversation.screen.terminal} active={panel === 'terminal'} onClick={() => togglePanel('terminal')}>
-            <SquareTerminal size={16} />
-          </IconButton>
-        )}
+        {workspace && <WorkspacePanelButtons />}
         <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
           <ListChecks size={16} />
         </IconButton>
@@ -161,10 +145,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
         </div>
         {/* Each conversation has its own tab. */}
         {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
-        {/* One tree per workspace: threads of the same workspace keep its open folders. */}
-        {panel === 'files' && workspace && <FilesPanel key={workspace.id} workspace={workspace} />}
-        {panel === 'changes' && workspace && <ChangesPanel key={workspace.id} workspace={workspace} turn={running?.id} />}
-        {panel === 'terminal' && workspace && <TerminalPanel key={workspace.id} workspace={workspace} />}
+        {workspace && <WorkspacePanel workspace={workspace} turn={running?.id} />}
         {panel === 'tasks' && <TasksPanel timeline={timeline} />}
         {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
         {panel === 'context' && <ContextPanel timeline={timeline} />}

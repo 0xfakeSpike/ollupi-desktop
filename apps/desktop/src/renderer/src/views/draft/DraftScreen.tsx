@@ -1,42 +1,59 @@
 // A thread that does not exist yet: pick where it runs and write the first
-// message; sending creates it.
+// message; sending creates it. Its workspace's panels and a browser show
+// beside it; the pages it opens become the thread's.
 
-import { ChevronDown, Folder } from 'lucide-react'
+import { IconButton } from '@ollupi/ui'
+import { ChevronDown, Folder, Globe } from 'lucide-react'
+import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
-import { go } from '../../domains/navigation'
+import { go, togglePanel, useNavigation } from '../../domains/navigation'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
+import { BrowserPanel } from '../conversation/BrowserPanel'
 import { Composer } from '../conversation/Composer'
 import { ModelPicker } from '../conversation/ModelPicker'
+import { WorkspacePanel, WorkspacePanelButtons } from '../conversation/WorkspacePanels'
 import { Pup } from './Pup'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
+  const panel = useNavigation((s) => s.panel)
   const m = useT()
   return (
     <div className="flex h-full flex-col">
-      <div className="drag h-10 shrink-0" />
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
-        <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
-        <p className="text-ui text-fg-muted">
-          {workspace ? (
-            m.conversation.draft.commandsRunIn(<span className="font-mono text-small">{workspace.rootPath}</span>)
-          ) : (
-            m.conversation.draft.noFolder
-          )}
-        </p>
+      <header className="drag flex h-10 shrink-0 items-center justify-end gap-2 pr-2">
+        <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
+          <Globe size={16} />
+        </IconButton>
+        {workspace && <WorkspacePanelButtons />}
+      </header>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
+            <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
+            <p className="text-ui text-fg-muted">
+              {workspace ? (
+                m.conversation.draft.commandsRunIn(<span className="font-mono text-small">{workspace.rootPath}</span>)
+              ) : (
+                m.conversation.draft.noFolder
+              )}
+            </p>
+          </div>
+          <Composer
+            placeholder={m.conversation.draft.placeholder}
+            onSubmit={(message) => startThread(workspaceId, message)}
+            perch={<Pup />}
+            toolbar={
+              <>
+                <WorkspacePicker workspaceId={workspaceId} />
+                <ModelPicker inherited={undefined} />
+              </>
+            }
+          />
+        </div>
+        {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
+        {workspace && <WorkspacePanel workspace={workspace} turn={undefined} />}
       </div>
-      <Composer
-        placeholder={m.conversation.draft.placeholder}
-        onSubmit={(message) => startThread(workspaceId, message)}
-        perch={<Pup />}
-        toolbar={
-          <>
-            <WorkspacePicker workspaceId={workspaceId} />
-            <ModelPicker inherited={undefined} />
-          </>
-        }
-      />
     </div>
   )
 }
