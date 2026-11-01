@@ -72,7 +72,14 @@ export function describeSchedule(m: Messages, locale: Locale, s: Schedule): stri
       return d.week(weekdayName(locale, s.day, m.cron.describeWeekday), clock(s.hour, s.minute))
     case 'month':
       return d.month(s.date, clock(s.hour, s.minute))
+    case 'year':
+      return d.year(monthDay(locale, s.month, s.date), clock(s.hour, s.minute))
   }
+}
+
+/** A date without its year: June 1 / 6月1日. */
+export function monthDay(locale: Locale, month: number, date: number): string {
+  return new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric' }).format(new Date(2000, month - 1, date))
 }
 
 const sizeUnits = ['byte', 'kilobyte', 'megabyte', 'gigabyte'] as const

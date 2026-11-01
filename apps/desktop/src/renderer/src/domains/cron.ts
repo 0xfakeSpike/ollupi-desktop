@@ -47,9 +47,11 @@ export const cronDomain: Domain = {
   },
 }
 
-export function createJob(threadId: string, name: string, spec: string, prompt: string): Promise<boolean> {
+/** times: how many runs before the task ends; undefined repeats until it
+ * is deleted. */
+export function createJob(threadId: string, name: string, spec: string, prompt: string, times: number | undefined): Promise<boolean> {
   return run((e) => e.cron.create, async () => {
-    await gateway().call('cron/create', { threadId, name, spec, prompt })
+    await gateway().call('cron/create', { threadId, name, spec, prompt, times })
     return true
   }).then(Boolean)
 }

@@ -31,6 +31,7 @@ import {
   span,
   cronSpec,
   scheduleOf,
+  onceAt,
   type Schedule,
 } from './index'
 
@@ -352,14 +353,19 @@ describe('schedules', () => {
       { every: 'weekday', hour: 18, minute: 0 },
       { every: 'week', day: 0, hour: 8, minute: 5 },
       { every: 'month', date: 31, hour: 23, minute: 59 },
+      { every: 'year', month: 6, date: 1, hour: 9, minute: 0 },
     ]
-    expect(all.map(cronSpec)).toEqual(['15 * * * *', '29 9 * * *', '0 18 * * 1-5', '5 8 * * 0', '59 23 31 * *'])
+    expect(all.map(cronSpec)).toEqual(['15 * * * *', '29 9 * * *', '0 18 * * 1-5', '5 8 * * 0', '59 23 31 * *', '0 9 1 6 *'])
     for (const s of all) expect(scheduleOf(cronSpec(s))).toEqual(s)
+  })
+  it('writes a one-time task as its date’s yearly schedule', () => {
+    expect(cronSpec(onceAt(new Date(2026, 10, 2, 9, 30)))).toBe('30 9 2 11 *')
   })
   it('reads descriptors, and leaves specs it cannot describe', () => {
     expect(scheduleOf('@daily')).toEqual({ every: 'day', hour: 0, minute: 0 })
     expect(scheduleOf('@weekly')).toEqual({ every: 'week', day: 0, hour: 0, minute: 0 })
-    for (const spec of ['*/5 * * * *', '0 9 * * 1,3', '0 9 1 6 *', '0 9 1 * 1', '0 9 * * 7', '60 9 * * *', '@yearly', '0 9 * *']) {
+    expect(scheduleOf('@yearly')).toEqual({ every: 'year', month: 1, date: 1, hour: 0, minute: 0 })
+    for (const spec of ['*/5 * * * *', '0 9 * * 1,3', '0 9 1 6 1', '0 9 * 6 *', '0 9 1 13 *', '0 9 1 * 1', '0 9 * * 7', '60 9 * * *', '0 9 * *']) {
       expect(scheduleOf(spec)).toBeUndefined()
     }
   })
