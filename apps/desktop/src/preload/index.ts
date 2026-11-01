@@ -68,6 +68,11 @@ const api: DesktopApi = {
     newTab: (thread) => ipcRenderer.invoke(IpcChannel.BrowserNewTab, thread),
     selectTab: (thread, id) => ipcRenderer.invoke(IpcChannel.BrowserSelectTab, thread, id),
     closeTab: (thread, id) => ipcRenderer.invoke(IpcChannel.BrowserCloseTab, thread, id),
+    bookmarks: {
+      list: () => ipcRenderer.invoke(IpcChannel.BookmarksList),
+      add: (url, title) => ipcRenderer.invoke(IpcChannel.BookmarksAdd, url, title),
+      remove: (url) => ipcRenderer.invoke(IpcChannel.BookmarksRemove, url),
+    },
     back: (thread) => ipcRenderer.invoke(IpcChannel.BrowserBack, thread),
     forward: (thread) => ipcRenderer.invoke(IpcChannel.BrowserForward, thread),
     reload: (thread) => ipcRenderer.invoke(IpcChannel.BrowserReload, thread),

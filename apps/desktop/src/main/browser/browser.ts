@@ -3,13 +3,14 @@
 // active tab is a view laid over its conversation's browser panel when that
 // is open, and every tab keeps running when it is not. The tabs share one
 // session, apart from the app's and persisted, so sites stay signed in; it
-// grants no device permissions and downloads nothing.
+// tells sites it is Chrome, grants no device permissions and downloads
+// nothing.
 //
 // The sidecar's browser provider asks for two things, by thread: what an
 // action would do (its description and the tab's host, which permissions
 // go by) and to do it, answered with the page as text.
 
-import { BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
+import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
 import type { BrowserState, BrowserTab } from '../../shared/ipc'
 import { normalize } from './address'
@@ -261,8 +262,16 @@ function configure(): void {
   if (configured) return
   configured = true
   const s = session.fromPartition(PARTITION)
+  s.setUserAgent(chromeAgent(s.getUserAgent()))
   s.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
   s.on('will-download', (_event, item) => item.cancel())
+}
+
+/** The agent Chromium gives, without the app's and Electron's own tokens:
+ * sites such as Google's sign-in turn away an agent that names an embedded
+ * browser, and this one is the person's to sign in with. */
+function chromeAgent(agent: string): string {
+  return agent.replace(new RegExp(` (Electron|${app.getName()})/\\S+`, 'g'), '')
 }
 
 /** The page once it has settled: its title, address and snapshot. */

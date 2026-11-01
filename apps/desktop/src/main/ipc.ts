@@ -9,6 +9,7 @@ import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type Ba
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
+import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
 import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
@@ -24,6 +25,7 @@ export function registerIpc(
   skills: BackendSkills,
   changes: WorkspaceChanges,
   browser: AgentBrowser,
+  bookmarks: Bookmarks,
   terminals: Terminals,
   attachments: TempAttachments,
   updater: AppUpdater,
@@ -80,6 +82,9 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BrowserNewTab, (_event, thread: unknown) => void browser.newTab(text(thread)))
   ipcMain.handle(IpcChannel.BrowserSelectTab, (_event, thread: unknown, id: unknown) => browser.select(text(thread), tabId(id)))
   ipcMain.handle(IpcChannel.BrowserCloseTab, (_event, thread: unknown, id: unknown) => browser.close(text(thread), tabId(id)))
+  ipcMain.handle(IpcChannel.BookmarksList, () => bookmarks.list())
+  ipcMain.handle(IpcChannel.BookmarksAdd, (_event, url: unknown, title: unknown) => bookmarks.add(text(url), text(title)))
+  ipcMain.handle(IpcChannel.BookmarksRemove, (_event, url: unknown) => bookmarks.remove(text(url)))
   ipcMain.handle(IpcChannel.BrowserBack, (_event, thread: unknown) => browser.back(text(thread)))
   ipcMain.handle(IpcChannel.BrowserForward, (_event, thread: unknown) => browser.forward(text(thread)))
   ipcMain.handle(IpcChannel.BrowserReload, (_event, thread: unknown) => browser.reload(text(thread)))
