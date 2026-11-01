@@ -172,6 +172,7 @@
 - 三种 API：OpenAI 兼容、Anthropic、Gemini；模型以 `提供方/名称` 选择
   - Anthropic / Gemini 用原生接口：思考内容和签名原样回放，Anthropic 自动缓存断点、Gemini 隐式缓存
 - 添加 / 编辑 / 删除提供方：API 类型、名称、Base URL、API 密钥
+- 显示提供方账户余额〔桌面〕：DeepSeek、Moonshot、SiliconFlow、OpenRouter（需管理密钥）按 Base URL 识别，用已填的密钥查询；打开设置时查询、5 分钟内不重复，可手动刷新；其他提供方或查询失败时不显示
 - 按 API 类型自动拉取模型列表（含能拿到的上下文上限），筛选、批量勾选
 - 每个模型：上下文 / 输出上限、并发调用数、思考开关、是否支持图片
 - 设默认模型、标出记忆所用模型

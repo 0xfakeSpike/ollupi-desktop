@@ -3,7 +3,7 @@
 // checked by the backend, written, and the backend restarted. A provider's
 // API key is written there too, like its base URL.
 
-import { Badge, Button, Callout, Checkbox, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
+import { Badge, Button, Callout, Checkbox, cn, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
@@ -26,6 +26,7 @@ import {
   type ProviderFields,
   type ProviderModel,
 } from '../../domains/modelConfig'
+import { useBalance } from '../../domains/balance'
 import { useModelList, type ModelListState } from '../../domains/modelList'
 import { useModels } from '../../domains/models'
 import { notify } from '../../domains/notices'
@@ -133,6 +134,29 @@ export function ModelsSection() {
   )
 }
 
+/** The account's balance, for providers whose API tells it; nothing for
+ * the rest. */
+function ProviderBalance({ baseUrl, apiKey }: { baseUrl: string; apiKey: string }) {
+  const c = useT().settings.models.card
+  const locale = useLocale((s) => s.locale)
+  const { balance, loading, refresh } = useBalance(baseUrl, apiKey)
+  if (!balance) return null
+  // An account in two currencies usually holds money in one: an empty one is
+  // left out, unless every one is empty.
+  const held = balance.amounts.filter((a) => a.amount !== 0)
+  const shown = held.length ? held : balance.amounts.slice(0, 1)
+  const amount = shown.map((a) => new Intl.NumberFormat(locale, { style: 'currency', currency: a.currency }).format(a.amount)).join(' · ')
+  return (
+    <>
+      <span aria-hidden>·</span>
+      <span className="selectable tabular-nums">{c.balance(amount)}</span>
+      <IconButton label={c.refreshBalance} size="sm" className="size-5" disabled={loading} onClick={refresh}>
+        <RotateCw size={12} className={cn(loading && 'animate-spin')} />
+      </IconButton>
+    </>
+  )
+}
+
 function ProviderCard({
   provider: p,
   isFirst,
@@ -169,6 +193,7 @@ function ProviderCard({
           <div className="mt-1 flex items-center gap-1.5 text-small text-fg-muted">
             <KeyRound size={14} />
             <span>{p.api_key ? c.keySet : c.noKey}</span>
+            <ProviderBalance baseUrl={p.base_url ?? ''} apiKey={p.api_key ?? ''} />
           </div>
         </div>
         <IconButton label={c.edit(p.provider)} size="sm" onClick={onEdit}>
