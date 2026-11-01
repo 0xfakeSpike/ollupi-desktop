@@ -158,7 +158,11 @@ function TurnOutcome({ turn }: { turn: TurnRow }) {
       return <div className="text-small text-fg-subtle tabular-nums">{facts.join(' · ')}</div>
     }
     case 'queued':
+    case 'ready':
     case 'inProgress':
+    case 'waitingOnApproval':
+    case 'waitingOnUserInput':
+    case 'waitingOnAgent':
       return null
   }
 }
