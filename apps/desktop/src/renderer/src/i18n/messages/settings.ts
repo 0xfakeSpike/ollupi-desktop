@@ -8,12 +8,24 @@ const join = (...parts: ReactNode[]) => createElement(Fragment, null, ...parts)
 export const en = {
   screen: {
     title: 'Settings',
-    tabs: {
+    sections: {
       general: { label: 'General', description: 'The ollupi backend the app runs, and where its data and config.yaml live.' },
+      language: { label: 'Language', description: 'The language of the app itself. Conversations keep the language they are written in.' },
+      appearance: { label: 'Appearance', description: '' },
+      notifications: {
+        label: 'Notifications',
+        description: 'Shown only while Ollupi is not in front. Clicking one opens its thread. The Dock badge counts the threads waiting for you.',
+      },
       models: {
         label: 'Models',
         description: 'Grouped by the API that serves them; a model is selected as provider/name. Saving checks the change with the backend, then restarts it.',
       },
+      redaction: {
+        label: 'Redaction',
+        description:
+          'Phone numbers, ID and bank card numbers, email addresses and keys are replaced with placeholders before anything reaches a model; tools that need the real value still get it. Off, content goes to the model as it is. Applies from the next model call, in every thread.',
+      },
+      update: { label: 'Updates', description: '' },
     },
   },
 
@@ -24,9 +36,7 @@ export const en = {
     backendStatus: { starting: 'starting', ready: 'ready', failed: 'failed', stopped: 'stopped' },
     openConfig: 'Open config.yaml',
     openLog: 'Open backend log',
-    redaction: 'Redaction',
-    redactionHint:
-      'Phone numbers, ID and bank card numbers, email addresses and keys are replaced with placeholders before anything reaches a model; tools that need the real value still get it. Off, content goes to the model as it is. Applies from the next model call, in every thread.',
+    redactionSwitch: 'Redact before sending to models',
   },
 
   config: {
@@ -224,12 +234,20 @@ export const en = {
 export const zh: typeof en = {
   screen: {
     title: '设置',
-    tabs: {
+    sections: {
       general: { label: '通用', description: '应用运行的 ollupi 后端，以及其数据和 config.yaml 的位置。' },
+      language: { label: '语言', description: '应用界面的语言。会话内容保持原来的语言。' },
+      appearance: { label: '外观', description: '' },
+      notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
       models: {
         label: '模型',
         description: '按提供模型的 API 分组；模型以 提供方/名称 的形式选择。保存时先由后端检查改动，再重启后端。',
       },
+      redaction: {
+        label: '脱敏',
+        description: '手机号、身份证号、银行卡号、邮箱和密钥等在发给模型前替换成占位符；需要真实值的工具仍拿到真实值。关闭后内容原样发给模型。从下一次模型调用起生效，对所有会话有效。',
+      },
+      update: { label: '更新', description: '' },
     },
   },
 
@@ -240,8 +258,7 @@ export const zh: typeof en = {
     backendStatus: { starting: '启动中', ready: '就绪', failed: '失败', stopped: '已停止' },
     openConfig: '打开 config.yaml',
     openLog: '打开后端日志',
-    redaction: '脱敏',
-    redactionHint: '手机号、身份证号、银行卡号、邮箱和密钥等在发给模型前替换成占位符；需要真实值的工具仍拿到真实值。关闭后内容原样发给模型。从下一次模型调用起生效，对所有会话有效。',
+    redactionSwitch: '发给模型前脱敏',
   },
 
   config: {

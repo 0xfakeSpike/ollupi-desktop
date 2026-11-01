@@ -12,7 +12,6 @@ export const en = {
     cron: 'Scheduled tasks',
     capabilities: 'Capabilities',
     settings: 'Settings',
-    back: 'Back',
     noWorkspace: 'No workspace',
     noThreads: 'No threads yet',
     showLess: 'Show less',
@@ -58,7 +57,6 @@ export const en = {
     },
   },
   update: {
-    title: 'Updates',
     unsupported: 'Updates apply to the installed app.',
     idle: 'Ollupi checks for a new version on its own.',
     checking: 'Checking for a new version…',
@@ -90,7 +88,6 @@ export const zh: typeof en = {
     cron: '定时任务',
     capabilities: '能力',
     settings: '设置',
-    back: '返回',
     noWorkspace: '无工作区',
     noThreads: '还没有会话',
     showLess: '收起',
@@ -135,7 +132,6 @@ export const zh: typeof en = {
     },
   },
   update: {
-    title: '更新',
     unsupported: '更新只对安装好的应用生效。',
     idle: 'Ollupi 会自动检查新版本。',
     checking: '正在检查新版本…',

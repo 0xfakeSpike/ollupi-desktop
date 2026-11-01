@@ -1,8 +1,8 @@
 import { groupByWorkspace } from '@ollupi/core'
 import { cn } from '@ollupi/ui'
-import { ArrowLeft, Blocks, Brain, CalendarClock, Cpu, FolderPlus, Search, Settings, SlidersHorizontal, SquarePen } from 'lucide-react'
+import { Blocks, Brain, CalendarClock, FolderPlus, Search, Settings, SquarePen } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
-import { go, leaveSettings, useNavigation, type SettingsTab } from '../../domains/navigation'
+import { go, useNavigation } from '../../domains/navigation'
 import { useThreads } from '../../domains/threads'
 import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
@@ -12,14 +12,9 @@ import { ArchivedThreads } from './ArchivedThreads'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { ThreadGroup } from './ThreadGroup'
 
-/** The app's navigation; while settings are open, their categories take its
- * place, so there is one column of navigation at a time. */
+/** The app's navigation. A screen with categories of its own (memory,
+ * capabilities, settings…) lists them beside this, inside the screen. */
 export function Sidebar() {
-  const screen = useNavigation((s) => s.screen)
-  return screen.kind === 'settings' ? <SettingsSidebar tab={screen.tab} /> : <MainSidebar />
-}
-
-function MainSidebar() {
   const workspaces = useWorkspaces((s) => s.list)
   const threads = useThreads((s) => s.list)
   const screen = useNavigation((s) => s.screen)
@@ -74,39 +69,9 @@ function MainSidebar() {
         <NavButton icon={<Blocks size={16} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
           {m.capabilities}
         </NavButton>
-        <NavButton icon={<Settings size={16} />} onClick={() => go({ kind: 'settings', tab: 'general' })}>
+        <NavButton icon={<Settings size={16} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
           {m.settings}
         </NavButton>
-        <ConnectionStatus />
-      </div>
-    </aside>
-  )
-}
-
-const settingsTabs: { id: SettingsTab; icon: ReactNode }[] = [
-  { id: 'general', icon: <SlidersHorizontal size={16} /> },
-  { id: 'models', icon: <Cpu size={16} /> },
-]
-
-function SettingsSidebar({ tab }: { tab: SettingsTab }) {
-  const t = useT()
-  return (
-    <aside className="flex w-65 shrink-0 flex-col">
-      <div className="drag h-10 shrink-0" />
-      <nav className="flex flex-col gap-0.5 px-2 pb-2">
-        <NavButton icon={<ArrowLeft size={16} />} onClick={leaveSettings}>
-          {t.shell.sidebar.back}
-        </NavButton>
-      </nav>
-      <nav aria-label={t.shell.sidebar.settings} className="mt-3 flex flex-1 flex-col gap-0.5 px-2">
-        <h2 className="flex h-7 items-center pl-2 text-small font-medium text-fg-subtle">{t.shell.sidebar.settings}</h2>
-        {settingsTabs.map((s) => (
-          <NavButton key={s.id} icon={s.icon} active={s.id === tab} onClick={() => go({ kind: 'settings', tab: s.id })}>
-            {t.settings.screen.tabs[s.id].label}
-          </NavButton>
-        ))}
-      </nav>
-      <div className="px-2 pt-2 pb-3">
         <ConnectionStatus />
       </div>
     </aside>
