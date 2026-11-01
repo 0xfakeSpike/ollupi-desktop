@@ -84,12 +84,13 @@ function useHighlighted(code: string, language: string | undefined): string | un
   return html
 }
 
-export function CopyButton({ text }: { text: string }) {
+/** label names what is copied; it reads "Copy" by default. */
+export function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   const m = useT()
   return (
     <IconButton
-      label={copied ? m.conversation.markdown.copied : m.conversation.markdown.copy}
+      label={copied ? m.conversation.markdown.copied : (label ?? m.conversation.markdown.copy)}
       size="sm"
       onClick={() => {
         void navigator.clipboard.writeText(text)
