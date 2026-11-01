@@ -3,7 +3,7 @@
 // (queued if the thread is busy). ollupi skips a run while the thread's
 // workspace is archived, and a subagent thread takes no messages.
 
-import { cronSpec, isTopLevel, scheduleOf, type Schedule } from '@ollupi/core'
+import { cronSpec, isTopLevel, onceAt, scheduleOf } from '@ollupi/core'
 import type { CronJobView, WorkspaceRow } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Spinner, Switch, Tabs, Textarea } from '@ollupi/ui'
 import { CalendarClock, Trash2 } from 'lucide-react'
@@ -13,9 +13,9 @@ import { createJob, deleteJob, setPaused, useCron } from '../../domains/cron'
 import { useThreads } from '../../domains/threads'
 import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
-import { describeSchedule, relativeTime, threadTitle } from '../../i18n/format'
+import { clock, describeSchedule, monthDay, relativeTime, threadTitle } from '../../i18n/format'
 import { useFound } from '../common/found'
-import { defaultSchedule, SchedulePicker } from './SchedulePicker'
+import { defaultChoice, onceTime, SchedulePicker, type Choice } from './SchedulePicker'
 
 /** The list shown: every task, those outside any workspace, or one
  * workspace's. */
@@ -90,8 +90,9 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
   const locale = useLocale((s) => s.locale)
   const archived = !!workspace?.archivedAt
   // A spec the model wrote in a shape the picker has no words for is shown
-  // as written.
+  // as written. A yearly task that runs once is said as once.
   const schedule = scheduleOf(job.spec)
+  const once = job.times === 1 && schedule?.every === 'year'
   return (
     <li data-found-id={job.id} className="flex items-start gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
@@ -99,11 +100,12 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
           <span className="font-medium text-fg">{job.name}</span>
           {schedule ? (
             <span className="text-small text-fg-muted" title={job.spec}>
-              {describeSchedule(m, locale, schedule)}
+              {once ? m.cron.describe.once(monthDay(locale, schedule.month, schedule.date), clock(schedule.hour, schedule.minute)) : describeSchedule(m, locale, schedule)}
             </span>
           ) : (
             <code className="selectable font-mono text-small text-fg-muted">{job.spec}</code>
           )}
+          {!once && job.times != null && <span className="text-small text-fg-muted">{m.cron.timesTotal(job.times)}</span>}
           {job.parentThreadId ? (
             <Badge tone="danger">{m.cron.subagent}</Badge>
           ) : archived ? (
@@ -124,6 +126,7 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
           {job.paused ? m.cron.paused : m.cron.next(relativeTime(m, locale, job.nextRunAt), new Date(job.nextRunAt).toLocaleString(locale))}
           {' · '}
           {job.lastRunAt ? m.cron.lastRun(relativeTime(m, locale, job.lastRunAt)) : m.cron.neverRun}
+          {job.times != null && job.runs > 0 && ` · ${m.cron.runs(job.runs, job.times)}`}
         </p>
       </div>
       <Switch label={job.paused ? m.cron.resume : m.cron.pause} checked={!job.paused} onChange={(on) => void setPaused(job, !on)} />
@@ -157,18 +160,26 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
   const options = eligible.filter((t) => placeOf(t) === space?.id)
   const [threadId, setThreadId] = useState('')
   const [name, setName] = useState('')
-  const [schedule, setSchedule] = useState<Schedule>(defaultSchedule)
+  const [choice, setChoice] = useState<Choice>(defaultChoice)
+  const [times, setTimes] = useState('')
   const [prompt, setPrompt] = useState('')
   const [saving, setSaving] = useState(false)
   const target = options.find((t) => t.id === threadId) ?? options[0]
-  const ready = target && name.trim() && prompt.trim()
+  const count = times.trim() ? Number(times) : undefined
+  const ready =
+    target &&
+    name.trim() &&
+    prompt.trim() &&
+    (choice.every === 'once' ? onceTime(choice) > new Date() : count === undefined || (Number.isInteger(count) && count >= 1))
 
   const create = async () => {
     if (!target) return
     setSaving(true)
-    if (await createJob(target.id, name.trim(), cronSpec(schedule), prompt.trim())) {
+    const [spec, runs] = choice.every === 'once' ? [cronSpec(onceAt(onceTime(choice))), 1] : [cronSpec(choice), count]
+    if (await createJob(target.id, name.trim(), spec, prompt.trim(), runs)) {
       setName('')
-      setSchedule(defaultSchedule)
+      setChoice(defaultChoice)
+      setTimes('')
       setPrompt('')
     }
     setSaving(false)
@@ -203,8 +214,13 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="daily-summary" />
           </Field>
           <Field label={m.cron.schedule} hint={m.cron.scheduleHint}>
-            <SchedulePicker value={schedule} onChange={setSchedule} />
+            <SchedulePicker value={choice} onChange={setChoice} />
           </Field>
+          {choice.every !== 'once' && (
+            <Field label={m.cron.times} hint={m.cron.timesHint}>
+              <Input type="number" min={1} step={1} className="w-32 tabular-nums" value={times} onChange={(e) => setTimes(e.target.value)} placeholder={m.cron.timesPlaceholder} />
+            </Field>
+          )}
           <Field label={m.cron.message}>
             <Textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={m.cron.messagePlaceholder} />
           </Field>

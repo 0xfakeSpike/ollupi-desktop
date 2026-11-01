@@ -179,7 +179,7 @@ await completed(second.turn.id)
 
 await call('cron/list', { threadId: thread.id })
 await call('cron/list', {})
-await call('cron/create', { threadId: thread.id, name: 'hourly-check', spec: '@hourly', prompt: 'Anything new?' })
+await call('cron/create', { threadId: thread.id, name: 'hourly-check', spec: '@hourly', prompt: 'Anything new?', times: 3 })
 await call('cron/pause', { threadId: thread.id, name: 'hourly-check', paused: true })
 await call('cron/delete', { threadId: thread.id, name: 'hourly-check' })
 // Each change above arrives as cron/changed, the deletion with a null job.
