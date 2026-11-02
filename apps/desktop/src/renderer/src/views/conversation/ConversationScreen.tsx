@@ -36,120 +36,118 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">
-        {parent && (
-          <IconButton label={m.conversation.screen.back} size="sm" className="-ml-1" onClick={() => void openThread(parent)}>
-            <ArrowLeft size={14} />
+    <div className="flex h-full">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="drag flex h-10 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">
+          {parent && (
+            <IconButton label={m.conversation.screen.back} size="sm" className="-ml-1" onClick={() => void openThread(parent)}>
+              <ArrowLeft size={14} />
+            </IconButton>
+          )}
+          {renaming && thread ? (
+            <TitleInput
+              initial={thread.title}
+              label={m.conversation.screen.rename}
+              className="h-7 w-80 text-ui font-semibold"
+              onSave={(title) => renameThread(threadId, title)}
+              onDone={() => setRenaming(false)}
+            />
+          ) : thread && !parent ? (
+            // Renaming is for threads the person started; a subagent's is named by its task.
+            <button
+              type="button"
+              title={m.conversation.screen.rename}
+              onClick={() => setRenaming(true)}
+              className="-mx-1 min-w-0 truncate rounded-md px-1 text-ui font-semibold text-fg hover:bg-hover"
+            >
+              {threadTitle(m, thread)}
+            </button>
+          ) : (
+            <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
+          )}
+          {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
+          {workspace && (
+            <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={workspace.rootPath}>
+              <Folder size={14} className="shrink-0" />
+              <span className="truncate">{workspace.name}</span>
+            </span>
+          )}
+          {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}
+          <div className="flex-1" />
+          <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
+            <Globe size={16} />
           </IconButton>
-        )}
-        {renaming && thread ? (
-          <TitleInput
-            initial={thread.title}
-            label={m.conversation.screen.rename}
-            className="h-7 w-80 text-ui font-semibold"
-            onSave={(title) => renameThread(threadId, title)}
-            onDone={() => setRenaming(false)}
-          />
-        ) : thread && !parent ? (
-          // Renaming is for threads the person started; a subagent's is named by its task.
-          <button
-            type="button"
-            title={m.conversation.screen.rename}
-            onClick={() => setRenaming(true)}
-            className="-mx-1 min-w-0 truncate rounded-md px-1 text-ui font-semibold text-fg hover:bg-hover"
-          >
-            {threadTitle(m, thread)}
-          </button>
-        ) : (
-          <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
-        )}
-        {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
-        {workspace && (
-          <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={workspace.rootPath}>
-            <Folder size={14} className="shrink-0" />
-            <span className="truncate">{workspace.name}</span>
-          </span>
-        )}
-        {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}
-        <div className="flex-1" />
-        <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
-          <Globe size={16} />
-        </IconButton>
-        {workspace && <WorkspacePanelButtons />}
-        <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
-          <ListChecks size={16} />
-        </IconButton>
-        {thread && !parent && (
-          <IconButton label={m.conversation.screen.permissions} active={panel === 'permissions'} onClick={() => togglePanel('permissions')}>
-            <Shield size={16} />
+          {workspace && <WorkspacePanelButtons />}
+          <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
+            <ListChecks size={16} />
           </IconButton>
-        )}
-        <IconButton label={m.conversation.screen.context} active={panel === 'context'} onClick={() => togglePanel('context')}>
-          <Gauge size={16} />
-        </IconButton>
-        {thread && <ExportButton threadId={threadId} />}
-      </header>
+          {thread && !parent && (
+            <IconButton label={m.conversation.screen.permissions} active={panel === 'permissions'} onClick={() => togglePanel('permissions')}>
+              <Shield size={16} />
+            </IconButton>
+          )}
+          <IconButton label={m.conversation.screen.context} active={panel === 'context'} onClick={() => togglePanel('context')}>
+            <Gauge size={16} />
+          </IconButton>
+          {thread && <ExportButton threadId={threadId} />}
+        </header>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="relative min-h-0 flex-1">
-            <div ref={ref} className="scroll-centered h-full overflow-y-auto">
-              {timeline ? (
-                <TimelineView timeline={timeline} />
-              ) : (
-                <div className="flex h-full items-center justify-center text-fg-subtle">
-                  <Spinner />
-                </div>
-              )}
-            </div>
-            {!atBottom && (
-              <>
-                <button
-                  type="button"
-                  aria-label={m.conversation.screen.scrollToLatest}
-                  onClick={() => scrollToBottom(true)}
-                  className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
-                  {...latestTip.trigger}
-                >
-                  <ArrowDown size={16} />
-                </button>
-                {latestTip.tooltip}
-              </>
+        <div className="relative min-h-0 flex-1">
+          <div ref={ref} className="scroll-centered h-full overflow-y-auto">
+            {timeline ? (
+              <TimelineView timeline={timeline} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-fg-subtle">
+                <Spinner />
+              </div>
             )}
           </div>
-
-          {archived ? (
-            <div className="flex items-center justify-center gap-3 px-6 pb-5 text-small text-fg-subtle">
-              {m.conversation.screen.archived}
-              <Button size="sm" icon={<ArchiveRestore size={14} />} onClick={() => void archiveThread(threadId, false)}>
-                {m.conversation.screen.restore}
-              </Button>
-            </div>
-          ) : parent ? (
-            // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
-            // it works on the task its parent gave it and reports back there.
-            <p className="px-6 pb-5 text-center text-small text-fg-subtle">
-              {m.conversation.screen.subagentNote}
-            </p>
-          ) : (
-            <Composer
-              placeholder={running ? m.conversation.screen.addToTurn : m.conversation.screen.reply}
-              running={!!running}
-              disabled={!timeline}
-              onSubmit={(message, mode) => sendMessage(threadId, message, mode)}
-              onStop={() => void interrupt(threadId)}
-              toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
-            />
+          {!atBottom && (
+            <>
+              <button
+                type="button"
+                aria-label={m.conversation.screen.scrollToLatest}
+                onClick={() => scrollToBottom(true)}
+                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
+                {...latestTip.trigger}
+              >
+                <ArrowDown size={16} />
+              </button>
+              {latestTip.tooltip}
+            </>
           )}
         </div>
-        {/* Each conversation has its own tab. */}
-        {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
-        {workspace && <WorkspacePanel workspace={workspace} turn={running?.id} />}
-        {panel === 'tasks' && <TasksPanel timeline={timeline} />}
-        {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
-        {panel === 'context' && <ContextPanel timeline={timeline} />}
+
+        {archived ? (
+          <div className="flex items-center justify-center gap-3 px-6 pb-5 text-small text-fg-subtle">
+            {m.conversation.screen.archived}
+            <Button size="sm" icon={<ArchiveRestore size={14} />} onClick={() => void archiveThread(threadId, false)}>
+              {m.conversation.screen.restore}
+            </Button>
+          </div>
+        ) : parent ? (
+          // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
+          // it works on the task its parent gave it and reports back there.
+          <p className="px-6 pb-5 text-center text-small text-fg-subtle">
+            {m.conversation.screen.subagentNote}
+          </p>
+        ) : (
+          <Composer
+            placeholder={running ? m.conversation.screen.addToTurn : m.conversation.screen.reply}
+            running={!!running}
+            disabled={!timeline}
+            onSubmit={(message, mode) => sendMessage(threadId, message, mode)}
+            onStop={() => void interrupt(threadId)}
+            toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
+          />
+        )}
       </div>
+      {/* Each conversation has its own tab. */}
+      {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
+      {workspace && <WorkspacePanel workspace={workspace} turn={running?.id} />}
+      {panel === 'tasks' && <TasksPanel timeline={timeline} />}
+      {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
+      {panel === 'context' && <ContextPanel timeline={timeline} />}
     </div>
   )
 }

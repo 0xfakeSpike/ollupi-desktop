@@ -20,40 +20,38 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const panel = useNavigation((s) => s.panel)
   const m = useT()
   return (
-    <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center justify-end gap-2 pr-2">
-        <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
-          <Globe size={16} />
-        </IconButton>
-        {workspace && <WorkspacePanelButtons />}
-      </header>
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
-            <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
-            <p className="text-ui text-fg-muted">
-              {workspace ? (
-                m.conversation.draft.commandsRunIn(<span className="font-mono text-small">{workspace.rootPath}</span>)
-              ) : (
-                m.conversation.draft.noFolder
-              )}
-            </p>
-          </div>
-          <Composer
-            placeholder={m.conversation.draft.placeholder}
-            onSubmit={(message) => startThread(workspaceId, message)}
-            perch={<Pup />}
-            toolbar={
-              <>
-                <WorkspacePicker workspaceId={workspaceId} />
-                <ModelPicker inherited={undefined} />
-              </>
-            }
-          />
+    <div className="flex h-full">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="drag flex h-10 shrink-0 items-center justify-end gap-2 pr-2">
+          <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
+            <Globe size={16} />
+          </IconButton>
+          {workspace && <WorkspacePanelButtons />}
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
+          <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
+          <p className="text-ui text-fg-muted">
+            {workspace ? (
+              m.conversation.draft.commandsRunIn(<span className="font-mono text-small">{workspace.rootPath}</span>)
+            ) : (
+              m.conversation.draft.noFolder
+            )}
+          </p>
         </div>
-        {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
-        {workspace && <WorkspacePanel workspace={workspace} turn={undefined} />}
+        <Composer
+          placeholder={m.conversation.draft.placeholder}
+          onSubmit={(message) => startThread(workspaceId, message)}
+          perch={<Pup />}
+          toolbar={
+            <>
+              <WorkspacePicker workspaceId={workspaceId} />
+              <ModelPicker inherited={undefined} />
+            </>
+          }
+        />
       </div>
+      {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
+      {workspace && <WorkspacePanel workspace={workspace} turn={undefined} />}
     </div>
   )
 }
