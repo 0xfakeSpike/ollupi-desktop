@@ -67,4 +67,10 @@ describe('readFile', () => {
     await writeFile(join(root, 'dot.png'), Buffer.from([137, 80, 78, 71]))
     expect(await readFile(root, 'dot.png')).toEqual({ kind: 'image', size: 4, dataUrl: 'data:image/png;base64,iVBORw==' })
   })
+
+  it('reads a PDF whole, its NUL bytes included', async () => {
+    const pdf = Buffer.from('%PDF-1.7\n\0stream')
+    await writeFile(join(root, 'doc.pdf'), pdf)
+    expect(await readFile(root, 'doc.pdf')).toEqual({ kind: 'pdf', size: pdf.length, data: pdf })
+  })
 })

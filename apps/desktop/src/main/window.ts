@@ -25,6 +25,8 @@ export function createMainWindow(keepOnClose: () => boolean): BrowserWindow {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      // Chromium's PDF viewer, which the files panel shows a PDF in.
+      plugins: true,
     },
   })
   win.once('ready-to-show', () => win.show())

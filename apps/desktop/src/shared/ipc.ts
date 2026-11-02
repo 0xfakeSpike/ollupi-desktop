@@ -82,10 +82,12 @@ export interface FileEntry {
 }
 
 /** A workspace file as a preview shows it: its text (only the start of a
- * long file), an image, or neither. size is the file's, in bytes. */
+ * long file), an image, a PDF's bytes, or none of these. size is the
+ * file's, in bytes. */
 export type FilePreview =
   | { kind: 'text'; size: number; text: string; truncated: boolean }
   | { kind: 'image'; size: number; dataUrl: string }
+  | { kind: 'pdf'; size: number; data: Uint8Array<ArrayBuffer> }
   | { kind: 'binary'; size: number }
 
 /** A file that differs from the last commit, as git sees it under the
