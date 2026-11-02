@@ -10,11 +10,12 @@ import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18
 import { locales, systemLocale } from '../../i18n/locale'
 import { desktop } from '../../platform/desktop'
 import { UpdateSettings } from '../common/Update'
+import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
 
 /** Most used first: models are where keys, providers and balances live;
  * redaction is switched as the work changes; what is set once comes last. */
-const sections = ['models', 'redaction', 'notifications', 'appearance', 'general', 'update', 'language'] as const
+const sections = ['models', 'redaction', 'notifications', 'feishu', 'appearance', 'general', 'update', 'language'] as const
 type Section = (typeof sections)[number]
 
 const bodies: Record<Section, () => ReactNode> = {
@@ -24,6 +25,7 @@ const bodies: Record<Section, () => ReactNode> = {
   notifications: Notifications,
   models: ModelsSection,
   redaction: Redaction,
+  feishu: FeishuSection,
   update: UpdateSettings,
 }
 
