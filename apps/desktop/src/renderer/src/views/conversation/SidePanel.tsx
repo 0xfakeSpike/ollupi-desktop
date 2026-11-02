@@ -1,5 +1,8 @@
-// The frame of a panel beside a conversation: its title and close button
-// over a body that scrolls on its own. Its left edge drags to resize it;
+// The frame of a panel beside a conversation: a column at the window's
+// right, the full height of the screen, set off by a line rather than laid
+// over the conversation. Its title row lines up with the conversation's
+// header and moves the window like it; under it a body that scrolls on its
+// own. Its left edge drags to resize it;
 // each panel keeps the width it was given, and a double click on the edge
 // gives back its own.
 
@@ -130,7 +133,7 @@ export function SidePanel({
       ref={aside}
       style={given ? { width: given } : undefined}
       className={cn(
-        'relative my-2 mr-2 flex max-w-[calc(100%-22.5rem)] min-w-65 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-canvas',
+        'relative flex max-w-[calc(100%-22.5rem)] min-w-65 shrink-0 flex-col overflow-hidden border-l border-line bg-canvas',
         !given && (width === 'half' ? 'w-1/2' : width === 'wide' ? 'w-112' : 'w-80'),
       )}
     >
@@ -145,9 +148,9 @@ export function SidePanel({
           setWidth(panel, undefined)
           save()
         }}
-        className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors duration-100 ease-standard hover:bg-line-strong focus-visible:bg-accent focus-visible:outline-none"
+        className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize [-webkit-app-region:no-drag] transition-colors duration-100 ease-standard hover:bg-line-strong focus-visible:bg-accent focus-visible:outline-none"
       />
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-line pr-2 pl-4">
+      <div className="drag flex h-10 shrink-0 items-center gap-1 border-b border-line pr-2 pl-4">
         <h2 className="flex-1 truncate text-ui font-semibold">{title}</h2>
         {actions}
         <IconButton label={closeLabel} size="sm" onClick={() => togglePanel(panel)}>
