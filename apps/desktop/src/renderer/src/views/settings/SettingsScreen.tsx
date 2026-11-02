@@ -1,5 +1,5 @@
 import { Badge, Button, cn, Field, palettes, Select, Switch, type Palette } from '@ollupi/ui'
-import { FileCog, RotateCw, ScrollText } from 'lucide-react'
+import { FileCog, FolderOpen, RotateCw, ScrollText } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
@@ -9,13 +9,14 @@ import { useConnection } from '../../gateway/connection'
 import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18n'
 import { locales, systemLocale } from '../../i18n/locale'
 import { desktop } from '../../platform/desktop'
-import { UpdateSettings } from '../common/Update'
+import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
 
 /** Most used first: models are where keys, providers and balances live;
+ * general, beside them, holds the version and the backend they run on;
  * redaction is switched as the work changes; what is set once comes last. */
-const sections = ['models', 'redaction', 'notifications', 'feishu', 'appearance', 'general', 'update', 'language'] as const
+const sections = ['models', 'general', 'redaction', 'notifications', 'feishu', 'appearance', 'language'] as const
 type Section = (typeof sections)[number]
 
 const bodies: Record<Section, () => ReactNode> = {
@@ -26,7 +27,6 @@ const bodies: Record<Section, () => ReactNode> = {
   models: ModelsSection,
   redaction: Redaction,
   feishu: FeishuSection,
-  update: UpdateSettings,
 }
 
 /** How far below the top of the page a section's heading counts as reached. */
@@ -122,58 +122,69 @@ export function SettingsScreen() {
   )
 }
 
+/** One row per thing the app keeps: its value, and the button that acts on it. */
 function General() {
   const m = useT()
+  const t = m.settings.general
   const backend = useConnection((s) => s.backend)
-  const serverVersion = useConnection((s) => s.serverVersion)
   const [info, setInfo] = useState<AppInfo>()
   const [restarting, setRestarting] = useState(false)
   useEffect(() => void desktop.info().then(setInfo), [])
-  const rows: [string, ReactNode][] = [
-    [
-      m.settings.general.status,
-      <Badge tone={backend.status === 'ready' ? 'success' : backend.status === 'failed' ? 'danger' : 'warning'}>
-        {m.settings.general.backendStatus[backend.status]}
-      </Badge>,
-    ],
-    ['ollupi', serverVersion || '—'],
-    [m.settings.general.dataFolder, info?.home],
-    [m.settings.general.app, info?.version],
-  ]
+  const open = (path: string | undefined, icon: ReactNode) =>
+    path && (
+      <Button size="sm" icon={icon} onClick={() => void desktop.openPath(path)}>
+        {t.open}
+      </Button>
+    )
   return (
-    <>
-      <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex min-h-11 items-center gap-4 px-3 py-2.5">
-            <dt className="shrink-0 text-ui text-fg">{k}</dt>
-            <dd className="selectable min-w-0 flex-1 text-right font-mono text-small break-all text-fg-muted">{v ?? '—'}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="flex gap-2">
-        <Button
-          icon={<RotateCw size={14} />}
-          loading={restarting}
-          onClick={() => {
-            setRestarting(true)
-            void desktop.backend.restart().finally(() => setRestarting(false))
-          }}
-        >
-          {m.common.restartBackend}
-        </Button>
-        {info?.configPath && (
-          <Button icon={<FileCog size={14} />} onClick={() => void desktop.openPath(info.configPath)}>
-            {m.settings.general.openConfig}
+    <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
+      <Row label={t.version} value={<span className="font-mono">{info?.version ?? '—'}</span>} note={<UpdateNote />} action={<UpdateAction />}>
+        <UpdateProgress />
+      </Row>
+      <Row label={t.log} value={<Path path={info?.backendLog} />} action={open(info?.backendLog, <ScrollText size={14} />)} />
+      <Row label={t.dataFolder} value={<Path path={info?.home} />} action={open(info?.home, <FolderOpen size={14} />)} />
+      <Row label="config.yaml" value={<Path path={info?.configPath} />} action={open(info?.configPath, <FileCog size={14} />)} />
+      <Row
+        label={t.status}
+        value={
+          <Badge tone={backend.status === 'ready' ? 'success' : backend.status === 'failed' ? 'danger' : 'warning'}>{t.backendStatus[backend.status]}</Badge>
+        }
+        action={
+          <Button
+            size="sm"
+            icon={<RotateCw size={14} />}
+            loading={restarting}
+            onClick={() => {
+              setRestarting(true)
+              void desktop.backend.restart().finally(() => setRestarting(false))
+            }}
+          >
+            {m.common.restartBackend}
           </Button>
-        )}
-        {info?.backendLog && (
-          <Button icon={<ScrollText size={14} />} onClick={() => void desktop.openPath(info.backendLog)}>
-            {m.settings.general.openLog}
-          </Button>
-        )}
-      </div>
-    </>
+        }
+      />
+    </dl>
   )
+}
+
+function Row({ label, value, note, action, children }: { label: string; value: ReactNode; note?: ReactNode; action?: ReactNode; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 px-3 py-2.5">
+      <div className="flex min-h-7 items-center gap-4">
+        <dt className="w-24 shrink-0 text-ui text-fg">{label}</dt>
+        <dd className="min-w-0 flex-1">
+          <div className="selectable text-small break-all text-fg-muted">{value}</div>
+          {note}
+        </dd>
+        {action && <div className="shrink-0">{action}</div>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Path({ path }: { path: string | undefined }) {
+  return <span className="font-mono">{path || '—'}</span>
 }
 
 function Language() {

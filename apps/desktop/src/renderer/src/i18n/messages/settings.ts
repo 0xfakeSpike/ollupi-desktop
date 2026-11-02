@@ -9,7 +9,7 @@ export const en = {
   screen: {
     title: 'Settings',
     sections: {
-      general: { label: 'General', description: 'The ollupi backend the app runs, and where its data and config.yaml live.' },
+      general: { label: 'General', description: 'The app’s version and updates, where its log, data and config.yaml live, and the ollupi backend it runs.' },
       language: { label: 'Language', description: 'The language of the app itself. Conversations keep the language they are written in.' },
       appearance: { label: 'Appearance', description: '' },
       notifications: {
@@ -30,17 +30,16 @@ export const en = {
         description:
           'Drive sessions from your phone through a Feishu (Lark) bot: message it to start a session, reply in its topic to continue, and approve or answer with the cards it sends. The bot connects out over a long connection, so this Mac needs no public address, but it must stay awake.',
       },
-      update: { label: 'Updates', description: '' },
     },
   },
 
   general: {
-    status: 'Status',
+    version: 'Version',
+    log: 'App log',
     dataFolder: 'Data folder',
-    app: 'App',
+    status: 'Status',
     backendStatus: { starting: 'starting', ready: 'ready', failed: 'failed', stopped: 'stopped' },
-    openConfig: 'Open config.yaml',
-    openLog: 'Open backend log',
+    open: 'Open',
     redactionSwitch: 'Redact before sending to models',
   },
 
@@ -258,7 +257,7 @@ export const zh: typeof en = {
   screen: {
     title: '设置',
     sections: {
-      general: { label: '通用', description: '应用运行的 ollupi 后端，以及其数据和 config.yaml 的位置。' },
+      general: { label: '通用', description: '应用的版本和更新，日志、数据和 config.yaml 的位置，以及它运行的 ollupi 后端。' },
       language: { label: '语言', description: '应用界面的语言。会话内容保持原来的语言。' },
       appearance: { label: '外观', description: '' },
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
@@ -275,17 +274,16 @@ export const zh: typeof en = {
         description:
           '在手机上通过飞书机器人操作会话：给它发消息开始会话，在它回复的话题里接着说，用它发来的卡片审批和回答。机器人通过长连接向外连接，这台 Mac 不需要公网地址，但不能睡眠。',
       },
-      update: { label: '更新', description: '' },
     },
   },
 
   general: {
-    status: '状态',
+    version: '版本',
+    log: '应用日志',
     dataFolder: '数据文件夹',
-    app: '应用',
+    status: '状态',
     backendStatus: { starting: '启动中', ready: '就绪', failed: '失败', stopped: '已停止' },
-    openConfig: '打开 config.yaml',
-    openLog: '打开后端日志',
+    open: '打开',
     redactionSwitch: '发给模型前脱敏',
   },
 
