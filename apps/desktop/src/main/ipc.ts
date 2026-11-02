@@ -13,7 +13,7 @@ import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
 import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
-import { listFolder, readFile } from './files'
+import { kindOf, listFolder, readFile } from './files'
 import { providerBalance } from './balance'
 import { listModels } from './models'
 import { setBadge, showNotice } from './notices'
@@ -54,6 +54,7 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   ipcMain.handle(IpcChannel.FilesList, (_event, root: unknown, path: unknown) => listFolder(text(root), text(path)))
   ipcMain.handle(IpcChannel.FilesRead, (_event, root: unknown, path: unknown) => readFile(text(root), text(path)))
+  ipcMain.handle(IpcChannel.FilesKind, (_event, root: unknown, path: unknown) => kindOf(text(root), text(path)))
   ipcMain.handle(IpcChannel.ChangesList, (_event, root: unknown) => changes.list(absolute(root)))
   ipcMain.handle(IpcChannel.ChangesStage, (_event, root: unknown, paths: unknown) => changes.stage(absolute(root), texts(paths)))
   ipcMain.handle(IpcChannel.ChangesUnstage, (_event, root: unknown, paths: unknown) => changes.unstage(absolute(root), texts(paths)))

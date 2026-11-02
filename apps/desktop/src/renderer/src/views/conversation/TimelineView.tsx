@@ -24,7 +24,7 @@ import { duration, usageLine } from '../../i18n/format'
 import { markFound } from '../common/found'
 import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
-import { ThreadWorkspace } from './tools/read'
+import { ThreadWorkspace } from '../common/FileLink'
 import { ReadsRow } from './tools/ReadsRow'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {

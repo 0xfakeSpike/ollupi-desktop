@@ -58,6 +58,17 @@ export async function readFile(root: string, path: string): Promise<FilePreview>
   return { kind: 'text', size, text: bytes.toString('utf8'), truncated: size > TEXT_LIMIT }
 }
 
+/** Whether root/path is a file or a folder; undefined when it is neither,
+ * is missing, or is outside the workspace. */
+export async function kindOf(root: string, path: string): Promise<FileEntry['kind'] | undefined> {
+  try {
+    const s = await stat(await inside(root, path))
+    return s.isDirectory() ? 'folder' : s.isFile() ? 'file' : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** The real path of root/path, which must stay inside root's real path. */
 export async function inside(root: string, path: string): Promise<string> {
   if (!isAbsolute(root) || isAbsolute(path)) throw new Error('expected an absolute root and a relative path')

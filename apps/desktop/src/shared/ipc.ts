@@ -256,6 +256,9 @@ export interface DesktopApi {
   files: {
     list(root: string, path: string): Promise<FileEntry[]>
     read(root: string, path: string): Promise<FilePreview>
+    /** Whether the path is a file or a folder; undefined when it is
+     * neither, is missing, or is outside the root. */
+    kind(root: string, path: string): Promise<FileEntry['kind'] | undefined>
   }
   /** A workspace's uncommitted changes, from git, and what the person does
    * with them. Paths are relative to the root, inside it. */
@@ -363,6 +366,7 @@ export const IpcChannel = {
   AttachmentsRemove: 'attachments:remove',
   FilesList: 'files:list',
   FilesRead: 'files:read',
+  FilesKind: 'files:kind',
   ChangesList: 'changes:list',
   ChangesDiff: 'changes:diff',
   ChangesStage: 'changes:stage',

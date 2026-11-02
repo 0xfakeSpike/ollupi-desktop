@@ -1,15 +1,15 @@
 // read_file, glob and grep: the agent looking at files. Each shows what it
 // read or found; a path inside the thread's workspace opens in the Files
-// panel.
+// panel, or with ⌘ in its default app.
 
 import { readText, type ToolCall } from '@ollupi/core'
 import type { GrepFile, ItemRow } from '@ollupi/protocol'
 import { Block, cn } from '@ollupi/ui'
 import { FileText, FolderSearch, TextSearch } from 'lucide-react'
-import { createContext, Fragment, useContext, type ReactNode } from 'react'
-import { showFile } from '../../../domains/navigation'
+import { Fragment, type ReactNode } from 'react'
 import { useLocale, useT } from '../../../i18n'
 import { fileSize } from '../../../i18n/format'
+import { useOpenFile } from '../../common/FileLink'
 import { CodeBlock } from '../../common/Markdown'
 import { CallRow, ErrorText, statusFailure } from './CallRow'
 import type { ToolView } from './types'
@@ -18,20 +18,17 @@ type Read = Extract<ToolCall, { kind: 'read' }>
 type Glob = Extract<ToolCall, { kind: 'glob' }>
 type Grep = Extract<ToolCall, { kind: 'grep' }>
 
-/** The workspace of the thread on screen, whose files the Files panel shows. */
-export const ThreadWorkspace = createContext<string | undefined>(undefined)
-
 /** ollupi shows a path inside the project relative to its root, and one
  * outside it absolute; only the first is in the Files panel. */
 function PathLink({ path }: { path: string }) {
-  const workspaceId = useContext(ThreadWorkspace)
+  const opener = useOpenFile()
   const m = useT()
-  if (!workspaceId || path.startsWith('/')) return <span className="selectable font-mono text-small break-all text-fg-muted">{path}</span>
+  if (!opener || path.startsWith('/')) return <span className="selectable font-mono text-small break-all text-fg-muted">{path}</span>
   return (
     <button
       type="button"
       title={m.conversation.tool.openInFiles}
-      onClick={() => showFile(workspaceId, path)}
+      onClick={(e) => opener.open(path, e)}
       className="rounded-sm text-left font-mono text-small break-all text-fg-muted hover:text-fg hover:underline focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
     >
       {path}

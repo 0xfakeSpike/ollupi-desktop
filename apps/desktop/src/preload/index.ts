@@ -36,6 +36,7 @@ const api: DesktopApi = {
   files: {
     list: (root, path) => ipcRenderer.invoke(IpcChannel.FilesList, root, path),
     read: (root, path) => ipcRenderer.invoke(IpcChannel.FilesRead, root, path),
+    kind: (root, path) => ipcRenderer.invoke(IpcChannel.FilesKind, root, path),
   },
   changes: {
     list: (root) => ipcRenderer.invoke(IpcChannel.ChangesList, root),

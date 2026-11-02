@@ -17,6 +17,7 @@ import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
 import { Streamdown, type Components } from 'streamdown'
 import { useT } from '../../i18n'
+import { ReplyPath } from './FileLink'
 import { MermaidBlock } from './Mermaid'
 
 export function CodeBlock({ code, label }: { code: string; label?: string }) {
@@ -136,7 +137,12 @@ const components: Components = {
     const code = flatten(children).replace(/\n$/, '')
     return language === 'mermaid' ? <MermaidBlock code={code} /> : <CodeBlock code={code} label={language} />
   },
-  inlineCode: ({ children }) => <code>{children}</code>,
+  // Inline code that names a workspace file links to it.
+  inlineCode: ({ children }) => (
+    <ReplyPath text={flatten(children)}>
+      <code>{children}</code>
+    </ReplyPath>
+  ),
   // Footnote links keep their ids and labels, which screen readers follow.
   a: ({ href, children, node: _node, className: _className, ...props }) =>
     href?.startsWith('#') ? (
@@ -144,9 +150,17 @@ const components: Components = {
         {children}
       </a>
     ) : (
-      <a href={href} target="_blank" rel="noreferrer">
+      // A link to a workspace file opens it; any other, in the browser.
+      <ReplyPath
+        text={href && !/^[a-z][\w+.-]*:/i.test(href) ? safeDecode(href) : undefined}
+        fallback={
+          <a href={href} target="_blank" rel="noreferrer">
+            {children}
+          </a>
+        }
+      >
         {children}
-      </a>
+      </ReplyPath>
     ),
 }
 
@@ -166,6 +180,14 @@ export const Markdown = memo(function Markdown({ text, streaming = false }: { te
     </Streamdown>
   )
 })
+
+function safeDecode(href: string): string {
+  try {
+    return decodeURIComponent(href)
+  } catch {
+    return href
+  }
+}
 
 function flatten(node: ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
