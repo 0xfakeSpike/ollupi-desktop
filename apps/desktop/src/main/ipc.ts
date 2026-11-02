@@ -11,6 +11,8 @@ import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
 import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
+import type { History } from './browser/history'
+import { suggest } from './browser/suggest'
 import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
 import { kindOf, listFolder, readFile } from './files'
@@ -27,6 +29,7 @@ export function registerIpc(
   changes: WorkspaceChanges,
   browser: AgentBrowser,
   bookmarks: Bookmarks,
+  history: History,
   terminals: Terminals,
   attachments: TempAttachments,
   updater: AppUpdater,
@@ -88,6 +91,12 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BookmarksList, () => bookmarks.list())
   ipcMain.handle(IpcChannel.BookmarksAdd, (_event, url: unknown, title: unknown) => bookmarks.add(text(url), text(title)))
   ipcMain.handle(IpcChannel.BookmarksRemove, (_event, url: unknown) => bookmarks.remove(text(url)))
+  ipcMain.handle(IpcChannel.HistoryCount, () => history.count())
+  ipcMain.handle(IpcChannel.HistoryClear, () => history.clear())
+  ipcMain.handle(IpcChannel.BrowserSuggest, async (_event, query: unknown) => {
+    const [visited, kept] = await Promise.all([history.entries(), bookmarks.list()])
+    return suggest(text(query), visited, [...kept.own, ...kept.chrome.flatMap((c) => c.bookmarks)])
+  })
   ipcMain.handle(IpcChannel.BrowserBack, (_event, thread: unknown) => browser.back(text(thread)))
   ipcMain.handle(IpcChannel.BrowserForward, (_event, thread: unknown) => browser.forward(text(thread)))
   ipcMain.handle(IpcChannel.BrowserReload, (_event, thread: unknown) => browser.reload(text(thread)))

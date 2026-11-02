@@ -75,6 +75,11 @@ const api: DesktopApi = {
       add: (url, title) => ipcRenderer.invoke(IpcChannel.BookmarksAdd, url, title),
       remove: (url) => ipcRenderer.invoke(IpcChannel.BookmarksRemove, url),
     },
+    history: {
+      count: () => ipcRenderer.invoke(IpcChannel.HistoryCount),
+      clear: () => ipcRenderer.invoke(IpcChannel.HistoryClear),
+    },
+    suggest: (query) => ipcRenderer.invoke(IpcChannel.BrowserSuggest, query),
     back: (thread) => ipcRenderer.invoke(IpcChannel.BrowserBack, thread),
     forward: (thread) => ipcRenderer.invoke(IpcChannel.BrowserForward, thread),
     reload: (thread) => ipcRenderer.invoke(IpcChannel.BrowserReload, thread),

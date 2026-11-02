@@ -160,6 +160,15 @@ export interface BookmarkList {
   chrome: ChromeBookmarks[]
 }
 
+/** What the address bar offers for query: visited and bookmarked pages,
+ * best first, and how it completes what is typed, if it does. */
+export interface Suggestions {
+  query: string
+  items: { url: string; title: string; bookmarked: boolean }[]
+  /** text completes what is typed, and url is the page it opens. */
+  inline?: { text: string; url: string }
+}
+
 /** Where the browser panel shows the page, in the window's content. */
 export interface BrowserBounds {
   x: number
@@ -307,6 +316,13 @@ export interface DesktopApi {
       add(url: string, title: string): Promise<Bookmark[]>
       remove(url: string): Promise<Bookmark[]>
     }
+    /** The pages the browser has opened, by the person or an agent. */
+    history: {
+      count(): Promise<number>
+      clear(): Promise<void>
+    }
+    /** What the address bar offers for what is typed. */
+    suggest(query: string): Promise<Suggestions>
     back(thread: string): Promise<void>
     forward(thread: string): Promise<void>
     reload(thread: string): Promise<void>
@@ -389,6 +405,9 @@ export const IpcChannel = {
   BookmarksList: 'bookmarks:list',
   BookmarksAdd: 'bookmarks:add',
   BookmarksRemove: 'bookmarks:remove',
+  HistoryCount: 'history:count',
+  HistoryClear: 'history:clear',
+  BrowserSuggest: 'browser:suggest',
   BrowserBack: 'browser:back',
   BrowserForward: 'browser:forward',
   BrowserReload: 'browser:reload',

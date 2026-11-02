@@ -9,7 +9,7 @@ export const en = {
   screen: {
     title: 'Settings',
     sections: {
-      general: { label: 'General', description: 'The app’s version and updates, where its log, data and config.yaml live, and the ollupi backend it runs.' },
+      general: { label: 'General', description: 'The app’s version and updates, where its log, data and config.yaml live, the browser’s history, and the ollupi backend it runs.' },
       language: { label: 'Language', description: 'The language of the app itself. Conversations keep the language they are written in.' },
       appearance: { label: 'Appearance', description: '' },
       notifications: {
@@ -37,6 +37,10 @@ export const en = {
     version: 'Version',
     log: 'App log',
     dataFolder: 'Data folder',
+    browserHistory: 'Browser history',
+    pagesVisited: (n: number) => (n === 1 ? '1 page visited' : `${n} pages visited`),
+    clearHistory: 'Clear',
+    clearHistoryConfirm: 'Clear the browser’s history? The address bar stops offering the pages visited; bookmarks stay.',
     status: 'Status',
     backendStatus: { starting: 'starting', ready: 'ready', failed: 'failed', stopped: 'stopped' },
     open: 'Open',
@@ -257,7 +261,7 @@ export const zh: typeof en = {
   screen: {
     title: '设置',
     sections: {
-      general: { label: '通用', description: '应用的版本和更新，日志、数据和 config.yaml 的位置，以及它运行的 ollupi 后端。' },
+      general: { label: '通用', description: '应用的版本和更新，日志、数据和 config.yaml 的位置，浏览器历史，以及它运行的 ollupi 后端。' },
       language: { label: '语言', description: '应用界面的语言。会话内容保持原来的语言。' },
       appearance: { label: '外观', description: '' },
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
@@ -281,6 +285,10 @@ export const zh: typeof en = {
     version: '版本',
     log: '应用日志',
     dataFolder: '数据文件夹',
+    browserHistory: '浏览器历史',
+    pagesVisited: (n) => `访问过 ${n} 个网页`,
+    clearHistory: '清除',
+    clearHistoryConfirm: '清除浏览器历史记录？地址栏不再补全访问过的网页，收藏不受影响。',
     status: '状态',
     backendStatus: { starting: '启动中', ready: '就绪', failed: '失败', stopped: '已停止' },
     open: '打开',

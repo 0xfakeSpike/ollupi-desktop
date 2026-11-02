@@ -4,12 +4,13 @@
 // the panel reports where that area is whenever it moves or resizes, and
 // hides the view when it closes or something of the panel's lies over it.
 // A star keeps the page shown among the person's bookmarks, which open from
-// a list beside Chrome's.
+// a list beside Chrome's. Typing an address offers the pages visited and
+// bookmarked that match it, and completes the best one's address in place.
 
 import { cn, IconButton, Input } from '@ollupi/ui'
-import { ArrowLeft, ArrowRight, BookMarked, Globe, Plus, RotateCw, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookMarked, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Bookmark, BookmarkList, BrowserState, BrowserTab } from '../../../../shared/ipc'
+import type { Bookmark, BookmarkList, BrowserState, BrowserTab, Suggestions } from '../../../../shared/ipc'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 import { CLEAR_OF_EDGE, SidePanel, usePanelWidths } from './SidePanel'
@@ -22,6 +23,11 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const input = useRef<HTMLInputElement>(null)
   const [own, setOwn] = useState<Bookmark[]>([])
   const [listing, setListing] = useState(false)
+  // What the address bar offers for what is typed; the latest asked wins.
+  const [offer, setOffer] = useState<Suggestions>()
+  const asked = useRef(0)
+  const [completing, setCompleting] = useState(false)
+  const [pick, setPick] = useState(-1)
 
   useEffect(() => {
     void desktop.browser.state(thread).then(setState)
@@ -29,14 +35,47 @@ export function BrowserPanel({ thread }: { thread: string }) {
     return desktop.browser.onState((t, s) => t === thread && setState(s))
   }, [thread])
 
+  // Offered only while an address is being typed. The best page's address
+  // completes what is typed, selected so the next key replaces it, unless the
+  // last key deleted.
+  const offered = address?.trim() ? (offer?.items ?? []) : []
+  const inline = offer?.inline
+  const completion =
+    completing && address && inline && !/\s/.test(address) && inline.text.toLowerCase().startsWith(address.toLowerCase()) ? inline.text.slice(address.length) : ''
+  useLayoutEffect(() => {
+    if (completion && address) input.current?.setSelectionRange(address.length, address.length + completion.length)
+  }, [address, completion])
+  const typing = (typed: string, deleted: boolean) => {
+    setAddress(typed)
+    setPick(-1)
+    setCompleting(!deleted)
+    const ask = ++asked.current
+    void desktop.browser.suggest(typed).then((o) => ask === asked.current && setOffer(o))
+  }
+  const stopTyping = () => {
+    asked.current++
+    setAddress(undefined)
+    setOffer(undefined)
+    setPick(-1)
+  }
+  // The page takes the keys once it opens, as in a browser.
+  const go = (url: string | undefined) => {
+    stopTyping()
+    if (!url?.trim()) return
+    input.current?.blur()
+    void desktop.browser.open(thread, url)
+  }
+
   // Shown only once a page is open; until then the panel says what it is for.
   // Hidden while the panel's edge is dragged, as it would take the pointer,
-  // and while the bookmarks list is open, as it would cover it.
+  // and while the bookmarks list or what the address bar offers is open, as
+  // it would cover them.
   const open = !!state?.url
   const resizing = usePanelWidths((s) => s.resizing)
+  const covered = listing || offered.length > 0
   useLayoutEffect(() => {
     const el = area.current
-    if (!el || !open || resizing || listing) return
+    if (!el || !open || resizing || covered) return
     const place = () => {
       const r = el.getBoundingClientRect()
       void desktop.browser.place(thread, { x: r.left, y: r.top, width: r.width, height: r.height })
@@ -50,7 +89,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
       window.removeEventListener('resize', place)
       void desktop.browser.place(thread, undefined)
     }
-  }, [open, resizing, listing, thread])
+  }, [open, resizing, covered, thread])
 
   const kept = !!state?.url && own.some((b) => b.url === state.url)
 
@@ -75,8 +114,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
         className="relative flex shrink-0 items-center gap-1 border-b border-line px-2 py-1.5"
         onSubmit={(e) => {
           e.preventDefault()
-          if (address?.trim()) void desktop.browser.open(thread, address)
-          setAddress(undefined)
+          go(pick >= 0 ? offered[pick]?.url : completion ? inline?.url : address)
         }}
       >
         <IconButton label={t.back} size="sm" disabled={!state?.canGoBack} onClick={() => void desktop.browser.back(thread)}>
@@ -92,13 +130,33 @@ export function BrowserPanel({ thread }: { thread: string }) {
         <Input
           ref={input}
           aria-label={t.address}
+          role="combobox"
+          aria-autocomplete="both"
+          aria-expanded={offered.length > 0}
+          aria-controls={`${thread}-offered`}
+          aria-activedescendant={pick >= 0 ? `${thread}-offered-${pick}` : undefined}
           spellCheck={false}
           className="ml-1 flex-1 font-mono text-small"
           placeholder={t.addressPlaceholder}
-          value={address ?? state?.url ?? ''}
-          onChange={(e) => setAddress(e.target.value)}
+          value={address === undefined ? (state?.url ?? '') : address + completion}
+          onChange={(e) => typing(e.target.value, (e.nativeEvent as InputEvent).inputType?.startsWith('delete') ?? false)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              if (!offered.length) return
+              e.preventDefault()
+              setPick((p) => (e.key === 'ArrowDown' ? Math.min(p + 1, offered.length - 1) : Math.max(p - 1, -1)))
+            } else if (e.key === 'Escape') {
+              // First what is offered goes, then what was typed.
+              e.preventDefault()
+              if (offered.length || completion) {
+                setOffer(undefined)
+                setCompleting(false)
+                setPick(-1)
+              } else stopTyping()
+            }
+          }}
           onFocus={(e) => e.target.select()}
-          onBlur={() => setAddress(undefined)}
+          onBlur={stopTyping}
         />
         <IconButton
           label={kept ? t.unbookmark : t.bookmark}
@@ -115,6 +173,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
         <IconButton label={t.bookmarks} size="sm" active={listing} data-bookmarks-toggle onClick={() => setListing((l) => !l)}>
           <BookMarked size={14} />
         </IconButton>
+        {offered.length > 0 && <Offered id={`${thread}-offered`} items={offered} pick={pick} onPick={setPick} onOpen={go} />}
         {listing && (
           <Bookmarks
             onOpen={(url) => {
@@ -243,6 +302,43 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
   )
 }
 
+/** The pages offered for what is typed in the address bar; the person
+ * picks one with the arrow keys or the pointer. Pressing on one keeps the
+ * address bar focused until the click opens it. */
+function Offered({ id, items, pick, onPick, onOpen }: { id: string; items: Suggestions['items']; pick: number; onPick(i: number): void; onOpen(url: string): void }) {
+  const t = useT().conversation.browser
+  return (
+    <ul
+      id={id}
+      role="listbox"
+      aria-label={t.offered}
+      className="absolute top-full right-2 left-2 z-20 mt-1 animate-enter overflow-hidden rounded-lg border border-line bg-raised py-1 shadow-lg motion-reduce:animate-fade"
+    >
+      {items.map((page, i) => (
+        <li
+          key={page.url}
+          id={`${id}-${i}`}
+          role="option"
+          aria-selected={i === pick}
+          title={page.url}
+          onMouseDown={(e) => e.preventDefault()}
+          onMouseEnter={() => onPick(i)}
+          onClick={() => onOpen(page.url)}
+          className={cn('flex cursor-default items-center gap-2 px-3 py-1.5 text-small', i === pick && 'bg-hover')}
+        >
+          {page.bookmarked ? (
+            <Star size={13} aria-label={t.bookmarked} className="shrink-0 text-fg-subtle" />
+          ) : (
+            <History size={13} aria-label={t.visited} className="shrink-0 text-fg-subtle" />
+          )}
+          {page.title && <span className="max-w-[60%] shrink-0 truncate text-fg">{page.title}</span>}
+          <span className="min-w-0 truncate font-mono text-fg-subtle">{written(page.url)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function Group({ label }: { label: string }) {
   return <div className="px-3 pt-2 pb-1 text-small font-medium text-fg-subtle">{label}</div>
 }
@@ -267,6 +363,14 @@ function Row({ bookmark, folder, onOpen, onRemove }: { bookmark: Bookmark; folde
       )}
     </div>
   )
+}
+
+/** An address as people write it: no scheme, no www., no lone slash. */
+function written(url: string): string {
+  return url
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/^([^/?#]*)\/$/, '$1')
 }
 
 function host(url: string): string {
