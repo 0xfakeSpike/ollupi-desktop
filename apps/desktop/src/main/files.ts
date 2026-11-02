@@ -13,6 +13,8 @@ const hidden = new Set(['.git', '.DS_Store'])
 /** More text than a person reads in a preview. */
 export const TEXT_LIMIT = 256 * 1024
 const IMAGE_LIMIT = 5 * 1024 * 1024
+/** A PDF is shown whole, so it is read whole; past this it only opens outside. */
+const PDF_LIMIT = 50 * 1024 * 1024
 /** Where a NUL byte marks a file as binary, as git decides. */
 const SNIFF = 8000
 
@@ -44,7 +46,9 @@ export async function listFolder(root: string, path: string): Promise<FileEntry[
 export async function readFile(root: string, path: string): Promise<FilePreview> {
   const file = await inside(root, path)
   const { size } = await stat(file)
-  const mime = images[extname(file).toLowerCase()]
+  const ext = extname(file).toLowerCase()
+  if (ext === '.pdf') return size > PDF_LIMIT ? { kind: 'binary', size } : { kind: 'pdf', size, data: await head(file, size) }
+  const mime = images[ext]
   if (mime) {
     if (size > IMAGE_LIMIT) return { kind: 'binary', size }
     return { kind: 'image', size, dataUrl: `data:${mime};base64,${(await head(file, size)).toString('base64')}` }
@@ -64,7 +68,7 @@ export async function inside(root: string, path: string): Promise<string> {
   return full
 }
 
-async function head(file: string, length: number): Promise<Buffer> {
+async function head(file: string, length: number): Promise<Buffer<ArrayBuffer>> {
   const handle = await open(file, 'r')
   try {
     const buf = Buffer.alloc(length)

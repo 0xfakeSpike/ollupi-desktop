@@ -15,7 +15,7 @@ import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
 import { desktop } from '../../platform/desktop'
 import { CodeBlock, CopyButton, Markdown } from '../common/Markdown'
-import { SidePanel } from './SidePanel'
+import { SidePanel, usePanelWidths } from './SidePanel'
 
 export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
   const t = useT().conversation.files
@@ -225,7 +225,7 @@ function Preview({
   const rendered = markdown && !source
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-h-full flex-col gap-3">
       <div className="flex items-start gap-1">
         <Crumbs root={root} name={name} path={path} version={version} onOpen={onOpen} onReveal={onReveal} />
         {markdown && (
@@ -249,11 +249,29 @@ function Preview({
         </>
       ) : file.kind === 'image' ? (
         <img src={file.dataUrl} alt={path} className="max-w-full self-start rounded-md border border-line" />
+      ) : file.kind === 'pdf' ? (
+        <Pdf data={file.data} title={path} />
       ) : (
         <p className="text-small text-fg-subtle">{t.binary(fileSize(locale, file.size))}</p>
       )}
     </div>
   )
+}
+
+/** A PDF in Chromium's viewer, with its pages, zoom and search, filling
+ * the panel below the path. */
+function Pdf({ data, title }: { data: Uint8Array<ArrayBuffer>; title: string }) {
+  const [url, setUrl] = useState<string>()
+  useEffect(() => {
+    const u = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+    setUrl(u)
+    return () => URL.revokeObjectURL(u)
+  }, [data])
+  // The viewer would take the pointer from an edge being dragged across it.
+  const resizing = usePanelWidths((s) => s.resizing)
+  return url ? (
+    <iframe src={url} title={title} className={cn('min-h-96 w-full flex-1 rounded-md border border-line', resizing && 'pointer-events-none')} />
+  ) : null
 }
 
 /** The open file's path from the workspace down: a folder for each step,

@@ -12,6 +12,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
+  // A PDF in the files panel, from its bytes.
+  'frame-src blob:',
   'connect-src ws://127.0.0.1:*',
 ].join('; ')
 
