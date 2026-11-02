@@ -39,6 +39,8 @@ function browserShim(): DesktopApi | undefined {
       // No tabs to give: a draft here opens none.
       handOver: async () => {},
       bookmarks: { list: unavailable, add: unavailable, remove: unavailable },
+      history: { count: unavailable, clear: unavailable },
+      suggest: unavailable,
       back: unavailable,
       forward: unavailable,
       reload: unavailable,
@@ -84,6 +86,8 @@ export const desktop: DesktopApi = window.desktop ??
       closeTab: unavailable,
       handOver: unavailable,
       bookmarks: { list: unavailable, add: unavailable, remove: unavailable },
+      history: { count: unavailable, clear: unavailable },
+      suggest: unavailable,
       back: unavailable,
       forward: unavailable,
       reload: unavailable,

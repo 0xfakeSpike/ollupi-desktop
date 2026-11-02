@@ -1,5 +1,5 @@
 import { Badge, Button, cn, Field, palettes, Select, Switch, type Palette } from '@ollupi/ui'
-import { FileCog, FolderOpen, RotateCw, ScrollText } from 'lucide-react'
+import { FileCog, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
@@ -129,7 +129,9 @@ function General() {
   const backend = useConnection((s) => s.backend)
   const [info, setInfo] = useState<AppInfo>()
   const [restarting, setRestarting] = useState(false)
+  const [visited, setVisited] = useState<number>()
   useEffect(() => void desktop.info().then(setInfo), [])
+  useEffect(() => void desktop.browser.history.count().then(setVisited), [])
   const open = (path: string | undefined, icon: ReactNode) =>
     path && (
       <Button size="sm" icon={icon} onClick={() => void desktop.openPath(path)}>
@@ -144,6 +146,22 @@ function General() {
       <Row label={t.log} value={<Path path={info?.backendLog} />} action={open(info?.backendLog, <ScrollText size={14} />)} />
       <Row label={t.dataFolder} value={<Path path={info?.home} />} action={open(info?.home, <FolderOpen size={14} />)} />
       <Row label="config.yaml" value={<Path path={info?.configPath} />} action={open(info?.configPath, <FileCog size={14} />)} />
+      <Row
+        label={t.browserHistory}
+        value={visited === undefined ? '—' : t.pagesVisited(visited)}
+        action={
+          <Button
+            size="sm"
+            icon={<Trash2 size={14} />}
+            disabled={!visited}
+            onClick={() => {
+              if (confirm(t.clearHistoryConfirm)) void desktop.browser.history.clear().then(() => setVisited(0))
+            }}
+          >
+            {t.clearHistory}
+          </Button>
+        }
+      />
       <Row
         label={t.status}
         value={

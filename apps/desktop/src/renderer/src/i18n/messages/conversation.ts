@@ -107,6 +107,9 @@ export const en = {
     chromeBookmarks: (profile: string) => `Chrome · ${profile}`,
     noBookmarks: 'No bookmarks yet. Star a page to keep it here.',
     noBookmarkMatch: 'No bookmark matches.',
+    offered: 'Visited and bookmarked pages',
+    bookmarked: 'Bookmarked',
+    visited: 'Visited',
   },
   files: {
     title: 'Files',
@@ -337,6 +340,9 @@ export const zh: typeof en = {
     chromeBookmarks: (profile) => `Chrome · ${profile}`,
     noBookmarks: '还没有收藏。打开网页后点星标收藏。',
     noBookmarkMatch: '没有匹配的收藏。',
+    offered: '访问过和收藏的网页',
+    bookmarked: '已收藏',
+    visited: '访问过',
   },
   files: {
     title: '文件',

@@ -11,6 +11,7 @@ import { BackendSupervisor } from './backend/supervisor'
 import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
+import { History } from './browser/history'
 import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
@@ -28,6 +29,10 @@ if (!app.requestSingleInstanceLock()) {
   const browser = new AgentBrowser()
   const browserEndpoint = new BrowserEndpoint(browser)
   const bookmarks = new Bookmarks(join(app.getPath('userData'), 'bookmarks.json'), join(app.getPath('appData'), 'Google', 'Chrome'))
+  const history = new History(join(app.getPath('userData'), 'history.json'))
+  // Every page a tab opens, the person's or an agent's.
+  browser.on('visited', (url: string, title: string) => void history.visit(url, title))
+  browser.on('titled', (url: string, title: string) => void history.title(url, title))
   const terminals = new Terminals()
   const attachments = new TempAttachments(join(app.getPath('temp'), 'Ollupi', 'attachments'))
   // Every start and check of the backend reaches the app's browser.
@@ -54,7 +59,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, terminals, attachments, updater, home, backendLog)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, home, backendLog)
     createMainWindow(keepOnClose)
     updater.start()
     // The backend's browser tools reach the endpoint from its start.
@@ -79,7 +84,7 @@ if (!app.requestSingleInstanceLock()) {
     // Quit again from a fresh task: re-quitting from a microtask while this
     // quit unwinds hangs Electron when a window-all-closed listener exists.
     terminals.closeAll()
-    void backend.stop().finally(() => {
+    void Promise.allSettled([backend.stop(), history.flush()]).finally(() => {
       updater.install()
       setTimeout(() => app.quit(), 0)
     })

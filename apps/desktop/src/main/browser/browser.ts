@@ -43,8 +43,10 @@ interface Strip {
   active: WebContentsView | undefined
 }
 
-/** Emits 'state' (thread, BrowserState) as a thread's tabs change, and
- * 'used' (thread) when the agent acts in one. */
+/** Emits 'state' (thread, BrowserState) as a thread's tabs change, 'used'
+ * (thread) when the agent acts in one, 'visited' (url, title) when a tab
+ * opens a page, its title '' until it names itself, and 'titled' (url,
+ * title) when it does. */
 export class AgentBrowser extends EventEmitter {
   private readonly strips = new Map<string, Strip>()
   /** The thread whose active tab the panel shows, and where. */
@@ -273,6 +275,17 @@ export class AgentBrowser extends EventEmitter {
         if (now) this.changed(now.thread)
       })
     }
+    // A visit is the tab arriving at another address: reloading, or a page
+    // rewriting its own address as it is, is none.
+    let last = ''
+    const arrived = (url: string, title: string) => {
+      if (url === last) return
+      last = url
+      this.emit('visited', url, title)
+    }
+    wc.on('did-navigate', (_event, url) => arrived(url, ''))
+    wc.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && arrived(url, named(wc)))
+    wc.on('page-title-updated', (_event, title, explicitSet) => explicitSet && this.emit('titled', wc.getURL(), title))
     // Closed from the panel, or by the page itself.
     wc.once('destroyed', () => {
       const now = owner()
@@ -304,6 +317,12 @@ function configure(): void {
  * browser, and this one is the person's to sign in with. */
 function chromeAgent(agent: string): string {
   return agent.replace(new RegExp(` (Electron|${app.getName()})/\\S+`, 'g'), '')
+}
+
+/** The page's own title; '' when it has none and the address stands in. */
+function named(wc: Electron.WebContents): string {
+  const title = wc.getTitle()
+  return title === wc.getURL() ? '' : title
 }
 
 /** The page once it has settled: its title, address and snapshot. */
