@@ -14,7 +14,6 @@ interface ConnectionStore {
   gateway: GatewayStatus
   /** Why the last connection attempt failed or the socket closed. */
   lastError: string | undefined
-  serverVersion: string
   /** True once a connection has synced at least once. */
   synced: boolean
   /** Set when the gateway serves a different contract than the one the UI's
@@ -26,7 +25,6 @@ export const useConnection = create<ConnectionStore>()(() => ({
   backend: { status: 'starting' },
   gateway: 'idle',
   lastError: undefined,
-  serverVersion: '',
   synced: false,
   contractMismatch: undefined,
 }))

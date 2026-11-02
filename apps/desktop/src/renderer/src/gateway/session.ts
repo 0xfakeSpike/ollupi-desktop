@@ -64,7 +64,7 @@ async function connect(backend: ReadyBackend, mine: number, status: 'connecting'
       useConnection.setState({ contractMismatch: server === PROTOCOL_SHA256 ? undefined : { server, ui: PROTOCOL_SHA256 } })
       attach(client, backend, mine)
       for (const d of domains) await d.sync?.(client)
-      useConnection.setState({ gateway: 'connected', lastError: undefined, serverVersion: client.serverInfo.version, synced: true })
+      useConnection.setState({ gateway: 'connected', lastError: undefined, synced: true })
       return
     } catch (err) {
       if (mine !== epoch) return

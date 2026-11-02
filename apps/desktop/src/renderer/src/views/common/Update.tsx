@@ -42,23 +42,28 @@ export function UpdatePrompt() {
   )
 }
 
-/** The settings section's body: what the updater is doing, and the next
- * step. */
-export function UpdateSettings() {
+/** Settings' version row, in three parts: what the updater is doing (nothing
+ * while it waits for its own check), the next step, and the download's
+ * progress. */
+export function UpdateNote() {
   const state = useUpdate((s) => s.state)
   const m = useT().shell.update
+  if (state.status === 'idle') return null
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-line px-4 py-4">
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="selectable text-ui break-words text-fg">{headline(state, m)}</div>
-          {detail(state, m) && <div className="selectable mt-0.5 text-small break-words text-fg-muted">{detail(state, m)}</div>}
-        </div>
-        <Action state={state} />
-      </div>
-      {state.status === 'downloading' && <Progress received={state.received} total={state.total} />}
+    <div className="selectable mt-0.5 text-small break-words text-fg-muted">
+      {headline(state, m)}
+      {detail(state, m) && <div>{detail(state, m)}</div>}
     </div>
   )
+}
+
+export function UpdateAction() {
+  return <Action state={useUpdate((s) => s.state)} />
+}
+
+export function UpdateProgress() {
+  const state = useUpdate((s) => s.state)
+  return state.status === 'downloading' ? <Progress received={state.received} total={state.total} /> : null
 }
 
 /** The one step the state allows: check, download, restart or retry. */
