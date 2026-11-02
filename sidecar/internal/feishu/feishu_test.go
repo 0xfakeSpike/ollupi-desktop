@@ -131,7 +131,16 @@ func TestStrangerIsToldTheirOpenID(t *testing.T) {
 	m := text("m1", "", "hi")
 	m.sender = "ou_other"
 	b.message(m)
-	if len(engine.threads) != 0 || len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, "ou_other") {
+	if len(engine.threads) != 0 || len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, "ou_other") || !strings.Contains(chat.replies[0].content, "名单") {
+		t.Fatalf("threads %v, replies %+v", engine.threads, chat.replies)
+	}
+}
+
+func TestFirstMessageFinishesSetup(t *testing.T) {
+	b, engine, chat, _ := newTest(t)
+	b.users = map[string]bool{}
+	b.message(text("m1", "", "hi"))
+	if len(engine.threads) != 0 || len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, me) || !strings.Contains(chat.replies[0].content, "设置 → 飞书机器人 → 为谁操作") {
 		t.Fatalf("threads %v, replies %+v", engine.threads, chat.replies)
 	}
 }
