@@ -155,7 +155,7 @@ func (b *Bridge) message(m incoming) {
 		return
 	}
 	if !b.users[m.sender] {
-		b.replyText(m.id, fmt.Sprintf("你还不能用这个机器人。你的 open_id 是 %s，把它加进 Ollupi 的 config.yaml 的 feishu.users，再重启后端。", m.sender))
+		b.replyText(m.id, strangerText(m.sender, len(b.users) == 0))
 		return
 	}
 	text, ok := messageText(m.msgType, m.content)
@@ -560,6 +560,16 @@ func messageText(msgType, content string) (string, bool) {
 		return text, strings.TrimSpace(text) != ""
 	}
 	return "", false
+}
+
+// strangerText answers someone not listed with their open_id. With no one
+// listed yet it is the setup's last step: whoever set the bot up learns
+// their own.
+func strangerText(openID string, noneListed bool) string {
+	if noneListed {
+		return fmt.Sprintf("连上了！最后一步：你的 open_id 是 %s，把它填进 Ollupi 的 设置 → 飞书机器人 → 为谁操作，点保存并重启，之后发消息就会开始会话。", openID)
+	}
+	return fmt.Sprintf("这个机器人只替名单里的人操作。你的 open_id 是 %s；要用的话，请设置它的人把它加进 Ollupi 的 设置 → 飞书机器人 → 为谁操作。", openID)
 }
 
 func errorText(err error) string {
