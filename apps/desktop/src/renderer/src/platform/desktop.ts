@@ -26,7 +26,7 @@ function browserShim(): DesktopApi | undefined {
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
     // A browser gives a file no path.
     attachments: { pathOf: () => undefined, writeTemp: unavailable, removeTemp: unavailable },
-    files: { list: unavailable, read: unavailable },
+    files: { list: unavailable, read: unavailable, kind: unavailable },
     changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
     terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
     browser: {
@@ -72,7 +72,7 @@ export const desktop: DesktopApi = window.desktop ??
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, remove: unavailable, defaultFolder: unavailable },
     attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
-    files: { list: unavailable, read: unavailable },
+    files: { list: unavailable, read: unavailable, kind: unavailable },
     changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
     terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
     browser: {

@@ -11,3 +11,20 @@ export function readFolder(root: string, path: string): Promise<FileEntry[] | un
 export function readPreview(root: string, path: string): Promise<FilePreview | undefined> {
   return run((e) => e.files.read, () => desktop.files.read(root, path))
 }
+
+const kinds = new Map<string, Promise<FileEntry['kind'] | undefined>>()
+
+/** Whether a path a reply names is a file or a folder, asked quietly: a
+ * path that is not there is no failure. A found one is remembered for the
+ * session, as every message drawn asks again; a missing one is asked anew,
+ * as the agent may write it yet. */
+export function fileKind(root: string, path: string): Promise<FileEntry['kind'] | undefined> {
+  const key = `${root}\0${path}`
+  let kind = kinds.get(key)
+  if (!kind) {
+    kind = desktop.files.kind(root, path).catch(() => undefined)
+    kinds.set(key, kind)
+    void kind.then((k) => k || kinds.delete(key))
+  }
+  return kind
+}

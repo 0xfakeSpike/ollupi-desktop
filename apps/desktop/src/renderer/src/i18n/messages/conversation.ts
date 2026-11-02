@@ -219,7 +219,7 @@ export const en = {
     grep: (pattern: string, path: string) => (path === '.' ? `Search ${pattern}` : `Search ${pattern} in ${path}`),
     matches: (n: number, files: number) => `${n === 1 ? '1 match' : `${n} matches`} in ${files === 1 ? '1 file' : `${files} files`}`,
     more: 'more not shown',
-    openInFiles: 'Open in Files',
+    openInFiles: 'Open in Files · ⌘-click to open in its app',
     skipped: (n: number) => `${n} closed to reading`,
     reads: (read: number, glob: number, grep: number) =>
       [read && (read === 1 ? 'Read a file' : `Read ${read} files`), glob && (glob === 1 ? 'found files once' : `found files ${glob} times`), grep && (grep === 1 ? 'searched once' : `searched ${grep} times`)]
@@ -447,7 +447,7 @@ export const zh: typeof en = {
     grep: (pattern, path) => (path === '.' ? `搜索 ${pattern}` : `在 ${path} 搜索 ${pattern}`),
     matches: (n, files) => `${files} 个文件中 ${n} 处`,
     more: '更多未显示',
-    openInFiles: '在文件面板中打开',
+    openInFiles: '在文件面板中打开 · ⌘+点击用默认应用打开',
     skipped: (n) => `${n} 个禁止读取`,
     reads: (read, glob, grep) => [read && `读了 ${read} 个文件`, glob && `查找文件 ${glob} 次`, grep && `搜索 ${grep} 次`].filter(Boolean).join('，'),
   },
