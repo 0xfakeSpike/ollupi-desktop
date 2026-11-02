@@ -119,6 +119,8 @@ func TestValidateRejects(t *testing.T) {
 		"unknown key":        "name: x\n" + one + "modle: 1\n",
 		"old settings key":   "name: x\n" + one + "settings: {approvalPolicy: never}\n",
 		"negative slots":     "name: x\n" + one + "slots: -1\n",
+		"feishu no secret":   "name: x\n" + one + "feishu: {app_id: cli_x}\n",
+		"feishu bad domain":  "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, domain: slack}\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {

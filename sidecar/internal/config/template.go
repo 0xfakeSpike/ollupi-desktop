@@ -85,4 +85,13 @@ memory:
   use: true
   generate: false
   # model: openai/gpt-5.2
+
+# A Feishu bot to drive sessions from your phone: a self-built app with
+# events and card callbacks received over a long connection. Message it
+# once and it answers with your open_id, which goes under users.
+# feishu:
+#   app_id: cli_xxx
+#   app_secret: xxx
+#   users: [ou_xxx]
+#   workspace: /path/to/project # new sessions' workspace; leave out for none
 `

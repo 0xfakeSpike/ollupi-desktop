@@ -71,6 +71,13 @@ export interface ConfigCheck {
       model?: string;
     };
     skills_dir?: string;
+    feishu?: null | {
+      app_id: string;
+      app_secret: string;
+      domain?: string;
+      users?: null | string[];
+      workspace?: string;
+    };
   };
   models?:
     | null

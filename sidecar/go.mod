@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/0xfakeSpike/ollupi v0.8.3
 	github.com/google/jsonschema-go v0.4.2
+	github.com/larksuite/oapi-sdk-go/v3 v3.12.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -18,6 +19,7 @@ require (
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect

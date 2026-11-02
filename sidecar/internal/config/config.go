@@ -43,7 +43,34 @@ type Config struct {
 	MCP       []MCPServer `json:"mcp,omitempty"`
 	Memory    Memory      `json:"memory"`
 	SkillsDir string      `json:"skills_dir,omitempty"`
+	// Feishu is the Feishu (Lark) bot that sessions are driven through from
+	// a phone; leave it out to run without one.
+	Feishu *Feishu `json:"feishu,omitempty"`
 }
+
+// Feishu is a self-built Feishu app whose bot receives events over a long
+// connection, so the Mac needs no public address.
+type Feishu struct {
+	AppID string `json:"app_id"`
+	// AppSecret is written in the file, like a provider's api_key.
+	AppSecret string `json:"app_secret"`
+	// Domain is feishu (open.feishu.cn, the default) or lark
+	// (open.larksuite.com).
+	Domain FeishuDomain `json:"domain,omitempty"`
+	// Users are the open_ids the bot acts for. Anyone else who writes to it
+	// is told their open_id and nothing else happens.
+	Users []string `json:"users,omitempty"`
+	// Workspace is the folder of the workspace sessions started from Feishu
+	// belong to; empty starts them in no workspace.
+	Workspace string `json:"workspace,omitempty"`
+}
+
+type FeishuDomain string
+
+const (
+	FeishuDomainFeishu FeishuDomain = "feishu"
+	FeishuDomainLark   FeishuDomain = "lark"
+)
 
 // Provider is one API and the models it serves. Its name identifies it: two
 // providers may serve models of the same name.
@@ -336,6 +363,14 @@ func (c Config) Validate() error {
 	}
 	if c.Slots < 0 {
 		return errors.New("slots must not be negative")
+	}
+	if f := c.Feishu; f != nil {
+		if strings.TrimSpace(f.AppID) == "" || strings.TrimSpace(f.AppSecret) == "" {
+			return errors.New("feishu: app_id and app_secret are required")
+		}
+		if f.Domain != "" && f.Domain != FeishuDomainFeishu && f.Domain != FeishuDomainLark {
+			return fmt.Errorf("feishu: domain must be %s or %s, got %q", FeishuDomainFeishu, FeishuDomainLark, f.Domain)
+		}
 	}
 	return nil
 }

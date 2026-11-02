@@ -2,10 +2,12 @@
 // assembly ollupi's README describes: the database, one model client per
 // model, the tool providers (cron, the workspace's commands and file tools, web_fetch, the
 // app's browser, MCP servers),
-// memory, the agent and the gateway. It owns their lifetimes: New builds
-// everything without starting anything, Start starts the agent and its
-// sibling goroutines, Serve serves the gateway until the context ends and
-// then waits for every component to stop.
+// memory, the agent, the gateway and the clients configured beside it,
+// such as the Feishu bot. It owns their lifetimes: New builds everything
+// without starting anything, Start starts the agent and its sibling
+// goroutines, Serve serves
+// the gateway until the context ends and then waits for every component to
+// stop.
 package host
 
 import (
@@ -21,6 +23,7 @@ import (
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
 	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/agent/memory"
 	"github.com/0xfakeSpike/ollupi/gateway"
@@ -51,9 +54,18 @@ type Options struct {
 	Browser *browser.Endpoint
 }
 
+// A Client is a front end of the agent beside the gateway, such as a chat
+// bot: it is handed every event the gateway is, and runs until the backend
+// stops. Deliver must not block: the agent emits from its own loop.
+type Client interface {
+	Deliver(agent.Event)
+	Run(ctx context.Context)
+}
+
 type Host struct {
 	agent    *agent.Agent
 	gateway  *gateway.Server
+	clients  []Client
 	memory   *memory.Manager
 	jobs     *cron.Jobs
 	closers  []func() error
@@ -124,7 +136,6 @@ func New(opts Options) (_ *Host, err error) {
 		return nil, err
 	}
 
-	var deliver func(agent.Event)
 	h.agent = agent.New(agent.Config{
 		Name:        cfg.Name,
 		Prompt:      cfg.Prompt,
@@ -142,7 +153,14 @@ func New(opts Options) (_ *Host, err error) {
 		AttachmentsDir: filepath.Join(dataHome, "attachments"),
 		Memory:         h.memory,
 		DB:             db,
-		OnEvent:        func(e agent.Event) { deliver(e) },
+		// The gateway and clients are set before Start, so the agent never
+		// emits into nil ones.
+		OnEvent: func(e agent.Event) {
+			h.gateway.Deliver(e)
+			for _, c := range h.clients {
+				c.Deliver(e)
+			}
+		},
 	})
 	h.gateway, err = gateway.NewServer(h.agent, gateway.Options{
 		DB:             db,
@@ -155,15 +173,16 @@ func New(opts Options) (_ *Host, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// Set before Start, so the agent and the cron timer never emit into a
-	// nil gateway.
-	deliver = h.gateway.Deliver
+	if h.clients, err = clients(cfg, h.agent, db, dataHome); err != nil {
+		return nil, err
+	}
+	// Set before Start, so the cron timer never reports into a nil gateway.
 	cronChanged = h.gateway.CronChanged
 	return h, nil
 }
 
-// Start starts the agent, then memory extraction and the cron timer beside
-// it. Cancelling ctx stops them all.
+// Start starts the agent, then memory extraction, the cron timer and the
+// clients beside it. Cancelling ctx stops them all.
 func (h *Host) Start(ctx context.Context) error {
 	if err := h.agent.Start(ctx); err != nil {
 		h.close()
@@ -177,7 +196,24 @@ func (h *Host) Start(ctx context.Context) error {
 			return err
 		})
 	})
+	for _, c := range h.clients {
+		h.siblings.Go(func() { c.Run(ctx) })
+	}
 	return nil
+}
+
+// clients are the front ends cfg configures beside the gateway.
+func clients(cfg config.Config, a *agent.Agent, db *repo.DB, dataHome string) ([]Client, error) {
+	var out []Client
+	if cfg.Feishu != nil {
+		// Which topic holds which session is kept beside the database.
+		b, err := feishu.New(*cfg.Feishu, a, db, filepath.Join(dataHome, "data", "feishu.json"))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, nil
 }
 
 // Serve serves the gateway on ln until the context given to Start ends, then
