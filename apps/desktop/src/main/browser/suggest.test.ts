@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -62,6 +62,15 @@ describe('history', () => {
     dir = await mkdtemp(join(tmpdir(), 'ollupi-history-'))
   })
   afterEach(() => rm(dir, { recursive: true, force: true }))
+
+  it('keeps a file it cannot read as it is', async () => {
+    const file = join(dir, 'history.json')
+    await writeFile(file, '[{"url":"https://a.exam')
+    const h = new History(file)
+    await expect(h.visit('https://b.example/', 'B')).rejects.toThrow('does not hold JSON')
+    await h.flush()
+    expect(await readFile(file, 'utf8')).toBe('[{"url":"https://a.exam')
+  })
 
   it('keeps each page once, with its visits, latest title and last visit, in its file', async () => {
     const file = join(dir, 'history.json')

@@ -11,6 +11,7 @@ import { cn, IconButton, Input } from '@ollupi/ui'
 import { ArrowLeft, ArrowRight, BookMarked, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Bookmark, BookmarkList, BrowserState, BrowserTab, Suggestions } from '../../../../shared/ipc'
+import { addBookmark, openPage, removeBookmark } from '../../domains/browser'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 import { CLEAR_OF_EDGE, SidePanel, usePanelWidths } from './SidePanel'
@@ -63,7 +64,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
     stopTyping()
     if (!url?.trim()) return
     input.current?.blur()
-    void desktop.browser.open(thread, url)
+    void openPage(thread, url)
   }
 
   // Shown only once a page is open; until then the panel says what it is for.
@@ -165,7 +166,8 @@ export function BrowserPanel({ thread }: { thread: string }) {
           active={kept}
           onClick={async () => {
             if (!state?.url) return
-            setOwn(kept ? await desktop.browser.bookmarks.remove(state.url) : await desktop.browser.bookmarks.add(state.url, state.title))
+            const next = await (kept ? removeBookmark(state.url) : addBookmark(state.url, state.title))
+            if (next) setOwn(next)
           }}
         >
           <Star size={14} fill={kept ? 'currentColor' : 'none'} />
@@ -178,7 +180,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
           <Bookmarks
             onOpen={(url) => {
               setListing(false)
-              void desktop.browser.open(thread, url)
+              void openPage(thread, url)
             }}
             onClose={() => setListing(false)}
             onChanged={setOwn}
@@ -281,7 +283,8 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
                 bookmark={b}
                 onOpen={onOpen}
                 onRemove={async () => {
-                  const next = await desktop.browser.bookmarks.remove(b.url)
+                  const next = await removeBookmark(b.url)
+                  if (!next) return
                   onChanged(next)
                   setList((l) => l && { ...l, own: next })
                 }}

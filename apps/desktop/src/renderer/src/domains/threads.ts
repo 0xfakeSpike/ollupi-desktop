@@ -68,7 +68,7 @@ export const threadsDomain: Domain = {
         const was = new Set(activeWorkspaces(before.list).map((w) => w.id))
         for (const w of activeWorkspaces(now.list)) {
           if (!was.has(w.id) && before.list.some((b) => b.id === w.id)) {
-            void readGroup(w.id, 'start')
+            void run((e) => e.thread.list, () => readGroup(w.id, 'start'))
           }
         }
       }),

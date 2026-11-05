@@ -3,9 +3,11 @@
 // read from Chrome's Bookmarks file as it is whenever they are listed.
 // Chrome's file is plain JSON; Chrome keeps writing it, so it is only read.
 
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Bookmark, BookmarkList, ChromeBookmarks } from '../../shared/ipc'
+import { isWebPage } from './address'
+import { readKept, writeKept } from './file'
 
 export class Bookmarks {
   /** Changes in the order they were asked for, each on the last's file. */
@@ -33,9 +35,7 @@ export class Bookmarks {
   private change(fn: (list: Bookmark[]) => Bookmark[]): Promise<Bookmark[]> {
     const next = this.queue.then(async () => {
       const list = fn(await this.own())
-      const tmp = `${this.file}.tmp`
-      await writeFile(tmp, JSON.stringify(list, null, 2))
-      await rename(tmp, this.file)
+      await writeKept(this.file, JSON.stringify(list, null, 2))
       return list
     })
     this.queue = next.catch(() => {})
@@ -43,7 +43,7 @@ export class Bookmarks {
   }
 
   private async own(): Promise<Bookmark[]> {
-    const saved = await readJson(this.file)
+    const saved = await readKept(this.file)
     if (!Array.isArray(saved)) return []
     return saved.filter((b): b is Bookmark => typeof b?.url === 'string' && typeof b?.title === 'string')
   }
@@ -66,7 +66,7 @@ export async function chromeBookmarks(chrome: string): Promise<ChromeBookmarks[]
     const file = (await readJson(join(chrome, dir, 'Bookmarks'))) as { roots?: Record<string, ChromeNode> } | undefined
     const bookmarks: ChromeBookmarks['bookmarks'] = []
     const walk = (node: ChromeNode, folder: string[]) => {
-      if (node.type === 'url' && node.url && /^https?:/.test(node.url)) bookmarks.push({ url: node.url, title: node.name || node.url, folder: folder.join(' / ') })
+      if (node.type === 'url' && node.url && isWebPage(node.url)) bookmarks.push({ url: node.url, title: node.name || node.url, folder: folder.join(' / ') })
       for (const child of node.children ?? []) walk(child, node.type === 'folder' && node.name ? [...folder, node.name] : folder)
     }
     for (const root of Object.values(file?.roots ?? {})) if (root && typeof root === 'object') walk(root, [])

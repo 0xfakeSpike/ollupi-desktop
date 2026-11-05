@@ -6,6 +6,7 @@
 // every update: the app is signed ad hoc, so no two versions share a
 // designated requirement.
 
+import { errorMessage } from '@ollupi/client'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
@@ -134,8 +135,6 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
   private async fetchFile(release: ReleaseFile, file: string): Promise<void> {
     const stall = new AbortController()
     let timer = setTimeout(() => stall.abort(), STALL_MS)
-    const res = await this.opts.fetch(`${RELEASES_URL}/download/v${release.version}/${release.url}`, { signal: stall.signal })
-    if (!res.ok || !res.body) throw new Error(`${release.url}: HTTP ${res.status}`)
     const hash = createHash('sha512')
     let received = 0
     let shown = 0
@@ -154,6 +153,8 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
       },
     })
     try {
+      const res = await this.opts.fetch(`${RELEASES_URL}/download/v${release.version}/${release.url}`, { signal: stall.signal })
+      if (!res.ok || !res.body) throw new Error(`${release.url}: HTTP ${res.status}`)
       await pipeline(Readable.fromWeb(res.body as import('node:stream/web').ReadableStream), count, createWriteStream(file))
     } finally {
       clearTimeout(timer)
@@ -255,5 +256,5 @@ class LocationError extends Error {
 
 function reported(err: unknown): UpdateFailure {
   if (err instanceof LocationError) return { kind: 'location', path: err.path }
-  return { kind: 'error', message: err instanceof Error ? err.message : String(err) }
+  return { kind: 'error', message: errorMessage(err) }
 }

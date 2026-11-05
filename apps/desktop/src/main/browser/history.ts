@@ -4,7 +4,8 @@
 // oldest go once there are too many; changes reach the file a moment after,
 // several at once.
 
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { isWebPage } from './address'
+import { readKept, writeKept } from './file'
 import type { Visit } from './suggest'
 
 const LIMIT = 5000
@@ -21,7 +22,7 @@ export class History {
 
   /** A page opened: title is '' when the page has not named itself yet. */
   async visit(url: string, title: string, now = Date.now()): Promise<void> {
-    if (!/^https?:/.test(url)) return
+    if (!isWebPage(url)) return
     const pages = await this.load()
     const kept = pages.get(url)
     pages.delete(url)
@@ -63,29 +64,22 @@ export class History {
     clearTimeout(this.timer)
     this.timer = undefined
     const list = [...(await this.load()).values()]
-    const next = this.queue.then(async () => {
-      const tmp = `${this.file}.tmp`
-      await writeFile(tmp, JSON.stringify(list))
-      await rename(tmp, this.file)
-    })
+    const next = this.queue.then(() => writeKept(this.file, JSON.stringify(list)))
     this.queue = next.catch(() => {})
     return next
   }
 
   private later(): void {
     if (this.timer) return
-    this.timer = setTimeout(() => void this.write().catch(() => {}), SAVE_DELAY)
+    this.timer = setTimeout(() => void this.write().catch((err: unknown) => console.error('browser history not saved', err)), SAVE_DELAY)
   }
 
   private load(): Promise<Map<string, Visit>> {
-    this.pages ??= readFile(this.file, 'utf8')
-      .then((text) => JSON.parse(text) as unknown)
-      .catch(() => undefined)
-      .then((saved) => {
-        const list = Array.isArray(saved) ? saved.filter(isVisit) : []
-        list.sort((a, b) => a.last - b.last)
-        return new Map(list.map((v) => [v.url, v]))
-      })
+    this.pages ??= readKept(this.file).then((saved) => {
+      const list = Array.isArray(saved) ? saved.filter(isVisit) : []
+      list.sort((a, b) => a.last - b.last)
+      return new Map(list.map((v) => [v.url, v]))
+    })
     return this.pages
   }
 }

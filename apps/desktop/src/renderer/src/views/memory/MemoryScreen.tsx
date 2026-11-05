@@ -6,9 +6,9 @@
 import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
 import { Badge, Button, cn, EmptyState, IconButton, Spinner, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Brain, ChevronRight, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useId, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
-import { editMemory, forgetMemory, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
+import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
 import { shownResult, useSearch } from '../../domains/search'
 import { useThreadSummary } from '../../domains/threads'
 import { useWorkspaces } from '../../domains/workspaces'
@@ -25,12 +25,6 @@ function placesOf(m: Messages, workspaces: { id: string; name: string }[]): { pl
     { place: { scope: 'general' }, label: m.memory.screen.general },
     ...workspaces.map((w) => ({ place: { scope: 'workspace' as const, workspaceId: w.id }, label: w.name })),
   ]
-}
-
-/** A kind's display name; a kind this app does not know is shown as sent. */
-function kindLabel(m: Messages, kind: string): string {
-  const kinds: Record<string, string | undefined> = m.memory.entry.kinds
-  return Object.hasOwn(kinds, kind) ? kinds[kind]! : kind
 }
 
 export function MemoryScreen({ found }: { found?: { id: string; scope: string } }) {
@@ -51,9 +45,14 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   // Saving the memory settings restarts the backend: read again once the
   // new one is connected.
   const connected = useConnection((s) => s.gateway === 'connected')
+  const asked = useRef(0)
   const reload = useCallback(async () => {
+    const ask = ++asked.current
     setLoading(true)
-    setData(await readMemory(workspaceIds ? workspaceIds.split('\n') : []))
+    const read = await readMemory(workspaceIds ? workspaceIds.split('\n') : [])
+    if (ask !== asked.current) return
+    // A failed read has said so; what is shown stays.
+    if (read) setData(read)
     setLoading(false)
   }, [workspaceIds])
   useEffect(() => {

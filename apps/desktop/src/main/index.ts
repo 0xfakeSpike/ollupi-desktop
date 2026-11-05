@@ -31,8 +31,9 @@ if (!app.requestSingleInstanceLock()) {
   const bookmarks = new Bookmarks(join(app.getPath('userData'), 'bookmarks.json'), join(app.getPath('appData'), 'Google', 'Chrome'))
   const history = new History(join(app.getPath('userData'), 'history.json'))
   // Every page a tab opens, the person's or an agent's.
-  browser.on('visited', (url: string, title: string) => void history.visit(url, title))
-  browser.on('titled', (url: string, title: string) => void history.title(url, title))
+  const noted = (work: Promise<void>) => void work.catch((err: unknown) => console.error('browser history not kept', err))
+  browser.on('visited', (url: string, title: string) => noted(history.visit(url, title)))
+  browser.on('titled', (url: string, title: string) => noted(history.title(url, title)))
   const terminals = new Terminals()
   const attachments = new TempAttachments(join(app.getPath('temp'), 'Ollupi', 'attachments'))
   // Every start and check of the backend reaches the app's browser.

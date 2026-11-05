@@ -47,6 +47,13 @@ describe('bookmarks', () => {
     expect(await chromeBookmarks(join(dir, 'no-chrome'))).toEqual([])
   })
 
+  it('refuses a change rather than replace a file it cannot read', async () => {
+    const file = join(dir, 'bookmarks.json')
+    await writeFile(file, '[{"url":"https://a.exam')
+    await expect(new Bookmarks(file, join(dir, 'no-chrome')).add('https://b.example/', 'B')).rejects.toThrow('does not hold JSON')
+    expect(await readFile(file, 'utf8')).toBe('[{"url":"https://a.exam')
+  })
+
   it('keeps the newest first, once per page, in its file', async () => {
     const file = join(dir, 'bookmarks.json')
     const b = new Bookmarks(file, join(dir, 'no-chrome'))

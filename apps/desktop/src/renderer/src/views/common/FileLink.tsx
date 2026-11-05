@@ -5,10 +5,10 @@
 import { createContext, useContext, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { fileKind } from '../../domains/files'
 import { workspacePath } from '../../domains/filePaths'
+import { openPath } from '../../domains/files'
 import { showFile } from '../../domains/navigation'
 import { useWorkspace } from '../../domains/workspaces'
 import { useT } from '../../i18n'
-import { desktop } from '../../platform/desktop'
 
 /** The workspace of the thread on screen, whose files the Files panel shows. */
 export const ThreadWorkspace = createContext<string | undefined>(undefined)
@@ -23,7 +23,7 @@ export function useOpenFile(): { root: string; open(path: string, event: MouseEv
     root,
     open: (path, event) => {
       event.preventDefault()
-      if (event.metaKey) void desktop.openPath(`${root}/${path}`)
+      if (event.metaKey) void openPath(`${root}/${path}`)
       else showFile(workspace.id, path)
     },
   }

@@ -20,6 +20,7 @@ import {
   turnOn,
   useLoadedSkills,
 } from '../../domains/skills'
+import { openPath } from '../../domains/files'
 import { useConnection } from '../../gateway/connection'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
@@ -37,7 +38,10 @@ export function SkillsSection() {
 
   // A change restarts the backend: read again once the new one is connected.
   const connected = useConnection((c) => c.gateway === 'connected')
-  const reload = useCallback(async () => setList(await readSkills()), [])
+  const reload = useCallback(async () => {
+    const read = await readSkills()
+    if (read) setList(read)
+  }, [])
   useEffect(() => {
     if (connected) void reload()
   }, [connected, reload])
@@ -172,7 +176,7 @@ function Folder({ dir, busy, onChange, onOff }: { dir: string; busy: boolean; on
         <div className="text-ui font-medium text-fg">{s.folder}</div>
         <div className="selectable mt-0.5 font-mono text-small break-all text-fg-muted">{dir}</div>
       </div>
-      <IconButton label={s.openFolder} size="sm" onClick={() => void desktop.openPath(dir)}>
+      <IconButton label={s.openFolder} size="sm" onClick={() => void openPath(dir)}>
         <FolderOpen size={14} />
       </IconButton>
       <Button size="sm" disabled={busy} onClick={onChange}>
@@ -198,7 +202,7 @@ function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string;
           <IconButton label={m.edit(skill.name)} size="sm" onClick={onEdit}>
             <Pencil size={14} />
           </IconButton>
-          <IconButton label={m.reveal(skill.name)} size="sm" onClick={() => void desktop.openPath(`${dir}/${skill.name}`)}>
+          <IconButton label={m.reveal(skill.name)} size="sm" onClick={() => void openPath(`${dir}/${skill.name}`)}>
             <FolderOpen size={14} />
           </IconButton>
           <IconButton label={m.remove(skill.name)} size="sm" onClick={onRemove}>

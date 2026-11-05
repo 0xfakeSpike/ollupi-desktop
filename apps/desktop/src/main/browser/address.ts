@@ -1,5 +1,11 @@
 // Addresses typed into the app's browser, by the person or the agent.
 
+/** Only web pages open, whoever asks: the main process can load what a page
+ * itself may not, such as file:. */
+export function isWebPage(url: string): boolean {
+  return /^https?:/i.test(url)
+}
+
 /** An address as typed: without a scheme, a local server's is http and
  * anything else https. Only web pages open. */
 export function normalize(url: string): string {

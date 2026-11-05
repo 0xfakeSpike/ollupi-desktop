@@ -211,7 +211,9 @@ func (p *Provider) post(ctx context.Context, path, action string, arguments map[
 		var e struct {
 			Error string `json:"error"`
 		}
-		_ = json.Unmarshal(raw, &e)
+		if err := json.Unmarshal(raw, &e); err != nil {
+			return fmt.Errorf("browser: the app's refusal: %w", err)
+		}
 		return &refusal{message: e.Error}
 	default:
 		return fmt.Errorf("browser: the app answered %s", res.Status)

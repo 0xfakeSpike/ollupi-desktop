@@ -11,6 +11,7 @@ import '@xterm/xterm/css/xterm.css'
 import { RotateCcw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAppearance } from '../../domains/appearance'
+import { run } from '../../gateway/run'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 import { SidePanel } from './SidePanel'
@@ -45,7 +46,9 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
     let ready = false
     const offData = desktop.terminal.onData((k, text) => ready && k === key && term.write(text))
     const offExit = desktop.terminal.onExit((k) => k === key && term.write(`\r\n${t.exited}\r\n`))
-    void desktop.terminal.open(key, cwd, term.cols, term.rows).then((past) => {
+    let live = true
+    void run((e) => e.terminal, () => desktop.terminal.open(key, cwd, term.cols, term.rows)).then((past) => {
+      if (!live) return
       ready = true
       if (past) term.write(past)
     })
@@ -55,6 +58,7 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
     observer.observe(el)
     term.focus()
     return () => {
+      live = false
       observer.disconnect()
       input.dispose()
       resized.dispose()

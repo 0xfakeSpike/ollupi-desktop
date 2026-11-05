@@ -11,6 +11,7 @@ import type { BackendState } from '../../../shared/ipc'
 import { conversationDomain } from '../domains/conversation'
 import { cronDomain } from '../domains/cron'
 import { modelsDomain } from '../domains/models'
+import { noticesDomain } from '../domains/notices'
 import { notificationsDomain } from '../domains/notifications'
 import { requestsDomain } from '../domains/requests'
 import { settingsDomain } from '../domains/settings'
@@ -25,7 +26,7 @@ type ReadyBackend = Extract<BackendState, { status: 'ready' }>
 
 // Sync runs in this order: threads are listed per workspace, so workspaces
 // come first.
-const domains: Domain[] = [workspacesDomain, threadsDomain, conversationDomain, requestsDomain, notificationsDomain, modelsDomain, toolsDomain, cronDomain, settingsDomain]
+const domains: Domain[] = [workspacesDomain, threadsDomain, conversationDomain, requestsDomain, noticesDomain, notificationsDomain, modelsDomain, toolsDomain, cronDomain, settingsDomain]
 const CLIENT_INFO = { name: 'ollupi-desktop', version: '0.2.0' }
 const MAX_BACKOFF_MS = 5000
 
@@ -62,8 +63,13 @@ async function connect(backend: ReadyBackend, mine: number, status: 'connecting'
       if (mine !== epoch) return client.close()
       const server = client.protocolSha256
       useConnection.setState({ contractMismatch: server === PROTOCOL_SHA256 ? undefined : { server, ui: PROTOCOL_SHA256 } })
-      attach(client, backend, mine)
+      attach(client)
       for (const d of domains) await d.sync?.(client)
+      if (client.isClosed) throw new Error('the connection closed while syncing')
+      // Only now: a close during the sync fails it, and this loop tries
+      // again; a second loop beside it would have the two connections
+      // replace each other at the gateway, which keeps one per user.
+      watchClose(client, backend, mine)
       useConnection.setState({ gateway: 'connected', lastError: undefined, synced: true })
       return
     } catch (err) {
@@ -76,10 +82,13 @@ async function connect(backend: ReadyBackend, mine: number, status: 'connecting'
   }
 }
 
-function attach(client: OllupiClient, backend: ReadyBackend, mine: number): void {
+function attach(client: OllupiClient): void {
   const unbinds = domains.map((d) => d.bind?.(client) ?? (() => {}))
   current = { client, unbind: () => unbinds.forEach((u) => u()) }
   setClient(client)
+}
+
+function watchClose(client: OllupiClient, backend: ReadyBackend, mine: number): void {
   client.onClose((reason) => {
     if (current?.client !== client) return
     drop()

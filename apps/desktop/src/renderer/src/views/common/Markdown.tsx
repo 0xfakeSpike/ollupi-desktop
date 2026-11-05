@@ -16,6 +16,7 @@ import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
 import { Streamdown, type Components } from 'streamdown'
+import { run } from '../../gateway/run'
 import { useT } from '../../i18n'
 import { ReplyPath } from './FileLink'
 import { MermaidBlock } from './Mermaid'
@@ -93,11 +94,13 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
     <IconButton
       label={copied ? m.conversation.markdown.copied : (label ?? m.conversation.markdown.copy)}
       size="sm"
-      onClick={() => {
-        void navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1200)
-      }}
+      onClick={() =>
+        void run((e) => e.copy, async () => {
+          await navigator.clipboard.writeText(text)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1200)
+        })
+      }
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
     </IconButton>

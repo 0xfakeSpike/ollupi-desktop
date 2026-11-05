@@ -58,9 +58,10 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
     setSending(true)
     try {
       if (await onSubmit({ text: value, files: attachments.map((a) => a.file) }, mode)) {
-        setText('')
+        // What was typed or attached while it went stays for the next message.
+        setText((now) => (now === text ? '' : now))
         attachments.forEach(releaseDraft)
-        setAttachments([])
+        setAttachments((now) => now.filter((a) => !attachments.includes(a)))
       }
     } finally {
       setSending(false)

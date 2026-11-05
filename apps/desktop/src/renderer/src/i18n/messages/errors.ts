@@ -54,7 +54,15 @@ export const en = {
   files: {
     list: 'Could not read the folder',
     read: 'Could not read the file',
+    open: 'Could not open it',
   },
+  browser: {
+    open: 'Could not open the page',
+    bookmark: 'Could not change the bookmark',
+    clearHistory: 'Could not clear the browser history',
+  },
+  terminal: 'Could not open the terminal',
+  copy: 'Could not copy',
   changes: {
     list: 'Could not read the changes',
     diff: 'Could not read the diff',
@@ -139,7 +147,15 @@ export const zh: typeof en = {
   files: {
     list: '无法读取文件夹',
     read: '无法读取文件',
+    open: '无法打开',
   },
+  browser: {
+    open: '无法打开网页',
+    bookmark: '无法更改收藏',
+    clearHistory: '无法清除浏览器历史',
+  },
+  terminal: '无法打开终端',
+  copy: '无法复制',
   changes: {
     list: '无法读取改动',
     diff: '无法读取差异',

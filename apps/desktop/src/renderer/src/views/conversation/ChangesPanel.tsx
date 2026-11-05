@@ -10,9 +10,9 @@ import { ArrowLeft, ExternalLink, GitCommitHorizontal, RotateCw, Undo2 } from 'l
 import { useEffect, useState } from 'react'
 import type { Changes, FileChange, FileDiff } from '../../../../shared/ipc'
 import { commitStaged, discardFile, readChanges, readDiff, stageFiles, unstageFiles } from '../../domains/changes'
+import { openPath } from '../../domains/files'
 import { notify } from '../../domains/notices'
 import { useT } from '../../i18n'
-import { desktop } from '../../platform/desktop'
 import { CodeBlock } from '../common/Markdown'
 import { SidePanel } from './SidePanel'
 
@@ -120,7 +120,7 @@ function CommitForm({ root, staged, onCommitted }: { root: string; staged: numbe
         placeholder={t.message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && e.metaKey && staged > 0 && message.trim()) void commit()
+          if (e.key === 'Enter' && e.metaKey && staged > 0 && message.trim() && !committing) void commit()
         }}
         className="resize-none text-ui"
       />
@@ -193,7 +193,7 @@ function Diff({ root, file, version, onBack }: { root: string; file: FileChange;
           {file.path}
         </span>
         {file.kind !== 'deleted' && (
-          <IconButton label={t.open} size="sm" onClick={() => void desktop.openPath(`${root}/${file.path}`)}>
+          <IconButton label={t.open} size="sm" onClick={() => void openPath(`${root}/${file.path}`)}>
             <ExternalLink size={14} />
           </IconButton>
         )}

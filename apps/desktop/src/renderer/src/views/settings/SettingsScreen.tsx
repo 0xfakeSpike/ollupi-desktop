@@ -3,6 +3,8 @@ import { FileCog, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setPalette, useAppearance } from '../../domains/appearance'
+import { clearHistory } from '../../domains/browser'
+import { openPath } from '../../domains/files'
 import { noticeKinds, setNotification, useNotificationPrefs } from '../../domains/notifications'
 import { setRedaction, useSettings } from '../../domains/settings'
 import { useConnection } from '../../gateway/connection'
@@ -134,7 +136,7 @@ function General() {
   useEffect(() => void desktop.browser.history.count().then(setVisited), [])
   const open = (path: string | undefined, icon: ReactNode) =>
     path && (
-      <Button size="sm" icon={icon} onClick={() => void desktop.openPath(path)}>
+      <Button size="sm" icon={icon} onClick={() => void openPath(path)}>
         {t.open}
       </Button>
     )
@@ -155,7 +157,7 @@ function General() {
             icon={<Trash2 size={14} />}
             disabled={!visited}
             onClick={() => {
-              if (confirm(t.clearHistoryConfirm)) void desktop.browser.history.clear().then(() => setVisited(0))
+              if (confirm(t.clearHistoryConfirm)) void clearHistory().then((done) => done && setVisited(0))
             }}
           >
             {t.clearHistory}
