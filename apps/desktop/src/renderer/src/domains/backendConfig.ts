@@ -21,7 +21,7 @@ export function readConfig(): Promise<ConfigCheck | undefined> {
  * possibly done), so with threads running it asks first. */
 export function confirmRestart(): boolean {
   const running = useThreads.getState().list.filter((t) => isWorking(t.status)).length
-  return !running || confirm(`${running} thread${running === 1 ? ' is' : 's are'} running. Restarting the backend stops commands they are executing. Continue?`)
+  return !running || confirm(t().common.restartRunning(running))
 }
 
 /** Applies changes and restarts the backend, asking first while threads

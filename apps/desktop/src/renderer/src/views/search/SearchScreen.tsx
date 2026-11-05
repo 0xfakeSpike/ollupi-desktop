@@ -7,7 +7,7 @@ import { Badge, cn, EmptyState, Select, Spinner } from '@ollupi/ui'
 import { Bot, Brain, CalendarClock, MessageSquare, Search, User } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { openThread, openThreadAt } from '../../domains/conversation'
-import { placeKey, placeOf } from '../../domains/memory'
+import { kindLabel, placeKey, placeOf } from '../../domains/memory'
 import { go } from '../../domains/navigation'
 import { queryTerms, shownResult, useSearch, useSearchScreen } from '../../domains/search'
 import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
@@ -200,11 +200,6 @@ function MemoryResult({ memory, terms }: { memory: MemoryRow; terms: string[] })
       <Meta>{[<span key="kind">{kindLabel(m, memory.kind)}</span>, <span key="scope">{scopeLabel(m, memory, workspace)}</span>]}</Meta>
     </Row>
   )
-}
-
-function kindLabel(m: Messages, kind: string): string {
-  const kinds: Record<string, string | undefined> = m.memory.entry.kinds
-  return Object.hasOwn(kinds, kind) ? kinds[kind]! : kind
 }
 
 function scopeLabel(m: Messages, memory: MemoryRow, workspace: (id: string | undefined) => string): string {

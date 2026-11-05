@@ -10,10 +10,10 @@ import { ChevronRight, Code, ExternalLink, Eye, File, Folder, RotateCw } from 'l
 import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
 import { readFolder, readPreview } from '../../domains/files'
+import { openPath } from '../../domains/files'
 import { showFile, useNavigation } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
-import { desktop } from '../../platform/desktop'
 import { CodeBlock, CopyButton, Markdown } from '../common/Markdown'
 import { SidePanel, usePanelWidths } from './SidePanel'
 
@@ -68,6 +68,7 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
         />
       ) : (
         <Preview
+          key={file}
           root={root}
           name={workspace.name}
           path={file}
@@ -234,7 +235,7 @@ function Preview({
           </IconButton>
         )}
         <CopyButton text={`${root}/${path}`} label={t.copyPath} />
-        <IconButton label={t.open} size="sm" onClick={() => void desktop.openPath(`${root}/${path}`)}>
+        <IconButton label={t.open} size="sm" onClick={() => void openPath(`${root}/${path}`)}>
           <ExternalLink size={14} />
         </IconButton>
       </div>

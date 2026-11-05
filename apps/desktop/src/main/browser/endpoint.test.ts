@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 // The endpoint's browser is a stand-in; Electron is not loaded in tests.
 vi.mock('electron', () => ({}))
 
-const { normalize } = await import('./address')
+const { isWebPage, normalize } = await import('./address')
 const { Refusal } = await import('./browser')
 const { BrowserEndpoint } = await import('./endpoint')
 
@@ -25,6 +25,11 @@ async function started() {
 }
 
 describe('BrowserEndpoint', () => {
+  it('answers 400 to a body that is not an object', async () => {
+    const { post } = await started()
+    expect((await post('/call', null)).status).toBe(400)
+  })
+
   it('describes and does a call in the thread that makes it', async () => {
     const { post } = await started()
     expect(await (await post('/describe', { thread: 'th1', action: 'click', arguments: { ref: 'e1' } })).json()).toEqual({ host: 'example.com', text: 'th1 click' })
@@ -52,5 +57,12 @@ describe('normalize', () => {
     expect(normalize(' http://127.0.0.1:8080/x ')).toBe('http://127.0.0.1:8080/x')
     expect(() => normalize('file:///etc/passwd')).toThrow('only http and https')
     expect(() => normalize('javascript:alert(1)')).toThrow()
+  })
+
+  it('tells a web page from what only the main process could load', () => {
+    expect(isWebPage('https://example.com/')).toBe(true)
+    expect(isWebPage('http://127.0.0.1:8080/')).toBe(true)
+    expect(isWebPage('file:///etc/passwd')).toBe(false)
+    expect(isWebPage('about:blank')).toBe(false)
   })
 })

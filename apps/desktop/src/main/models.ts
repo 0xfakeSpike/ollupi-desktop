@@ -2,6 +2,7 @@
 // the backend's client for that API talks to it. Asked from the main
 // process: the API would not answer the renderer's origin.
 
+import { errorMessage } from '@ollupi/client'
 import type { ApiType, ListedModel, ModelList } from '../shared/ipc'
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>
@@ -51,7 +52,7 @@ export async function listModels(fetch: Fetch, type: ApiType, baseUrl: string, a
     const models = api.models(body)
     return models ? { ok: true, models } : { ok: false, error: 'The API did not answer with a model list.' }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    return { ok: false, error: errorMessage(err) }
   }
 }
 

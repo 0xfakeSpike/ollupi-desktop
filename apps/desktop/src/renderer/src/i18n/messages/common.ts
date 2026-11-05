@@ -10,6 +10,7 @@ export const en = {
   remove: 'Remove',
   reload: 'Reload',
   restartBackend: 'Restart backend',
+  restartRunning: (running: number) => `${running} thread${running === 1 ? ' is' : 's are'} running. Restarting the backend stops commands they are executing. Continue?`,
 
   time: {
     now: 'just now',
@@ -56,6 +57,7 @@ export const zh: typeof en = {
   remove: '删除',
   reload: '刷新',
   restartBackend: '重启后端',
+  restartRunning: (running) => `${running} 个会话正在运行。重启后端会停止它们正在执行的命令。要继续吗？`,
 
   time: {
     now: '刚刚',

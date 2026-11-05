@@ -42,6 +42,7 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
   private child: ChildProcess | undefined
   private current: BackendState = { status: 'stopped' }
   private log: string[] = []
+  private starting: Promise<void> | undefined
 
   constructor(private readonly opts: SupervisorOptions) {
     super()
@@ -51,7 +52,16 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     return this.current
   }
 
-  async start(): Promise<void> {
+  /** One at a time: a start has no child to show until the environment is
+   * read, and a second one then would spawn a backend nobody stops. */
+  start(): Promise<void> {
+    this.starting ??= this.launch().finally(() => {
+      this.starting = undefined
+    })
+    return this.starting
+  }
+
+  private async launch(): Promise<void> {
     if (this.child) return
     this.log = []
     this.set({ status: 'starting' })

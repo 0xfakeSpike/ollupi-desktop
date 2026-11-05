@@ -88,6 +88,19 @@ func TestWhatCannotBeDoneIsTheAgentsToRead(t *testing.T) {
 	}
 }
 
+func TestAnUnreadableRefusalIsAnError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		w.Write([]byte("not json"))
+	}))
+	defer srv.Close()
+	p := New(Endpoint{URL: srv.URL, Token: "secret"})
+	ctx := tools.WithCaller(context.Background(), tools.Caller{ThreadID: "th1"})
+	if _, err := p.Invoke(ctx, "browser_snapshot", nil); err == nil {
+		t.Fatal("a refusal the app did not write is an error, not an empty reason")
+	}
+}
+
 func TestReadingToolsNameNoSite(t *testing.T) {
 	p := New(Endpoint{})
 	for _, name := range []string{"browser_snapshot", "browser_scroll"} {

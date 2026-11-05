@@ -96,6 +96,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	defer stop()
 	if watchStdin {
 		go func() {
+			// However stdin ends, the parent is gone.
 			_, _ = io.Copy(io.Discard, os.Stdin)
 			stop()
 		}()

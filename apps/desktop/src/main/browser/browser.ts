@@ -12,10 +12,11 @@
 // action would do (its description and the tab's host, which permissions
 // go by) and to do it, answered with the page as text.
 
+import { errorMessage } from '@ollupi/client'
 import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
 import type { BrowserState, BrowserTab } from '../../shared/ipc'
-import { normalize } from './address'
+import { isWebPage, normalize } from './address'
 import { clickScript, describeScript, focusScript, locateScript, scrollScript, snapshotScript, WORLD } from './page'
 
 const PARTITION = 'persist:browser'
@@ -84,9 +85,7 @@ export class AgentBrowser extends EventEmitter {
   async open(thread: string, url: string): Promise<void> {
     const target = address(url)
     const view = this.strips.get(thread)?.active ?? this.newTab(thread)
-    await view.webContents.loadURL(target).catch(() => {
-      // A failed load shows its error page; the state says where it is.
-    })
+    await load(view, target)
   }
 
   /** Opens an empty tab after the active one and makes it active. */
@@ -266,7 +265,7 @@ export class AgentBrowser extends EventEmitter {
     // A link that opens a window opens in a new tab.
     wc.setWindowOpenHandler(({ url }) => {
       const now = owner()
-      if (now) void this.newTab(now.thread).webContents.loadURL(url)
+      if (now && isWebPage(url)) void load(this.newTab(now.thread), url)
       return { action: 'deny' }
     })
     for (const event of ['did-navigate', 'did-navigate-in-page', 'page-title-updated', 'did-start-loading', 'did-stop-loading'] as const) {
@@ -356,11 +355,17 @@ function key(wc: Electron.WebContents, keyCode: string): void {
   wc.sendInputEvent({ type: 'keyUp', keyCode })
 }
 
+async function load(view: WebContentsView, url: string): Promise<void> {
+  await view.webContents.loadURL(url).catch(() => {
+    // A failed load shows its error page; the state says where it is.
+  })
+}
+
 function address(url: string): string {
   try {
     return normalize(url)
   } catch (err) {
-    throw new Refusal(err instanceof Error ? err.message : String(err))
+    throw new Refusal(errorMessage(err))
   }
 }
 

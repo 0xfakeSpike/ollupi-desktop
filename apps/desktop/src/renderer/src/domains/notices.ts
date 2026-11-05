@@ -2,6 +2,7 @@
 // Info clears itself; an error stays until it is dismissed.
 
 import { create } from 'zustand'
+import type { Domain } from '../gateway/domain'
 
 export interface Notice {
   id: number
@@ -27,4 +28,14 @@ export function notify(message: string, tone: Notice['tone'] = 'danger'): void {
   const id = nextId++
   useNotices.setState((s) => ({ notices: [...s.notices.slice(-(MAX_SHOWN - 1)), { id, tone, message }] }))
   if (tone === 'info') setTimeout(() => useNotices.getState().dismiss(id), INFO_TTL_MS)
+}
+
+/** An answer to a request that the gateway refuses comes with no call to
+ * fail: it names the request's item. A turn's own failure, which names no
+ * item, shows in its timeline. */
+export const noticesDomain: Domain = {
+  bind: (client) =>
+    client.on('error', ({ itemId, message }) => {
+      if (itemId) notify(message)
+    }),
 }

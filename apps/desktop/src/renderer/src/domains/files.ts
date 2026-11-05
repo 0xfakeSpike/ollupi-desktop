@@ -4,6 +4,11 @@ import type { FileEntry, FilePreview } from '../../../shared/ipc'
 import { run } from '../gateway/run'
 import { desktop } from '../platform/desktop'
 
+/** Opens a path in the app the system gives it. */
+export function openPath(path: string): Promise<void | undefined> {
+  return run((e) => e.files.open, () => desktop.openPath(path))
+}
+
 export function readFolder(root: string, path: string): Promise<FileEntry[] | undefined> {
   return run((e) => e.files.list, () => desktop.files.list(root, path))
 }

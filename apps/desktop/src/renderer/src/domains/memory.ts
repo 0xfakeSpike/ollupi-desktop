@@ -4,6 +4,7 @@
 import type { MemoryRow, MemoryStatus } from '@ollupi/protocol'
 import { gateway } from '../gateway/connection'
 import { run } from '../gateway/run'
+import type { Messages } from '../i18n'
 
 /** Where a memory applies: to every conversation (global), to those
  * outside any workspace (general), or to one workspace's. */
@@ -28,6 +29,12 @@ export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStat
     const [status, ...lists] = await Promise.all([client.call('memory/status', {}), ...places.map((p) => client.call('memory/list', p))])
     return { status, scopes: new Map(places.map((p, i) => [placeKey(p), lists[i]!.data])) }
   })
+}
+
+/** A kind's display name; a kind this app does not know is shown as sent. */
+export function kindLabel(m: Messages, kind: string): string {
+  const kinds: Record<string, string | undefined> = m.memory.entry.kinds
+  return Object.hasOwn(kinds, kind) ? kinds[kind]! : kind
 }
 
 export function editMemory(id: string, text: string): Promise<MemoryRow | undefined> {

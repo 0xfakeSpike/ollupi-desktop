@@ -52,7 +52,8 @@ export async function withMessageInput<T>(text: string, files: readonly File[], 
 }
 
 /** Data URLs of attachments read so far, by attachment id; null while one
- * is being read or when it could not be. */
+ * is being read. One that could not be read is left out, for the next time
+ * it shows to ask again. */
 const useRead = create<Record<string, string | null>>()(() => ({}))
 
 /** An attachment's content as a data URL, read from the gateway the first
@@ -63,12 +64,16 @@ export function useAttachmentURL(threadId: string, attachment: Attachment): stri
   useEffect(() => {
     if (useRead.getState()[id] !== undefined) return
     useRead.setState({ [id]: null })
-    void gateway()
-      .call('attachment/read', { threadId, attachmentId: id })
-      .then(
-        ({ data }) => useRead.setState({ [id]: `data:${mimeType};base64,${data}` }),
-        () => useRead.setState({ [id]: null }),
-      )
+    void readAttachment(threadId, id).then(
+      (data) => useRead.setState({ [id]: `data:${mimeType};base64,${data}` }),
+      () => useRead.setState(({ [id]: _failed, ...rest }) => rest, true),
+    )
   }, [threadId, id, mimeType])
   return url ?? undefined
+}
+
+/** async so that gateway() throwing while offline rejects: thrown in an
+ * Effect it would take the whole window down. */
+async function readAttachment(threadId: string, attachmentId: string): Promise<string> {
+  return (await gateway().call('attachment/read', { threadId, attachmentId })).data
 }

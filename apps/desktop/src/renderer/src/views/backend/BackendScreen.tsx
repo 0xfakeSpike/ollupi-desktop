@@ -5,6 +5,7 @@ import { Button, Callout, Spinner } from '@ollupi/ui'
 import { FileCog, RotateCw, TriangleAlert } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import type { BackendFailure } from '../../../../shared/ipc'
+import { openPath } from '../../domains/files'
 import { useConnection } from '../../gateway/connection'
 import { useT, type Messages } from '../../i18n'
 import { desktop } from '../../platform/desktop'
@@ -70,7 +71,7 @@ function Failure({ failure, configPath, log }: { failure: BackendFailure; config
           {m.common.restartBackend}
         </Button>
         {configPath && (
-          <Button size="lg" icon={<FileCog size={16} />} onClick={() => void desktop.openPath(configPath)}>
+          <Button size="lg" icon={<FileCog size={16} />} onClick={() => void openPath(configPath)}>
             {m.shell.backend.openConfig}
           </Button>
         )}

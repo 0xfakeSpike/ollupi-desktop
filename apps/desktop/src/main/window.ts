@@ -1,5 +1,6 @@
 import { BrowserWindow, nativeTheme, shell } from 'electron'
 import { join } from 'node:path'
+import { isWebPage } from './browser/address'
 import { rendererURL } from './protocol'
 
 /** keepOnClose: whether closing the window only hides it. On macOS the app
@@ -44,7 +45,7 @@ export function createMainWindow(keepOnClose: () => boolean): BrowserWindow {
 
   // Links open in the user's browser; the window never navigates away.
   const external = (url: string) => {
-    if (/^https?:/.test(url)) void shell.openExternal(url)
+    if (isWebPage(url)) void shell.openExternal(url)
   }
   win.webContents.setWindowOpenHandler(({ url }) => {
     external(url)

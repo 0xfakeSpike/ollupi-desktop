@@ -8,6 +8,7 @@
 // escape labels (mermaid at its strict security level), so their SVG is
 // safe to insert.
 
+import { errorMessage } from '@ollupi/client'
 import { Block } from '@ollupi/ui'
 import { parseMermaid, renderMermaidSVG } from 'beautiful-mermaid'
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react'
@@ -230,7 +231,7 @@ export function MermaidBlock({ code }: { code: string }) {
         const { svg } = await mermaid.render(id, code)
         if (current) setDrawn({ svg })
       } catch (err) {
-        if (current) setDrawn({ error: err instanceof Error ? err.message : String(err) })
+        if (current) setDrawn({ error: errorMessage(err) })
       }
     })
     return () => {

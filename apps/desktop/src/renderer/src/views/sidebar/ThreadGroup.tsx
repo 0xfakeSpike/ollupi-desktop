@@ -4,12 +4,12 @@ import { cn, IconButton, Spinner } from '@ollupi/ui'
 import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Pencil, Plus, Settings2, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
+import { openPath } from '../../domains/files'
 import { go, useOpenThreadId } from '../../domains/navigation'
 import { archiveThread, deleteThread, loadMoreThreads, renameThread, useThreads } from '../../domains/threads'
 import { setArchived } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
-import { desktop } from '../../platform/desktop'
 import { TitleInput } from '../common/TitleInput'
 import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
@@ -48,7 +48,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
         {workspace && (
           // Takes room only when shown, so the name uses the row's width.
           <div className="hidden group-focus-within:flex group-hover:flex">
-            <IconButton label={m.revealFolder} size="sm" onClick={() => void desktop.openPath(workspace.rootPath)}>
+            <IconButton label={m.revealFolder} size="sm" onClick={() => void openPath(workspace.rootPath)}>
               <FolderOpen size={14} />
             </IconButton>
             <IconButton label={m.workspaceSettings} size="sm" onClick={() => setSettings(true)}>
