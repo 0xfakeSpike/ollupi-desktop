@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,8 +27,10 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
 	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/agent/memory"
+	"github.com/0xfakeSpike/ollupi/agent/permission"
 	"github.com/0xfakeSpike/ollupi/gateway"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
+	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 	"github.com/0xfakeSpike/ollupi/repo"
 	"github.com/0xfakeSpike/ollupi/tools"
 	"github.com/0xfakeSpike/ollupi/tools/cron"
@@ -126,11 +129,22 @@ func New(opts Options) (_ *Host, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// Each server connects and lists its tools now; one that cannot is
-	// skipped, and the gateway reports why (mcpServer/list).
-	connected := mcp.Connect(context.Background(), mcp.Client{Name: "ollupi-desktop", Version: opts.Version}, servers)
+	box, err := mcpBox(opts.Home)
+	if err != nil {
+		return nil, err
+	}
+	h.closers = append(h.closers, box.Close)
+	connected := mcp.NewUsers(context.Background(), mcp.Client{Name: "ollupi-desktop", Version: opts.Version},
+		func(string) ([]mcp.Server, error) { return servers, nil },
+		func(string) (sandbox.Box, error) { return box, nil })
 	h.closers = append(h.closers, connected.Close)
-	providers = append(providers, connected.Providers()...)
+	// Each server connects and lists its tools now rather than in the first
+	// turn, which would hold up the agent's loop; one that cannot is skipped,
+	// and the gateway reports why (mcpServer/list). One that drops later
+	// starts again the next time it is needed.
+	if _, err := connected.For(repo.DefaultUser); err != nil {
+		return nil, err
+	}
 
 	if h.memory, err = memoryManager(db, models, connections, cfg.Memory); err != nil {
 		return nil, err
@@ -147,8 +161,8 @@ func New(opts Options) (_ *Host, err error) {
 		Providers:   providers,
 		// Rules naming a skipped server's tools stay valid; they match
 		// nothing until it connects.
-		Unavailable: connected.Unavailable(),
-		SkillsDir:   cfg.SkillsDir,
+		ToolsFor:  connected.Tools,
+		SkillsDir: cfg.SkillsDir,
 		// Images and files sent with messages live beside the database.
 		AttachmentsDir: filepath.Join(dataHome, "attachments"),
 		Memory:         h.memory,
@@ -190,11 +204,8 @@ func (h *Host) Start(ctx context.Context) error {
 	}
 	h.siblings.Go(func() { h.memory.Run(ctx) })
 	h.siblings.Go(func() {
-		// A due task goes in through the same entry as a user's message.
-		h.jobs.Run(ctx, func(threadID, text, jobID string) error {
-			_, err := h.agent.StartTurn(threadID, agent.Input{Text: text, CronJobID: jobID})
-			return err
-		})
+		// A due task runs as its thread's owner, who set it.
+		h.jobs.Run(ctx, h.agent.StartScheduledTurn)
 	})
 	for _, c := range h.clients {
 		h.siblings.Go(func() { c.Run(ctx) })
@@ -228,8 +239,10 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 
 // Check reports whether cfg would start: it assembles the backend as New
 // does, MCP servers included, and starts the agent, which is where ollupi
-// validates the rest (permission rules against the tool registry, each
-// model's context budget), against a throwaway database, then stops it.
+// validates the rest (permission rules against the tools every user has,
+// each model's context budget), against a throwaway database, then stops it.
+// Starting a thread checks the rules against the MCP servers' tools too,
+// which would otherwise surface only when a turn fails on them.
 // Nothing is served and the real database is not opened.
 func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 	data, err := os.MkdirTemp("", "ollupid-check-")
@@ -247,9 +260,10 @@ func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 		cancel()
 		return err
 	}
+	_, err = h.agent.StartThread(repo.DefaultUser, "", "", permission.Settings{})
 	cancel()
 	h.agent.Wait()
-	return nil
+	return err
 }
 
 func (h *Host) close() {
@@ -293,6 +307,21 @@ func modelClient(p config.Provider, m config.Model) (llm.Client, error) {
 		return llm.NewGemini(p.BaseURL, p.APIKey, m.Calls, limits)
 	}
 	return nil, fmt.Errorf("unknown API type %q", p.Type)
+}
+
+// mcpBox is where MCP servers run: on this machine, outside the workspace's
+// sandbox, with the environment the backend was given, as commands the user
+// configured themselves. The app's own variables stay out, its tokens above
+// all, and so do names the sandbox refuses, such as a shell's BASH_FUNC_x%%.
+func mcpBox(home string) (*sandbox.Sandbox, error) {
+	var env []string
+	for _, pair := range os.Environ() {
+		name, _, _ := strings.Cut(pair, "=")
+		if !strings.HasPrefix(name, "OLLUPI_") && sandbox.ValidateEnvNames([]string{name}) == nil {
+			env = append(env, name)
+		}
+	}
+	return sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{home}, EnvPassthrough: env})
 }
 
 // mcpServers resolves the ${NAME} references in env and header values. A

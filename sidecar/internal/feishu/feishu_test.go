@@ -27,12 +27,18 @@ type fakeEngine struct {
 	queued     bool
 }
 
-func (f *fakeEngine) StartThread(workspaceID, title string, _ permission.Settings) (repo.ThreadRow, error) {
+func (f *fakeEngine) StartThread(user, workspaceID, title string, _ permission.Settings) (repo.ThreadRow, error) {
+	if user != repo.DefaultUser {
+		return repo.ThreadRow{}, repo.ErrNotFound
+	}
 	f.threads = append(f.threads, workspaceID+" "+title)
 	return repo.ThreadRow{ID: fmt.Sprintf("thread-%d", len(f.threads)), Title: title}, nil
 }
 
-func (f *fakeEngine) StartTurn(threadID string, in agent.Input) (repo.TurnRow, error) {
+func (f *fakeEngine) StartTurn(user, threadID string, in agent.Input) (repo.TurnRow, error) {
+	if user != repo.DefaultUser {
+		return repo.TurnRow{}, repo.ErrNotFound
+	}
 	f.turns = append(f.turns, threadID+" "+in.Text)
 	status := repo.TurnInProgress
 	if f.queued {
@@ -41,17 +47,26 @@ func (f *fakeEngine) StartTurn(threadID string, in agent.Input) (repo.TurnRow, e
 	return repo.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Input: in.Text, Status: status}, nil
 }
 
-func (f *fakeEngine) InterruptTurn(threadID, turnID string) error {
+func (f *fakeEngine) InterruptTurn(user, threadID, turnID string) error {
+	if user != repo.DefaultUser {
+		return repo.ErrNotFound
+	}
 	f.interrupts = append(f.interrupts, threadID+" "+turnID)
 	return nil
 }
 
-func (f *fakeEngine) ResolveApproval(threadID, approvalID string, d repo.Decision, by string) error {
+func (f *fakeEngine) ResolveApproval(user, threadID, approvalID string, d repo.Decision, by string) error {
+	if user != repo.DefaultUser {
+		return repo.ErrNotFound
+	}
 	f.decisions = append(f.decisions, strings.Join([]string{threadID, approvalID, string(d), by}, " "))
 	return nil
 }
 
-func (f *fakeEngine) AnswerUserInput(threadID, itemID string, answers userinput.Answers) error {
+func (f *fakeEngine) AnswerUserInput(user, threadID, itemID string, answers userinput.Answers) error {
+	if user != repo.DefaultUser {
+		return repo.ErrNotFound
+	}
 	if f.answers == nil {
 		f.answers = map[string]userinput.Answers{}
 	}
@@ -68,7 +83,10 @@ func (s fakeStore) ThreadRow(id string) (repo.ThreadRow, error) {
 	return repo.ThreadRow{}, repo.ErrNotFound
 }
 
-func (fakeStore) Workspaces() ([]repo.WorkspaceRow, error) {
+func (fakeStore) Workspaces(user string) ([]repo.WorkspaceRow, error) {
+	if user != repo.DefaultUser {
+		return nil, nil
+	}
 	return []repo.WorkspaceRow{{ID: "ws-1", Name: "app", RootPath: "/code/app"}}, nil
 }
 
