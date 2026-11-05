@@ -39,19 +39,21 @@ const Decider = "feishu"
 // updates a second, and a phone needs fewer.
 const flushEvery = time.Second
 
-// Engine is what the bridge does to sessions; *agent.Agent is one.
+// Engine is what the bridge does to sessions; *agent.Agent is one. The bridge
+// acts as repo.DefaultUser, the user the gateway's token is, so the desktop's
+// sessions and the bot's are the same ones.
 type Engine interface {
-	StartThread(workspaceID, title string, settings permission.Settings) (repo.ThreadRow, error)
-	StartTurn(threadID string, in agent.Input) (repo.TurnRow, error)
-	InterruptTurn(threadID, expectedTurnID string) error
-	ResolveApproval(threadID, approvalID string, decision repo.Decision, decidedBy string) error
-	AnswerUserInput(threadID, itemID string, answers userinput.Answers) error
+	StartThread(user, workspaceID, title string, settings permission.Settings) (repo.ThreadRow, error)
+	StartTurn(user, threadID string, in agent.Input) (repo.TurnRow, error)
+	InterruptTurn(user, threadID, expectedTurnID string) error
+	ResolveApproval(user, threadID, approvalID string, decision repo.Decision, decidedBy string) error
+	AnswerUserInput(user, threadID, itemID string, answers userinput.Answers) error
 }
 
 // Store is what the bridge reads of the database; *repo.DB is one.
 type Store interface {
 	ThreadRow(id string) (repo.ThreadRow, error)
-	Workspaces() ([]repo.WorkspaceRow, error)
+	Workspaces(user string) ([]repo.WorkspaceRow, error)
 }
 
 // chat is Feishu as the bridge talks to it.
@@ -173,7 +175,7 @@ func (b *Bridge) message(m incoming) {
 		return
 	}
 	if strings.TrimSpace(text) == "/stop" {
-		if err := b.engine.InterruptTurn(threadID, ""); err != nil {
+		if err := b.engine.InterruptTurn(repo.DefaultUser, threadID, ""); err != nil {
 			b.replyText(m.id, "没能停止："+errorText(err))
 		}
 		return
@@ -187,7 +189,7 @@ func (b *Bridge) startSession(messageID, text string) {
 		b.replyText(messageID, errorText(err))
 		return
 	}
-	t, err := b.engine.StartThread(workspaceID, titleFromMessage(text), permission.Settings{})
+	t, err := b.engine.StartThread(repo.DefaultUser, workspaceID, titleFromMessage(text), permission.Settings{})
 	if err != nil {
 		b.replyText(messageID, "没能开始会话："+errorText(err))
 		return
@@ -200,7 +202,7 @@ func (b *Bridge) startSession(messageID, text string) {
 }
 
 func (b *Bridge) send(messageID, threadID, text string) {
-	t, err := b.engine.StartTurn(threadID, agent.Input{Text: text})
+	t, err := b.engine.StartTurn(repo.DefaultUser, threadID, agent.Input{Text: text})
 	if err != nil {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
@@ -217,7 +219,7 @@ func (b *Bridge) workspace() (string, error) {
 	if b.cfg.Workspace == "" {
 		return "", nil
 	}
-	list, err := b.store.Workspaces()
+	list, err := b.store.Workspaces(repo.DefaultUser)
 	if err != nil {
 		return "", err
 	}
@@ -335,7 +337,7 @@ func (b *Bridge) workspaceName(id string) string {
 	if id == "" {
 		return ""
 	}
-	list, err := b.store.Workspaces()
+	list, err := b.store.Workspaces(repo.DefaultUser)
 	if err != nil {
 		return ""
 	}
@@ -471,17 +473,17 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 	var err error
 	switch str("action") {
 	case actionStop:
-		err = b.engine.InterruptTurn(str("thread"), str("turn"))
+		err = b.engine.InterruptTurn(repo.DefaultUser, str("thread"), str("turn"))
 		toast = "已停止"
 	case actionApprove:
-		err = b.engine.ResolveApproval(str("thread"), str("approval"), repo.Decision(str("decision")), Decider)
+		err = b.engine.ResolveApproval(repo.DefaultUser, str("thread"), str("approval"), repo.Decision(str("decision")), Decider)
 		toast = "已提交"
 	case actionAnswer:
 		answers, missing := formAnswers(value["questions"], form)
 		if missing {
 			return "还有问题没回答", false
 		}
-		err = b.engine.AnswerUserInput(str("thread"), str("item"), answers)
+		err = b.engine.AnswerUserInput(repo.DefaultUser, str("thread"), str("item"), answers)
 		toast = "已提交"
 	default:
 		return "这个按钮已失效", false
