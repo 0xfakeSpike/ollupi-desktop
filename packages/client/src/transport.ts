@@ -21,17 +21,22 @@ export interface WebSocketLike {
   addEventListener(type: 'open' | 'message' | 'close' | 'error', listener: (event: any) => void): void
 }
 
-export type WebSocketFactory = (url: string) => WebSocketLike
+export type WebSocketFactory = (url: string, protocols: string[]) => WebSocketLike
 
 const OPEN = 1
+
+/** Offered just before the token: a browser cannot set the Authorization
+ * header, and the gateway takes no token from a URL. */
+const TOKEN_PROTOCOL = 'ollupi.token'
 
 /** Opens a WebSocket and resolves once it is open. */
 export function connectWebSocket(
   url: string,
-  create: WebSocketFactory = (u) => new WebSocket(u),
+  token: string,
+  create: WebSocketFactory = (u, protocols) => new WebSocket(u, protocols),
 ): Promise<Transport> {
   return new Promise((resolve, reject) => {
-    const ws = create(url)
+    const ws = create(url, [TOKEN_PROTOCOL, token])
     let events: TransportEvents | undefined
     const early: string[] = []
     let closedWith: string | undefined
@@ -63,7 +68,7 @@ export function connectWebSocket(
       else closedWith = reason
     })
     ws.addEventListener('error', () => {
-      if (!opened) reject(new Error(`cannot connect to ${url.replace(/token=[^&]*/, 'token=***')}`))
+      if (!opened) reject(new Error(`cannot connect to ${url}`))
     })
   })
 }

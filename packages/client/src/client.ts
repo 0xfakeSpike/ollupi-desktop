@@ -43,12 +43,9 @@ export class OllupiClient {
   /** The sha256 of the contract the gateway serves (initialize). */
   protocolSha256 = ''
 
-  /** Opens a WebSocket to the gateway (a browser cannot set the
-   * Authorization header, so the token goes in the query) and initializes. */
+  /** Opens a WebSocket to the gateway and initializes. */
   static async connect(opts: ConnectOptions): Promise<OllupiClient> {
-    const url = new URL(opts.url)
-    url.searchParams.set('token', opts.token)
-    return OllupiClient.over(await connectWebSocket(url.toString(), opts.webSocket), opts.clientInfo, opts.inspector)
+    return OllupiClient.over(await connectWebSocket(opts.url, opts.token, opts.webSocket), opts.clientInfo, opts.inspector)
   }
 
   /** Initializes over an open transport: initialize, then the initialized

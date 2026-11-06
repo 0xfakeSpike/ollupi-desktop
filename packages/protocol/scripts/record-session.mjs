@@ -91,7 +91,7 @@ const url = await new Promise((resolve, reject) => {
 // --- a minimal JSON-RPC client that records everything ---
 
 const messages = []
-const ws = new WebSocket(`${url}?token=${TOKEN}`)
+const ws = new WebSocket(url, ['ollupi.token', TOKEN])
 await new Promise((r, e) => {
   ws.addEventListener('open', r)
   ws.addEventListener('error', e)
