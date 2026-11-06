@@ -27,8 +27,9 @@ export interface ModelFields {
   thinking: boolean | undefined
   /** The model accepts images; ollupi sends it none otherwise. */
   images: boolean
-  /** The context window and the most an answer may take of it, in tokens. */
-  limits: { context: number; output: number }
+  /** The context window, the most an answer may take of it, and the most
+   * input the model takes when that is less than the window leaves, in tokens. */
+  limits: { context: number; output: number; input?: number }
 }
 
 const providers = (c: BackendConfig): Provider[] => c.models ?? []

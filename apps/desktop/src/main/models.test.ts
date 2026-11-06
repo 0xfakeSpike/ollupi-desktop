@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anthropicModels, geminiModels, listedModels, listModels } from './models'
+import { anthropicModels, bailianPage, geminiModels, listedModels, listModels } from './models'
 
 /** A fetch that records what it was asked and answers with status and body. */
 function api(status: number, body: string) {
@@ -67,7 +67,7 @@ describe('listedModels', () => {
     expect(listedModels({ data: [{ id: 'b' }, { id: 'a' }, { id: 'b' }, { id: '' }, {}, null] })).toEqual([{ name: 'a' }, { name: 'b' }])
   })
 
-  it('takes limits from context_window and max_output_tokens when both are given', () => {
+  it('takes the limits a model gives, each on its own', () => {
     // DeepSeek's answer, trimmed.
     const body = {
       object: 'list',
@@ -79,14 +79,79 @@ describe('listedModels', () => {
     }
     expect(listedModels(body)).toEqual([
       { name: 'deepseek-flash', limits: { context: 1048576, output: 393216 } },
-      { name: 'half' },
+      { name: 'half', limits: { context: 32768 } },
       { name: 'odd' },
     ])
+  })
+
+  it('takes the limits from a model_info, where null says nothing', () => {
+    const body = {
+      data: [
+        { id: 'qwen', model_info: { context_window: 131072, max_input_tokens: 130048, max_output_tokens: 16384, max_reasoning_tokens: null } },
+        { id: 'image', model_info: { context_window: null, max_input_tokens: null, max_output_tokens: null } },
+      ],
+    }
+    expect(listedModels(body)).toEqual([{ name: 'image' }, { name: 'qwen', limits: { context: 131072, input: 130048, output: 16384 } }])
   })
 
   it('refuses an answer that is not a model list', () => {
     expect(listedModels({ models: [] })).toBeUndefined()
     expect(listedModels(undefined)).toBeUndefined()
+  })
+})
+
+describe('Bailian', () => {
+  const qwen = {
+    model: 'qwen3.8-max',
+    inference_metadata: { request_modality: ['Text'], response_modality: ['Text'] },
+    model_info: { context_window: 131072, max_input_tokens: 130048, max_output_tokens: 16384, max_reasoning_tokens: null },
+  }
+  const image = { model: 'qwen-image', inference_metadata: { response_modality: ['Image'] }, model_info: { context_window: null } }
+  const listed = { name: 'qwen3.8-max', limits: { context: 131072, input: 130048, output: 16384 } }
+  const base = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+
+  /** Answers its own list by page, and the compatible mode's with ids. */
+  function bailian(pages: Record<string, unknown> | undefined) {
+    const asked: string[] = []
+    const fetch = async (url: string, init: RequestInit) => {
+      asked.push(url)
+      expect(init.headers).toEqual({ Authorization: 'Bearer sk-test' })
+      if (url.includes('/compatible-mode/')) return new Response(JSON.stringify({ data: [{ id: 'qwen-plus' }] }))
+      const page = pages?.[new URL(url).searchParams.get('page_no')!]
+      return page ? new Response(JSON.stringify(page)) : new Response('{"code":"Forbidden"}', { status: 403 })
+    }
+    return { fetch, asked }
+  }
+
+  it('asks its own list for the limits, leaving out models that do not answer in text', async () => {
+    const { fetch, asked } = bailian({ '1': { output: { total: 2, models: [qwen, image] } } })
+    expect(await listModels(fetch, 'openai', `${base}/`, ' sk-test ')).toEqual({ ok: true, models: [listed] })
+    expect(asked).toEqual(['https://dashscope.aliyuncs.com/api/v1/models?page_no=1&page_size=100'])
+  })
+
+  it('reads every page', async () => {
+    const { fetch, asked } = bailian({
+      '1': { output: { total: 2, models: [image] } },
+      '2': { output: { total: 2, models: [qwen] } },
+    })
+    expect(await listModels(fetch, 'openai', base, 'sk-test')).toEqual({ ok: true, models: [listed] })
+    expect(asked).toHaveLength(2)
+  })
+
+  it('falls back to the compatible list when its own cannot be had', async () => {
+    const { fetch, asked } = bailian(undefined)
+    expect(await listModels(fetch, 'openai', base, 'sk-test')).toEqual({ ok: true, models: [{ name: 'qwen-plus' }] })
+    expect(asked[1]).toBe(`${base}/models`)
+  })
+
+  it('is known by the host and the compatible path together', async () => {
+    const elsewhere = api(200, '{"data":[]}')
+    await listModels(elsewhere.fetch, 'openai', 'https://proxy.example.com/compatible-mode/v1', '')
+    expect(elsewhere.asked.map((a) => a.url)).toEqual(['https://proxy.example.com/compatible-mode/v1/models'])
+  })
+
+  it('refuses a page that is not its list', () => {
+    expect(bailianPage({ data: [] })).toBeUndefined()
   })
 })
 

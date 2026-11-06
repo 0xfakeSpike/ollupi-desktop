@@ -248,7 +248,7 @@ function ModelDetails({ model }: { model: ProviderModel }) {
     model.calls ? d.calls(model.calls) : undefined,
     model.thinking === true ? d.thinkingOn : model.thinking === false ? d.thinkingOff : undefined,
     model.images ? d.images : undefined,
-    d.limits(model.limits.context.toLocaleString(locale), model.limits.output.toLocaleString(locale)),
+    d.limits(model.limits.context.toLocaleString(locale), model.limits.output.toLocaleString(locale), model.limits.input?.toLocaleString(locale)),
   ].filter(Boolean)
   if (parts.length === 0) return null
   return <div className="mt-0.5 text-small text-fg-subtle">{parts.join(' · ')}</div>
@@ -289,7 +289,7 @@ function ProviderDialog({
   const offered = list.status === 'listed' ? list.models.filter((m) => !served.includes(m.name)) : []
   const chosen = offered.map((m) => m.name).filter((n) => picked[n])
   const chosenModels = chosen.flatMap((n): ModelFields[] => {
-    const limits = limitsOf(picked[n]!.context, picked[n]!.output)
+    const limits = limitsOf(picked[n]!)
     return limits ? [{ name: n, calls: undefined, thinking: undefined, images: imagesByDefault(type), limits }] : []
   })
   // A new provider's models come from the list when the API gives one;
@@ -419,20 +419,56 @@ function ListStatus({ list, retry, existing }: { list: ModelListState; retry(): 
 }
 
 /** Checked models by name, with their limits as typed. */
-type Picked = Record<string, { context: string; output: string }>
+type Picked = Record<string, TypedLimits>
+
+/** A model's limits as typed. */
+interface TypedLimits {
+  context: string
+  input: string
+  output: string
+}
+
+const limitParts = ['context', 'input', 'output'] as const
 
 const count = (s: string) => (/^\d+$/.test(s.trim()) && Number(s) > 0 ? Number(s) : undefined)
 
-/** Limits as ollupi takes them: both positive, the answer within the window. */
-function limitsOf(context: string, output: string): ModelFields['limits'] | undefined {
+/** Limits as ollupi takes them: context and output positive, the answer
+ * within the window, and max input positive if it is given. */
+function limitsOf({ context, input, output }: TypedLimits): ModelFields['limits'] | undefined {
   const c = count(context)
   const o = count(output)
-  return c && o && o < c ? { context: c, output: o } : undefined
+  const i = count(input)
+  if (!c || !o || o >= c || (input.trim() && !i)) return undefined
+  return { context: c, output: o, ...(i && { input: i }) }
 }
 
-/** Why typed limits are refused; nothing while neither is typed. */
-const limitsProblem = (context: string, output: string, message: string) =>
-  (context.trim() || output.trim()) && !limitsOf(context, output) ? message : undefined
+/** Why typed limits are refused; nothing while none is typed. */
+const limitsProblem = (typed: TypedLimits, message: string) =>
+  limitParts.some((part) => typed[part].trim()) && !limitsOf(typed) ? message : undefined
+
+/** A limit as a form holds it, empty when it is not known. */
+const typedLimit = (n: number | undefined) => (n ? String(n) : '')
+
+/** A model's limits as inputs, each named: filled in, a number alone would
+ * not say which it is. */
+function LimitInputs({ model, limits, onChange }: { model: string; limits: TypedLimits; onChange(limits: TypedLimits): void }) {
+  const t = useT().settings.models.model
+  return (
+    <div className="flex gap-3">
+      {limitParts.map((part) => (
+        <label key={part} className="flex min-w-0 flex-1 flex-col gap-1 text-small text-fg-subtle">
+          <span>{t[part]}</span>
+          <Input
+            value={limits[part]}
+            inputMode="numeric"
+            aria-label={`${model} ${t[part]}`}
+            onChange={(e) => onChange({ ...limits, [part]: e.target.value })}
+          />
+        </label>
+      ))}
+    </div>
+  )
+}
 
 /** The listed models to add, as checkboxes; long lists can be filtered. A
  * checked model takes its limits, filled in from the list when the API says
@@ -452,7 +488,7 @@ function ModelPicker({ title, models, picked, onPick }: { title: string; models:
       if (!on) delete next[n]
       else {
         const listed = models.find((m) => m.name === n)?.limits
-        next[n] ??= { context: listed ? String(listed.context) : '', output: listed ? String(listed.output) : '' }
+        next[n] ??= { context: typedLimit(listed?.context), input: typedLimit(listed?.input), output: typedLimit(listed?.output) }
       }
     }
     onPick(next)
@@ -470,8 +506,7 @@ function ModelPicker({ title, models, picked, onPick }: { title: string; models:
       <ul className="flex max-h-72 flex-col overflow-y-auto rounded-lg border border-line py-1">
         {shown.map((n) => {
           const limits = picked[n]
-          const problem = limits && limitsProblem(limits.context, limits.output, m.model.limitsError)
-          const set = (part: 'context' | 'output', value: string) => onPick({ ...picked, [n]: { ...limits!, [part]: value } })
+          const problem = limits && limitsProblem(limits, m.model.limitsError)
           return (
             <li key={n} className="flex flex-col gap-1.5 px-3 py-1">
               <Checkbox checked={!!limits} onChange={(on) => check([n], on)}>
@@ -479,19 +514,7 @@ function ModelPicker({ title, models, picked, onPick }: { title: string; models:
               </Checkbox>
               {limits && (
                 <div className="flex flex-col gap-1 pb-1 pl-5.5">
-                  <div className="flex gap-3">
-                    {(['context', 'output'] as const).map((part) => (
-                      <label key={part} className="flex flex-1 items-center gap-2 text-small text-fg-subtle">
-                        <span className="shrink-0">{m.model[part]}</span>
-                        <Input
-                          value={limits[part]}
-                          inputMode="numeric"
-                          aria-label={`${n} ${m.model[part]}`}
-                          onChange={(e) => set(part, e.target.value)}
-                        />
-                      </label>
-                    ))}
-                  </div>
+                  <LimitInputs model={n} limits={limits} onChange={(next) => onPick({ ...picked, [n]: next })} />
                   {problem && <span className="text-small text-danger">{problem}</span>}
                 </div>
               )}
@@ -509,7 +532,7 @@ const DEFAULT = ''
 
 /** The fields of one model, for a model dialog and a new provider's first
  * model: the form, its value, and whether it can be saved. */
-function useModelForm(provider: string, type: ApiType, model: ProviderModel | undefined, taken: string[], suggested: string[] = []) {
+function useModelForm(provider: string, type: ApiType, model: ProviderModel | undefined, taken: string[], listed: ListedModel[] = []) {
   const m = useT()
   const t = m.settings.models.model
   const [name, setName] = useState(model?.name ?? '')
@@ -519,15 +542,30 @@ function useModelForm(provider: string, type: ApiType, model: ProviderModel | un
   // when the provider's type changes.
   const [imagesChosen, setImages] = useState<boolean>()
   const images = imagesChosen ?? (model ? !!model.images : imagesByDefault(type))
-  const [context, setContext] = useState(model ? String(model.limits.context) : '')
-  const [output, setOutput] = useState(model ? String(model.limits.output) : '')
+  const [typed, setTyped] = useState<TypedLimits>({
+    context: typedLimit(model?.limits.context),
+    input: typedLimit(model?.limits.input),
+    output: typedLimit(model?.limits.output),
+  })
 
   const trimmed = name.trim()
+  // What the API says fills what a saved model leaves empty, and replaces a
+  // new model's, which may be another listed model's.
+  const listedLimits = listed.find((l) => l.name === trimmed)?.limits
+  useEffect(() => {
+    if (!listedLimits) return
+    const fill = (value: string, n: number | undefined) => (model && value) || typedLimit(n)
+    setTyped((v) => ({
+      context: fill(v.context, listedLimits.context),
+      input: fill(v.input, listedLimits.input),
+      output: fill(v.output, listedLimits.output),
+    }))
+  }, [listedLimits, model])
   const nameError = !trimmed ? t.required : taken.includes(trimmed) ? t.taken(provider) : undefined
   const callsError = calls.trim() && !count(calls) ? t.callsError : undefined
   // ollupi fits a conversation in the model's window with them.
-  const limits = limitsOf(context, output)
-  const limitsError = limitsProblem(context, output, t.limitsError)
+  const limits = limitsOf(typed)
+  const limitsError = limitsProblem(typed, t.limitsError)
   const renamed = model && trimmed !== model.name
   const suggestions = useId()
 
@@ -550,13 +588,13 @@ function useModelForm(provider: string, type: ApiType, model: ProviderModel | un
           spellCheck={false}
           className="font-mono text-small"
           placeholder="deepseek-flash"
-          list={suggested.length ? suggestions : undefined}
+          list={listed.length ? suggestions : undefined}
           onChange={(e) => setName(e.target.value)}
         />
-        {suggested.length > 0 && (
+        {listed.length > 0 && (
           <datalist id={suggestions}>
-            {suggested.map((n) => (
-              <option key={n} value={n} />
+            {listed.map((l) => (
+              <option key={l.name} value={l.name} />
             ))}
           </datalist>
         )}
@@ -579,10 +617,7 @@ function useModelForm(provider: string, type: ApiType, model: ProviderModel | un
         <Switch label={t.images} checked={images} onChange={setImages} />
       </div>
       <Field label={t.limits} error={limitsError} hint={t.limitsHint}>
-        <div className="flex gap-2">
-          <Input value={context} inputMode="numeric" placeholder={t.context} onChange={(e) => setContext(e.target.value)} />
-          <Input value={output} inputMode="numeric" placeholder={t.output} onChange={(e) => setOutput(e.target.value)} />
-        </div>
+        <LimitInputs model={trimmed} limits={typed} onChange={setTyped} />
       </Field>
     </>
   )
@@ -606,9 +641,9 @@ function ModelDialog({
   const m = useT()
   // The name can be picked from what the API lists and the provider does not serve.
   const { list } = useModelList(apiTypeOf(p), p.base_url ?? '', p.api_key ?? '')
-  const suggested = list.status === 'listed' ? list.models.map((m) => m.name).filter((n) => !taken.includes(n)) : []
+  const listed = list.status === 'listed' ? list.models.filter((m) => !taken.includes(m.name)) : []
   const provider = p.provider
-  const { form, fields, invalid } = useModelForm(provider, apiTypeOf(p), model, taken, suggested)
+  const { form, fields, invalid } = useModelForm(provider, apiTypeOf(p), model, taken, listed)
   const [saving, setSaving] = useState(false)
   const save = async () => {
     setSaving(true)
