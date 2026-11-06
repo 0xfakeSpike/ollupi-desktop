@@ -51,10 +51,10 @@ export type ConfigChange =
 export const apiTypes = ['openai', 'anthropic', 'gemini'] as const
 export type ApiType = (typeof apiTypes)[number]
 
-/** One model an API lists, with its limits when the API says them. */
+/** One model an API lists, with those of its limits the API says. */
 export interface ListedModel {
   name: string
-  limits?: { context: number; output: number }
+  limits?: { context?: number; input?: number; output?: number }
 }
 
 /** The models a provider's API lists, or why it could not be asked. */

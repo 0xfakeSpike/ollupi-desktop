@@ -343,7 +343,7 @@ func (c Config) Validate() error {
 				return fmt.Errorf("models: %s: calls must not be negative", id)
 			}
 			if m.Limits == (llm.Limits{}) {
-				return fmt.Errorf("models: %s: limits is required: { context: <window tokens>, output: <answer tokens> }", id)
+				return fmt.Errorf("models: %s: limits is required: { context: <window tokens>, output: <answer tokens>, input: <optional input cap> }", id)
 			}
 		}
 	}

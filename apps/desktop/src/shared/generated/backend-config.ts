@@ -23,6 +23,7 @@ export interface ConfigCheck {
                 limits: {
                   context: number;
                   output: number;
+                  input?: number;
                 };
               }[];
         }[];

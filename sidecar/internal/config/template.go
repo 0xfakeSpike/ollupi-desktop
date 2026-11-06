@@ -12,7 +12,8 @@ prompt: ""
 # selected as provider/name, so providers need distinct names and may serve
 # models of the same name. The first model is the default. api_key is the
 # API's key; leave it out for an API without one. limits is the model's
-# context window and the most an answer may take of it, in tokens. calls caps
+# context window and the most an answer may take of it, in tokens, with input
+# for a model that takes less input than the window leaves. calls caps
 # concurrent requests to one model (default 4). images: true lets the model
 # be sent images.
 models:
