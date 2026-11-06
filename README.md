@@ -6,7 +6,7 @@
 
 ## 安装
 
-需要 macOS 12 或更新。从 [Releases](https://github.com/0xfakeSpike/ollupi-desktop/releases/latest) 下载：Apple 芯片选 `arm64.dmg`，Intel 选 `x64.dmg`，打开后把 Ollupi 拖进"应用程序"。
+需要 macOS 12 或更新。从 [Releases](https://github.com/0xfakeSpike/ollupi-desktop/releases/latest) 下载 `arm64.dmg`（仅支持 Apple 芯片），打开后把 Ollupi 拖进"应用程序"。
 
 应用未经 Apple 公证，第一次打开会被拦下：到 **系统设置 → 隐私与安全性** 底部点"仍要打开"，或者执行：
 
