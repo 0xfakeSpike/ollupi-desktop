@@ -19,7 +19,7 @@
     "config:generate": "node scripts/generate-config.mjs",
     "config:check": "node scripts/generate-config.mjs --check",
     "test": "vitest run",
-    "release": "electron-vite build && electron-builder --mac --arm64 --x64 --publish never",
+    "release": "electron-vite build && electron-builder --mac --arm64 --publish never",
     "postinstall": "node scripts/node-pty-helper.mjs"
   },
   "dependencies": {
