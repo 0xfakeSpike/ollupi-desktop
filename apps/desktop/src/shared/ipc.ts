@@ -307,6 +307,9 @@ export interface DesktopApi {
     newTab(thread: string): Promise<void>
     selectTab(thread: string, id: number): Promise<void>
     closeTab(thread: string, id: number): Promise<void>
+    /** Closes the thread's tabs and forgets them: it was archived or
+     * deleted, and its pages would only keep the window's memory. */
+    forget(thread: string): Promise<void>
     /** Gives a draft's tabs to the thread it started. */
     handOver(from: string, to: string): Promise<void>
     /** The person's bookmarks, and Chrome's to open; add and remove change
@@ -401,6 +404,7 @@ export const IpcChannel = {
   BrowserNewTab: 'browser:newTab',
   BrowserSelectTab: 'browser:selectTab',
   BrowserCloseTab: 'browser:closeTab',
+  BrowserForget: 'browser:forget',
   BrowserHandOver: 'browser:handOver',
   BookmarksList: 'bookmarks:list',
   BookmarksAdd: 'bookmarks:add',

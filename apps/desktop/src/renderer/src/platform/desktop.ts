@@ -36,6 +36,8 @@ function browserShim(): DesktopApi | undefined {
       newTab: unavailable,
       selectTab: unavailable,
       closeTab: unavailable,
+      // This tab has no app browser, so no tabs to close.
+      forget: async () => {},
       // No tabs to give: a draft here opens none.
       handOver: async () => {},
       bookmarks: { list: unavailable, add: unavailable, remove: unavailable },
@@ -84,6 +86,7 @@ export const desktop: DesktopApi = window.desktop ??
       newTab: unavailable,
       selectTab: unavailable,
       closeTab: unavailable,
+      forget: unavailable,
       handOver: unavailable,
       bookmarks: { list: unavailable, add: unavailable, remove: unavailable },
       history: { count: unavailable, clear: unavailable },

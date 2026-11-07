@@ -69,6 +69,7 @@ const api: DesktopApi = {
     newTab: (thread) => ipcRenderer.invoke(IpcChannel.BrowserNewTab, thread),
     selectTab: (thread, id) => ipcRenderer.invoke(IpcChannel.BrowserSelectTab, thread, id),
     closeTab: (thread, id) => ipcRenderer.invoke(IpcChannel.BrowserCloseTab, thread, id),
+    forget: (thread) => ipcRenderer.invoke(IpcChannel.BrowserForget, thread),
     handOver: (from, to) => ipcRenderer.invoke(IpcChannel.BrowserHandOver, from, to),
     bookmarks: {
       list: () => ipcRenderer.invoke(IpcChannel.BookmarksList),

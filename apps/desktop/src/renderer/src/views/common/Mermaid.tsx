@@ -16,6 +16,7 @@ import { useIsCodeFenceIncomplete } from 'streamdown'
 import { useAppearance } from '../../domains/appearance'
 import { useT } from '../../i18n'
 import { CodeBlock, CopyButton } from './Markdown'
+import { useNearViewport } from './useNearViewport'
 
 const dark = window.matchMedia('(prefers-color-scheme: dark)')
 const subscribe = (on: () => void) => {
@@ -196,10 +197,13 @@ export function MermaidBlock({ code }: { code: string }) {
   const id = `mermaid-${useId().replace(/[^\w-]/g, '')}`
   const [drawn, setDrawn] = useState<Drawn>()
   const m = useT().conversation.markdown
-  const fast = useMemo(() => (streaming ? undefined : beautiful(code)), [code, streaming])
+  // A diagram is drawn for the screen, so it waits for its block to come
+  // near the viewport, as a code block's highlighting does.
+  const { ref, near } = useNearViewport<HTMLDivElement>()
+  const fast = useMemo(() => (streaming || !near ? undefined : beautiful(code)), [code, streaming, near])
 
   useEffect(() => {
-    if (streaming || fast) return
+    if (streaming || !near || fast) return
     let current = true
     void import('mermaid').then(async ({ default: mermaid }) => {
       // Drawn at their own size, so labels stay at the interface's 13px:
@@ -237,19 +241,21 @@ export function MermaidBlock({ code }: { code: string }) {
     return () => {
       current = false
     }
-  }, [code, streaming, fast, isDark, palette, id])
+  }, [code, streaming, fast, isDark, palette, id, near])
 
-  if (fast) return <Diagram code={code} svg={fast} />
-  if (streaming || !drawn) return <CodeBlock code={code} label="mermaid" />
-  if ('error' in drawn) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <CodeBlock code={code} label="mermaid" />
-        <p className="selectable text-small text-danger">{m.diagramError(drawn.error.split('\n')[0]!)}</p>
-      </div>
-    )
-  }
-  return <Diagram code={code} svg={drawn.svg} />
+  const content = fast ? (
+    <Diagram code={code} svg={fast} />
+  ) : streaming || !near || !drawn ? (
+    <CodeBlock code={code} label="mermaid" />
+  ) : 'error' in drawn ? (
+    <div className="flex flex-col gap-1.5">
+      <CodeBlock code={code} label="mermaid" />
+      <p className="selectable text-small text-danger">{m.diagramError(drawn.error.split('\n')[0]!)}</p>
+    </div>
+  ) : (
+    <Diagram code={code} svg={drawn.svg} />
+  )
+  return <div ref={ref}>{content}</div>
 }
 
 function Diagram({ code, svg }: { code: string; svg: string }) {

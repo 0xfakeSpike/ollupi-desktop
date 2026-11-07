@@ -35,6 +35,11 @@ interface NavigationStore {
   file: { workspaceId: string; path: string } | undefined
 }
 
+/** Where a reload was, so it comes back there: the conversation that was on
+ * screen. sessionStorage keeps it across a reload and loses it with the
+ * window, so a fresh launch still starts on a new conversation. */
+const OPEN_KEY = 'ollupi.openThread'
+
 export const useNavigation = create<NavigationStore>()(() => ({
   screen: { kind: 'draft', workspaceId: undefined },
   model: undefined,
@@ -43,8 +48,18 @@ export const useNavigation = create<NavigationStore>()(() => ({
   file: undefined,
 }))
 
-/** A model choice belongs to the conversation it was made in. */
+/** Puts back the conversation the window showed before a reload, for the
+ * session's first sync to read. Called once when the window loads. */
+export function startNavigation(): void {
+  const threadId = sessionStorage.getItem(OPEN_KEY)
+  if (threadId) useNavigation.setState({ screen: { kind: 'thread', threadId } })
+}
+
+/** Shows a screen, and remembers a conversation for a reload. A model choice
+ * belongs to the conversation it was made in. */
 export function go(screen: Screen): void {
+  if (screen.kind === 'thread') sessionStorage.setItem(OPEN_KEY, screen.threadId)
+  else sessionStorage.removeItem(OPEN_KEY)
   useNavigation.setState((s) => ({
     screen,
     model: sameThread(s.screen, screen) ? s.model : undefined,
