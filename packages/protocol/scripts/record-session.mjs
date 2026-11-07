@@ -199,6 +199,11 @@ await call('settings/read', {})
 await call('settings/update', { redaction: false })
 await call('settings/update', { redaction: true })
 await call('thread/list', { limit: 100 })
+// The workspace's folder moves to another one, which has to be empty; the
+// threads hang off its id, so they stay its own.
+const moved = join(tmp, 'moved')
+mkdirSync(moved)
+await call('workspace/move', { workspaceId: ws1.id, path: moved })
 await call('thread/list', { workspaceId: ws1.id, limit: 100 })
 await call('thread/read', { threadId: thread.id, limit: 500 })
 await call('thread/read', { threadId: 'no-such-thread' }).catch(() => {})

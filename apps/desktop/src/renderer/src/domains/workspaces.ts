@@ -47,6 +47,16 @@ export function renameWorkspace(workspaceId: string, name: string): Promise<void
   })
 }
 
+/** Moves the workspace's folder to path, a folder that is there and empty.
+ * The workspace keeps its id, so its threads, memories and tasks stay its
+ * own; the folder's files move with it. ollupi refuses while a turn runs in
+ * the workspace, since that turn names paths in the old place. */
+export function moveWorkspace(workspaceId: string, path: string): Promise<void | undefined> {
+  return run((e) => e.workspace.move, async () => {
+    await gateway().call('workspace/move', { workspaceId, path })
+  })
+}
+
 export function setArchived(workspaceId: string, archived: boolean): Promise<void | undefined> {
   return run((e) => (archived ? e.workspace.archive : e.workspace.restore), async () => {
     await gateway().call('workspace/archive', { workspaceId, archived })

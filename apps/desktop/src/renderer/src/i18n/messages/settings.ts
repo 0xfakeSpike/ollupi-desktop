@@ -257,6 +257,11 @@ export const en = {
     workspace: {
       title: 'Workspace settings',
       name: 'Name',
+      folder: 'Folder',
+      folderHint: 'Its conversations run here, and its agent reads and writes here.',
+      move: 'Move…',
+      moveConfirm: (path: string) =>
+        `Move the folder to ${path}? Everything in it moves there, and the folder you pick has to be empty.`,
       permissions: 'Permissions',
       intro: 'Layered over the agent defaults; threads in this workspace can add their own.',
     },
@@ -495,6 +500,10 @@ export const zh: typeof en = {
     workspace: {
       title: '工作区设置',
       name: '名称',
+      folder: '文件夹',
+      folderHint: '这里的会话在这个文件夹里运行，代理也在这里读写文件。',
+      move: '移动…',
+      moveConfirm: (path) => `把文件夹移动到 ${path}？里面的文件会一起搬过去，选中的文件夹必须是空的。`,
       permissions: '权限',
       intro: '叠加在代理默认设置之上；此工作区中的会话可以添加自己的权限。',
     },
