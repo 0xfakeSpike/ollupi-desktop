@@ -57,7 +57,7 @@ export function limitsOf({ context, input, output }: TypedLimits): ModelFields['
   if (!c) return undefined
   const o = output.trim() ? count(output) : defaultOutput(c)
   const i = count(input)
-  if (!o || o >= c || (input.trim() && !i)) return undefined
+  if (!o || (input.trim() && !i)) return undefined
   return { context: c, output: o, ...(i && { input: i }) }
 }
 
