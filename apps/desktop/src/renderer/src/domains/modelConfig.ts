@@ -32,6 +32,35 @@ export interface ModelFields {
   limits: { context: number; output: number; input?: number }
 }
 
+/** A model's limits as typed. */
+export interface TypedLimits {
+  context: string
+  input: string
+  output: string
+}
+
+/** For a model whose API does not say: a window most current models reach,
+ * and an answer every API takes as its max_tokens. */
+export const DEFAULT_CONTEXT = 128_000
+const DEFAULT_OUTPUT = 8_192
+
+/** The output a window of this size defaults to, leaving most of it to input. */
+export const defaultOutput = (context: number) => Math.min(DEFAULT_OUTPUT, Math.floor(context / 4))
+
+export const count = (s: string) => (/^\d+$/.test(s.trim()) && Number(s) > 0 ? Number(s) : undefined)
+
+/** Limits as ollupi takes them, or undefined for typed ones it would refuse.
+ * Context and output take their defaults when empty; max input stays out,
+ * as ollupi then goes by the window. */
+export function limitsOf({ context, input, output }: TypedLimits): ModelFields['limits'] | undefined {
+  const c = context.trim() ? count(context) : DEFAULT_CONTEXT
+  if (!c) return undefined
+  const o = output.trim() ? count(output) : defaultOutput(c)
+  const i = count(input)
+  if (!o || o >= c || (input.trim() && !i)) return undefined
+  return { context: c, output: o, ...(i && { input: i }) }
+}
+
 const providers = (c: BackendConfig): Provider[] => c.models ?? []
 
 function modelValue(m: ModelFields): ProviderModel {

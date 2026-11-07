@@ -14,9 +14,13 @@ import {
   apiTypeOf,
   cannotRemove,
   cannotRemoveProvider,
+  count,
+  DEFAULT_CONTEXT,
+  defaultOutput,
   editModel,
   editProvider,
   imagesByDefault,
+  limitsOf,
   makeDefault,
   modelId,
   removeModel,
@@ -25,6 +29,7 @@ import {
   type Provider,
   type ProviderFields,
   type ProviderModel,
+  type TypedLimits,
 } from '../../domains/modelConfig'
 import { useBalance } from '../../domains/balance'
 import { useModelList, type ModelListState } from '../../domains/modelList'
@@ -421,30 +426,7 @@ function ListStatus({ list, retry, existing }: { list: ModelListState; retry(): 
 /** Checked models by name, with their limits as typed. */
 type Picked = Record<string, TypedLimits>
 
-/** A model's limits as typed. */
-interface TypedLimits {
-  context: string
-  input: string
-  output: string
-}
-
 const limitParts = ['context', 'input', 'output'] as const
-
-const count = (s: string) => (/^\d+$/.test(s.trim()) && Number(s) > 0 ? Number(s) : undefined)
-
-/** Limits as ollupi takes them: context and output positive, the answer
- * within the window, and max input positive if it is given. */
-function limitsOf({ context, input, output }: TypedLimits): ModelFields['limits'] | undefined {
-  const c = count(context)
-  const o = count(output)
-  const i = count(input)
-  if (!c || !o || o >= c || (input.trim() && !i)) return undefined
-  return { context: c, output: o, ...(i && { input: i }) }
-}
-
-/** Why typed limits are refused; nothing while none is typed. */
-const limitsProblem = (typed: TypedLimits, message: string) =>
-  limitParts.some((part) => typed[part].trim()) && !limitsOf(typed) ? message : undefined
 
 /** A limit as a form holds it, empty when it is not known. */
 const typedLimit = (n: number | undefined) => (n ? String(n) : '')
@@ -453,6 +435,8 @@ const typedLimit = (n: number | undefined) => (n ? String(n) : '')
  * not say which it is. */
 function LimitInputs({ model, limits, onChange }: { model: string; limits: TypedLimits; onChange(limits: TypedLimits): void }) {
   const t = useT().settings.models.model
+  const context = count(limits.context) ?? DEFAULT_CONTEXT
+  const placeholders = { context: String(DEFAULT_CONTEXT), input: t.inputPlaceholder, output: String(defaultOutput(context)) }
   return (
     <div className="flex gap-3">
       {limitParts.map((part) => (
@@ -461,6 +445,7 @@ function LimitInputs({ model, limits, onChange }: { model: string; limits: Typed
           <Input
             value={limits[part]}
             inputMode="numeric"
+            placeholder={placeholders[part]}
             aria-label={`${model} ${t[part]}`}
             onChange={(e) => onChange({ ...limits, [part]: e.target.value })}
           />
@@ -506,7 +491,7 @@ function ModelPicker({ title, models, picked, onPick }: { title: string; models:
       <ul className="flex max-h-72 flex-col overflow-y-auto rounded-lg border border-line py-1">
         {shown.map((n) => {
           const limits = picked[n]
-          const problem = limits && limitsProblem(limits, m.model.limitsError)
+          const problem = limits && !limitsOf(limits) ? m.model.limitsError : undefined
           return (
             <li key={n} className="flex flex-col gap-1.5 px-3 py-1">
               <Checkbox checked={!!limits} onChange={(on) => check([n], on)}>
@@ -565,7 +550,7 @@ function useModelForm(provider: string, type: ApiType, model: ProviderModel | un
   const callsError = calls.trim() && !count(calls) ? t.callsError : undefined
   // ollupi fits a conversation in the model's window with them.
   const limits = limitsOf(typed)
-  const limitsError = limitsProblem(typed, t.limitsError)
+  const limitsError = limits ? undefined : t.limitsError
   const renamed = model && trimmed !== model.name
   const suggestions = useId()
 
