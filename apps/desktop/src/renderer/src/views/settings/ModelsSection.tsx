@@ -4,7 +4,7 @@
 // API key is written there too, like its base URL.
 
 import { Badge, Button, Callout, Checkbox, cn, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
-import { Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
+import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
 import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
@@ -162,6 +162,9 @@ function ProviderBalance({ baseUrl, apiKey }: { baseUrl: string; apiKey: string 
   )
 }
 
+/** A provider with more models than this starts folded. */
+const UNFOLDED_MODELS = 5
+
 function ProviderCard({
   provider: p,
   isFirst,
@@ -186,6 +189,9 @@ function ProviderCard({
 }) {
   const m = useT()
   const c = m.settings.models.card
+  const names = p.names ?? []
+  const [open, setOpen] = useState(names.length <= UNFOLDED_MODELS)
+  const listId = useId()
   return (
     <div className="flex flex-col rounded-lg border border-line">
       <div className="flex items-start gap-3 border-b border-line px-4 py-3">
@@ -208,35 +214,47 @@ function ProviderCard({
           <Trash2 size={14} />
         </IconButton>
       </div>
-      <ul className="flex flex-col divide-y divide-line">
-        {(p.names ?? []).map((model, i) => {
-          const id = modelId(p.provider, model.name)
-          const isDefault = isFirst && i === 0
-          return (
-            <li key={`${i}:${model.name}`} className="flex items-center gap-3 px-4 py-2.5">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="selectable font-mono text-small text-fg">{model.name}</span>
-                  {isDefault && <Badge tone="accent">{c.default}</Badge>}
-                  {memoryModel === id && <Badge>{c.memory}</Badge>}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 px-4 py-2 text-left text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+      >
+        <ChevronRight size={14} aria-hidden className={cn('shrink-0 text-fg-subtle transition duration-160 ease-standard', open && 'rotate-90')} />
+        {c.models(names.length)}
+      </button>
+      {open && (
+        <ul id={listId} className="flex flex-col divide-y divide-line border-t border-line">
+          {names.map((model, i) => {
+            const id = modelId(p.provider, model.name)
+            const isDefault = isFirst && i === 0
+            return (
+              <li key={`${i}:${model.name}`} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="selectable font-mono text-small text-fg">{model.name}</span>
+                    {isDefault && <Badge tone="accent">{c.default}</Badge>}
+                    {memoryModel === id && <Badge>{c.memory}</Badge>}
+                  </div>
+                  <ModelDetails model={model} />
                 </div>
-                <ModelDetails model={model} />
-              </div>
-              {!isDefault && (
-                <IconButton label={c.makeDefault(id)} size="sm" onClick={() => onMakeDefault(i)}>
-                  <Star size={14} />
+                {!isDefault && (
+                  <IconButton label={c.makeDefault(id)} size="sm" onClick={() => onMakeDefault(i)}>
+                    <Star size={14} />
+                  </IconButton>
+                )}
+                <IconButton label={c.edit(id)} size="sm" onClick={() => onEditModel(i)}>
+                  <Pencil size={14} />
                 </IconButton>
-              )}
-              <IconButton label={c.edit(id)} size="sm" onClick={() => onEditModel(i)}>
-                <Pencil size={14} />
-              </IconButton>
-              <IconButton label={c.remove(id)} size="sm" onClick={() => onRemoveModel(i)}>
-                <Trash2 size={14} />
-              </IconButton>
-            </li>
-          )
-        })}
-      </ul>
+                <IconButton label={c.remove(id)} size="sm" onClick={() => onRemoveModel(i)}>
+                  <Trash2 size={14} />
+                </IconButton>
+              </li>
+            )
+          })}
+        </ul>
+      )}
       <div className="border-t border-line px-2 py-1.5">
         <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={onAddModel}>
           {m.settings.models.addModel}
