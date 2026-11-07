@@ -114,10 +114,12 @@ describe('limitsOf', () => {
     expect(limitsOf(typed('131072', '16384', '130048'))).toEqual({ context: 131_072, output: 16_384, input: 130_048 })
   })
 
+  it('keeps an output as long as the window, as an API may state it', () => {
+    expect(limitsOf(typed('1000', '1000'))).toEqual({ context: 1_000, output: 1_000 })
+  })
+
   it('refuses what ollupi would', () => {
     expect(limitsOf(typed('abc'))).toBeUndefined()
-    expect(limitsOf(typed('1000', '1000'))).toBeUndefined()
-    expect(limitsOf(typed('', '200000'))).toBeUndefined()
     expect(limitsOf(typed('1000', '100', '0'))).toBeUndefined()
     expect(limitsOf(typed('3'))).toBeUndefined()
   })
