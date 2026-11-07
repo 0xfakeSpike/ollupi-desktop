@@ -77,8 +77,15 @@ export const conversationDomain: Domain = {
     const kept = open ? useTimelines.getState().byThread[open] : undefined
     useTimelines.setState({ byThread: {} })
     if (!open) return
-    const page = await client.call('thread/resume', { threadId: open, limit: PAGE_SIZE })
-    store(open, kept ? refreshFromPage(kept, page) : timelineFromPage(page))
+    try {
+      const page = await client.call('thread/resume', { threadId: open, limit: PAGE_SIZE })
+      store(open, kept ? refreshFromPage(kept, page) : timelineFromPage(page))
+    } catch (err) {
+      // Gone since it was opened (deleted elsewhere, or a reload outlived
+      // it): a new conversation, rather than a connection that never syncs.
+      if (!(err instanceof RpcError && err.code === ErrorCode.notFound)) throw err
+      go({ kind: 'draft', workspaceId: undefined })
+    }
   },
 }
 

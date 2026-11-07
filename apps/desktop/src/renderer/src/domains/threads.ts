@@ -14,6 +14,7 @@ import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { go, openThreadId } from './navigation'
 import { activeWorkspaces, useWorkspaces } from './workspaces'
+import { desktop } from '../platform/desktop'
 
 const PAGE_SIZE = 50
 
@@ -41,7 +42,9 @@ async function readGroup(workspaceId: string, from: 'start' | 'more'): Promise<v
 const update = (fn: (list: ThreadSummary[]) => ThreadSummary[]) => useThreads.setState((s) => ({ list: fn(s.list) }))
 
 /** A thread row changed or went away: both lists follow, and a deleted
- * thread that is on screen gives way to a new one. */
+ * thread that is on screen gives way to a new one. An archived or deleted
+ * thread keeps no browser tabs either: each tab is a page running in the
+ * window, and nobody will look at it again. */
 function changed(threadId: string, thread: ThreadRow | null): void {
   update((l) => (thread ? upsertThread(l, thread) : removeThread(l, threadId)))
   useArchivedThreads.setState((s) => {
@@ -49,6 +52,7 @@ function changed(threadId: string, thread: ThreadRow | null): void {
     const rest = s.list.filter((t) => t.id !== threadId)
     return { list: thread?.archivedAt && !thread.parentThreadId ? [thread, ...rest].sort(compareThreads) : rest }
   })
+  if (!thread || thread.archivedAt) void desktop.browser.forget(threadId)
   if (!thread && openThreadId() === threadId) go({ kind: 'draft', workspaceId: undefined })
 }
 

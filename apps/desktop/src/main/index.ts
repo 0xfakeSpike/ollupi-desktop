@@ -61,12 +61,19 @@ if (!app.requestSingleInstanceLock()) {
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, home, backendLog)
-    createMainWindow(keepOnClose)
+    // The interface places its panels as they mount; a window that is
+    // loading again has none yet, so no tab stays over the empty screen.
+    const newWindow = () => {
+      const win = createMainWindow(keepOnClose)
+      win.webContents.on('did-start-loading', () => browser.hide())
+      return win
+    }
+    newWindow()
     updater.start()
     // The backend's browser tools reach the endpoint from its start.
     void browserEndpoint.listen().then(() => backend.start())
     app.on('activate', () => {
-      if (!showMainWindow()) createMainWindow(keepOnClose)
+      if (!showMainWindow()) newWindow()
     })
   })
 

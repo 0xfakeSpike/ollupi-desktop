@@ -81,6 +81,13 @@ export class AgentBrowser extends EventEmitter {
     this.layAll()
   }
 
+  /** Hides the tab on screen. The interface that showed it is loading
+   * again, and will place its panel when it mounts. */
+  hide(): void {
+    this.shown = undefined
+    this.layAll()
+  }
+
   /** Loads an address in the active tab, opening one when there is none. */
   async open(thread: string, url: string): Promise<void> {
     const target = address(url)
@@ -109,6 +116,24 @@ export class AgentBrowser extends EventEmitter {
       .get(thread)
       ?.tabs.find((v) => v.webContents.id === id)
       ?.webContents.close()
+  }
+
+  /** Closes every tab of a thread that is going away and forgets them: a
+   * tab is a page kept running in the window, and an archived or deleted
+   * thread will not be looked at again. */
+  forget(thread: string): void {
+    const strip = this.strips.get(thread)
+    if (!strip) return
+    this.strips.delete(thread)
+    if (this.shown?.thread === thread) this.shown = undefined
+    const win = BrowserWindow.getAllWindows()[0]
+    for (const view of strip.tabs) {
+      // The strip is gone, so the tab's 'destroyed' handler finds no owner
+      // and leaves the view in the window: take it out here.
+      if (win && !win.isDestroyed()) win.contentView.removeChildView(view)
+      if (!view.webContents.isDestroyed()) view.webContents.close()
+    }
+    this.changed(thread)
   }
 
   back(thread: string): void {

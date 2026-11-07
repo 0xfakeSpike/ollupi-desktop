@@ -2,7 +2,7 @@ import { LucideProvider } from 'lucide-react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { startAppearance } from './domains/appearance'
-import { showBrowser } from './domains/navigation'
+import { showBrowser, startNavigation } from './domains/navigation'
 import { startNotifications } from './domains/notifications'
 import { startUpdate } from './domains/update'
 import { startSession } from './gateway/session'
@@ -13,6 +13,7 @@ import { App } from './views/App'
 
 startLocale()
 startAppearance()
+startNavigation()
 void startSession()
 desktop.browser.onUsed(showBrowser)
 startUpdate()

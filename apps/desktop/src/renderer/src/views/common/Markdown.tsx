@@ -15,25 +15,34 @@ import { createHighlighterCore, type HighlighterCore, type ShikiTransformer } fr
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
-import { Streamdown, type Components } from 'streamdown'
+import { Streamdown, useIsCodeFenceIncomplete, type Components } from 'streamdown'
 import { run } from '../../gateway/run'
 import { useT } from '../../i18n'
 import { ReplyPath } from './FileLink'
 import { MermaidBlock } from './Mermaid'
+import { useNearViewport } from './useNearViewport'
 
 export function CodeBlock({ code, label }: { code: string; label?: string }) {
-  const html = useHighlighted(code, label)
+  // A fence still being written is drawn as it is: highlighting it at every
+  // token would repeat the work for each one. A finished block waits until
+  // it comes near the viewport, since a conversation mounts all of its
+  // messages, on screen or not.
+  const streaming = useIsCodeFenceIncomplete()
+  const { ref, near } = useNearViewport<HTMLDivElement>()
+  const html = useHighlighted(near && !streaming ? code : undefined, label)
   return (
-    <Block label={<span className="font-mono">{label || 'text'}</span>} actions={<CopyButton text={code} />}>
-      {html ? (
-        // Scrolled across the block's padding, so a shaded line reaches its edges.
-        <div className="selectable -mx-3 overflow-x-auto px-3 font-mono text-ui" dangerouslySetInnerHTML={{ __html: html }} />
-      ) : (
-        <pre className="selectable overflow-x-auto font-mono text-ui">
-          <code>{code}</code>
-        </pre>
-      )}
-    </Block>
+    <div ref={ref}>
+      <Block label={<span className="font-mono">{label || 'text'}</span>} actions={<CopyButton text={code} />}>
+        {html ? (
+          // Scrolled across the block's padding, so a shaded line reaches its edges.
+          <div className="selectable -mx-3 overflow-x-auto px-3 font-mono text-ui" dangerouslySetInnerHTML={{ __html: html }} />
+        ) : (
+          <pre className="selectable overflow-x-auto font-mono text-ui">
+            <code>{code}</code>
+          </pre>
+        )}
+      </Block>
+    </div>
   )
 }
 
@@ -69,12 +78,13 @@ const diffLines: ShikiTransformer = {
 }
 
 /** Shiki's HTML for the code, once it has loaded the language; undefined
- * before then and for a language it does not know. Its output escapes the
- * code, so it is safe to insert. */
-function useHighlighted(code: string, language: string | undefined): string | undefined {
+ * before then, for a language it does not know, and for a block that is
+ * not to be drawn yet (still streaming, or off screen). Its output escapes
+ * the code, so it is safe to insert. */
+function useHighlighted(code: string | undefined, language: string | undefined): string | undefined {
   const [html, setHtml] = useState<string>()
   useEffect(() => {
-    if (!language) return setHtml(undefined)
+    if (!code || !language) return setHtml(undefined)
     let current = true
     highlight(code, language)
       .then((h) => current && setHtml(h))
