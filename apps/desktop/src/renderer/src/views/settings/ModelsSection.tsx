@@ -300,8 +300,19 @@ function ProviderDialog({
   // A new provider's models come from the list when the API gives one;
   // otherwise its first model is typed in.
   const fromList = !provider && offered.length > 0
-  const listValid = chosenModels.length === chosen.length
-  const valid = !nameError && listValid && (provider || (fromList ? chosen.length > 0 : !first.invalid))
+  const badLimits = chosen.length - chosenModels.length
+  // Said beside the button: the field at fault may be scrolled out of view.
+  const blocked = nameError
+    ? t.blockedField(t.name, nameError)
+    : badLimits > 0
+      ? t.badLimits(badLimits)
+      : provider
+        ? undefined
+        : fromList
+          ? chosen.length === 0
+            ? t.noneChosen
+            : undefined
+          : first.problem
 
   const save = async () => {
     setSaving(true)
@@ -319,8 +330,9 @@ function ProviderDialog({
       onClose={onClose}
       footer={
         <>
+          <SaveBlocked reason={blocked} />
           <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
-          <Button size="lg" variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
+          <Button size="lg" variant="primary" disabled={!!blocked} loading={saving} onClick={() => void save()}>
             {m.settings.config.saveAndRestart}
           </Button>
         </>
@@ -387,6 +399,11 @@ function ProviderDialog({
       </div>
     </Dialog>
   )
+}
+
+/** Why a dialog cannot be saved yet. */
+function SaveBlocked({ reason }: { reason: string | undefined }) {
+  return reason ? <span className="mr-auto min-w-0 self-center text-small text-fg-muted">{reason}</span> : null
 }
 
 /** What each API's base URL and key look like; an empty base URL is the
@@ -606,7 +623,13 @@ function useModelForm(provider: string, type: ApiType, model: ProviderModel | un
       </Field>
     </>
   )
-  return { form, fields, invalid: !!(nameError || callsError || !limits) }
+  const p = m.settings.models.provider
+  const problem = nameError
+    ? p.blockedField(t.name, nameError)
+    : callsError
+      ? p.blockedField(t.calls, callsError)
+      : limitsError && p.blockedField(t.limits, limitsError)
+  return { form, fields, problem }
 }
 
 function ModelDialog({
@@ -628,7 +651,7 @@ function ModelDialog({
   const { list } = useModelList(apiTypeOf(p), p.base_url ?? '', p.api_key ?? '')
   const listed = list.status === 'listed' ? list.models.filter((m) => !taken.includes(m.name)) : []
   const provider = p.provider
-  const { form, fields, invalid } = useModelForm(provider, apiTypeOf(p), model, taken, listed)
+  const { form, fields, problem } = useModelForm(provider, apiTypeOf(p), model, taken, listed)
   const [saving, setSaving] = useState(false)
   const save = async () => {
     setSaving(true)
@@ -642,8 +665,9 @@ function ModelDialog({
       onClose={onClose}
       footer={
         <>
+          <SaveBlocked reason={problem} />
           <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
-          <Button size="lg" variant="primary" disabled={invalid} loading={saving} onClick={() => void save()}>
+          <Button size="lg" variant="primary" disabled={!!problem} loading={saving} onClick={() => void save()}>
             {m.settings.config.saveAndRestart}
           </Button>
         </>
