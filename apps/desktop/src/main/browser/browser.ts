@@ -283,7 +283,10 @@ export class AgentBrowser extends EventEmitter {
     for (const [thread, strip] of this.strips) {
       for (const view of strip.tabs) {
         const on = this.shown?.thread === thread && strip.active === view
-        if (on) view.setBounds(this.shown!.bounds)
+        // A page that is not shown is given no room at all, not only hidden:
+        // a view hidden but still laid out has kept painting over the
+        // conversation, at the place and size it was given last.
+        view.setBounds(on ? this.shown!.bounds : { x: 0, y: 0, width: 0, height: 0 })
         view.setVisible(on)
       }
     }
