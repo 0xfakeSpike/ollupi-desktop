@@ -6,11 +6,13 @@
 // A star keeps the page shown among the person's bookmarks, which open from
 // a list beside Chrome's. Typing an address offers the pages visited and
 // bookmarked that match it, and completes the best one's address in place.
+// A page's download is saved where the person chooses in the save dialog, and
+// the panel then says where it went, with a way to show it in Finder.
 
-import { cn, IconButton, Input } from '@ollupi/ui'
-import { ArrowLeft, ArrowRight, BookMarked, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
+import { Button, cn, IconButton, Input } from '@ollupi/ui'
+import { ArrowLeft, ArrowRight, BookMarked, CircleAlert, Download, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Bookmark, BookmarkList, BrowserState, BrowserTab, Suggestions } from '../../../../shared/ipc'
+import type { Bookmark, BookmarkList, BrowserDownload, BrowserState, BrowserTab, Suggestions } from '../../../../shared/ipc'
 import { addBookmark, openPage, removeBookmark } from '../../domains/browser'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
@@ -29,11 +31,18 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const asked = useRef(0)
   const [completing, setCompleting] = useState(false)
   const [pick, setPick] = useState(-1)
+  // The last download the page made: where it went, or that it failed.
+  const [saved, setSaved] = useState<BrowserDownload>()
 
   useEffect(() => {
     void desktop.browser.state(thread).then(setState)
     void desktop.browser.bookmarks.list().then((l) => setOwn(l.own))
-    return desktop.browser.onState((t, s) => t === thread && setState(s))
+    const offState = desktop.browser.onState((t, s) => t === thread && setState(s))
+    const offDownload = desktop.browser.onDownloaded((t, d) => t === thread && setSaved(d))
+    return () => {
+      offState()
+      offDownload()
+    }
   }, [thread])
 
   // Offered only while an address is being typed. The best page's address
@@ -187,6 +196,8 @@ export function BrowserPanel({ thread }: { thread: string }) {
           />
         )}
       </form>
+      {/* Above the page's view, which covers the area below. */}
+      {saved && <DownloadNotice download={saved} onDismiss={() => setSaved(undefined)} />}
       <div ref={area} className={cn('relative min-h-0 flex-1', CLEAR_OF_EDGE)}>
         {!open && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
@@ -197,6 +208,38 @@ export function BrowserPanel({ thread }: { thread: string }) {
         )}
       </div>
     </SidePanel>
+  )
+}
+
+/** Where a page's download went, or that it did not finish; a saved file can
+ * be shown in Finder. It sits above the page's view, which would cover it. */
+function DownloadNotice({ download, onDismiss }: { download: BrowserDownload; onDismiss(): void }) {
+  const t = useT().conversation.browser
+  const { path } = download
+  return (
+    <div role="status" className="flex shrink-0 items-center gap-2 border-b border-line bg-raised py-1.5 pr-1 pl-3 text-small">
+      {path ? (
+        <>
+          <Download size={13} className="shrink-0 text-fg-subtle" aria-hidden />
+          <span className="selectable min-w-0 flex-1 truncate" title={path}>
+            {t.saved(path)}
+          </span>
+          <Button size="sm" variant="ghost" onClick={() => void desktop.revealFile(path)}>
+            {t.showInFinder}
+          </Button>
+        </>
+      ) : (
+        <>
+          <CircleAlert size={13} className="shrink-0 text-danger" aria-hidden />
+          <span className="min-w-0 flex-1 truncate" title={download.name}>
+            {t.downloadFailed(download.name)}
+          </span>
+        </>
+      )}
+      <IconButton label={t.dismissDownload} size="sm" className="-my-0.5 shrink-0" onClick={onDismiss}>
+        <X size={12} />
+      </IconButton>
+    </div>
   )
 }
 

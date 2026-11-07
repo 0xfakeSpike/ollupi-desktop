@@ -48,6 +48,8 @@ function browserShim(): DesktopApi | undefined {
       reload: unavailable,
       onState: () => () => {},
       onUsed: () => () => {},
+      // No page here downloads.
+      onDownloaded: () => () => {},
     },
     listModels: unavailable,
     balance: async () => undefined,
@@ -60,6 +62,7 @@ function browserShim(): DesktopApi | undefined {
     pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
     saveFile: unavailable,
     openPath: async () => {},
+    revealFile: async () => {},
     // A browser follows its own scheme.
     setColorScheme: async () => {},
   }
@@ -96,6 +99,7 @@ export const desktop: DesktopApi = window.desktop ??
       reload: unavailable,
       onState: () => () => {},
       onUsed: () => () => {},
+      onDownloaded: () => () => {},
     },
     listModels: unavailable,
     balance: async () => undefined,
@@ -106,5 +110,6 @@ export const desktop: DesktopApi = window.desktop ??
     pickDirectory: unavailable,
     saveFile: unavailable,
     openPath: unavailable,
+    revealFile: unavailable,
     setColorScheme: unavailable,
   }

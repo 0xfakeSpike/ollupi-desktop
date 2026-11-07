@@ -2,7 +2,7 @@
 // Electron crosses the bridge.
 
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import { IpcChannel, type BackendState, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
+import { IpcChannel, type BackendState, type BrowserDownload, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
 
 const api: DesktopApi = {
   info: () => ipcRenderer.invoke(IpcChannel.Info),
@@ -94,6 +94,11 @@ const api: DesktopApi = {
       ipcRenderer.on(IpcChannel.BrowserUsed, wrapped)
       return () => ipcRenderer.off(IpcChannel.BrowserUsed, wrapped)
     },
+    onDownloaded: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, thread: string, download: BrowserDownload) => listener(thread, download)
+      ipcRenderer.on(IpcChannel.BrowserDownloaded, wrapped)
+      return () => ipcRenderer.off(IpcChannel.BrowserDownloaded, wrapped)
+    },
   },
   listModels: (type, baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, type, baseUrl, apiKey),
   balance: (baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.Balance, baseUrl, apiKey),
@@ -118,6 +123,7 @@ const api: DesktopApi = {
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   saveFile: (name, text) => ipcRenderer.invoke(IpcChannel.SaveFile, name, text),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
+  revealFile: (path) => ipcRenderer.invoke(IpcChannel.RevealFile, path),
   setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),
 }
 
