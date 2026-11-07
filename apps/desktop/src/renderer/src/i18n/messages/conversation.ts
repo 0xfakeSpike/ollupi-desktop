@@ -110,6 +110,10 @@ export const en = {
     offered: 'Visited and bookmarked pages',
     bookmarked: 'Bookmarked',
     visited: 'Visited',
+    saved: (path: string) => `Saved to ${path}`,
+    downloadFailed: (name: string) => `Could not download ${name}`,
+    showInFinder: 'Show in Finder',
+    dismissDownload: 'Dismiss',
   },
   files: {
     title: 'Files',
@@ -343,6 +347,10 @@ export const zh: typeof en = {
     offered: '访问过和收藏的网页',
     bookmarked: '已收藏',
     visited: '访问过',
+    saved: (path) => `已保存到 ${path}`,
+    downloadFailed: (name) => `${name} 下载失败`,
+    showInFinder: '在访达中显示',
+    dismissDownload: '关闭提示',
   },
   files: {
     title: '文件',

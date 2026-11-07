@@ -5,8 +5,8 @@
 // active tab is a view laid over its conversation's browser panel when that
 // is open, and every tab keeps running when it is not. The tabs share one
 // session, apart from the app's and persisted, so sites stay signed in; it
-// tells sites it is Chrome, grants no device permissions and downloads
-// nothing.
+// tells sites it is Chrome, grants no device permissions, and asks where a
+// page's download goes, as a browser does.
 //
 // The sidecar's browser provider asks for two things, by thread: what an
 // action would do (its description and the tab's host, which permissions
@@ -15,7 +15,8 @@
 import { errorMessage } from '@ollupi/client'
 import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
-import type { BrowserState, BrowserTab } from '../../shared/ipc'
+import { join } from 'node:path'
+import type { BrowserDownload, BrowserState, BrowserTab } from '../../shared/ipc'
 import { isWebPage, normalize } from './address'
 import { clickScript, describeScript, focusScript, locateScript, scrollScript, snapshotScript, WORLD } from './page'
 
@@ -46,12 +47,15 @@ interface Strip {
 
 /** Emits 'state' (thread, BrowserState) as a thread's tabs change, 'used'
  * (thread) when the agent acts in one, 'visited' (url, title) when a tab
- * opens a page, its title '' until it names itself, and 'titled' (url,
- * title) when it does. */
+ * opens a page, its title '' until it names itself, 'titled' (url, title)
+ * when it does, and 'downloaded' (thread, BrowserDownload) when a page's
+ * download ends, with where it went or that it did not finish. */
 export class AgentBrowser extends EventEmitter {
   private readonly strips = new Map<string, Strip>()
   /** The thread whose active tab the panel shows, and where. */
   private shown: { thread: string; bounds: Rectangle } | undefined
+  /** Whether the tabs' session's downloads are watched. */
+  private watching = false
 
   state(thread: string): BrowserState {
     const strip = this.strips.get(thread)
@@ -255,6 +259,26 @@ export class AgentBrowser extends EventEmitter {
     this.emit('state', thread, this.state(thread))
   }
 
+  /** Watches the tabs' session for downloads, once: a page's download asks
+   * where to save it, as a browser does, and the strip whose tab started it
+   * hears where it went, or that it did not finish. */
+  private watchDownloads(): void {
+    if (this.watching) return
+    this.watching = true
+    session.fromPartition(PARTITION).on('will-download', (_event, item, wc) => {
+      const strip = () => [...this.strips.values()].find((s) => s.tabs.some((v) => v.webContents === wc))
+      const started = strip()
+      item.setSaveDialogOptions({ defaultPath: join(app.getPath('downloads'), item.getFilename()) })
+      item.once('done', (_done, state) => {
+        if (state === 'cancelled') return
+        const thread = (strip() ?? started)?.thread
+        if (!thread) return
+        const name = item.getFilename()
+        this.emit('downloaded', thread, state === 'completed' ? { name, path: item.getSavePath() } : { name })
+      })
+    })
+  }
+
   private layAll(): void {
     for (const [thread, strip] of this.strips) {
       for (const view of strip.tabs) {
@@ -310,6 +334,9 @@ export class AgentBrowser extends EventEmitter {
     wc.on('did-navigate', (_event, url) => arrived(url, ''))
     wc.on('did-navigate-in-page', (_event, url, isMainFrame) => isMainFrame && arrived(url, named(wc)))
     wc.on('page-title-updated', (_event, title, explicitSet) => explicitSet && this.emit('titled', wc.getURL(), title))
+    // A download asks where to save it, and the panel hears where it went.
+    // Cancelling the dialog in it is the person's answer, not a failure.
+    this.watchDownloads()
     // Closed from the panel, or by the page itself.
     wc.once('destroyed', () => {
       const now = owner()
@@ -333,7 +360,6 @@ function configure(): void {
   const s = session.fromPartition(PARTITION)
   s.setUserAgent(chromeAgent(s.getUserAgent()))
   s.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
-  s.on('will-download', (_event, item) => item.cancel())
 }
 
 /** The agent Chromium gives, without the app's and Electron's own tokens:

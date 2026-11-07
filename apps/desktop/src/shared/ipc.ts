@@ -126,6 +126,13 @@ export interface BrowserTab {
   loading: boolean
 }
 
+/** A file a page saved: its name as the page gave it, and where it went;
+ * path is undefined when the download did not finish. */
+export interface BrowserDownload {
+  name: string
+  path?: string
+}
+
 /** A thread's browser tabs as its panel shows them, and the active one's
  * page; an empty page when there is none. */
 export interface BrowserState {
@@ -332,6 +339,8 @@ export interface DesktopApi {
     onState(listener: (thread: string, state: BrowserState) => void): () => void
     /** The thread's agent acted in its tab. */
     onUsed(listener: (thread: string) => void): () => void
+    /** A page's download ended, saved or not. */
+    onDownloaded(listener: (thread: string, download: BrowserDownload) => void): () => void
   }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
@@ -362,6 +371,8 @@ export interface DesktopApi {
    * writes it there; undefined when the person cancelled. */
   saveFile(name: string, text: string): Promise<string | undefined>
   openPath(path: string): Promise<void>
+  /** Shows a file in Finder, selected. */
+  revealFile(path: string): Promise<void>
   /** Sets the window's scheme, which the renderer's prefers-color-scheme
    * and the native window chrome both follow. */
   setColorScheme(scheme: ColorScheme): Promise<void>
@@ -417,6 +428,7 @@ export const IpcChannel = {
   BrowserReload: 'browser:reload',
   BrowserChanged: 'browser:changed',
   BrowserUsed: 'browser:used',
+  BrowserDownloaded: 'browser:downloaded',
   ListModels: 'models:list',
   Balance: 'models:balance',
   UpdateState: 'update:state',
@@ -430,6 +442,7 @@ export const IpcChannel = {
   PickDirectory: 'dialog:pickDirectory',
   SaveFile: 'dialog:saveFile',
   OpenPath: 'shell:openPath',
+  RevealFile: 'shell:revealFile',
   SetColorScheme: 'theme:setColorScheme',
 } as const
 

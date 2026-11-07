@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type BackendState, type BrowserBounds, type BrowserState, type ColorScheme, type ConfigChange, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
@@ -126,6 +126,9 @@ export function registerIpc(
     const err = await shell.openPath(path)
     if (err) throw new Error(err)
   })
+  ipcMain.handle(IpcChannel.RevealFile, (_event, path: unknown) => {
+    shell.showItemInFolder(absolute(path))
+  })
   ipcMain.handle(IpcChannel.SetColorScheme, (_event, scheme: unknown) => {
     if (!colorSchemes.includes(scheme as ColorScheme)) throw new Error('expected system, light or dark')
     nativeTheme.themeSource = scheme as ColorScheme
@@ -137,6 +140,7 @@ export function registerIpc(
   backend.on('state', (state: BackendState) => send(IpcChannel.BackendChanged, state))
   browser.on('state', (thread: string, state: BrowserState) => send(IpcChannel.BrowserChanged, thread, state))
   browser.on('used', (thread: string) => send(IpcChannel.BrowserUsed, thread))
+  browser.on('downloaded', (thread: string, download: BrowserDownload) => send(IpcChannel.BrowserDownloaded, thread, download))
   terminals.on('data', (key: string, data: string) => send(IpcChannel.TerminalData, key, data))
   terminals.on('exit', (key: string, code: number) => send(IpcChannel.TerminalExit, key, code))
   updater.on('state', (state: UpdateState) => send(IpcChannel.UpdateChanged, state))
