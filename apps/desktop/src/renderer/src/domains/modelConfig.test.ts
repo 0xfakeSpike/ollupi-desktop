@@ -7,6 +7,7 @@ import {
   cannotRemoveProvider,
   editModel,
   editProvider,
+  limitsOf,
   makeDefault,
   removeModel,
   removeProvider,
@@ -94,5 +95,30 @@ describe('model edits', () => {
   it('makes a model the default by moving it and its provider first', () => {
     expect(makeDefault(1, 0)).toEqual([{ kind: 'move', path: ['models', 1], to: 0 }])
     expect(makeDefault(0, 1)).toEqual([{ kind: 'move', path: ['models', 0, 'names', 1], to: 0 }])
+  })
+})
+
+describe('limitsOf', () => {
+  const typed = (context = '', output = '', input = '') => ({ context, input, output })
+
+  it('takes the defaults for what is empty', () => {
+    expect(limitsOf(typed())).toEqual({ context: 128_000, output: 8_192 })
+  })
+
+  it('sizes a default output to a known window', () => {
+    expect(limitsOf(typed('1000000'))).toEqual({ context: 1_000_000, output: 8_192 })
+    expect(limitsOf(typed('8000'))).toEqual({ context: 8_000, output: 2_000 })
+  })
+
+  it('keeps what is typed', () => {
+    expect(limitsOf(typed('131072', '16384', '130048'))).toEqual({ context: 131_072, output: 16_384, input: 130_048 })
+  })
+
+  it('refuses what ollupi would', () => {
+    expect(limitsOf(typed('abc'))).toBeUndefined()
+    expect(limitsOf(typed('1000', '1000'))).toBeUndefined()
+    expect(limitsOf(typed('', '200000'))).toBeUndefined()
+    expect(limitsOf(typed('1000', '100', '0'))).toBeUndefined()
+    expect(limitsOf(typed('3'))).toBeUndefined()
   })
 })
