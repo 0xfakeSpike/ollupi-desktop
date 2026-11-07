@@ -86,17 +86,28 @@ export function BrowserPanel({ thread }: { thread: string }) {
   useLayoutEffect(() => {
     const el = area.current
     if (!el || !open || resizing || covered) return
+    // The page's view follows this area's rectangle, and the area also moves
+    // when its own size does not: the window narrows, or a column beside the
+    // panel takes another share. No resize observer reports a move, and a page
+    // left behind shows outside the panel, over the conversation; so the
+    // rectangle is read each frame and the page placed again when it changes.
+    let placed = ''
     const place = () => {
       const r = el.getBoundingClientRect()
-      void desktop.browser.place(thread, { x: r.left, y: r.top, width: r.width, height: r.height })
+      const now = `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`
+      if (now === placed) return
+      placed = now
+      // An area with no room shows no page, as when the panel collapses.
+      const bounds = r.width > 0 && r.height > 0 ? { x: r.left, y: r.top, width: r.width, height: r.height } : undefined
+      void desktop.browser.place(thread, bounds)
     }
     place()
-    const observer = new ResizeObserver(place)
-    observer.observe(el)
-    window.addEventListener('resize', place)
+    let frame = requestAnimationFrame(function watch() {
+      place()
+      frame = requestAnimationFrame(watch)
+    })
     return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', place)
+      cancelAnimationFrame(frame)
       void desktop.browser.place(thread, undefined)
     }
   }, [open, resizing, covered, thread])
