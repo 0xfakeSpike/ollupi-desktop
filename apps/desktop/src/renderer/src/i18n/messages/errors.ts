@@ -11,6 +11,7 @@ export const en = {
   workspace: {
     add: 'Could not add the workspace',
     rename: 'Could not rename the workspace',
+    move: 'Could not move the workspace’s folder',
     archive: 'Could not archive the workspace',
     restore: 'Could not restore the workspace',
     permissions: 'Could not save the workspace permissions',
@@ -104,6 +105,7 @@ export const zh: typeof en = {
   workspace: {
     add: '无法添加工作区',
     rename: '无法重命名工作区',
+    move: '无法移动工作区的文件夹',
     archive: '无法归档工作区',
     restore: '无法恢复工作区',
     permissions: '无法保存工作区权限',
