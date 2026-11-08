@@ -91,7 +91,7 @@ export class AgentBrowser extends EventEmitter {
   /** Shows a thread's active tab over its panel's area, in the window's
    * content, and hides every other; undefined hides it. */
   place(thread: string, bounds: Rectangle | undefined): void {
-    if (bounds && bounds.width > 0 && bounds.height > 0) this.shown = { thread, bounds }
+    if (bounds && bounds.width > 0 && bounds.height > 0) this.shown = { thread, bounds: inWindow(bounds) }
     else if (this.shown?.thread === thread) this.shown = undefined
     this.layAll()
     this.report()
@@ -104,7 +104,7 @@ export class AgentBrowser extends EventEmitter {
     const win = BrowserWindow.getAllWindows()[0]
     const thread = this.shown?.thread
     const view = thread ? this.strips.get(thread)?.active : undefined
-    diag(`shown ${JSON.stringify({ thread, bounds: this.shown?.bounds, content: win?.getContentBounds() })}`)
+    diag(`shown ${JSON.stringify({ thread, bounds: this.shown?.bounds, zoom: win?.webContents.getZoomFactor(), content: win?.getContentBounds() })}`)
     if (win && !win.isDestroyed()) {
       void win.webContents
         .executeJavaScript(
@@ -413,6 +413,15 @@ function configure(): void {
   const s = session.fromPartition(PARTITION)
   s.setUserAgent(chromeAgent(s.getUserAgent()))
   s.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
+}
+
+/** The page's bounds in the window's own coordinates. The interface measures
+ * in its pixels, and a zoomed interface's pixel is worth more than the
+ * window's: placed as they come, the page sits too small and too far left. */
+function inWindow(r: Rectangle): Rectangle {
+  const zoom = BrowserWindow.getAllWindows()[0]?.webContents.getZoomFactor() ?? 1
+  if (zoom === 1) return r
+  return { x: Math.round(r.x * zoom), y: Math.round(r.y * zoom), width: Math.round(r.width * zoom), height: Math.round(r.height * zoom) }
 }
 
 /** The agent Chromium gives, without the app's and Electron's own tokens:
