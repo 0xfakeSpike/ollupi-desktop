@@ -41,7 +41,14 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
   const picker = useRef<HTMLInputElement>(null)
   const m = useT()
   const sendTip = useTooltip({ label: m.conversation.composer.send })
-  useEffect(() => input.current?.focus(), [])
+  // A draft put back after a reload or a switch is there to be continued: the
+  // caret goes after it, not where the browser focuses a filled box.
+  useEffect(() => {
+    const box = input.current
+    if (!box) return
+    box.focus()
+    box.setSelectionRange(box.value.length, box.value.length)
+  }, [])
 
   const attach = (files: Iterable<File>) => addDraftFiles(draft, files)
   const detach = (id: string) => removeDraftAttachment(draft, id)
