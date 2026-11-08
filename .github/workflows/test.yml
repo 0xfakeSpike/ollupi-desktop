@@ -1,0 +1,43 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # The app, node-pty and the sandbox are macOS-only.
+    runs-on: macos-latest
+    env:
+      # The scripts pass -tags sqlite_fts5 themselves, which the engine needs.
+      # Build against the engine version go.mod pins, never a local checkout.
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: sidecar/go.mod
+          cache-dependency-path: sidecar/go.sum
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Generated code must match the engine contract and the sidecar's schemas.
+      - run: pnpm protocol:check
+      - run: pnpm config:check
+
+      - run: pnpm typecheck
+
+      # vitest in every package, then go vet and go test in the sidecar.
+      - run: pnpm test
