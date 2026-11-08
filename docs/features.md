@@ -116,16 +116,20 @@
 ## 7. 权限与安全〔引擎〕
 
 - 审批策略：严格（untrusted）/ 适中（on-request）/ 宽松（never）
+  - 严格：只有不改动、不联网的读取直接执行，其他都先问
+  - 适中：读取和在沙箱里的命令直接执行；沙箱外的改动、准备跑出沙箱的命令先问
+  - 宽松：规则以外一律直接执行，跑出沙箱的命令也不例外
 - 规则：allow / ask / deny，如 `run_command(git:*)`
+  - deny 与 ask 在三档下都算数：宽松下禁止仍然禁止，询问仍然先问
   - 代理默认、工作区、会话三层叠加，下层去不掉上层的 deny
   - 命令按程序名和参数结构化匹配，拆开 `sh -c`、`env`、`xargs`、`sudo` 等包装
   - 看不清的命令（变量、`$(...)`）不自动放行
 - macOS Seatbelt 沙箱
   - 模式：只读 / 工作区可写 / 完全访问
-  - 凭据文件不可读，缓存只读，`.git` hooks / config 不可写
+  - 凭据文件不可读，缓存只读；`.git`（含 config 与 hooks）可写，但会随后被程序执行的设置文件（`.envrc`、`.husky`、`.pre-commit-config.yaml`、`.vscode`、shell rc 等）不可写
   - 网络走代理，只放行允许的域名，拦截解析到内网的地址
   - 命令结束时清理派生的后台进程，报告沙箱拒绝原因
-  - 跑出沙箱算提权，必须单独批准
+  - 跑出沙箱算提权：严格、适中下单独批准，宽松下不问直接运行
 - 命令和文件都经沙箱接口，每个用户可以有自己的沙箱：本机 Seatbelt，或接入云沙箱（命令受限，不能提权）
 - 双向脱敏
   - 识别手机号、邮箱、身份证、银行卡、IP、MAC、JWT、密钥
@@ -148,7 +152,7 @@
   - `Agent`、`update_plan`、`request_user_input`、`read_tool_output`、`memory_search`
   - 技能：`list_skills`、`activate_skill`、`read_skill_resource`
   - 定时任务：`create_` / `pause_` / `delete_` / `list_scheduled_jobs`
-  - `run_command`：沙箱内执行命令，可申请提权；不在工作区的会话在 `~/.ollupi/scratch` 里执行
+  - `run_command`：沙箱内执行命令，可申请提权（严格、适中下要批准，宽松下直接运行）；不在工作区的会话在 `~/.ollupi/scratch` 里执行
   - `read_file`、`glob`、`grep`：读文件（带行号，按行分段）、按路径模式找文件（新的在前）、按正则搜内容（可带上下文）
     - 跳过 `.git`、`.gitignore` 忽略的文件和非文本文件，结果过长时截断
     - 只读，不需要审批；沙箱禁读的路径（凭据、agent 数据、`config.yaml`）在任何沙箱模式下都不读，遍历时跳过并计数，指向它们的链接也不跟

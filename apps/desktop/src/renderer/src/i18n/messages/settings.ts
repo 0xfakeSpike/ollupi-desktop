@@ -228,11 +228,11 @@ export const en = {
       },
       onRequest: {
         label: 'Balanced',
-        hint: 'Reading, and commands inside the sandbox, run on its own. Other changes, and commands that need to leave the sandbox, ask you first.',
+        hint: 'Reading, and commands inside the sandbox, run on their own. Other changes, and commands that need to leave the sandbox, ask you first.',
       },
       never: {
         label: 'Relaxed',
-        hint: 'Runs without asking, except what your ask rules name. Commands that need to leave the sandbox are refused, since nobody is asked.',
+        hint: 'Runs without asking, even outside the sandbox. Your deny rules still deny and your ask rules still ask.',
       },
     },
     /** Allow, ask and deny rules, by what each does for the user. */
@@ -478,7 +478,7 @@ export const zh: typeof en = {
     policies: {
       untrusted: { label: '严格', hint: '只有读取本机文件的操作会直接执行；会改动内容或联网的操作都先问你。' },
       onRequest: { label: '适中', hint: '读取内容、在沙箱里运行的命令会直接执行；其他改动，以及要跑到沙箱外的命令，先问你。' },
-      never: { label: '宽松', hint: '不再询问，直接执行（询问规则里写的除外）；要跑到沙箱外的命令会被拒绝，因为没人可以批准。' },
+      never: { label: '宽松', hint: '不再询问，直接执行，包括要跑到沙箱外的命令；禁止规则仍然禁止，询问规则仍然先问你。' },
     },
     exceptions: '例外（高级）',
     exceptionsCount: (n) => `${n} 条规则`,
