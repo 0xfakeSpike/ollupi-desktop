@@ -14,7 +14,6 @@
 
 import { errorMessage } from '@ollupi/client'
 import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
-import { appendFileSync } from 'node:fs'
 import { EventEmitter, once } from 'node:events'
 import { join } from 'node:path'
 import type { BrowserDownload, BrowserState, BrowserTab } from '../../shared/ipc'
@@ -25,16 +24,6 @@ const PARTITION = 'persist:browser'
 /** About 10k tokens of page. */
 const SNAPSHOT_LIMIT = 40_000
 const LOAD_TIMEOUT = 15_000
-
-/** TEMP: what a page and its panel each think they are, kept for reading
- * afterwards while a page laid out wider than its panel is hunted down. */
-function diag(text: string): void {
-  try {
-    appendFileSync('/tmp/ollupi-browser.log', `${new Date().toISOString()} ${text}\n`)
-  } catch {
-    // A log that cannot be written changes nothing.
-  }
-}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -94,45 +83,6 @@ export class AgentBrowser extends EventEmitter {
     if (bounds && bounds.width > 0 && bounds.height > 0) this.shown = { thread, bounds: inWindow(bounds) }
     else if (this.shown?.thread === thread) this.shown = undefined
     this.layAll()
-    this.report()
-    const view = this.shown?.thread === thread ? this.strips.get(thread)?.active : undefined
-    if (view && this.shown) void this.settle(view, this.shown.bounds)
-  }
-
-  /** TEMP: one page of numbers about the shown page and the panel it sits in. */
-  private report(): void {
-    const win = BrowserWindow.getAllWindows()[0]
-    const thread = this.shown?.thread
-    const view = thread ? this.strips.get(thread)?.active : undefined
-    diag(`shown ${JSON.stringify({ thread, bounds: this.shown?.bounds, zoom: win?.webContents.getZoomFactor(), content: win?.getContentBounds() })}`)
-    if (win && !win.isDestroyed()) {
-      void win.webContents
-        .executeJavaScript(
-          `(() => { const a = [...document.querySelectorAll('aside')].at(-1); const r = a && a.getBoundingClientRect(); return { iw: innerWidth, ih: innerHeight, dpr: devicePixelRatio, aside: r && [r.left, r.top, r.width, r.height].map(Math.round) } })()`,
-        )
-        .then((v) => diag(`ui ${JSON.stringify(v)}`))
-        .catch(() => diag('ui unavailable'))
-    }
-    if (view && !view.webContents.isDestroyed()) {
-      diag(`view ${JSON.stringify({ bounds: view.getBounds(), visible: view.getVisible(), url: view.webContents.getURL().slice(0, 60) })}`)
-      void view.webContents
-        .executeJavaScript('({ iw: innerWidth, ih: innerHeight, dpr: devicePixelRatio, sx: screenX, sy: screenY })')
-        .then((v) => diag(`page ${JSON.stringify(v)}`))
-        .catch(() => diag('page unavailable'))
-    }
-  }
-
-  /** TEMP: a page laid out wider than its frame paints over the conversation;
-   * giving the view its size again makes Chromium lay the page out at it. */
-  private async settle(view: WebContentsView, bounds: Rectangle): Promise<void> {
-    const wc = view.webContents
-    if (wc.isDestroyed()) return
-    const width = (await wc.executeJavaScript('innerWidth').catch(() => 0)) as number
-    diag(`settle page=${width} frame=${bounds.width}`)
-    if (!width || Math.abs(width - bounds.width) <= 1) return
-    view.setBounds({ ...bounds, width: bounds.width + 1 })
-    await sleep(16)
-    view.setBounds(bounds)
   }
 
   /** Hides the tab on screen. The interface that showed it is loading
