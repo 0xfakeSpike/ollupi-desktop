@@ -4,6 +4,7 @@
 
 import { IconButton } from '@ollupi/ui'
 import { ChevronDown, Cloud, Folder, Globe, Laptop } from 'lucide-react'
+import { useState } from 'react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
@@ -13,6 +14,7 @@ import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../
 import { useT } from '../../i18n'
 import { BrowserPanel } from '../conversation/BrowserPanel'
 import { Composer } from '../conversation/Composer'
+import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { WorkspacePanel, WorkspacePanelButtons } from '../conversation/WorkspacePanels'
 import { Pup } from './Pup'
@@ -20,6 +22,10 @@ import { Pup } from './Pup'
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
   const panel = useNavigation((s) => s.panel)
+  const environments = useEnvironments((s) => s.list)
+  const chosen = useNavigation((s) => s.environment)
+  const environment = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
+  const [managing, setManaging] = useState(false)
   const m = useT()
   return (
     <div className="flex h-full">
@@ -39,6 +45,13 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
               m.conversation.draft.noFolder
             )}
           </p>
+          {
+            // A cloud sandbox is where the conversation would run, and this
+            // build has no machine to reach one: say so before the first task.
+            environment?.kind === 'machine' && (
+              <p className="max-w-md text-center text-small text-fg-subtle">{m.conversation.draft.machineHint}</p>
+            )
+          }
         </div>
         <Composer
           draft={NEW_CONVERSATION}
@@ -47,7 +60,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           perch={<Pup />}
           toolbar={
             <>
-              <EnvironmentPicker />
+              <EnvironmentPicker onManage={() => setManaging(true)} />
               <WorkspacePicker workspaceId={workspaceId} />
               <ModelPicker inherited={undefined} />
             </>
@@ -56,11 +69,13 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       </div>
       {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
       {workspace && <WorkspacePanel workspace={workspace} turn={undefined} />}
+      {managing && <EnvironmentDialog onClose={() => setManaging(false)} />}
     </div>
   )
 }
 
 const ADD = '__add__'
+const MANAGE = '__manage__'
 
 function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
   const workspaces = activeWorkspaces(useWorkspaces((s) => s.list))
@@ -91,7 +106,7 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
 
 /** Where the thread runs. This machine is one environment; the others are
  * cloud sandboxes, and a conversation keeps the one it started in. */
-function EnvironmentPicker() {
+function EnvironmentPicker({ onManage }: { onManage(): void }) {
   const environments = useEnvironments((s) => s.list)
   const chosen = useNavigation((s) => s.environment)
   const current = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
@@ -106,13 +121,14 @@ function EnvironmentPicker() {
         aria-label={m.conversation.draft.environment}
         className="absolute inset-0 cursor-pointer opacity-0"
         value={current?.id ?? ''}
-        onChange={(e) => chooseEnvironment(e.target.value || undefined)}
+        onChange={(e) => (e.target.value === MANAGE ? onManage() : chooseEnvironment(e.target.value || undefined))}
       >
         {environments.map((e) => (
           <option key={e.id} value={e.id}>
             {e.name}
           </option>
         ))}
+        <option value={MANAGE}>{m.conversation.environments.manage}</option>
       </select>
     </label>
   )

@@ -7,6 +7,8 @@ import type { EnvironmentRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
+import { run } from '../gateway/run'
+import { useNavigation } from './navigation'
 
 export const useEnvironments = create<{ list: EnvironmentRow[] }>()(() => ({ list: [] }))
 
@@ -39,4 +41,36 @@ export function useEnvironment(id: string | undefined): EnvironmentRow | undefin
  * environment every user has. */
 export function defaultEnvironment(list: readonly EnvironmentRow[]): EnvironmentRow | undefined {
   return list.find((e) => e.kind === 'local') ?? list[0]
+}
+
+/** The environment the next conversation starts in: the one chosen in the
+ * composer while it is still there, or none, which is this machine. */
+export function chosenEnvironment(): string | undefined {
+  const chosen = useNavigation.getState().environment
+  return chosen && useEnvironments.getState().list.some((e) => e.id === chosen) ? chosen : undefined
+}
+
+/** Names another place conversations can run: a cloud sandbox. The list
+ * follows the change through environment/changed. */
+export function addEnvironment(name: string): Promise<boolean> {
+  return run((e) => e.environment.add, async () => {
+    await gateway().call('environment/add', { name })
+    return true
+  }).then(Boolean)
+}
+
+export function renameEnvironment(environmentId: string, name: string): Promise<boolean> {
+  return run((e) => e.environment.rename, async () => {
+    await gateway().call('environment/rename', { environmentId, name })
+    return true
+  }).then(Boolean)
+}
+
+/** Removes a cloud sandbox from the list. ollupi refuses this machine, and
+ * any environment a conversation runs in: a conversation does not move. */
+export function deleteEnvironment(environmentId: string): Promise<boolean> {
+  return run((e) => e.environment.delete, async () => {
+    await gateway().call('environment/delete', { environmentId })
+    return true
+  }).then(Boolean)
 }
