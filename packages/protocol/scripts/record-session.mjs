@@ -35,7 +35,7 @@ process.on('exit', () => {
 })
 
 const binary = join(tmp, 'ollupid')
-execFileSync('go', ['build', '-o', binary, './cmd/ollupid'], { cwd: sidecar, stdio: 'inherit' })
+execFileSync('go', ['build', '-tags', 'sqlite_fts5', '-o', binary, './cmd/ollupid'], { cwd: sidecar, stdio: 'inherit' })
 // The ollupi module the sidecar requires, from Go's module cache: its
 // version names it.
 const [ollupi, revision] = execFileSync('go', ['list', '-m', '-f', '{{.Dir}}\n{{.Version}}', 'github.com/0xfakeSpike/ollupi'], { cwd: sidecar, encoding: 'utf8' })

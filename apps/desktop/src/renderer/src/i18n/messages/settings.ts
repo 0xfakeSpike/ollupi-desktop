@@ -224,15 +224,15 @@ export const en = {
     policies: {
       untrusted: {
         label: 'Strict',
-        hint: 'Only reading files on this computer runs on its own. Anything that changes something or goes online asks you first.',
+        hint: 'Only reading files runs on its own. Editing files, running commands and going online all ask you first.',
       },
       onRequest: {
         label: 'Balanced',
-        hint: 'Reading, and commands inside the sandbox, run on their own. Other changes, and commands that need to leave the sandbox, ask you first.',
+        hint: 'Reading, editing project files and running commands inside the sandbox run on their own. Fetching web pages, clicking or typing in the browser, external tools that change things, and commands that need to leave the sandbox ask you first.',
       },
       never: {
         label: 'Relaxed',
-        hint: 'Runs without asking, even outside the sandbox. Your deny rules still deny and your ask rules still ask.',
+        hint: 'Runs everything without asking, even outside the sandbox. Your deny rules still hold: a command too complex to check against them is refused.',
       },
     },
     /** Allow, ask and deny rules, by what each does for the user. */
@@ -476,9 +476,9 @@ export const zh: typeof en = {
     inheritHint: (from) => `使用${from}的策略。`,
     inherit: '继承',
     policies: {
-      untrusted: { label: '严格', hint: '只有读取本机文件的操作会直接执行；会改动内容或联网的操作都先问你。' },
-      onRequest: { label: '适中', hint: '读取内容、在沙箱里运行的命令会直接执行；其他改动，以及要跑到沙箱外的命令，先问你。' },
-      never: { label: '宽松', hint: '不再询问，直接执行，包括要跑到沙箱外的命令；禁止规则仍然禁止，询问规则仍然先问你。' },
+      untrusted: { label: '严格', hint: '只有读取文件会直接执行；改文件、运行命令、联网，都先问你。' },
+      onRequest: { label: '适中', hint: '读取文件、修改项目里的文件、在沙箱里运行命令，会直接执行；抓取网页、在浏览器里点击或输入、会改动东西的外部工具、要跑到沙箱外的命令，先问你。' },
+      never: { label: '宽松', hint: '什么都不问，直接执行，包括要跑到沙箱外的命令。你设的禁止规则仍然有效：复杂到无法对照规则检查的命令会被拒绝。' },
     },
     exceptions: '例外（高级）',
     exceptionsCount: (n) => `${n} 条规则`,

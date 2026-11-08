@@ -17,7 +17,7 @@ const skillFile = (name: string, body = 'Do it.') => `---\nname: ${name}\ndescri
 
 beforeAll(async () => {
   bin = join(await mkdtemp(join(tmpdir(), 'ollupid-test-')), 'ollupid')
-  execFileSync('go', ['build', '-o', bin, './cmd/ollupid'], { cwd: join(import.meta.dirname, '../../../../../sidecar') })
+  execFileSync('go', ['build', '-tags', 'sqlite_fts5', '-o', bin, './cmd/ollupid'], { cwd: join(import.meta.dirname, '../../../../../sidecar') })
 }, 120_000)
 
 afterAll(() => rm(join(bin, '..'), { recursive: true, force: true }))
