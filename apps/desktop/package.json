@@ -1,7 +1,7 @@
 {
   "name": "@ollupi/desktop",
   "productName": "Ollupi",
-  "version": "0.7.23",
+  "version": "0.7.24",
   "description": "The desktop app for ollupi",
   "author": "0xfakeSpike",
   "license": "MIT",
