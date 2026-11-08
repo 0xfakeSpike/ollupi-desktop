@@ -6,6 +6,7 @@ import { IconButton } from '@ollupi/ui'
 import { ChevronDown, Folder, Globe } from 'lucide-react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
+import { NEW_CONVERSATION } from '../../domains/drafts'
 import { go, togglePanel, useNavigation } from '../../domains/navigation'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
@@ -39,6 +40,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           </p>
         </div>
         <Composer
+          draft={NEW_CONVERSATION}
           placeholder={m.conversation.draft.placeholder}
           onSubmit={(message) => startThread(workspaceId, message)}
           perch={<Pup />}

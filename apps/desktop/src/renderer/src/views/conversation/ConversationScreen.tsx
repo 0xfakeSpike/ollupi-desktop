@@ -133,6 +133,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           </p>
         ) : (
           <Composer
+            draft={threadId}
             placeholder={running ? m.conversation.screen.addToTurn : m.conversation.screen.reply}
             running={!!running}
             disabled={!timeline}

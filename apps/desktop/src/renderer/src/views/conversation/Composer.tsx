@@ -1,16 +1,22 @@
-// The message box. It knows nothing about threads: the screen decides what
-// submitting means and whether a turn is running. Files picked, pasted or
-// dropped on it go with the message.
+// The message box. It knows nothing about threads: the screen says which
+// draft the box holds, decides what submitting means, and whether a turn is
+// running. Files picked, pasted or dropped on it go with the message. The
+// draft itself is kept by domain/drafts, so it outlives the box: switching
+// conversations and coming back leaves the text where it was.
 
 import { AutoTextarea, cn, IconButton, Kbd, useTooltip } from '@ollupi/ui'
 import { ArrowUp, FileText, ListEnd, Paperclip, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
-import { draftAttachment, releaseDraft, type DraftAttachment } from '../../domains/attachments'
+import type { DraftAttachment } from '../../domains/attachments'
+import { addDraftFiles, removeDraftAttachment, sentDraft, setDraftText, useDraft } from '../../domains/drafts'
 import type { Message, SendMode } from '../../domains/conversation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
 
 export interface ComposerProps {
+  /** The draft this box holds and writes to: a conversation's, or the
+   * new-conversation page's (NEW_CONVERSATION). */
+  draft: string
   placeholder: string
   running?: boolean
   disabled?: boolean
@@ -27,9 +33,8 @@ export interface ComposerProps {
 const pill =
   'flex h-8 items-center gap-1.5 rounded-full px-3 text-small font-medium transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25'
 
-export function Composer({ placeholder, running, disabled, onSubmit, onStop, toolbar, perch }: ComposerProps) {
-  const [text, setText] = useState('')
-  const [attachments, setAttachments] = useState<DraftAttachment[]>([])
+export function Composer({ draft, placeholder, running, disabled, onSubmit, onStop, toolbar, perch }: ComposerProps) {
+  const { text, attachments } = useDraft(draft)
   const [sending, setSending] = useState(false)
   const [dragging, setDragging] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
@@ -37,20 +42,9 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
   const m = useT()
   const sendTip = useTooltip({ label: m.conversation.composer.send })
   useEffect(() => input.current?.focus(), [])
-  // Previews live as long as their attachment; the last ones go with the box.
-  const shown = useRef(attachments)
-  shown.current = attachments
-  useEffect(() => () => shown.current.forEach(releaseDraft), [])
 
-  const attach = (files: Iterable<File>) => {
-    const added = Array.from(files, draftAttachment)
-    if (added.length) setAttachments((a) => [...a, ...added])
-  }
-  const detach = (id: string) =>
-    setAttachments((a) => {
-      a.filter((d) => d.id === id).forEach(releaseDraft)
-      return a.filter((d) => d.id !== id)
-    })
+  const attach = (files: Iterable<File>) => addDraftFiles(draft, files)
+  const detach = (id: string) => removeDraftAttachment(draft, id)
 
   const submit = async (mode: SendMode) => {
     const value = text.trim()
@@ -59,9 +53,7 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
     try {
       if (await onSubmit({ text: value, files: attachments.map((a) => a.file) }, mode)) {
         // What was typed or attached while it went stays for the next message.
-        setText((now) => (now === text ? '' : now))
-        attachments.forEach(releaseDraft)
-        setAttachments((now) => now.filter((a) => !attachments.includes(a)))
+        sentDraft(draft, { text, attachments })
       }
     } finally {
       setSending(false)
@@ -127,7 +119,7 @@ export function Composer({ placeholder, running, disabled, onSubmit, onStop, too
             value={text}
             placeholder={placeholder}
             disabled={disabled}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => setDraftText(draft, e.target.value)}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
           />
