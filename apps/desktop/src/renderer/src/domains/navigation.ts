@@ -22,6 +22,9 @@ export type Screen =
 
 interface NavigationStore {
   screen: Screen
+  /** The environment chosen in the composer, for the conversations started
+   * from now on. Undefined starts one in the environment on this machine. */
+  environment: string | undefined
   /** The connection chosen in the composer. Undefined sends none, and the
    * server continues with the thread's last model, or the default. */
   model: string | undefined
@@ -42,6 +45,7 @@ const OPEN_KEY = 'ollupi.openThread'
 
 export const useNavigation = create<NavigationStore>()(() => ({
   screen: { kind: 'draft', workspaceId: undefined },
+  environment: undefined,
   model: undefined,
   panel: undefined,
   focus: undefined,
@@ -83,6 +87,12 @@ export function focusItem(focus: NavigationStore['focus']): void {
 
 export function chooseModel(model: string | undefined): void {
   useNavigation.setState({ model })
+}
+
+/** Where the conversations started from now on run. A thread keeps the
+ * environment it began in, so this is read when one starts, not after. */
+export function chooseEnvironment(environment: string | undefined): void {
+  useNavigation.setState({ environment })
 }
 
 function sameThread(a: Screen, b: Screen): boolean {

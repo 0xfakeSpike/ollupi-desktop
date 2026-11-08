@@ -134,7 +134,13 @@ export function loadOlder(threadId: string): Promise<void | undefined> {
 export function startThread(workspaceId: string | undefined, { text, files }: Message): Promise<boolean> {
   return run((e) => e.thread.start, async () => {
     const title = titleFromMessage(text, files.map((f) => f.name))
-    const { thread } = await gateway().call('thread/start', { workspaceId, title: title || undefined, permissions: {} })
+    const { thread } = await gateway().call('thread/start', {
+      workspaceId,
+      // The environment the draft was started in; undefined is this machine.
+      environmentId: useNavigation.getState().environment,
+      title: title || undefined,
+      permissions: {},
+    })
     // thread/started has put it in the list already.
     store(thread.id, emptyTimeline(thread))
     // The pages the draft opened are the thread's, before its agent acts.

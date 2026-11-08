@@ -18,6 +18,7 @@ vi.mock('../domains/requests', () => ({ requestsDomain: {} }))
 vi.mock('../domains/settings', () => ({ settingsDomain: {} }))
 vi.mock('../domains/threads', () => ({ threadsDomain: {} }))
 vi.mock('../domains/tools', () => ({ toolsDomain: {} }))
+vi.mock('../domains/environments', () => ({ environmentsDomain: {} }))
 vi.mock('../domains/workspaces', () => ({ workspacesDomain: {} }))
 
 function fakeClient() {

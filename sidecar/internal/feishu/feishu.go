@@ -43,7 +43,7 @@ const flushEvery = time.Second
 // acts as repo.DefaultUser, the user the gateway's token is, so the desktop's
 // sessions and the bot's are the same ones.
 type Engine interface {
-	StartThread(user, workspaceID, title string, settings permission.Settings) (repo.ThreadRow, error)
+	StartThread(user, workspaceID, environmentID, title string, settings permission.Settings) (repo.ThreadRow, error)
 	StartTurn(user, threadID string, in agent.Input) (repo.TurnRow, error)
 	InterruptTurn(user, threadID, expectedTurnID string) error
 	ResolveApproval(user, threadID, approvalID string, decision repo.Decision, decidedBy string) error
@@ -189,7 +189,7 @@ func (b *Bridge) startSession(messageID, text string) {
 		b.replyText(messageID, errorText(err))
 		return
 	}
-	t, err := b.engine.StartThread(repo.DefaultUser, workspaceID, titleFromMessage(text), permission.Settings{})
+	t, err := b.engine.StartThread(repo.DefaultUser, workspaceID, "", titleFromMessage(text), permission.Settings{})
 	if err != nil {
 		b.replyText(messageID, "没能开始会话："+errorText(err))
 		return

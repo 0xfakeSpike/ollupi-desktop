@@ -112,6 +112,22 @@ func New(opts Options) (_ *Host, err error) {
 			// Commands must not read the API keys in the config file.
 			DenyRead:  []string{filepath.Join(opts.Home, config.FileName)},
 			EnvMarker: "OLLUPI_SANDBOX",
+			// Commands run on this machine and nowhere else: a conversation
+			// started in a cloud environment is told so rather than having its
+			// commands run here. A nil box leaves the call in this machine's.
+			BoxIn: func(c tools.Caller) (sandbox.Box, error) {
+				if c.EnvironmentID == "" {
+					return nil, nil
+				}
+				env, err := db.EnvironmentOf(c.UserID, c.EnvironmentID)
+				if err != nil {
+					return nil, err
+				}
+				if env.Kind != repo.EnvironmentLocal {
+					return nil, fmt.Errorf("%s is a cloud sandbox, and this build has no machine for it; start the conversation in %s", env.Name, repo.LocalEnvironmentName)
+				}
+				return nil, nil
+			},
 		})
 		if err != nil {
 			return nil, err
@@ -260,7 +276,7 @@ func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 		cancel()
 		return err
 	}
-	_, err = h.agent.StartThread(repo.DefaultUser, "", "", permission.Settings{})
+	_, err = h.agent.StartThread(repo.DefaultUser, "", "", "", permission.Settings{})
 	cancel()
 	h.agent.Wait()
 	return err
