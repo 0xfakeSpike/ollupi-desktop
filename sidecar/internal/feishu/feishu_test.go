@@ -27,7 +27,7 @@ type fakeEngine struct {
 	queued     bool
 }
 
-func (f *fakeEngine) StartThread(user, workspaceID, title string, _ permission.Settings) (repo.ThreadRow, error) {
+func (f *fakeEngine) StartThread(user, workspaceID, environmentID, title string, _ permission.Settings) (repo.ThreadRow, error) {
 	if user != repo.DefaultUser {
 		return repo.ThreadRow{}, repo.ErrNotFound
 	}

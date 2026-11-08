@@ -3,11 +3,12 @@
 // beside it; the pages it opens become the thread's.
 
 import { IconButton } from '@ollupi/ui'
-import { ChevronDown, Folder, Globe } from 'lucide-react'
+import { ChevronDown, Cloud, Folder, Globe, Laptop } from 'lucide-react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
-import { go, togglePanel, useNavigation } from '../../domains/navigation'
+import { defaultEnvironment, useEnvironments } from '../../domains/environments'
+import { chooseEnvironment, go, togglePanel, useNavigation } from '../../domains/navigation'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { BrowserPanel } from '../conversation/BrowserPanel'
@@ -46,6 +47,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           perch={<Pup />}
           toolbar={
             <>
+              <EnvironmentPicker />
               <WorkspacePicker workspaceId={workspaceId} />
               <ModelPicker inherited={undefined} />
             </>
@@ -82,6 +84,35 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
           </option>
         ))}
         <option value={ADD}>{m.conversation.draft.addWorkspace}</option>
+      </select>
+    </label>
+  )
+}
+
+/** Where the thread runs. This machine is one environment; the others are
+ * cloud sandboxes, and a conversation keeps the one it started in. */
+function EnvironmentPicker() {
+  const environments = useEnvironments((s) => s.list)
+  const chosen = useNavigation((s) => s.environment)
+  const current = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
+  const m = useT()
+  const Icon = current?.kind === 'machine' ? Cloud : Laptop
+  return (
+    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg">
+      <Icon size={14} />
+      <span className="max-w-40 truncate">{current?.name ?? m.conversation.draft.environment}</span>
+      <ChevronDown size={14} />
+      <select
+        aria-label={m.conversation.draft.environment}
+        className="absolute inset-0 cursor-pointer opacity-0"
+        value={current?.id ?? ''}
+        onChange={(e) => chooseEnvironment(e.target.value || undefined)}
+      >
+        {environments.map((e) => (
+          <option key={e.id} value={e.id}>
+            {e.name}
+          </option>
+        ))}
       </select>
     </label>
   )
