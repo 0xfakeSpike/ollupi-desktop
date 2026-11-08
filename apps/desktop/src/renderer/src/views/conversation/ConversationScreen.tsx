@@ -1,7 +1,8 @@
 import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, Button, IconButton, Spinner, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Download, Folder, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Folder, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
+import { useEnvironment } from '../../domains/environments'
 import { exportThread, type ExportFormat } from '../../domains/export'
 import { togglePanel, useNavigation } from '../../domains/navigation'
 import { archiveThread, renameThread, useThreadSummary } from '../../domains/threads'
@@ -25,6 +26,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const summary = useThreadSummary(threadId)
   const thread = timeline?.thread ?? summary
   const workspace = useWorkspace(thread?.workspaceId)
+  // Where the thread runs: this machine keeps quiet, a cloud sandbox says so.
+  const environment = useEnvironment(thread?.environmentId)
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
   // ollupi takes no messages in an archived thread (threadArchived).
@@ -70,6 +73,12 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={workspace.rootPath}>
               <Folder size={14} className="shrink-0" />
               <span className="truncate">{workspace.name}</span>
+            </span>
+          )}
+          {environment && environment.kind !== 'local' && (
+            <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={m.conversation.environments.machine}>
+              <Cloud size={14} className="shrink-0" />
+              <span className="truncate">{environment.name}</span>
             </span>
           )}
           {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}

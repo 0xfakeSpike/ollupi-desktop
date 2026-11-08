@@ -24,6 +24,7 @@ import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { withMessageInput } from './attachments'
+import { chosenEnvironment } from './environments'
 import { chooseModel, focusItem, go, openThreadId, useNavigation } from './navigation'
 import { desktop } from '../platform/desktop'
 
@@ -137,7 +138,8 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
     const { thread } = await gateway().call('thread/start', {
       workspaceId,
       // The environment the draft was started in; undefined is this machine.
-      environmentId: useNavigation.getState().environment,
+      // One that is no longer there (deleted elsewhere) starts here too.
+      environmentId: chosenEnvironment(),
       title: title || undefined,
       permissions: {},
     })

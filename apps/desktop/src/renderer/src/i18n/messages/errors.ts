@@ -16,6 +16,11 @@ export const en = {
     restore: 'Could not restore the workspace',
     permissions: 'Could not save the workspace permissions',
   },
+  environment: {
+    add: 'Could not add the environment',
+    rename: 'Could not rename the environment',
+    delete: 'Could not delete the environment',
+  },
   thread: {
     open: 'Could not open the thread',
     earlier: 'Could not load earlier messages',
@@ -109,6 +114,11 @@ export const zh: typeof en = {
     archive: '无法归档工作区',
     restore: '无法恢复工作区',
     permissions: '无法保存工作区权限',
+  },
+  environment: {
+    add: '无法添加环境',
+    rename: '无法重命名环境',
+    delete: '无法删除环境',
   },
   thread: {
     open: '无法打开会话',
