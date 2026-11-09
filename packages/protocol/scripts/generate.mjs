@@ -22,8 +22,17 @@ const outDir = join(here, '../src/generated')
 const sidecar = join(here, '../../../sidecar')
 const check = process.argv.includes('--check')
 
-// The ollupi the sidecar builds against (its go.mod).
-const ollupi = execFileSync('go', ['list', '-m', '-f', '{{.Dir}}', 'github.com/0xfakeSpike/ollupi'], { cwd: sidecar, encoding: 'utf8' }).trim()
+// The ollupi the sidecar builds against: sidecar/go.work's checkout, or
+// without it (GOWORK=off, as CI and releases build) the version go.mod
+// pins, from Go's module cache. go list names no folder for a module the
+// cache lacks yet, as in a fresh checkout, so that one is downloaded first.
+const OLLUPI = 'github.com/0xfakeSpike/ollupi'
+const ollupiDir = () => execFileSync('go', ['list', '-m', '-f', '{{.Dir}}', OLLUPI], { cwd: sidecar, encoding: 'utf8' }).trim()
+let ollupi = ollupiDir()
+if (!ollupi) {
+  execFileSync('go', ['mod', 'download', OLLUPI], { cwd: sidecar, stdio: 'inherit' })
+  ollupi = ollupiDir()
+}
 const contractPath = join(ollupi, 'gateway/protocol.schema.json')
 const raw = readFileSync(contractPath)
 const contract = JSON.parse(raw.toString('utf8'))
