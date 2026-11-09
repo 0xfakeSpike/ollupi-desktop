@@ -22,14 +22,14 @@ export function Sidebar() {
   const groups = useMemo(() => groupByWorkspace(workspaces, threads), [workspaces, threads])
 
   return (
-    <aside className="flex w-65 shrink-0 flex-col">
+    <aside className="ol-on-ground flex w-65 shrink-0 flex-col">
       {/* Level with the screen's 40px header; the traffic lights sit here. */}
       <div className="drag h-10 shrink-0" />
       <nav className="flex flex-col gap-0.5 px-2 pb-2">
-        <NavButton icon={<SquarePen size={16} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
+        <NavButton icon={<SquarePen size={16} />} tone="new" active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
           {m.newThread}
         </NavButton>
-        <NavButton icon={<Search size={16} />} active={screen.kind === 'search'} onClick={() => go({ kind: 'search' })} shortcut="⌘K">
+        <NavButton icon={<Search size={16} />} tone="search" active={screen.kind === 'search'} onClick={() => go({ kind: 'search' })} shortcut="⌘K">
           {m.search}
         </NavButton>
       </nav>
@@ -60,13 +60,13 @@ export function Sidebar() {
       </div>
       <div className="flex flex-col gap-0.5 px-2 pt-2 pb-3">
         <UpdatePrompt />
-        <NavButton icon={<Brain size={16} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
+        <NavButton icon={<Brain size={16} />} tone="memory" active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
           {m.memory}
         </NavButton>
-        <NavButton icon={<CalendarClock size={16} />} active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
+        <NavButton icon={<CalendarClock size={16} />} tone="cron" active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
           {m.cron}
         </NavButton>
-        <NavButton icon={<Blocks size={16} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
+        <NavButton icon={<Blocks size={16} />} tone="capabilities" active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
           {m.capabilities}
         </NavButton>
         <NavButton icon={<Settings size={16} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
@@ -79,7 +79,11 @@ export function Sidebar() {
 }
 
 /** Sidebar rows share one grid: a 16px icon slot at 8px, the label at 32px. */
-function NavButton({ icon, active, onClick, shortcut, children }: { icon: ReactNode; active?: boolean; onClick(): void; shortcut?: string; children: ReactNode }) {
+/** tone names the palette's colour for the icon (--ol-nav-<tone>, theme.css);
+ * a palette without one leaves it muted. */
+type NavTone = 'new' | 'search' | 'memory' | 'cron' | 'capabilities'
+
+function NavButton({ icon, tone, active, onClick, shortcut, children }: { icon: ReactNode; tone?: NavTone; active?: boolean; onClick(): void; shortcut?: string; children: ReactNode }) {
   return (
     <button
       type="button"
@@ -91,7 +95,9 @@ function NavButton({ icon, active, onClick, shortcut, children }: { icon: ReactN
         active ? 'bg-selected font-medium text-fg' : 'text-fg hover:bg-hover',
       )}
     >
-      <span className="flex size-4 shrink-0 items-center justify-center text-fg-muted">{icon}</span>
+      <span className="flex size-4 shrink-0 items-center justify-center" style={{ color: tone ? `var(--ol-nav-${tone}, var(--ol-fg-muted))` : 'var(--ol-fg-muted)' }}>
+        {icon}
+      </span>
       <span className="flex-1">{children}</span>
       {shortcut && <span className="text-small font-normal text-fg-subtle">{shortcut}</span>}
     </button>

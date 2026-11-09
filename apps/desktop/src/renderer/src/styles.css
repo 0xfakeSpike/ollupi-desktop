@@ -75,11 +75,6 @@ code,
 .markdown > * + * {
   margin-top: 0.75em;
 }
-/* An answer, in the palette's voice: paper sets it in a serif, indigo in
-   the interface's sans. Code keeps its mono face. */
-.answer .markdown {
-  font-family: var(--ol-font-answer);
-}
 /* Text that is part of the process, at the size of its rows. */
 .markdown-quiet .markdown {
   font-size: var(--text-ui);

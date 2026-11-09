@@ -44,7 +44,7 @@ export const en = {
     scheme: 'Light or dark',
     schemes: { system: 'System', light: 'Light', dark: 'Dark' },
     palette: 'Palette',
-    palettes: { indigo: 'Indigo', paper: 'Paper' },
+    palettes: { classic: 'Classic', aurora: 'Aurora', sunset: 'Sunset', candy: 'Candy', rainbow: 'Rainbow' },
   },
 }
 
@@ -91,6 +91,6 @@ export const zh: typeof en = {
     scheme: '明暗',
     schemes: { system: '跟随系统', light: '浅色', dark: '深色' },
     palette: '配色',
-    palettes: { indigo: '靛蓝', paper: '宣纸' },
+    palettes: { classic: '经典', aurora: '极光', sunset: '日落', candy: '糖果', rainbow: '彩虹' },
   },
 }

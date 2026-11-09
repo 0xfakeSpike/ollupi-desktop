@@ -15,6 +15,15 @@ import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
 const SHOWN = 8
 
+/** The colour the palette gives a workspace (--ol-workspace-1..6, theme.css),
+ * the same one every time for the same workspace; in a palette that gives
+ * none, the icon is its text's colour. */
+function workspaceColor(id: string): string {
+  let h = 0
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return `var(--ol-workspace-${(h % 6) + 1}, currentColor)`
+}
+
 /** One workspace's threads, or the threads outside any workspace. */
 export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadSummary[] }) {
   const [open, setOpen] = useState(true)
@@ -35,7 +44,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           title={workspace?.rootPath}
           className="flex min-w-0 flex-1 items-center gap-2 text-left text-small font-medium text-fg-subtle transition-colors duration-100 ease-standard hover:text-fg-muted"
         >
-          <span className="flex size-4 shrink-0 items-center justify-center">
+          <span className="flex size-4 shrink-0 items-center justify-center" style={workspace && { color: workspaceColor(workspace.id) }}>
             {workspace ? <Folder size={14} /> : <Inbox size={14} />}
           </span>
           <span className="truncate">{workspace ? workspace.name : m.noWorkspace}</span>

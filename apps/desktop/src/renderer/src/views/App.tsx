@@ -65,7 +65,7 @@ function ContractBanner() {
   const m = useT()
   if (!mismatch) return null
   return (
-    <div className="drag flex shrink-0 items-center justify-center gap-2 border-b border-line px-4 py-1.5 pl-24 text-small text-warning">
+    <div className="drag flex shrink-0 items-center justify-center gap-2 border-b border-line bg-canvas px-4 py-1.5 pl-24 text-small text-warning">
       {m.shell.contractBanner(mismatch.server.slice(0, 8), mismatch.ui.slice(0, 8))}
     </div>
   )
