@@ -1,12 +1,14 @@
 // A timeline as turns: what started each turn, its items, and how it ended.
-// Items are drawn by ItemView.
+// Items are drawn by ItemView; a turn reads as core's layoutTurn: the
+// person's words, the process (Process) and the answer.
 
 import {
   activeTurn,
   groupByTurn,
-  groupReads,
+  layoutTurn,
   needsUser,
   queuedTurns,
+  turnActive,
   waitingOnUser,
   type Timeline,
   type TurnGroup,
@@ -25,7 +27,7 @@ import { markFound } from '../common/found'
 import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
 import { ThreadWorkspace } from '../common/FileLink'
-import { ReadsRow } from './tools/ReadsRow'
+import { Process } from './Process'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
@@ -103,18 +105,20 @@ function LoadOlder({ threadId }: { threadId: string }) {
 
 function TurnSection({ group, working, jobName }: { group: TurnGroup; working: boolean; jobName: string | undefined }) {
   const { turn, items } = group
-  const shown = useMemo(() => groupReads(items), [items])
+  const parts = useMemo(() => layoutTurn(items), [items])
+  const ended = !turnActive(turn.status)
+  const answered = parts.some((p) => p.kind === 'answer')
   const m = useT()
   return (
     <section className="flex flex-col gap-3">
       {jobName && <ScheduledBy name={jobName} />}
-      {shown.map((g) =>
-        g.kind === 'reads' ? (
-          <ReadsRow key={g.items[0]!.id} group={g} />
+      {parts.map((p) =>
+        p.kind === 'process' ? (
+          <Process key={p.items[0]!.id} items={p.items} ended={ended} answered={answered} endedAt={turn.completedAt ?? undefined} />
         ) : (
           // Takes no box, so the section's gap stays; a search finds the item by it.
-          <div key={g.item.id} data-item-id={g.item.id} className="contents">
-            <ItemView item={g.item} />
+          <div key={p.item.id} data-item-id={p.item.id} className="contents">
+            <ItemView item={p.item} />
           </div>
         ),
       )}

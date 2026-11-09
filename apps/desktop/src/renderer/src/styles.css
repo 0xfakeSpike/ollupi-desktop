@@ -75,6 +75,11 @@ code,
 .markdown > * + * {
   margin-top: 0.75em;
 }
+/* Text that is part of the process, at the size of its rows. */
+.markdown-quiet .markdown {
+  font-size: var(--text-ui);
+  line-height: var(--text-ui--line-height);
+}
 .markdown h1,
 .markdown h2,
 .markdown h3,
