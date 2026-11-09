@@ -157,7 +157,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
                 <ListEnd size={14} />
                 {m.conversation.composer.queue}
               </button>
-              <button type="button" title="Enter" disabled={blocked} onClick={() => void submit('steer')} className={cn(pill, 'bg-ink text-ink-fg hover:opacity-85')}>
+              <button type="button" title="Enter" disabled={blocked} onClick={() => void submit('steer')} className={cn(pill, 'bg-accent text-accent-fg hover:opacity-85')}>
                 <ArrowUp size={14} strokeWidth={2.5} />
                 {m.conversation.composer.interject}
               </button>
@@ -169,7 +169,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
                 aria-label={m.conversation.composer.send}
                 disabled={blocked}
                 onClick={() => void submit('steer')}
-                className="flex size-8 items-center justify-center rounded-full bg-ink text-ink-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
+                className="flex size-8 items-center justify-center rounded-full bg-accent text-accent-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
                 {...sendTip.trigger}
               >
                 <ArrowUp size={16} strokeWidth={2.5} />

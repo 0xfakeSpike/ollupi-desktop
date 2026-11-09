@@ -20,7 +20,7 @@ export function createMainWindow(keepOnClose: () => boolean): BrowserWindow {
     // Centred on the screen's 40px header at the top of the window.
     trafficLightPosition: { x: 16, y: 13 },
     // The default palette's --ol-ground (theme.css), shown before the renderer paints.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b191a' : '#f7f5f4',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#161825' : '#eff2fe',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
