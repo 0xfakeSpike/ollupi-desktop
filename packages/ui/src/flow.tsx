@@ -18,6 +18,10 @@ export interface ProcessRowProps {
   /** Shown when the row is open; a row without details does not open. */
   children?: ReactNode
   defaultOpen?: boolean
+  /** Whether the row is open, when its owner decides; with it, the row
+   * only asks for a change through onOpenChange. */
+  open?: boolean
+  onOpenChange?(open: boolean): void
   /** System information (memory, compaction), quieter than the process. */
   quiet?: boolean
   className?: string
@@ -25,8 +29,10 @@ export interface ProcessRowProps {
 
 /** One line of the agent's process that opens into its details, which hang
  * off a guide line under the icon. */
-export function ProcessRow({ icon, title, badge, meta, children, defaultOpen = false, quiet, className }: ProcessRowProps) {
-  const [open, setOpen] = useState(defaultOpen)
+export function ProcessRow({ icon, title, badge, meta, children, defaultOpen = false, open: owned, onOpenChange, quiet, className }: ProcessRowProps) {
+  const [own, setOwn] = useState(defaultOpen)
+  const open = owned ?? own
+  const setOpen = (next: boolean) => (owned === undefined ? setOwn(next) : onOpenChange?.(next))
   const detailsId = useId()
   const expandable = children != null && children !== false
   const line = (

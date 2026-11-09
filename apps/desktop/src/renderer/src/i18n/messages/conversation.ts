@@ -60,6 +60,17 @@ export const en = {
     sentBy: (name: string) => `Sent by ${name}`,
     someJob: 'a scheduled task',
   },
+  /** The line a turn's process folds into once it has ended. */
+  process: {
+    worked: (duration: string) => (duration ? `Worked for ${duration}` : 'Worked'),
+    commands: (n: number) => (n === 1 ? '1 command' : `${n} commands`),
+    reads: (n: number) => (n === 1 ? 'read 1 file' : `read ${n} files`),
+    searches: (n: number) => (n === 1 ? '1 search' : `${n} searches`),
+    filesChanged: (n: number) => (n === 1 ? '1 file changed' : `${n} files changed`),
+    subagents: (n: number) => (n === 1 ? '1 subagent' : `${n} subagents`),
+    tools: (n: number) => (n === 1 ? '1 tool call' : `${n} tool calls`),
+    failed: (n: number) => `${n} failed`,
+  },
   composer: {
     stop: 'Stop the running turn',
     attach: 'Attach images or files',
@@ -312,6 +323,16 @@ export const zh: typeof en = {
     queued: '排队中',
     sentBy: (name) => `由 ${name} 发送`,
     someJob: '某个定时任务',
+  },
+  process: {
+    worked: (duration) => (duration ? `处理了 ${duration}` : '处理过程'),
+    commands: (n) => `${n} 条命令`,
+    reads: (n) => `读了 ${n} 个文件`,
+    searches: (n) => `搜索 ${n} 次`,
+    filesChanged: (n) => `改了 ${n} 个文件`,
+    subagents: (n) => `${n} 个子代理`,
+    tools: (n) => `调用工具 ${n} 次`,
+    failed: (n) => `${n} 项失败`,
   },
   composer: {
     stop: '停止当前轮',

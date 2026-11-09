@@ -15,11 +15,13 @@ export function UserMessage({ item }: { item: ItemRow }) {
   )
 }
 
-export function AgentMessage({ item }: { item: ItemRow }) {
+/** quiet: the text of a response that went on to call tools, which says
+ * what the agent is about to do; it reads as part of the process. */
+export function AgentMessage({ item, quiet }: { item: ItemRow; quiet?: boolean }) {
   const streaming = item.status === 'inProgress'
   if (!item.text && !streaming) return null
   return (
-    <div className={cn('text-fg', streaming && 'streaming-caret')}>
+    <div className={cn(quiet ? 'markdown-quiet text-fg-muted' : 'text-fg', streaming && 'streaming-caret')}>
       <Markdown text={item.text ?? ''} streaming={streaming} />
     </div>
   )
