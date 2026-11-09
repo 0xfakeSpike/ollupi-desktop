@@ -21,7 +21,7 @@ export function AgentMessage({ item, quiet }: { item: ItemRow; quiet?: boolean }
   const streaming = item.status === 'inProgress'
   if (!item.text && !streaming) return null
   return (
-    <div className={cn(quiet ? 'markdown-quiet text-fg-muted' : 'text-fg', streaming && 'streaming-caret')}>
+    <div className={cn(quiet ? 'markdown-quiet text-fg-muted' : 'answer text-fg', streaming && 'streaming-caret')}>
       <Markdown text={item.text ?? ''} streaming={streaming} />
     </div>
   )

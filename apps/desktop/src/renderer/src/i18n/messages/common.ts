@@ -44,7 +44,7 @@ export const en = {
     scheme: 'Light or dark',
     schemes: { system: 'System', light: 'Light', dark: 'Dark' },
     palette: 'Palette',
-    palettes: { plum: 'Plum', paper: 'Paper', mist: 'Mist', indigo: 'Indigo', bronze: 'Bronze', teal: 'Teal' },
+    palettes: { indigo: 'Indigo', paper: 'Paper' },
   },
 }
 
@@ -91,6 +91,6 @@ export const zh: typeof en = {
     scheme: '明暗',
     schemes: { system: '跟随系统', light: '浅色', dark: '深色' },
     palette: '配色',
-    palettes: { plum: '梅子', paper: '宣纸', mist: '雾蓝', indigo: '靛紫', bronze: '古铜', teal: '黛蓝' },
+    palettes: { indigo: '靛蓝', paper: '宣纸' },
   },
 }
