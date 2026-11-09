@@ -102,7 +102,7 @@ export const zh: typeof en = {
     renameThread: '重命名',
     archiveThread: '归档',
     deleteThread: '删除',
-    deleteThreadConfirm: (title) => `删除“${title}”？它的消息、附件、子代理会话和定时任务会一并删除；命令改过的文件不受影响。`,
+    deleteThreadConfirm: (title) => `删除“${title}”？它的消息、附件、子 agent 会话和定时任务会一并删除；命令改过的文件不受影响。`,
     archivedThreads: (n) => `已归档会话 · ${n}`,
     loadMore: '加载更多',
     archivedThreadsTitle: '已归档会话',

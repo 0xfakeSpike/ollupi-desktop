@@ -2,7 +2,7 @@
   <img alt="Ollupi" src="docs/logo/logo.svg" width="240">
 </h1>
 
-[ollupi](https://github.com/0xfakeSpike/ollupi) 的 macOS 桌面端。所有会话、子代理和定时任务共享一个执行池，可以同时开很多个会话；等你审批或回答的会话不占并发名额，状态存在本机，重启后接着跑。
+[ollupi](https://github.com/0xfakeSpike/ollupi) 的 macOS 桌面端。所有会话、子 agent 和定时任务共享一个执行池，可以同时开很多个会话；等你审批或回答的会话不占并发名额，状态存在本机，重启后接着跑。
 
 ## 安装
 
