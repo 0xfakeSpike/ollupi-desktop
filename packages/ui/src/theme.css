@@ -140,98 +140,391 @@
 :root {
   --ol-font-sans: 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
   --ol-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
-  /* The system's serif: New York on macOS, Songti for Chinese. */
-  --ol-font-serif: ui-serif, 'New York', 'Songti SC', Georgia, serif;
 }
 :root:lang(zh) {
   --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
 /* Palettes. Each sets only its base colours; everything else is derived
-   from them below. :root carries the default (indigo) and an element with
+   from them below. :root carries the default (classic) and an element with
    data-palette takes another, so <html data-palette> themes the app and a
    preview swatch shows its own palette. The ids are @ollupi/ui's palettes.
 
-   indigo: cool, in the logo's colour. The ground the sidebar sits on, the
-   text and the surfaces carry a visible indigo tint (OKLCH hue 277), the
-   accent is the logo's indigo.
-   paper: warm, for long reading. A cream ground and canvas (hue ~85), a
-   clay accent, and answers set in a serif (--ol-font-answer). */
+   Beyond the colours of the canvas, a palette sets:
+   - --ol-ground-image: what the ground (the sidebar's) is painted with over
+     its colour, a gradient or none.
+   - --ol-on-ground-*: the text, accent and selection on that ground, which
+     .ol-on-ground puts in place of the canvas's. A colourful ground carries
+     light text where the canvas carries dark.
+   - --ol-send / --ol-send-fg: the send button's background (a colour, a
+     gradient, or layers) and its arrow.
+   - --ol-select-tint / --ol-select-mix: what a selected row is washed with.
+   - --ol-workspace-1..6: a colour per workspace, where the palette gives
+     workspaces colours; without them a workspace's icon is its text's.
+   - --ol-nav-new, -search, -memory, -cron, -capabilities: a colour for each
+     of the sidebar's own icons, where the palette gives them; without them
+     they are muted. */
+/* classic: Aligned with Claude and Codex: near-neutral greys a touch warm, near-black text, an ink send button, blue for links, focus and what waits on you; selection is a grey wash. */
 :root,
-[data-palette='indigo'] {
-  --ol-ground: #eff2fe;
+[data-palette='classic'] {
+  --ol-ground: #f9f9f7;
   --ol-canvas: #ffffff;
-  --ol-surface: #eff1fa;
+  --ol-surface: #f3f3f1;
   --ol-raised: #ffffff;
   --ol-knob: #ffffff;
-  --ol-fg: #191c31;
-  --ol-fg-muted: #555972;
-  --ol-fg-subtle: #85899f;
-  --ol-ink: #191c31;
+  --ol-fg: #0d0d0d;
+  --ol-fg-muted: #5d5d5a;
+  --ol-fg-subtle: #8b8a85;
+  --ol-ink: #0d0d0d;
   --ol-ink-fg: #ffffff;
-  --ol-accent: #4f46e5;
+  --ol-accent: #1f6bc9;
   --ol-accent-fg: #ffffff;
-  --ol-font-answer: var(--ol-font-sans);
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: none;
+  --ol-send: #0d0d0d;
+  --ol-select-tint: #0d0d0d;
+  --ol-select-mix: 7%;
+  --ol-on-ground-fg: #0d0d0d;
+  --ol-on-ground-fg-muted: #5d5d5a;
+  --ol-on-ground-fg-subtle: #8b8a85;
+  --ol-on-ground-accent: #1f6bc9;
+  --ol-on-ground-accent-fg: #ffffff;
+  --ol-on-ground-select-tint: #0d0d0d;
+  --ol-on-ground-select-mix: 7%;
 }
 
-[data-palette='paper'] {
-  --ol-ground: #efebe1;
-  --ol-canvas: #faf8f3;
-  --ol-surface: #f0ece2;
-  --ol-raised: #fffefb;
+/* aurora: A sidebar from deep violet to deep teal under white text, a violet accent, a violet-to-pink send. */
+[data-palette='aurora'] {
+  --ol-ground: #2e1065;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f5f2ff;
+  --ol-raised: #ffffff;
   --ol-knob: #ffffff;
-  --ol-fg: #2a2620;
-  --ol-fg-muted: #625d53;
-  --ol-fg-subtle: #8c8679;
-  --ol-ink: #2a2620;
-  --ol-ink-fg: #faf8f3;
-  --ol-accent: #a54a24;
+  --ol-fg: #1a1033;
+  --ol-fg-muted: #574d73;
+  --ol-fg-subtle: #7c7396;
+  --ol-ink: #1a1033;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #6d28d9;
   --ol-accent-fg: #ffffff;
-  --ol-font-answer: var(--ol-font-serif);
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: linear-gradient(170deg, #2e1065 0%, #4c1d95 45%, #0e4a5f 100%);
+  --ol-send: linear-gradient(135deg, #7c3aed, #db2777);
+  --ol-select-tint: #6d28d9;
+  --ol-select-mix: 11%;
+  --ol-on-ground-fg: #f5f3ff;
+  --ol-on-ground-fg-muted: #ddd6fe;
+  --ol-on-ground-fg-subtle: #c0b4f4;
+  --ol-on-ground-accent: #f0abfc;
+  --ol-on-ground-accent-fg: #2e1065;
+  --ol-on-ground-select-tint: #ffffff;
+  --ol-on-ground-select-mix: 18%;
+}
+
+/* sunset: A sidebar from rose to orange under white text, a warm white canvas, a rose accent, a rose-to-orange send; what waits on you is yellow on the sidebar, apart from danger. */
+[data-palette='sunset'] {
+  --ol-ground: #9d174d;
+  --ol-canvas: #fffaf6;
+  --ol-surface: #fbefe8;
+  --ol-raised: #fffdfb;
+  --ol-knob: #ffffff;
+  --ol-fg: #2a1414;
+  --ol-fg-muted: #6b4f4b;
+  --ol-fg-subtle: #8d6e6a;
+  --ol-ink: #2a1414;
+  --ol-ink-fg: #fffaf6;
+  --ol-accent: #be185d;
+  --ol-accent-fg: #ffffff;
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: linear-gradient(165deg, #9d174d 0%, #b0164f 45%, #a8340a 100%);
+  --ol-send: linear-gradient(135deg, #db2777, #f97316);
+  --ol-select-tint: #be185d;
+  --ol-select-mix: 11%;
+  --ol-on-ground-fg: #fff7ed;
+  --ol-on-ground-fg-muted: #ffe4d8;
+  --ol-on-ground-fg-subtle: #fcc9b7;
+  --ol-on-ground-accent: #fde047;
+  --ol-on-ground-accent-fg: #4a0b28;
+  --ol-on-ground-select-tint: #ffffff;
+  --ol-on-ground-select-mix: 22%;
+}
+
+/* candy: A soft sidebar from lilac through pink to mint under dark text, a colour for each workspace, a three-colour send. */
+[data-palette='candy'] {
+  --ol-ground: #ede9fe;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f7f4ff;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #1f1830;
+  --ol-fg-muted: #5b4f73;
+  --ol-fg-subtle: #857a9e;
+  --ol-ink: #1f1830;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #7c3aed;
+  --ol-accent-fg: #ffffff;
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: linear-gradient(175deg, #ede9fe 0%, #fce7f3 55%, #dcfce7 100%);
+  --ol-send: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b);
+  --ol-select-tint: #7c3aed;
+  --ol-select-mix: 11%;
+  --ol-on-ground-fg: #2b2140;
+  --ol-on-ground-fg-muted: #544868;
+  --ol-on-ground-fg-subtle: #73688c;
+  --ol-on-ground-accent: #db2777;
+  --ol-on-ground-accent-fg: #ffffff;
+  --ol-on-ground-select-tint: #ffffff;
+  --ol-on-ground-select-mix: 75%;
+  --ol-workspace-1: #7c3aed;
+  --ol-workspace-2: #db2777;
+  --ol-workspace-3: #0d9488;
+  --ol-workspace-4: #b45309;
+  --ol-workspace-5: #0284c7;
+  --ol-workspace-6: #4d7c0f;
+}
+
+/* rainbow: Apple's six system colours as solid, hard-edged pieces, never a gradient, on Apple's neutral greys (black in the dark, as a watch face): the sidebar's own icons each in one colour, and send a ring of six segments. Workspaces and the conversation list stay neutral, so what is read is not coloured. */
+[data-palette='rainbow'] {
+  --ol-ground: #f2f2f7;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f2f2f7;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #1c1c1e;
+  --ol-fg-muted: #6c6c70;
+  --ol-fg-subtle: #8e8e93;
+  --ol-ink: #1c1c1e;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #0066cc;
+  --ol-accent-fg: #ffffff;
+  --ol-send-fg: #1c1c1e;
+  --ol-ground-image: none;
+  --ol-send: radial-gradient(circle, #ffffff 0 58%, transparent 59%), conic-gradient(#ff3b30 0deg 60deg, #ff9500 60deg 120deg, #ffcc00 120deg 180deg, #34c759 180deg 240deg, #007aff 240deg 300deg, #af52de 300deg 360deg);
+  --ol-select-tint: #1c1c1e;
+  --ol-select-mix: 7%;
+  --ol-on-ground-fg: #1c1c1e;
+  --ol-on-ground-fg-muted: #6c6c70;
+  --ol-on-ground-fg-subtle: #7c7c80;
+  --ol-on-ground-accent: #0066cc;
+  --ol-on-ground-accent-fg: #ffffff;
+  --ol-on-ground-select-tint: #1c1c1e;
+  --ol-on-ground-select-mix: 7%;
+  --ol-nav-new: #0040dd;
+  --ol-nav-search: #c93400;
+  --ol-nav-memory: #8944ab;
+  --ol-nav-cron: #248a3d;
+  --ol-nav-capabilities: #b25000;
 }
 
 @media (prefers-color-scheme: dark) {
   :root,
-  [data-palette='indigo'] {
-    --ol-ground: #161825;
-    --ol-canvas: #0f1019;
-    --ol-surface: #1c1e29;
-    --ol-raised: #212330;
-    --ol-knob: #e3e5f1;
-    --ol-fg: #e3e5f1;
-    --ol-fg-muted: #9ea2b6;
-    --ol-fg-subtle: #6b6f82;
-    --ol-ink: #e3e5f1;
-    --ol-ink-fg: #0f1019;
-    --ol-accent: #a5b4fc;
-    --ol-accent-fg: #161825;
+  [data-palette='classic'] {
+    --ol-ground: #141414;
+    --ol-canvas: #1f1f1e;
+    --ol-surface: #2b2b2a;
+    --ol-raised: #2a2a29;
+    --ol-knob: #f0efec;
+    --ol-fg: #f0efec;
+    --ol-fg-muted: #c3c2b7;
+    --ol-fg-subtle: #8f8e88;
+    --ol-ink: #f0efec;
+    --ol-ink-fg: #141414;
+    --ol-accent: #6aabf1;
+    --ol-accent-fg: #141414;
+    --ol-send-fg: #141414;
+    --ol-ground-image: none;
+    --ol-send: #f0efec;
+    --ol-select-tint: #f0efec;
+    --ol-select-mix: 9%;
+    --ol-on-ground-fg: #f0efec;
+    --ol-on-ground-fg-muted: #c3c2b7;
+    --ol-on-ground-fg-subtle: #8f8e88;
+    --ol-on-ground-accent: #6aabf1;
+    --ol-on-ground-accent-fg: #141414;
+    --ol-on-ground-select-tint: #f0efec;
+    --ol-on-ground-select-mix: 9%;
   }
 
-  [data-palette='paper'] {
-    --ol-ground: #1d1b17;
-    --ol-canvas: #161512;
-    --ol-surface: #221f1b;
-    --ol-raised: #282520;
-    --ol-knob: #ebe6da;
-    --ol-fg: #ebe6da;
-    --ol-fg-muted: #a39c8f;
-    --ol-fg-subtle: #756f64;
-    --ol-ink: #ebe6da;
-    --ol-ink-fg: #161512;
-    --ol-accent: #e5946f;
-    --ol-accent-fg: #1d1b17;
+  [data-palette='aurora'] {
+    --ol-ground: #1c0a45;
+    --ol-canvas: #120d1f;
+    --ol-surface: #1d1630;
+    --ol-raised: #221a38;
+    --ol-knob: #ede9fe;
+    --ol-fg: #ede9fe;
+    --ol-fg-muted: #b3a9cf;
+    --ol-fg-subtle: #8b82a8;
+    --ol-ink: #ede9fe;
+    --ol-ink-fg: #120d1f;
+    --ol-accent: #c4b5fd;
+    --ol-accent-fg: #120d1f;
+    --ol-send-fg: #ffffff;
+    --ol-ground-image: linear-gradient(170deg, #1c0a45 0%, #2e1065 45%, #082f3d 100%);
+    --ol-send: linear-gradient(135deg, #8b5cf6, #ec4899);
+    --ol-select-tint: #c4b5fd;
+    --ol-select-mix: 16%;
+    --ol-on-ground-fg: #f5f3ff;
+    --ol-on-ground-fg-muted: #c9bdfb;
+    --ol-on-ground-fg-subtle: #9d8fdc;
+    --ol-on-ground-accent: #f0abfc;
+    --ol-on-ground-accent-fg: #1c0a45;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 14%;
+  }
+
+  [data-palette='sunset'] {
+    --ol-ground: #4a0b28;
+    --ol-canvas: #1a1011;
+    --ol-surface: #261618;
+    --ol-raised: #2b1a1c;
+    --ol-knob: #fde7dc;
+    --ol-fg: #fde7dc;
+    --ol-fg-muted: #c8aaa2;
+    --ol-fg-subtle: #a3847d;
+    --ol-ink: #fde7dc;
+    --ol-ink-fg: #1a1011;
+    --ol-accent: #f9a8d4;
+    --ol-accent-fg: #1a1011;
+    --ol-send-fg: #ffffff;
+    --ol-ground-image: linear-gradient(165deg, #4a0b28 0%, #701a3f 45%, #6b250b 100%);
+    --ol-send: linear-gradient(135deg, #ec4899, #fb923c);
+    --ol-select-tint: #f9a8d4;
+    --ol-select-mix: 16%;
+    --ol-on-ground-fg: #fff1ea;
+    --ol-on-ground-fg-muted: #f6c9b8;
+    --ol-on-ground-fg-subtle: #d69c8c;
+    --ol-on-ground-accent: #fde047;
+    --ol-on-ground-accent-fg: #4a0b28;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 15%;
+  }
+
+  [data-palette='candy'] {
+    --ol-ground: #2a1f45;
+    --ol-canvas: #15121d;
+    --ol-surface: #1f1a2b;
+    --ol-raised: #241e33;
+    --ol-knob: #f3eefe;
+    --ol-fg: #f3eefe;
+    --ol-fg-muted: #bdb3d6;
+    --ol-fg-subtle: #968cae;
+    --ol-ink: #f3eefe;
+    --ol-ink-fg: #15121d;
+    --ol-accent: #c4b5fd;
+    --ol-accent-fg: #15121d;
+    --ol-send-fg: #ffffff;
+    --ol-ground-image: linear-gradient(175deg, #2a1f45 0%, #3a1c35 55%, #12332a 100%);
+    --ol-send: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b);
+    --ol-select-tint: #c4b5fd;
+    --ol-select-mix: 16%;
+    --ol-on-ground-fg: #f3eefe;
+    --ol-on-ground-fg-muted: #cfc4ea;
+    --ol-on-ground-fg-subtle: #a397c4;
+    --ol-on-ground-accent: #f472b6;
+    --ol-on-ground-accent-fg: #2a1f45;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 12%;
+    --ol-workspace-1: #a78bfa;
+    --ol-workspace-2: #f472b6;
+    --ol-workspace-3: #2dd4bf;
+    --ol-workspace-4: #fbbf24;
+    --ol-workspace-5: #38bdf8;
+    --ol-workspace-6: #a3e635;
+  }
+
+  [data-palette='rainbow'] {
+    --ol-ground: #000000;
+    --ol-canvas: #1c1c1e;
+    --ol-surface: #2c2c2e;
+    --ol-raised: #2c2c2e;
+    --ol-knob: #f5f5f7;
+    --ol-fg: #f5f5f7;
+    --ol-fg-muted: #aeaeb2;
+    --ol-fg-subtle: #8e8e93;
+    --ol-ink: #f5f5f7;
+    --ol-ink-fg: #1c1c1e;
+    --ol-accent: #409cff;
+    --ol-accent-fg: #000000;
+    --ol-send-fg: #f5f5f7;
+    --ol-ground-image: none;
+    --ol-send: radial-gradient(circle, #2c2c2e 0 58%, transparent 59%), conic-gradient(#ff453a 0deg 60deg, #ff9f0a 60deg 120deg, #ffd60a 120deg 180deg, #30d158 180deg 240deg, #0a84ff 240deg 300deg, #bf5af2 300deg 360deg);
+    --ol-select-tint: #f5f5f7;
+    --ol-select-mix: 10%;
+    --ol-on-ground-fg: #f5f5f7;
+    --ol-on-ground-fg-muted: #aeaeb2;
+    --ol-on-ground-fg-subtle: #98989d;
+    --ol-on-ground-accent: #0a84ff;
+    --ol-on-ground-accent-fg: #000000;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 12%;
+    --ol-nav-new: #0a84ff;
+    --ol-nav-search: #ff9f0a;
+    --ol-nav-memory: #bf5af2;
+    --ol-nav-cron: #30d158;
+    --ol-nav-capabilities: #ffd60a;
   }
 }
 
-/* Derived from the palette, redeclared wherever a palette is set so they
-   follow it there. Primary actions are ink, so the accent stays where it
-   means something: sending to the agent, what is selected, links, focus,
-   and what waits on the user. */
+/* What sits on the ground (the sidebar) reads in the ground's colours: its
+   text, accent and selection take the place of the canvas's, so a palette
+   can paint the ground dark or bright under light text. */
+.ol-on-ground {
+  --ol-fg: var(--ol-on-ground-fg);
+  --ol-fg-muted: var(--ol-on-ground-fg-muted);
+  --ol-fg-subtle: var(--ol-on-ground-fg-subtle);
+  --ol-accent: var(--ol-on-ground-accent);
+  --ol-accent-fg: var(--ol-on-ground-accent-fg);
+  --ol-select-tint: var(--ol-on-ground-select-tint);
+  --ol-select-mix: var(--ol-on-ground-select-mix);
+}
+
+/* A plane raised over the ground (a dialog opened from the sidebar, a card
+   in it) is the canvas's again: these keep the canvas's colours, taken
+   where the palette is set, for .ol-plane to put back. */
 :root,
 [data-palette] {
+  --ol-plane-fg: var(--ol-fg);
+  --ol-plane-fg-muted: var(--ol-fg-muted);
+  --ol-plane-fg-subtle: var(--ol-fg-subtle);
+  --ol-plane-accent: var(--ol-accent);
+  --ol-plane-accent-fg: var(--ol-accent-fg);
+  --ol-plane-select-tint: var(--ol-select-tint);
+  --ol-plane-select-mix: var(--ol-select-mix);
+}
+.ol-plane {
+  --ol-fg: var(--ol-plane-fg);
+  --ol-fg-muted: var(--ol-plane-fg-muted);
+  --ol-fg-subtle: var(--ol-plane-fg-subtle);
+  --ol-accent: var(--ol-plane-accent);
+  --ol-accent-fg: var(--ol-plane-accent-fg);
+  --ol-select-tint: var(--ol-plane-select-tint);
+  --ol-select-mix: var(--ol-plane-select-mix);
+}
+
+/* The ground is painted with the palette's image over its colour. */
+.bg-ground {
+  background-image: var(--ol-ground-image);
+}
+
+/* Sending to the agent: the palette's colour, gradient or ring. The border
+   is where a ring shows; a plain background fills it. */
+.bg-send {
+  background: var(--ol-send);
+  color: var(--ol-send-fg);
+  border: 2px solid transparent;
+}
+
+/* Derived from the palette, redeclared wherever a palette or a region
+   sets colours so they follow it there. Primary actions are ink, so the
+   accent stays where it means something: links, focus, form controls and
+   what waits on the user; sending has its own (--ol-send). */
+:root,
+[data-palette],
+.ol-on-ground,
+.ol-plane {
   color-scheme: light dark;
   --ol-hover: color-mix(in srgb, var(--ol-fg) 4.5%, transparent);
-  --ol-selected: color-mix(in srgb, var(--ol-accent) 12%, transparent);
+  --ol-selected: color-mix(in srgb, var(--ol-select-tint) var(--ol-select-mix), transparent);
   --ol-line: color-mix(in srgb, var(--ol-fg) 8%, transparent);
   --ol-line-strong: color-mix(in srgb, var(--ol-fg) 14%, transparent);
   --ol-scrim: color-mix(in srgb, var(--ol-fg) 32%, transparent);
@@ -256,13 +549,13 @@
   --ol-chart-4: #eda100;
 }
 
-/* In the dark the panel sits darker than the ground around it, and the
-   accent is light, so what sits on it is dark. */
+/* In the dark the accent is light, so what sits on it is dark. */
 @media (prefers-color-scheme: dark) {
   :root,
-  [data-palette] {
+  [data-palette],
+  .ol-on-ground,
+  .ol-plane {
     --ol-hover: color-mix(in srgb, var(--ol-fg) 5.5%, transparent);
-    --ol-selected: color-mix(in srgb, var(--ol-accent) 16%, transparent);
     --ol-line: color-mix(in srgb, var(--ol-fg) 7.5%, transparent);
     --ol-line-strong: color-mix(in srgb, var(--ol-fg) 13%, transparent);
     --ol-scrim: rgb(0 0 0 / 0.55);

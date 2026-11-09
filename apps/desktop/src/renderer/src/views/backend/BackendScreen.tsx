@@ -37,7 +37,7 @@ export function BackendScreen() {
 }
 
 function Shell({ children }: { children: ReactNode }) {
-  return <div className="drag flex h-full items-center justify-center bg-ground p-8">{children}</div>
+  return <div className="drag flex h-full items-center justify-center bg-canvas p-8">{children}</div>
 }
 
 function Failure({ failure, configPath, log }: { failure: BackendFailure; configPath: string | undefined; log: string }) {

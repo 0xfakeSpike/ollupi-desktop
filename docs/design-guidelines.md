@@ -26,8 +26,8 @@
 
 ### 1.3 克制与强调
 
-- **主按钮是墨色（ink）**：浅色主题里近黑、深色主题里近白。颜色不承担"这是主操作"的意思，位置和墨色承担。例外是**发送**（输入框的发送和插话）：那是交给 agent 去做事，用强调色，一屏只有这一个强调色实心按钮。
-- **强调色（accent）只用于 7 处**：发送按钮、选中项（侧栏和菜单的 `selected` 是强调色的淡底）、焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户的信号（侧栏圆点、顶栏徽标、提问块描边）。其余地方一律不用；除了选中项的淡底，任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
+- **主按钮是墨色（ink）**：浅色主题里近黑、深色主题里近白。颜色不承担"这是主操作"的意思，位置和墨色承担。例外是**发送**（输入框的发送和插话）：那是交给 agent 去做事，用配色的 `send`（`bg-send`）——经典是墨色，极光、日落、糖果是渐变，彩虹是六段纯色圆环，一屏只有这一个。
+- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户的信号（侧栏圆点、顶栏徽标、提问块描边）。选中项的底（`selected`）由配色的 `select-tint` 决定：经典是中性灰，其他配色是强调色的淡底。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
 - **成功是常态，不着色。** 工具成功、任务完成不显示绿色；只有失败、等待、被拒才有标记。例外：diff 的 `+12 −3`，以及 diff 代码块里增删行的底色。
 - **粗体（600）** 只给标题和按钮。正文里的强调交给 Markdown 本身。500 用于导航选中项、标签、列表行的主名称。
 - **底色** 只表示"这是一块独立的内容"（代码、输出、用户消息、设置列表），不表示状态。
@@ -194,98 +194,391 @@
 :root {
   --ol-font-sans: 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
   --ol-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
-  /* The system's serif: New York on macOS, Songti for Chinese. */
-  --ol-font-serif: ui-serif, 'New York', 'Songti SC', Georgia, serif;
 }
 :root:lang(zh) {
   --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
 /* Palettes. Each sets only its base colours; everything else is derived
-   from them below. :root carries the default (indigo) and an element with
+   from them below. :root carries the default (classic) and an element with
    data-palette takes another, so <html data-palette> themes the app and a
    preview swatch shows its own palette. The ids are @ollupi/ui's palettes.
 
-   indigo: cool, in the logo's colour. The ground the sidebar sits on, the
-   text and the surfaces carry a visible indigo tint (OKLCH hue 277), the
-   accent is the logo's indigo.
-   paper: warm, for long reading. A cream ground and canvas (hue ~85), a
-   clay accent, and answers set in a serif (--ol-font-answer). */
+   Beyond the colours of the canvas, a palette sets:
+   - --ol-ground-image: what the ground (the sidebar's) is painted with over
+     its colour, a gradient or none.
+   - --ol-on-ground-*: the text, accent and selection on that ground, which
+     .ol-on-ground puts in place of the canvas's. A colourful ground carries
+     light text where the canvas carries dark.
+   - --ol-send / --ol-send-fg: the send button's background (a colour, a
+     gradient, or layers) and its arrow.
+   - --ol-select-tint / --ol-select-mix: what a selected row is washed with.
+   - --ol-workspace-1..6: a colour per workspace, where the palette gives
+     workspaces colours; without them a workspace's icon is its text's.
+   - --ol-nav-new, -search, -memory, -cron, -capabilities: a colour for each
+     of the sidebar's own icons, where the palette gives them; without them
+     they are muted. */
+/* classic: Aligned with Claude and Codex: near-neutral greys a touch warm, near-black text, an ink send button, blue for links, focus and what waits on you; selection is a grey wash. */
 :root,
-[data-palette='indigo'] {
-  --ol-ground: #eff2fe;
+[data-palette='classic'] {
+  --ol-ground: #f9f9f7;
   --ol-canvas: #ffffff;
-  --ol-surface: #eff1fa;
+  --ol-surface: #f3f3f1;
   --ol-raised: #ffffff;
   --ol-knob: #ffffff;
-  --ol-fg: #191c31;
-  --ol-fg-muted: #555972;
-  --ol-fg-subtle: #85899f;
-  --ol-ink: #191c31;
+  --ol-fg: #0d0d0d;
+  --ol-fg-muted: #5d5d5a;
+  --ol-fg-subtle: #8b8a85;
+  --ol-ink: #0d0d0d;
   --ol-ink-fg: #ffffff;
-  --ol-accent: #4f46e5;
+  --ol-accent: #1f6bc9;
   --ol-accent-fg: #ffffff;
-  --ol-font-answer: var(--ol-font-sans);
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: none;
+  --ol-send: #0d0d0d;
+  --ol-select-tint: #0d0d0d;
+  --ol-select-mix: 7%;
+  --ol-on-ground-fg: #0d0d0d;
+  --ol-on-ground-fg-muted: #5d5d5a;
+  --ol-on-ground-fg-subtle: #8b8a85;
+  --ol-on-ground-accent: #1f6bc9;
+  --ol-on-ground-accent-fg: #ffffff;
+  --ol-on-ground-select-tint: #0d0d0d;
+  --ol-on-ground-select-mix: 7%;
 }
 
-[data-palette='paper'] {
-  --ol-ground: #efebe1;
-  --ol-canvas: #faf8f3;
-  --ol-surface: #f0ece2;
-  --ol-raised: #fffefb;
+/* aurora: A sidebar from deep violet to deep teal under white text, a violet accent, a violet-to-pink send. */
+[data-palette='aurora'] {
+  --ol-ground: #2e1065;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f5f2ff;
+  --ol-raised: #ffffff;
   --ol-knob: #ffffff;
-  --ol-fg: #2a2620;
-  --ol-fg-muted: #625d53;
-  --ol-fg-subtle: #8c8679;
-  --ol-ink: #2a2620;
-  --ol-ink-fg: #faf8f3;
-  --ol-accent: #a54a24;
+  --ol-fg: #1a1033;
+  --ol-fg-muted: #574d73;
+  --ol-fg-subtle: #7c7396;
+  --ol-ink: #1a1033;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #6d28d9;
   --ol-accent-fg: #ffffff;
-  --ol-font-answer: var(--ol-font-serif);
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: linear-gradient(170deg, #2e1065 0%, #4c1d95 45%, #0e4a5f 100%);
+  --ol-send: linear-gradient(135deg, #7c3aed, #db2777);
+  --ol-select-tint: #6d28d9;
+  --ol-select-mix: 11%;
+  --ol-on-ground-fg: #f5f3ff;
+  --ol-on-ground-fg-muted: #ddd6fe;
+  --ol-on-ground-fg-subtle: #c0b4f4;
+  --ol-on-ground-accent: #f0abfc;
+  --ol-on-ground-accent-fg: #2e1065;
+  --ol-on-ground-select-tint: #ffffff;
+  --ol-on-ground-select-mix: 18%;
+}
+
+/* sunset: A sidebar from rose to orange under white text, a warm white canvas, a rose accent, a rose-to-orange send; what waits on you is yellow on the sidebar, apart from danger. */
+[data-palette='sunset'] {
+  --ol-ground: #9d174d;
+  --ol-canvas: #fffaf6;
+  --ol-surface: #fbefe8;
+  --ol-raised: #fffdfb;
+  --ol-knob: #ffffff;
+  --ol-fg: #2a1414;
+  --ol-fg-muted: #6b4f4b;
+  --ol-fg-subtle: #8d6e6a;
+  --ol-ink: #2a1414;
+  --ol-ink-fg: #fffaf6;
+  --ol-accent: #be185d;
+  --ol-accent-fg: #ffffff;
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: linear-gradient(165deg, #9d174d 0%, #b0164f 45%, #a8340a 100%);
+  --ol-send: linear-gradient(135deg, #db2777, #f97316);
+  --ol-select-tint: #be185d;
+  --ol-select-mix: 11%;
+  --ol-on-ground-fg: #fff7ed;
+  --ol-on-ground-fg-muted: #ffe4d8;
+  --ol-on-ground-fg-subtle: #fcc9b7;
+  --ol-on-ground-accent: #fde047;
+  --ol-on-ground-accent-fg: #4a0b28;
+  --ol-on-ground-select-tint: #ffffff;
+  --ol-on-ground-select-mix: 22%;
+}
+
+/* candy: A soft sidebar from lilac through pink to mint under dark text, a colour for each workspace, a three-colour send. */
+[data-palette='candy'] {
+  --ol-ground: #ede9fe;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f7f4ff;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #1f1830;
+  --ol-fg-muted: #5b4f73;
+  --ol-fg-subtle: #857a9e;
+  --ol-ink: #1f1830;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #7c3aed;
+  --ol-accent-fg: #ffffff;
+  --ol-send-fg: #ffffff;
+  --ol-ground-image: linear-gradient(175deg, #ede9fe 0%, #fce7f3 55%, #dcfce7 100%);
+  --ol-send: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b);
+  --ol-select-tint: #7c3aed;
+  --ol-select-mix: 11%;
+  --ol-on-ground-fg: #2b2140;
+  --ol-on-ground-fg-muted: #544868;
+  --ol-on-ground-fg-subtle: #73688c;
+  --ol-on-ground-accent: #db2777;
+  --ol-on-ground-accent-fg: #ffffff;
+  --ol-on-ground-select-tint: #ffffff;
+  --ol-on-ground-select-mix: 75%;
+  --ol-workspace-1: #7c3aed;
+  --ol-workspace-2: #db2777;
+  --ol-workspace-3: #0d9488;
+  --ol-workspace-4: #b45309;
+  --ol-workspace-5: #0284c7;
+  --ol-workspace-6: #4d7c0f;
+}
+
+/* rainbow: Apple's six system colours as solid, hard-edged pieces, never a gradient, on Apple's neutral greys (black in the dark, as a watch face): the sidebar's own icons each in one colour, and send a ring of six segments. Workspaces and the conversation list stay neutral, so what is read is not coloured. */
+[data-palette='rainbow'] {
+  --ol-ground: #f2f2f7;
+  --ol-canvas: #ffffff;
+  --ol-surface: #f2f2f7;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #1c1c1e;
+  --ol-fg-muted: #6c6c70;
+  --ol-fg-subtle: #8e8e93;
+  --ol-ink: #1c1c1e;
+  --ol-ink-fg: #ffffff;
+  --ol-accent: #0066cc;
+  --ol-accent-fg: #ffffff;
+  --ol-send-fg: #1c1c1e;
+  --ol-ground-image: none;
+  --ol-send: radial-gradient(circle, #ffffff 0 58%, transparent 59%), conic-gradient(#ff3b30 0deg 60deg, #ff9500 60deg 120deg, #ffcc00 120deg 180deg, #34c759 180deg 240deg, #007aff 240deg 300deg, #af52de 300deg 360deg);
+  --ol-select-tint: #1c1c1e;
+  --ol-select-mix: 7%;
+  --ol-on-ground-fg: #1c1c1e;
+  --ol-on-ground-fg-muted: #6c6c70;
+  --ol-on-ground-fg-subtle: #7c7c80;
+  --ol-on-ground-accent: #0066cc;
+  --ol-on-ground-accent-fg: #ffffff;
+  --ol-on-ground-select-tint: #1c1c1e;
+  --ol-on-ground-select-mix: 7%;
+  --ol-nav-new: #0040dd;
+  --ol-nav-search: #c93400;
+  --ol-nav-memory: #8944ab;
+  --ol-nav-cron: #248a3d;
+  --ol-nav-capabilities: #b25000;
 }
 
 @media (prefers-color-scheme: dark) {
   :root,
-  [data-palette='indigo'] {
-    --ol-ground: #161825;
-    --ol-canvas: #0f1019;
-    --ol-surface: #1c1e29;
-    --ol-raised: #212330;
-    --ol-knob: #e3e5f1;
-    --ol-fg: #e3e5f1;
-    --ol-fg-muted: #9ea2b6;
-    --ol-fg-subtle: #6b6f82;
-    --ol-ink: #e3e5f1;
-    --ol-ink-fg: #0f1019;
-    --ol-accent: #a5b4fc;
-    --ol-accent-fg: #161825;
+  [data-palette='classic'] {
+    --ol-ground: #141414;
+    --ol-canvas: #1f1f1e;
+    --ol-surface: #2b2b2a;
+    --ol-raised: #2a2a29;
+    --ol-knob: #f0efec;
+    --ol-fg: #f0efec;
+    --ol-fg-muted: #c3c2b7;
+    --ol-fg-subtle: #8f8e88;
+    --ol-ink: #f0efec;
+    --ol-ink-fg: #141414;
+    --ol-accent: #6aabf1;
+    --ol-accent-fg: #141414;
+    --ol-send-fg: #141414;
+    --ol-ground-image: none;
+    --ol-send: #f0efec;
+    --ol-select-tint: #f0efec;
+    --ol-select-mix: 9%;
+    --ol-on-ground-fg: #f0efec;
+    --ol-on-ground-fg-muted: #c3c2b7;
+    --ol-on-ground-fg-subtle: #8f8e88;
+    --ol-on-ground-accent: #6aabf1;
+    --ol-on-ground-accent-fg: #141414;
+    --ol-on-ground-select-tint: #f0efec;
+    --ol-on-ground-select-mix: 9%;
   }
 
-  [data-palette='paper'] {
-    --ol-ground: #1d1b17;
-    --ol-canvas: #161512;
-    --ol-surface: #221f1b;
-    --ol-raised: #282520;
-    --ol-knob: #ebe6da;
-    --ol-fg: #ebe6da;
-    --ol-fg-muted: #a39c8f;
-    --ol-fg-subtle: #756f64;
-    --ol-ink: #ebe6da;
-    --ol-ink-fg: #161512;
-    --ol-accent: #e5946f;
-    --ol-accent-fg: #1d1b17;
+  [data-palette='aurora'] {
+    --ol-ground: #1c0a45;
+    --ol-canvas: #120d1f;
+    --ol-surface: #1d1630;
+    --ol-raised: #221a38;
+    --ol-knob: #ede9fe;
+    --ol-fg: #ede9fe;
+    --ol-fg-muted: #b3a9cf;
+    --ol-fg-subtle: #8b82a8;
+    --ol-ink: #ede9fe;
+    --ol-ink-fg: #120d1f;
+    --ol-accent: #c4b5fd;
+    --ol-accent-fg: #120d1f;
+    --ol-send-fg: #ffffff;
+    --ol-ground-image: linear-gradient(170deg, #1c0a45 0%, #2e1065 45%, #082f3d 100%);
+    --ol-send: linear-gradient(135deg, #8b5cf6, #ec4899);
+    --ol-select-tint: #c4b5fd;
+    --ol-select-mix: 16%;
+    --ol-on-ground-fg: #f5f3ff;
+    --ol-on-ground-fg-muted: #c9bdfb;
+    --ol-on-ground-fg-subtle: #9d8fdc;
+    --ol-on-ground-accent: #f0abfc;
+    --ol-on-ground-accent-fg: #1c0a45;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 14%;
+  }
+
+  [data-palette='sunset'] {
+    --ol-ground: #4a0b28;
+    --ol-canvas: #1a1011;
+    --ol-surface: #261618;
+    --ol-raised: #2b1a1c;
+    --ol-knob: #fde7dc;
+    --ol-fg: #fde7dc;
+    --ol-fg-muted: #c8aaa2;
+    --ol-fg-subtle: #a3847d;
+    --ol-ink: #fde7dc;
+    --ol-ink-fg: #1a1011;
+    --ol-accent: #f9a8d4;
+    --ol-accent-fg: #1a1011;
+    --ol-send-fg: #ffffff;
+    --ol-ground-image: linear-gradient(165deg, #4a0b28 0%, #701a3f 45%, #6b250b 100%);
+    --ol-send: linear-gradient(135deg, #ec4899, #fb923c);
+    --ol-select-tint: #f9a8d4;
+    --ol-select-mix: 16%;
+    --ol-on-ground-fg: #fff1ea;
+    --ol-on-ground-fg-muted: #f6c9b8;
+    --ol-on-ground-fg-subtle: #d69c8c;
+    --ol-on-ground-accent: #fde047;
+    --ol-on-ground-accent-fg: #4a0b28;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 15%;
+  }
+
+  [data-palette='candy'] {
+    --ol-ground: #2a1f45;
+    --ol-canvas: #15121d;
+    --ol-surface: #1f1a2b;
+    --ol-raised: #241e33;
+    --ol-knob: #f3eefe;
+    --ol-fg: #f3eefe;
+    --ol-fg-muted: #bdb3d6;
+    --ol-fg-subtle: #968cae;
+    --ol-ink: #f3eefe;
+    --ol-ink-fg: #15121d;
+    --ol-accent: #c4b5fd;
+    --ol-accent-fg: #15121d;
+    --ol-send-fg: #ffffff;
+    --ol-ground-image: linear-gradient(175deg, #2a1f45 0%, #3a1c35 55%, #12332a 100%);
+    --ol-send: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b);
+    --ol-select-tint: #c4b5fd;
+    --ol-select-mix: 16%;
+    --ol-on-ground-fg: #f3eefe;
+    --ol-on-ground-fg-muted: #cfc4ea;
+    --ol-on-ground-fg-subtle: #a397c4;
+    --ol-on-ground-accent: #f472b6;
+    --ol-on-ground-accent-fg: #2a1f45;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 12%;
+    --ol-workspace-1: #a78bfa;
+    --ol-workspace-2: #f472b6;
+    --ol-workspace-3: #2dd4bf;
+    --ol-workspace-4: #fbbf24;
+    --ol-workspace-5: #38bdf8;
+    --ol-workspace-6: #a3e635;
+  }
+
+  [data-palette='rainbow'] {
+    --ol-ground: #000000;
+    --ol-canvas: #1c1c1e;
+    --ol-surface: #2c2c2e;
+    --ol-raised: #2c2c2e;
+    --ol-knob: #f5f5f7;
+    --ol-fg: #f5f5f7;
+    --ol-fg-muted: #aeaeb2;
+    --ol-fg-subtle: #8e8e93;
+    --ol-ink: #f5f5f7;
+    --ol-ink-fg: #1c1c1e;
+    --ol-accent: #409cff;
+    --ol-accent-fg: #000000;
+    --ol-send-fg: #f5f5f7;
+    --ol-ground-image: none;
+    --ol-send: radial-gradient(circle, #2c2c2e 0 58%, transparent 59%), conic-gradient(#ff453a 0deg 60deg, #ff9f0a 60deg 120deg, #ffd60a 120deg 180deg, #30d158 180deg 240deg, #0a84ff 240deg 300deg, #bf5af2 300deg 360deg);
+    --ol-select-tint: #f5f5f7;
+    --ol-select-mix: 10%;
+    --ol-on-ground-fg: #f5f5f7;
+    --ol-on-ground-fg-muted: #aeaeb2;
+    --ol-on-ground-fg-subtle: #98989d;
+    --ol-on-ground-accent: #0a84ff;
+    --ol-on-ground-accent-fg: #000000;
+    --ol-on-ground-select-tint: #ffffff;
+    --ol-on-ground-select-mix: 12%;
+    --ol-nav-new: #0a84ff;
+    --ol-nav-search: #ff9f0a;
+    --ol-nav-memory: #bf5af2;
+    --ol-nav-cron: #30d158;
+    --ol-nav-capabilities: #ffd60a;
   }
 }
 
-/* Derived from the palette, redeclared wherever a palette is set so they
-   follow it there. Primary actions are ink, so the accent stays where it
-   means something: sending to the agent, what is selected, links, focus,
-   and what waits on the user. */
+/* What sits on the ground (the sidebar) reads in the ground's colours: its
+   text, accent and selection take the place of the canvas's, so a palette
+   can paint the ground dark or bright under light text. */
+.ol-on-ground {
+  --ol-fg: var(--ol-on-ground-fg);
+  --ol-fg-muted: var(--ol-on-ground-fg-muted);
+  --ol-fg-subtle: var(--ol-on-ground-fg-subtle);
+  --ol-accent: var(--ol-on-ground-accent);
+  --ol-accent-fg: var(--ol-on-ground-accent-fg);
+  --ol-select-tint: var(--ol-on-ground-select-tint);
+  --ol-select-mix: var(--ol-on-ground-select-mix);
+}
+
+/* A plane raised over the ground (a dialog opened from the sidebar, a card
+   in it) is the canvas's again: these keep the canvas's colours, taken
+   where the palette is set, for .ol-plane to put back. */
 :root,
 [data-palette] {
+  --ol-plane-fg: var(--ol-fg);
+  --ol-plane-fg-muted: var(--ol-fg-muted);
+  --ol-plane-fg-subtle: var(--ol-fg-subtle);
+  --ol-plane-accent: var(--ol-accent);
+  --ol-plane-accent-fg: var(--ol-accent-fg);
+  --ol-plane-select-tint: var(--ol-select-tint);
+  --ol-plane-select-mix: var(--ol-select-mix);
+}
+.ol-plane {
+  --ol-fg: var(--ol-plane-fg);
+  --ol-fg-muted: var(--ol-plane-fg-muted);
+  --ol-fg-subtle: var(--ol-plane-fg-subtle);
+  --ol-accent: var(--ol-plane-accent);
+  --ol-accent-fg: var(--ol-plane-accent-fg);
+  --ol-select-tint: var(--ol-plane-select-tint);
+  --ol-select-mix: var(--ol-plane-select-mix);
+}
+
+/* The ground is painted with the palette's image over its colour. */
+.bg-ground {
+  background-image: var(--ol-ground-image);
+}
+
+/* Sending to the agent: the palette's colour, gradient or ring. The border
+   is where a ring shows; a plain background fills it. */
+.bg-send {
+  background: var(--ol-send);
+  color: var(--ol-send-fg);
+  border: 2px solid transparent;
+}
+
+/* Derived from the palette, redeclared wherever a palette or a region
+   sets colours so they follow it there. Primary actions are ink, so the
+   accent stays where it means something: links, focus, form controls and
+   what waits on the user; sending has its own (--ol-send). */
+:root,
+[data-palette],
+.ol-on-ground,
+.ol-plane {
   color-scheme: light dark;
   --ol-hover: color-mix(in srgb, var(--ol-fg) 4.5%, transparent);
-  --ol-selected: color-mix(in srgb, var(--ol-accent) 12%, transparent);
+  --ol-selected: color-mix(in srgb, var(--ol-select-tint) var(--ol-select-mix), transparent);
   --ol-line: color-mix(in srgb, var(--ol-fg) 8%, transparent);
   --ol-line-strong: color-mix(in srgb, var(--ol-fg) 14%, transparent);
   --ol-scrim: color-mix(in srgb, var(--ol-fg) 32%, transparent);
@@ -310,13 +603,13 @@
   --ol-chart-4: #eda100;
 }
 
-/* In the dark the panel sits darker than the ground around it, and the
-   accent is light, so what sits on it is dark. */
+/* In the dark the accent is light, so what sits on it is dark. */
 @media (prefers-color-scheme: dark) {
   :root,
-  [data-palette] {
+  [data-palette],
+  .ol-on-ground,
+  .ol-plane {
     --ol-hover: color-mix(in srgb, var(--ol-fg) 5.5%, transparent);
-    --ol-selected: color-mix(in srgb, var(--ol-accent) 16%, transparent);
     --ol-line: color-mix(in srgb, var(--ol-fg) 7.5%, transparent);
     --ol-line-strong: color-mix(in srgb, var(--ol-fg) 13%, transparent);
     --ol-scrim: rgb(0 0 0 / 0.55);
@@ -344,8 +637,21 @@
 
 ### 2.1.1 配色方案与外观
 
-- **配色**：两套，id 见 `@ollupi/ui` 的 `palettes`。**靛蓝 `indigo`**（默认）：冷色，logo 的颜色；侧栏所在的底色、文字和块都带看得出的靛蓝色调（OKLCH 色相 277，底色彩度约 0.016），强调色是 logo 的靛蓝 `#4f46e5` / 深色 `#a5b4fc`。**宣纸 `paper`**：暖色，适合长时间阅读；米色的底和画布（色相约 85），陶土色强调色，回答用衬线体。两套的文字和强调色在画布上都达到 WCAG AA（正文 ≥ 4.5，`fg-subtle` 只做元信息，约 3.4）。每套在 theme.css 里是一个 `[data-palette='…']` 块，只写基础色：`ground`、`canvas`、`surface`、`raised`、`knob`、三档文字、`ink`、`accent`，以及回答字体 `--ol-font-answer`。悬停、选中、分隔线、遮罩、强调色淡底、焦点环和阴影都在 `:root, [data-palette]` 里用 `color-mix` 从文字色和强调色推出来，状态色各套共用。
-- **新增一套**：加一个 `[data-palette='id']` 块（浅色一份、深色一份，浅色那份写上 `--ol-font-answer`），把 id 加进 `palettes`，再在 `common.appearance.palettes` 里给它中英文名。不需要改任何组件。
+- **配色**：五套，id 见 `@ollupi/ui` 的 `palettes`。
+  - **经典 `classic`**（默认）：和 Claude、Codex 对齐。近中性略暖的灰、近黑文字、墨色发送、蓝色强调色（链接、焦点、等你处理）、中性灰的选中项。数值取自两家页面上的 CSS 变量（Claude 底色 `#f9f9f7`、文字 `#0b0b0b`；Codex 文字 `#0d0d0d`、强调色 `#3a83f7`）。
+  - **极光 `aurora`**：侧栏深紫到深青的渐变配白字，紫色强调色，紫到粉的渐变发送。
+  - **日落 `sunset`**：侧栏玫红到橙的渐变配白字，暖白画布，玫红强调色，玫红到橙的渐变发送；侧栏上"等你处理"是黄色，和出错的红色分开。
+  - **糖果 `candy`**：侧栏淡紫、淡粉、淡绿的柔和渐变配深色字，每个工作区一种颜色，紫粉橙三色渐变发送。
+  - **彩虹 `rainbow`**：Apple 的六种系统色（红、橙、黄、绿、蓝、紫），每种都是一整块纯色、硬边，不用渐变；底色是 Apple 的中性灰（深色是表盘那样的纯黑）。彩虹只出现在侧栏自己的图标（新会话、搜索、记忆、定时任务、能力各一种颜色）和发送按钮的六段圆环上；工作区和会话列表保持中性，要读的文字不上色。
+  - 每套的正文、次要文字和强调色在画布上达到 WCAG AA；侧栏上的文字按渐变里最难读的一段算，也达到 AA。
+- **新增一套**：加一个 `[data-palette='id']` 块（浅色一份、深色一份），把 id 加进 `palettes`，再在 `common.appearance.palettes` 里给它中英文名。不需要改任何组件。一块里写：
+  - 画布的颜色：`ground`、`canvas`、`surface`、`raised`、`knob`、三档文字、`ink`、`accent`；
+  - `--ol-ground-image`：底色上画的东西（渐变或 `none`）；
+  - `--ol-on-ground-*`：底色上（侧栏）的文字、强调色和选中色。`.ol-on-ground`（侧栏）用它们换掉画布的，所以彩色、深色的侧栏能配浅色字；侧栏里打开的对话框、侧栏里的卡片加 `.ol-plane`，换回画布的；
+  - `--ol-send` / `--ol-send-fg`：发送按钮的背景（颜色、渐变或叠层）和箭头色；
+  - `--ol-select-tint` / `--ol-select-mix`：选中项用什么颜色、多少比例的淡底；
+  - 可选的 `--ol-workspace-1`…`6`：给工作区上色，没有时工作区图标跟文字同色；
+  - 可选的 `--ol-nav-new`、`-search`、`-memory`、`-cron`、`-capabilities`：给侧栏自己的图标上色，没有时是 `fg-muted`。
 - **应用**：`<html data-palette>` 决定整个应用的配色；任何元素带上 `data-palette` 就用那一套，设置页的预览色块就是这样画的。
 - **外观**：跟随系统、浅色、深色。渲染进程通过 `desktop.setColorScheme` 设 Electron 的 `nativeTheme.themeSource`，`prefers-color-scheme` 和原生窗口一起跟着变，所以 CSS 里只有媒体查询一种深色写法。
 - 两项都在 Settings → General，存在本应用自己的存储里（`ollupi.palette`、`ollupi.colorScheme`），窗口加载时由 `startAppearance` 应用。
@@ -357,11 +663,11 @@
 | token | 用于 | 不用于 |
 |---|---|---|
 | `canvas` | 主画布（对话页、Memory、Settings 内容区） | — |
-| `ground` | 窗口底色：侧栏、后端启动页 | 屏幕里的任何东西 |
+| `ground` | 窗口底色：侧栏；`bg-ground` 同时画上配色的 `ground-image` | 屏幕里的任何东西 |
 | `surface` | 代码块、工具输出、用户消息气泡、计划、表头 | 浮层、设置列表卡片 |
 | `raised` | 对话框、菜单、toast、气泡提示、**需要用户行动的块** | 流里的普通块 |
 | `hover` | 悬停底色；行内代码底色 | 选中态 |
-| `selected` | 侧栏项、竖排子标签、菜单的选中项；是强调色的淡底（浅色 12%、深色 16%） | 表单控件（用 accent） |
+| `selected` | 侧栏项、竖排子标签、菜单的选中项；配色的 `select-tint` 按 `select-mix` 调成的淡底 | 表单控件（用 accent） |
 | `line` | 分隔线、普通卡片轮廓、表格线 | 输入框 |
 | `line-strong` | 输入框、次要按钮、行动块的边框；滚动条 | 分隔线 |
 | `scrim` | 对话框背后的遮罩 | — |
@@ -380,7 +686,8 @@
 | token | 用于 |
 |---|---|
 | `ink` / `ink-fg` | 主按钮、图标按钮的提示 |
-| `accent` / `accent-fg` | 发送和插话按钮；表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"的圆点和徽标 |
+| `send` / `send-fg` | 发送和插话按钮（`bg-send`） |
+| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"的圆点和徽标 |
 | `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
 | `success` | diff 的 `+n`；`success-soft` 是 diff 代码块里新增行的底色；用量条之外几乎不用。成功默认不着色 |
@@ -404,7 +711,7 @@
 - Markdown 里的标题相对正文放大（h1 1.35em、h2 1.2em、h3 1.05em，600），不使用上面的阶梯，因为它们属于内容，不属于界面。
 - Markdown 由 Streamdown 解析（流式输出时先补全没收尾的代码块、表格再渲染），但每个元素都画成普通标签，只用 `.markdown` 里基于 token 的样式，不用它自带的样式类。代码块用 Shiki 高亮，浅色 `github-light`、深色 `github-dark`，跟随外观；代码块底色仍是 `surface`，高亮只改文字颜色；唯一的例外是 `diff` 代码块，以 `+` / `-` 开头的行铺满整行的 `success-soft` / `danger-soft` 底色。没有对应语言的代码块不高亮。表格是一个 `rounded-lg` 的 `line` 外框，宽度随内容，超出时横向滚动；表头底色 `surface`、不折行。任务列表的勾选框占圆点的位置。脚注在消息末尾，上方一条 `line`，字号 `text-ui`、颜色 `fg-muted`；脚注的标题只给读屏器。
 - ` ```mermaid ` 代码块画成图。流程图、状态图、时序图、类图、ER 图和 xy 图由 beautiful-mermaid 画：扁平、细线，颜色直接写成 token 的 CSS 变量（`surface` 底、节点 `raised` 底 `line-strong` 边、`fg` 字，连线 `fg-muted`，强调 `accent`），换配色或深浅不用重画。判断节点（菱形）是按标签最长一行定边长的正方形，一行写完的问句会把它撑得比旁边的步骤大好几倍，所以作者没换行的判断标签按词（中文按分词）均匀断成几行，取正方形接近最小时行数最少的那种，不留单独一两个字的末行。其余类型（饼图、甘特图、思维导图等）由 mermaid 的 base 主题画，颜色取同样的 token，饼图扇区用 `chart-1`…`chart-4`、扇区之间用 `surface` 隔开而不描黑边，字都是 13px；mermaid 在第一张这样的图出现时才加载，换配色或深浅时重画。字体用界面字体 13px。还在流式输出时显示源码，写错的图保留源码并在下面用 `text-small danger` 说一句原因。图放在和代码块一样的块里（标签 mermaid，可复制源码），图按自身尺寸画、不随列宽缩放（缩放会让宽图的字变小、窄图的字变大），过宽时在块内横向滚动。
-- **字体**：英文、数字和标点用 Inter（`Inter Variable`），中文落到系统的苹方，代码用 JetBrains Mono（`JetBrains Mono Variable`）。两款都通过 `@fontsource-variable/*` 打包进应用（OFL），离线可用，只加载用到的字符区段。字体栈在 theme.css 的 `--ol-font-sans` / `--ol-font-mono`，组件只用 `font-sans` / `font-mono`。agent 的回答（不含过程里的说明）用配色给的 `--ol-font-answer`：靛蓝是界面的无衬线体，宣纸是系统衬线体（`--ol-font-serif`：macOS 的 New York，中文宋体），代码仍是等宽。
+- **字体**：英文、数字和标点用 Inter（`Inter Variable`），中文落到系统的苹方，代码用 JetBrains Mono（`JetBrains Mono Variable`）。两款都通过 `@fontsource-variable/*` 打包进应用（OFL），离线可用，只加载用到的字符区段。字体栈在 theme.css 的 `--ol-font-sans` / `--ol-font-mono`，组件只用 `font-sans` / `font-mono`。
 - **中文标点**：界面语言是中文时（`<html lang="zh-CN">`），字体栈最前面是 `CJK Punctuation`：弯引号、破折号、省略号改用苹方的字形，不让 Inter 画成西文的窄标点。英文界面不受影响。
 - **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。
 - **等宽**：命令、路径、文件名、模型 ID、环境变量、退出码用 `font-mono`。对话流的工具行里用 12px（`text-small`），代码块和输出用 13px（`text-ui`），Markdown 行内代码 0.88em。等宽字体栈末尾带苹方，代码里的中文有回退。等宽文字关掉连字，`<-`、`:=` 按原字符显示。

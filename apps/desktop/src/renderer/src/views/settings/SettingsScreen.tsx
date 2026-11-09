@@ -274,7 +274,7 @@ function Appearance() {
         <span id="palette-label" className="text-ui font-medium text-fg">
           {t.palette}
         </span>
-        <div role="radiogroup" aria-labelledby="palette-label" className="grid max-w-96 grid-cols-2 gap-2">
+        <div role="radiogroup" aria-labelledby="palette-label" className="grid max-w-136 grid-cols-3 gap-2">
           {palettes.map((p) => (
             <button
               key={p}
@@ -303,17 +303,18 @@ function Appearance() {
 function Swatch({ palette }: { palette: Palette }) {
   return (
     <div data-palette={palette} aria-hidden className="flex h-14 gap-1.5 rounded-md bg-ground p-1.5">
-      <div className="flex w-4 flex-col gap-1 pt-1">
-        <span className="h-1 rounded-full bg-fg/25" />
+      <div className="ol-on-ground flex w-5 flex-col gap-1 pt-1">
+        <span className="h-1 rounded-full bg-fg/40" />
         <span className="h-1.5 rounded-sm bg-selected" />
-        <span className="h-1 rounded-full bg-fg/15" />
+        <span className="h-1 rounded-full bg-fg/25" />
+        <span className="ml-auto size-1 rounded-full bg-accent" />
       </div>
       <div className="flex flex-1 flex-col justify-between rounded-sm border border-line bg-canvas p-1.5">
         <span className="h-1 w-3/4 rounded-full bg-fg/70" />
         <span className="h-1 w-1/2 rounded-full bg-fg/25" />
         <div className="flex items-center gap-1">
           <span className="h-1 w-1/3 rounded-full bg-fg/25" />
-          <span className="ml-auto size-2.5 rounded-full bg-accent" />
+          <span className="ml-auto size-3 rounded-full bg-send" />
         </div>
       </div>
     </div>
