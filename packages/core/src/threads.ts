@@ -69,12 +69,21 @@ export interface WorkspaceGroup {
   threads: ThreadSummary[]
 }
 
-/** Threads under each active workspace (in the given order), then those
- * outside any workspace. Archived workspaces are not listed. */
+/** Threads under each active workspace, then those outside any workspace.
+ * Archived workspaces are not listed. What waits on the person comes first:
+ * in each group the threads waiting on an approval or an answer, then the
+ * rest, and the workspaces holding such a thread before the others. Each
+ * part keeps the order it was given in (thread/list's, workspace/list's).
+ * The order is the sidebar's alone: the list itself stays thread/list's, as
+ * its last thread is where the next page starts. */
 export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: readonly ThreadSummary[]): WorkspaceGroup[] {
   const groups: WorkspaceGroup[] = workspaces
     .filter((w) => !w.archivedAt)
-    .map((workspace) => ({ workspace, threads: threads.filter((t) => t.workspaceId === workspace.id) }))
-  groups.push({ workspace: undefined, threads: threads.filter((t) => !t.workspaceId) })
-  return groups
+    .map((workspace) => ({ workspace, threads: waitingFirst(threads.filter((t) => t.workspaceId === workspace.id)) }))
+  const waits = (g: WorkspaceGroup) => g.threads.some((t) => needsUser(t.status))
+  return [...groups.filter(waits), ...groups.filter((g) => !waits(g)), { workspace: undefined, threads: waitingFirst(threads.filter((t) => !t.workspaceId)) }]
+}
+
+function waitingFirst(threads: ThreadSummary[]): ThreadSummary[] {
+  return [...threads.filter((t) => needsUser(t.status)), ...threads.filter((t) => !needsUser(t.status))]
 }

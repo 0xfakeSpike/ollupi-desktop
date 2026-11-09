@@ -1,4 +1,4 @@
-import type { ItemRow, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
+import type { ItemRow, ThreadPageResult, ThreadRow, ThreadSummary, TurnRow } from '@ollupi/protocol'
 import { describe, expect, it } from 'vitest'
 import {
   activeTurn,
@@ -156,6 +156,32 @@ describe('threads', () => {
     expect(groups.map((g) => [g.workspace?.id, g.threads.map((t) => t.id)])).toEqual([
       ['w', ['th']],
       [undefined, ['loose']],
+    ])
+  })
+
+  it('puts what waits on the person first: its threads, then its workspace', () => {
+    const ws = (id: string) => ({ id, name: id, rootPath: `/${id}`, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
+    const at = (id: string, workspaceId: string | undefined, updatedAt: string, status: ThreadSummary['status']): ThreadSummary => ({
+      ...thread({ id, workspaceId, updatedAt }),
+      status,
+    })
+    // Newest first, as thread/list orders them.
+    const list = [
+      at('a1', 'a', '2026-01-06T00:00:00Z', 'active'),
+      at('loose1', undefined, '2026-01-05T00:00:00Z', 'idle'),
+      at('b1', 'b', '2026-01-04T00:00:00Z', 'idle'),
+      at('b2', 'b', '2026-01-03T00:00:00Z', 'waitingOnUserInput'),
+      at('loose2', undefined, '2026-01-02T00:00:00Z', 'waitingOnApproval'),
+      at('c1', 'c', '2026-01-01T12:00:00Z', 'waitingOnApproval'),
+      at('b3', 'b', '2026-01-01T00:00:00Z', 'waitingOnApproval'),
+    ]
+    const groups = groupByWorkspace([ws('a'), ws('b'), ws('c'), ws('d')], list)
+    expect(groups.map((g) => [g.workspace?.id, g.threads.map((t) => t.id)])).toEqual([
+      ['b', ['b2', 'b3', 'b1']],
+      ['c', ['c1']],
+      ['a', ['a1']],
+      ['d', []],
+      [undefined, ['loose2', 'loose1']],
     ])
   })
 })
