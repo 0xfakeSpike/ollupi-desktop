@@ -21,7 +21,7 @@
 
 1. **需要你**：审批、提问。全界面唯一"浮起来"的东西（阴影 + 一圈淡淡的状态色描边）。同时在对话流之外有回响：侧栏会话圆点、顶栏徽标、输入框提示 "Waiting for your answer"。
 2. **对话内容**：用户消息、agent 的最终回复。`fg`、`text-body`，是页面的主体。
-3. **过程**：推理、工具调用、子代理、计划。`fg-muted`、`text-ui`，每项一行，默认折叠。一轮结束后整段过程收成一行摘要（"Worked for 42s · 6 commands · 2 files changed"），展开见全部；运行中保持展开，让人看到当前在做什么。
+3. **过程**：推理、工具调用、子 agent、计划。`fg-muted`、`text-ui`，每项一行，默认折叠。一轮结束后整段过程收成一行摘要（"Worked for 42s · 6 commands · 2 files changed"），展开见全部；运行中保持展开，让人看到当前在做什么。
 4. **系统**：压缩、记忆载入。`fg-subtle`、`text-small`，一行或一条分隔线。token 用量不进对话流，只在 Context 面板。
 
 ### 1.3 克制与强调
@@ -612,7 +612,7 @@ agent 产出的每一块都用同一个骨架：
 
 | 档 | 样式 | 用于 |
 |---|---|---|
-| **L0 行** | 无底无框；`text-ui` `fg-muted`；悬停时整行 `hover` 底、`rounded-md`；可点击展开 | 推理、工具调用、文件改动、子代理、记忆载入、一轮的过程摘要 |
+| **L0 行** | 无底无框；`text-ui` `fg-muted`；悬停时整行 `hover` 底、`rounded-md`；可点击展开 | 推理、工具调用、文件改动、子 agent、记忆载入、一轮的过程摘要 |
 | **L1 块** | `bg-surface` `rounded-lg` `p-3`，无边框无阴影 | 代码块、展开后的工具输出、计划、Markdown 表格、用户消息气泡（`rounded-xl`） |
 | **L2 行动** | `bg-raised` `rounded-lg` `shadow-sm` `p-3`，1px 整圈描边用状态色的 45%（`border-accent/45`、`border-warning/45`、`border-danger/45`） | 审批、提问 |
 
@@ -642,7 +642,7 @@ L2  ╭────────────────────────�
 | 命令 | L0 → L1 | `Ran` + 命令首行（mono，单行截断）+ 时长；非零退出码显示 `exit 1`（`text-danger`），图标变 danger | L1：完整命令、输出（mono 13，`max-h-80` 内滚，超长时提供"展开全部"），复制按钮悬停出现 |
 | 读文件/搜索/MCP 调用 | L0 → L1 | 动作 + 对象（路径或工具名 mono）+ 结果计数（"12 matches"） | 参数与结果 |
 | 文件改动 | L0 → L1 | `Edited` + 路径 + `+n`（success）`−m`（danger） | diff，L1 |
-| 子代理 | L0 | 名称 + 任务一句话 + 状态 | 嵌套时间线：缩进 16 + 1px 引导线，里面仍是 L0/L1，**不嵌套卡片** |
+| 子 agent | L0 | 名称 + 任务一句话 + 状态 | 嵌套时间线：缩进 16 + 1px 引导线，里面仍是 L0/L1，**不嵌套卡片** |
 | 计划 | L1 | — | 清单：○ 待做（`fg-subtle`）、◐ 进行中（`fg` + shimmer）、✓ 完成（`fg-subtle`）；不用颜色区分 |
 | 过程摘要 | L0 | "Worked for 42s · 6 commands · 2 files changed"；有失败时追加 "· 1 failed"（danger） | 这一轮全部过程行 |
 | 压缩标记 | 横向分隔线，中间 `text-small` `fg-subtle` | "Context compacted · 182k → 24k tokens" | — |

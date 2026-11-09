@@ -125,7 +125,7 @@ export const zh: typeof en = {
     modelNeeded: '选择一个模型以开启学习。',
     chooseModel: '选择模型',
     use: '在会话中使用记忆',
-    useHint: '每个会话开始时会带上其上下文能容纳的记忆，其余的由代理按需搜索。',
+    useHint: '每个会话开始时会带上其上下文能容纳的记忆，其余的由 agent 按需搜索。',
     restarts: '保存会重启后端，后端在启动时读取这些设置。',
     stale: 'config.yaml 与后端正在使用的设置不一致。',
     saveAndRestart: '保存并重启',

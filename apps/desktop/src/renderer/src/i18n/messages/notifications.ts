@@ -25,7 +25,7 @@ export const zh: typeof en = {
   settings: {
     kinds: {
       approval: '需要审批',
-      question: '代理向你提问',
+      question: 'agent 向你提问',
       completed: '一轮完成',
       failed: '一轮失败',
     },

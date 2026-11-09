@@ -9,7 +9,7 @@ feed 里最重要的是模型给用户的回复（`agentMessage`），工具调�
 | 工具 | 参数 | 结果（`tools.Result.Output`） | 界面里是什么 |
 |---|---|---|---|
 | `update_plan` | `plan.Plan` | — | 给用户看的进度清单 |
-| `Agent` | `subagent.Call` | — | 子代理，链到它自己的会话 |
+| `Agent` | `subagent.Call` | — | 子 agent，链到它自己的会话 |
 | `request_user_input` | `userinput.Request` | `userinput.Answers` | 用户回答问题 |
 | `run_command` | —（审批时用 `preparedExecution`） | `shell.CommandOutput` | 命令和它的输出 |
 

@@ -35,7 +35,7 @@ export const zh: typeof en = {
     memories: '记忆',
   },
   you: '你',
-  agent: '代理',
+  agent: 'agent',
   archived: '已归档',
   noWorkspace: '无工作区',
   inThread: (title) => `在 ${title} 中`,

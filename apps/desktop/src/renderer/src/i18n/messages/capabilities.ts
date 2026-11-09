@@ -27,15 +27,15 @@ export const zh: typeof en = {
     skills: {
       label: '技能',
       description:
-        '技能是一个带 SKILL.md 的文件夹：名称、何时使用的描述，以及代理启用该技能后遵循的指令。代理能看到所有技能的描述，需要时再加载其余内容。',
+        '技能是一个带 SKILL.md 的文件夹：名称、何时使用的描述，以及 agent 启用该技能后遵循的指令。agent 能看到所有技能的描述，需要时再加载其余内容。',
     },
     mcp: {
       label: 'MCP',
-      description: 'MCP 服务器以 <name>__<tool> 的名字为代理提供工具。后端在启动时连接它们，无法使用的会被跳过。',
+      description: 'MCP 服务器以 <name>__<tool> 的名字为 agent 提供工具。后端在启动时连接它们，无法使用的会被跳过。',
     },
     tools: {
       label: '内置工具',
-      description: '代理自带的工具，来自 ollupi 和这个应用；MCP 服务器的工具列在 MCP 里。权限规则以这些名字指定工具。',
+      description: 'agent 自带的工具，来自 ollupi 和这个应用；MCP 服务器的工具列在 MCP 里。权限规则以这些名字指定工具。',
     },
   },
 }
