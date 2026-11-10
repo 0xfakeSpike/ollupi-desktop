@@ -108,9 +108,13 @@ export interface Commit {
   subject: string
 }
 
-/** A workspace's uncommitted changes, or that it is not in a git
- * repository. */
-export type Changes = { repo: false } | { repo: true; files: FileChange[] }
+/** Where the repository's HEAD is: on a branch, which may have no commit
+ * yet, or detached at a commit, by its short hash. */
+export type Head = { branch: string } | { detached: string }
+
+/** A workspace's uncommitted changes and where its HEAD is, or that it is
+ * not in a git repository. */
+export type Changes = { repo: false } | { repo: true; head: Head; files: FileChange[] }
 
 /** A file's diff against the last commit; only the start of a long one. */
 export interface FileDiff {

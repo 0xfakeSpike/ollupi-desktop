@@ -19,7 +19,7 @@ const git = (...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c
 
 beforeEach(async () => {
   repo = await mkdtemp(join(tmpdir(), 'repo-'))
-  git('init', '-q')
+  git('init', '-q', '-b', 'main')
   await mkdir(join(repo, 'app'))
   await writeFile(join(repo, 'app', 'kept.txt'), 'one\ntwo\n')
   await writeFile(join(repo, 'app', 'gone.txt'), 'bye\n')
@@ -49,7 +49,7 @@ describe('WorkspaceChanges', () => {
   it('keeps to the workspace when it is a folder inside the repository', async () => {
     await writeFile(join(repo, 'top.txt'), 'changed\n')
     await writeFile(join(repo, 'app', 'kept.txt'), 'one\n')
-    expect(await changes.list(join(repo, 'app'))).toEqual({ repo: true, files: [{ path: 'kept.txt', kind: 'modified', staged: 'none', added: 0, removed: 1 }] })
+    expect(await changes.list(join(repo, 'app'))).toEqual({ repo: true, head: { branch: 'main' }, files: [{ path: 'kept.txt', kind: 'modified', staged: 'none', added: 0, removed: 1 }] })
     const diff = await changes.diff(join(repo, 'app'), 'kept.txt', false)
     expect(diff.text).toContain('-two')
   })
@@ -62,12 +62,20 @@ describe('WorkspaceChanges', () => {
     await expect(changes.diff(repo, '../outside', true)).rejects.toThrow()
   })
 
+  it('says which branch HEAD is on, or the commit it is detached at', async () => {
+    git('switch', '-q', '-c', 'feature/panel')
+    expect(await changes.list(repo)).toMatchObject({ head: { branch: 'feature/panel' } })
+    git('switch', '-q', '--detach')
+    const short = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repo }).toString().trim()
+    expect(await changes.list(repo)).toMatchObject({ head: { detached: short } })
+  })
+
   it('compares a repository without commits with nothing', async () => {
     const empty = await mkdtemp(join(tmpdir(), 'empty-'))
-    execFileSync('git', ['init', '-q'], { cwd: empty })
+    execFileSync('git', ['init', '-q', '-b', 'trunk'], { cwd: empty })
     await writeFile(join(empty, 'a.txt'), 'a\n')
     execFileSync('git', ['add', 'a.txt'], { cwd: empty })
-    expect(await changes.list(empty)).toEqual({ repo: true, files: [{ path: 'a.txt', kind: 'added', staged: 'all', added: 1, removed: 0 }] })
+    expect(await changes.list(empty)).toEqual({ repo: true, head: { branch: 'trunk' }, files: [{ path: 'a.txt', kind: 'added', staged: 'all', added: 1, removed: 0 }] })
     await rm(empty, { recursive: true, force: true })
   })
 
@@ -95,7 +103,7 @@ describe('WorkspaceChanges', () => {
     await writeFile(join(repo, 'new.txt'), 'new\n')
     git('add', 'new.txt')
     await changes.discard(repo, { path: 'new.txt', kind: 'added', staged: 'all' })
-    expect(await changes.list(repo)).toEqual({ repo: true, files: [] })
+    expect(await changes.list(repo)).toEqual({ repo: true, head: { branch: 'main' }, files: [] })
     expect(trashed.at(-1)).toBe(join(repo, 'new.txt'))
   })
 
@@ -106,7 +114,7 @@ describe('WorkspaceChanges', () => {
     const commit = await changes.commit(repo, 'Change the top\n\nOnly the top.')
     expect(commit.subject).toBe('Change the top')
     expect(commit.hash).toMatch(/^[0-9a-f]{7,}$/)
-    expect(await changes.list(repo)).toEqual({ repo: true, files: [{ path: 'app/kept.txt', kind: 'modified', staged: 'none', added: 0, removed: 1 }] })
+    expect(await changes.list(repo)).toEqual({ repo: true, head: { branch: 'main' }, files: [{ path: 'app/kept.txt', kind: 'modified', staged: 'none', added: 0, removed: 1 }] })
     await expect(changes.commit(repo, '  ')).rejects.toThrow('message')
   })
 

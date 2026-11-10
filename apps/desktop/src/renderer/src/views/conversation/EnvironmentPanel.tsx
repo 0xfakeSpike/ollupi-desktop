@@ -1,14 +1,16 @@
-// What differs from the last commit in the workspace, beside the
-// conversation: each changed file with its line counts, and its diff in the
-// list's place. It reads again when a turn starts or ends, after each git
-// action, and on reload. Files are staged with their checkbox, discarded
-// after asking, and what is staged is committed with a message.
+// Where the conversation works, beside it: the environment its commands run
+// in, the workspace's folder and the git branch it is on; then what differs
+// from the last commit there, each changed file with its line counts, and
+// its diff in the list's place. It reads again when a turn starts or ends,
+// after each git action, and on reload. Files are staged with their
+// checkbox, discarded after asking, and what is staged is committed with a
+// message.
 
-import type { WorkspaceRow } from '@ollupi/protocol'
+import type { EnvironmentRow, WorkspaceRow } from '@ollupi/protocol'
 import { Button, IconButton, Spinner, Textarea } from '@ollupi/ui'
-import { ArrowLeft, ExternalLink, GitCommitHorizontal, RotateCw, Undo2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import type { Changes, FileChange, FileDiff } from '../../../../shared/ipc'
+import { ArrowLeft, Cloud, ExternalLink, Folder, GitBranch, GitCommitHorizontal, Laptop, RotateCw, Undo2, type LucideIcon } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { Changes, FileChange, FileDiff, Head } from '../../../../shared/ipc'
 import { commitStaged, discardFile, readChanges, readDiff, stageFiles, unstageFiles } from '../../domains/changes'
 import { openPath } from '../../domains/files'
 import { notify } from '../../domains/notices'
@@ -16,7 +18,18 @@ import { useT } from '../../i18n'
 import { CodeBlock } from '../common/Markdown'
 import { SidePanel } from './SidePanel'
 
-export function ChangesPanel({ workspace, turn }: { workspace: WorkspaceRow; /** The running turn, if any. */ turn: string | undefined }) {
+export function EnvironmentPanel({
+  workspace,
+  environment,
+  turn,
+}: {
+  workspace: WorkspaceRow
+  /** Where the conversation's commands run; for a draft, where they would. */
+  environment: EnvironmentRow | undefined
+  /** The running turn, if any. */
+  turn: string | undefined
+}) {
+  const panel = useT().conversation.environment
   const t = useT().conversation.changes
   const root = workspace.rootPath
   const [changes, setChanges] = useState<Changes>()
@@ -41,10 +54,10 @@ export function ChangesPanel({ workspace, turn }: { workspace: WorkspaceRow; /**
 
   return (
     <SidePanel
-      panel="changes"
+      panel="environment"
       width="wide"
-      title={t.title}
-      closeLabel={t.close}
+      title={panel.title}
+      closeLabel={panel.close}
       bare
       actions={
         <IconButton label={t.reload} size="sm" onClick={() => setVersion((v) => v + 1)}>
@@ -53,6 +66,8 @@ export function ChangesPanel({ workspace, turn }: { workspace: WorkspaceRow; /**
       }
     >
       <div className="flex-1 overflow-y-auto px-4 py-4">
+        {/* A diff is read at length: it takes the whole panel. */}
+        {!open && <Where environment={environment} root={root} head={changes?.repo ? changes.head : undefined} />}
         {!changes ? (
           <div className="flex justify-center py-8 text-fg-subtle">
             <Spinner />
@@ -94,6 +109,52 @@ export function ChangesPanel({ workspace, turn }: { workspace: WorkspaceRow; /**
       </div>
       {!open && changes?.repo && files.length > 0 && <CommitForm root={root} staged={staged.length} onCommitted={() => setVersion((v) => v + 1)} />}
     </SidePanel>
+  )
+}
+
+/** The environment, the folder and, in a repository, where HEAD is. */
+function Where({ environment, root, head }: { environment: EnvironmentRow | undefined; root: string; head: Head | undefined }) {
+  const m = useT()
+  const t = m.conversation.environment
+  const cloud = environment?.kind === 'machine'
+  return (
+    <dl className="mb-4 flex flex-col gap-0.5 border-b border-line pb-3">
+      <Row icon={cloud ? Cloud : Laptop} label={t.environment}>
+        <span className="truncate">{environment?.name ?? '—'}</span>
+        {cloud && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.environments.machine}</span>}
+      </Row>
+      <Row icon={Folder} label={t.folder}>
+        <button
+          type="button"
+          title={t.openFolder}
+          onClick={() => void openPath(root)}
+          className="selectable min-w-0 truncate rounded-sm text-left font-mono text-small text-fg hover:underline focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        >
+          {root}
+        </button>
+      </Row>
+      {head && (
+        <Row icon={GitBranch} label={t.branch}>
+          {'branch' in head ? (
+            <span className="selectable truncate font-mono text-small">{head.branch}</span>
+          ) : (
+            <span className="truncate text-small text-fg-muted">{t.detached(head.detached)}</span>
+          )}
+        </Row>
+      )}
+    </dl>
+  )
+}
+
+function Row({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
+  return (
+    <div className="flex h-7 items-center gap-2 text-ui">
+      <dt className="flex w-24 shrink-0 items-center gap-1.5 text-small text-fg-subtle">
+        <Icon size={14} className="shrink-0" aria-hidden />
+        {label}
+      </dt>
+      <dd className="flex min-w-0 flex-1 items-baseline gap-2 text-fg">{children}</dd>
+    </div>
   )
 }
 
