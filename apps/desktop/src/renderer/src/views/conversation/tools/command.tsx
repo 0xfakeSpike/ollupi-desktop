@@ -22,7 +22,7 @@ export const command: ToolView<Command> = {
   },
   Call: CommandCall,
   approval: {
-    title: (m, call) => (call.command.escalated ? m.requests.approval.commandOutside : m.requests.approval.command),
+    title: (m, call) => (call.command.escalated ? m.requests.approval.commandFullAccess : m.requests.approval.command),
     // Approving runs exactly this program, arguments and directory.
     Body: ({ call }) => <CodeBlock code={commandLine(call.command)} label={`sh · ${call.command.cwd}`} />,
     showsContent: true,
@@ -36,7 +36,7 @@ function CommandCall({ item, call }: { item: ItemRow; call: Command }) {
       item={item}
       icon={Terminal}
       title={<span className="font-mono text-small">{command.title(m, call)}</span>}
-      badge={call.command.escalated && <Badge tone="warning">{m.conversation.tool.outsideSandbox}</Badge>}
+      badge={call.command.escalated && <Badge tone="warning">{m.conversation.tool.fullAccess}</Badge>}
       failure={command.failure(m, call, item)}
     >
       <CommandDetails item={item} call={call} />

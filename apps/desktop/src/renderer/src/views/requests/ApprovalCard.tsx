@@ -1,6 +1,6 @@
 // Asks to allow one tool call, which the view of its kind words and shows
-// (a command its frozen execution, a file edit its frozen diff). A call that leaves the sandbox is the
-// dangerous tier: it says what that means, its primary action says so too,
+// (a command its frozen execution, a file edit its frozen diff). A command that asks for full access, lifting this
+// computer's limits, is the dangerous tier: it says what that means, its primary action says so too,
 // and it can only be allowed once. Where an allow rule would let the same
 // call run, ollupi suggests one: always allowing saves it, and the card says
 // what it adds and where.
@@ -25,18 +25,18 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
   const call = useMemo(() => approvalCallOf(p), [p])
   const { approval } = viewOf(call)
   const exec = p.preparedExecution
-  const outside = !!exec?.escalated
-  const decisions = order.filter((d) => p.availableDecisions.includes(d) && !(outside && d === 'acceptForSession'))
+  const fullAccess = !!exec?.escalated
+  const decisions = order.filter((d) => p.availableDecisions.includes(d) && !(fullAccess && d === 'acceptForSession'))
   const thread = useTimeline(p.threadId)?.thread
   const workspace = useWorkspace(thread?.workspaceId)
   const rules = p.suggestedRules ?? []
   const label = (d: Decision) =>
-    d === 'acceptAlways' ? alwaysLabel(m, thread, workspace?.name) : d === 'accept' && outside ? m.requests.approval.runOutside : m.requests.approval.decisions[d]
+    d === 'acceptAlways' ? alwaysLabel(m, thread, workspace?.name) : d === 'accept' && fullAccess ? m.requests.approval.allowFullAccess : m.requests.approval.decisions[d]
   const variant = (d: Decision): ButtonProps['variant'] =>
-    d === 'accept' ? (outside ? 'danger' : 'primary') : d === 'decline' && !outside ? 'ghost' : 'secondary'
+    d === 'accept' ? (fullAccess ? 'danger' : 'primary') : d === 'decline' && !fullAccess ? 'ghost' : 'secondary'
   return (
     <ActionCard
-      tone={outside ? 'danger' : 'warning'}
+      tone={fullAccess ? 'danger' : 'warning'}
       icon={<ShieldAlert size={16} />}
       title={approval.title(m, call, p)}
       actions={decisions.map((d) => (
@@ -45,7 +45,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
         </Button>
       ))}
     >
-      {outside && <p className="text-ui text-fg">{m.requests.approval.outsideConsequence}</p>}
+      {fullAccess && <p className="text-ui text-fg">{m.requests.approval.fullAccessConsequence}</p>}
       {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
       {/* What the call does, in its tool's words (web_fetch's URL), unless its view shows it already (a command, a diff). */}
       {p.content && !approval.showsContent && <p className="selectable text-ui break-all text-fg">{p.content}</p>}

@@ -692,7 +692,7 @@
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
 | `success` | diff 的 `+n`；`success-soft` 是 diff 代码块里新增行的底色；用量条之外几乎不用。成功默认不着色 |
 | `warning` | 普通审批的描边和图标；用量接近自动压缩点；可恢复的提醒 |
-| `danger` / `danger-fg` | 失败（图标、退出码、错误文字）；沙箱外/不可逆审批；危险按钮；diff 的 `−m`；`danger-soft` 是 diff 代码块里删除行的底色 |
+| `danger` / `danger-fg` | 失败（图标、退出码、错误文字）；完全访问/不可逆审批；危险按钮；diff 的 `−m`；`danger-soft` 是 diff 代码块里删除行的底色 |
 | `chart-1`…`chart-4` | 图表的分类色（Context 面板的组成部分、对话里 mermaid 饼图的扇区），见 3.9；不用于界面状态 |
 | `*-soft` | 只做徽标的底，或 toast/错误块里图标后面的小块底，面积不超过一行 |
 
@@ -857,7 +857,7 @@ L2  ╭────────────────────────�
 |---|---|---|---|
 | 提问 | accent | 问题本身 | `Submit`（主） |
 | 普通审批：写文件、跑命令、调用 MCP | warning | "Run this command?" / "Edit 3 files?" / "Call `github.create_issue`?" | `Allow once`（主）· `Allow for this session`（次）· `Deny`（幽灵） |
-| 危险审批：沙箱外运行、删除、不可逆 | danger | "Run outside the sandbox?"，下一行用一句话说明后果 | `Run outside sandbox`（危险）· `Deny`（次）。不提供"本会话允许"，或者折进 "…" 菜单并二次确认 |
+| 危险审批：完全访问、删除、不可逆 | danger | "Give this command full access?"，下一行用一句话说明后果 | `Allow full access`（危险）· `Deny`（次）。不提供"本会话允许"，或者折进 "…" 菜单并二次确认 |
 
 **审批块**
 - 结构：图标 + 标题；需要审批的对象放进 L1 mono 块（可复制）；agent 给出的理由 `text-ui` `fg-muted`；按钮行右对齐。
@@ -909,7 +909,7 @@ L2  ╭────────────────────────�
 | **主要** | `bg-ink text-ink-fg`，悬停 `opacity-85` | 区域里最推荐的那一个动作。一个区域（一张卡片、一个对话框、一个设置分区、一个空状态）**最多 1 个** |
 | **次要** | `bg-raised border border-line-strong text-fg`，悬停 `bg-hover` | 其它正向动作、Cancel |
 | **幽灵** | 透明，`text-fg-muted`，悬停 `bg-hover text-fg` | 工具栏、图标按钮、第三选项、`Deny` |
-| **危险** | `bg-danger text-danger-fg` | 只用于"确认执行破坏性动作"的那一下（对话框里的 `Delete`、沙箱外的 `Run outside sandbox`） |
+| **危险** | `bg-danger text-danger-fg` | 只用于"确认执行破坏性动作"的那一下（对话框里的 `Delete`、完全访问的 `Allow full access`） |
 | **危险入口** | 幽灵样式 + `text-danger` | 菜单和列表里的 `Forget`、`Delete`、`Remove` 入口；点了之后再确认 |
 
 - 顺序按 macOS 惯例：主按钮在最右，Cancel 在它左边，按钮间距 8。
@@ -990,7 +990,7 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 ## 4. 文案
 
 - **全部 sentence case**：`Add workspace`、`Allow once`、`New conversation`，不用 Title Case。专有名词保持原样（MCP、ollupi 永远小写）。
-- **按钮**：动词开头，1–3 个词，说出结果：`Run outside sandbox`，不写 `OK`、`Yes`、`Confirm`。会打开对话框的按钮加 `…`：`Edit…`、`Add server…`。
+- **按钮**：动词开头，1–3 个词，说出结果：`Allow full access`，不写 `OK`、`Yes`、`Confirm`。会打开对话框的按钮加 `…`：`Edit…`、`Add server…`。
 - **时态**：进行中用现在分词加省略号（"Running…"、"Thinking…"），完成后用过去式（"Ran 3 commands"、"Thought for 3.8s"）。省略号用单个字符 `…`。
 - **语气**：平实、直接。不用感叹号，不写 "Oops"、"Uh-oh"，不拟人卖萌，不道歉堆砌。
 - **出错提示** 三段：什么失败了 → 为什么 → 用户能做什么。
@@ -1032,7 +1032,7 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | Switch 圆钮 `bg-white` | `bg-knob` |
 | 侧栏选中的 `bg-hover` | `bg-selected` |
 | 提问卡片 `border-accent/30 bg-accent-soft/40` | L2：`bg-raised shadow-sm` + accent 淡色描边 |
-| 审批卡片的黄色底 | L2 + warning 淡色描边（沙箱外为 danger） |
+| 审批卡片的黄色底 | L2 + warning 淡色描边（完全访问为 danger） |
 | Button `sm` `h-7` / `md` `h-8` | `sm` `h-6` / `md` `h-7` / 新增 `lg` `h-8` |
 | IconButton `size-6` / `size-8` | `size-6` / `size-7` |
 | `apps/desktop/src/renderer/src/styles.css` 里 `body { font-size: 14px }` | 改为 13px，行高 20px（界面默认是 `text-ui`）；`.markdown` 加 `font-size: 14px; line-height: 23px` |

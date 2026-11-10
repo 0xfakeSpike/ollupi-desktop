@@ -170,7 +170,7 @@ func callDetails(it repo.ItemRow) string {
 		}
 	}
 	if p != nil && p.Escalated {
-		b.WriteString("\n\n**在沙箱外运行**")
+		b.WriteString("\n\n**需要完全访问**")
 		if p.Justification != "" {
 			b.WriteString("：" + p.Justification)
 		}
