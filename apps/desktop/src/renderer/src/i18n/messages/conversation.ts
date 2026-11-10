@@ -227,7 +227,7 @@ export const en = {
     memoryLoaded: (n: number) => `Loaded ${n} ${n === 1 ? 'memory' : 'memories'}`,
   },
   tool: {
-    outsideSandbox: 'outside sandbox',
+    fullAccess: 'full access',
     waiting: 'waiting for you',
     subagentWorking: 'subagent working',
     declined: 'declined',
@@ -487,7 +487,7 @@ export const zh: typeof en = {
     memoryLoaded: (n) => `加载了 ${n} 条记忆`,
   },
   tool: {
-    outsideSandbox: '沙箱外',
+    fullAccess: '完全访问',
     waiting: '等你处理',
     subagentWorking: '子 agent 处理中',
     declined: '已拒绝',

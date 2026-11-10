@@ -5,13 +5,13 @@ export const en = {
   approval: {
     command: 'Allow this command?',
     tool: (tool: string) => `Allow ${tool}?`,
-    commandOutside: 'Run this command outside the sandbox?',
+    commandFullAccess: 'Give this command full access?',
     editFile: 'Make this change to the file?',
     createFile: 'Create this file?',
     readFile: 'Read this file?',
     glob: 'Find these files?',
     grep: 'Search these files?',
-    outsideConsequence: "It runs without the sandbox's limits: it can reach every file and network your account can.",
+    fullAccessConsequence: 'It runs on this computer without the usual limits: it can reach every file and network your account can.',
     arguments: 'arguments',
     serverArguments: (server: string) => `${server} · arguments`,
     decisions: {
@@ -26,8 +26,8 @@ export const en = {
     alwaysInThread: 'Always allow in this thread',
     alwaysInParent: 'Always allow in the parent thread',
     alwaysAdds: 'Always allowing adds',
-    /** accept, when the call leaves the sandbox. */
-    runOutside: 'Run outside sandbox',
+    /** accept, when the command asks to lift this computer's limits. */
+    allowFullAccess: 'Allow full access',
   },
   questions: {
     submit: 'Submit',
@@ -42,13 +42,13 @@ export const zh: typeof en = {
   approval: {
     command: '允许运行这条命令？',
     tool: (tool) => `允许 ${tool}？`,
-    commandOutside: '在沙箱外运行这条命令？',
+    commandFullAccess: '允许这条命令完全访问？',
     editFile: '允许这样修改文件？',
     createFile: '允许新建这个文件？',
     readFile: '允许读取这个文件？',
     glob: '允许查找这些文件？',
     grep: '允许搜索这些文件？',
-    outsideConsequence: '它不受沙箱限制，能访问你的账号可访问的所有文件和网络。',
+    fullAccessConsequence: '它会在这台电脑上不受平时的限制运行：你的账号能访问的文件和网络，它都能访问。',
     arguments: '参数',
     serverArguments: (server) => `${server} · 参数`,
     decisions: {
@@ -60,7 +60,7 @@ export const zh: typeof en = {
     alwaysInThread: '在此会话中总是允许',
     alwaysInParent: '在上级会话中总是允许',
     alwaysAdds: '总是允许会添加',
-    runOutside: '在沙箱外运行',
+    allowFullAccess: '允许完全访问',
   },
   questions: {
     submit: '提交',
