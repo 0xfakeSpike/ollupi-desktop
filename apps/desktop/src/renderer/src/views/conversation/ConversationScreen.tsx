@@ -2,7 +2,7 @@ import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
 import { Badge, Button, IconButton, Spinner, useTooltip } from '@ollupi/ui'
 import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Folder, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
-import { useEnvironment } from '../../domains/environments'
+import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
 import { exportThread, type ExportFormat } from '../../domains/export'
 import { togglePanel, useNavigation } from '../../domains/navigation'
 import { archiveThread, renameThread, useThreadSummary } from '../../domains/threads'
@@ -28,6 +28,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const workspace = useWorkspace(thread?.workspaceId)
   // Where the thread runs: this machine keeps quiet, a cloud sandbox says so.
   const environment = useEnvironment(thread?.environmentId)
+  // A thread that names none runs where ollupi starts conversations.
+  const fallback = useEnvironments((s) => defaultEnvironment(s.list))
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
   // ollupi takes no messages in an archived thread (threadArchived).
@@ -154,7 +156,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       </div>
       {/* Each conversation has its own tab. */}
       {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
-      {workspace && <WorkspacePanel workspace={workspace} turn={running?.id} />}
+      {workspace && <WorkspacePanel workspace={workspace} environment={environment ?? fallback} turn={running?.id} />}
       {panel === 'tasks' && <TasksPanel timeline={timeline} />}
       {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
       {panel === 'context' && <ContextPanel timeline={timeline} />}

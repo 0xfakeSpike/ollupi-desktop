@@ -8,7 +8,7 @@
 
 import { execFile } from 'node:child_process'
 import { isAbsolute, join, normalize, sep } from 'node:path'
-import type { Changes, Commit, FileChange, FileDiff } from '../shared/ipc'
+import type { Changes, Commit, FileChange, FileDiff, Head } from '../shared/ipc'
 import { inside } from './files'
 
 /** More diff than a person reads in a panel. */
@@ -45,7 +45,15 @@ export class WorkspaceChanges {
       const kind = kindOf(xy)
       if (kind) files.push({ path: path.slice(repo.prefix.length), kind, staged: stagedOf(xy), ...lines.get(path) })
     }
-    return { repo: true, files }
+    return { repo: true, head: await this.head(root), files }
+  }
+
+  /** The branch HEAD is on, unborn ones included; otherwise the commit it
+   * is detached at. */
+  private async head(root: string): Promise<Head> {
+    const branch = await this.git(root, ['symbolic-ref', '--short', '-q', 'HEAD'], [0, 1])
+    if (branch.trim()) return { branch: branch.trim() }
+    return { detached: (await this.git(root, ['rev-parse', '--short', 'HEAD'])).trim() }
   }
 
   /** path is relative to the workspace root, as list gives it. */
