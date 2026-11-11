@@ -9,6 +9,16 @@ export function openPath(path: string): Promise<void | undefined> {
   return run((e) => e.files.open, () => desktop.openPath(path))
 }
 
+/** Shows a file or folder in Finder, selected. */
+export function revealPath(path: string): Promise<void | undefined> {
+  return run((e) => e.files.reveal, () => desktop.revealFile(path))
+}
+
+/** The menu a file or folder row opens on a right-click. */
+export async function fileMenu(path: string, labels: { reveal: string }): Promise<void> {
+  if ((await desktop.contextMenu([{ id: 'reveal', label: labels.reveal }])) === 'reveal') await revealPath(path)
+}
+
 export function readFolder(root: string, path: string): Promise<FileEntry[] | undefined> {
   return run((e) => e.files.list, () => desktop.files.list(root, path))
 }

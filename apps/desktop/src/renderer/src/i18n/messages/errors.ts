@@ -61,6 +61,7 @@ export const en = {
     list: 'Could not read the folder',
     read: 'Could not read the file',
     open: 'Could not open it',
+    reveal: 'Could not show it in Finder',
   },
   browser: {
     open: 'Could not open the page',
@@ -160,6 +161,7 @@ export const zh: typeof en = {
     list: '无法读取文件夹',
     read: '无法读取文件',
     open: '无法打开',
+    reveal: '无法在访达中显示',
   },
   browser: {
     open: '无法打开网页',

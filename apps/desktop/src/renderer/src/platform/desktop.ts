@@ -63,6 +63,7 @@ function browserShim(): DesktopApi | undefined {
     saveFile: unavailable,
     openPath: async () => {},
     revealFile: async () => {},
+    contextMenu: async () => undefined,
     // A browser follows its own scheme.
     setColorScheme: async () => {},
   }
@@ -111,5 +112,6 @@ export const desktop: DesktopApi = window.desktop ??
     saveFile: unavailable,
     openPath: unavailable,
     revealFile: unavailable,
+    contextMenu: unavailable,
     setColorScheme: unavailable,
   }

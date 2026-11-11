@@ -561,8 +561,8 @@ L2  ╭────────────────────────�
 
 | 内容 | 形态 | 折叠时 | 展开后 |
 |---|---|---|---|
-| 用户消息 | L1 气泡，靠右，`rounded-xl` `px-3.5 py-2.5`，最大宽度 560px，`text-body` `fg` | — | — |
-| agent 回复 | 直接写在画布上，不加容器，`text-body` `fg` | — | — |
+| 用户消息 | L1 气泡，靠右，`rounded-xl` `px-3.5 py-2.5`，最大宽度 560px，`text-body` `fg`；悬停或聚焦时气泡左侧底部出现复制按钮（sm 图标按钮），平时隐藏 | — | — |
+| agent 回复 | 直接写在画布上，不加容器，`text-body` `fg`；一轮结束后，回答下面的元信息行（模型 · 时长 · 用量）开头是复制回答的按钮，复制 Markdown 原文 | — | — |
 | 推理 | L0，大脑/思考图标 | "Thought for 3.8s"；进行中 "Thinking…" + shimmer | 推理全文，`fg-muted` `text-ui`，左侧 1px `line` 引导线、缩进 16 |
 | 命令 | L0 → L1 | `Ran` + 命令首行（mono，单行截断）+ 时长；非零退出码显示 `exit 1`（`text-danger`），图标变 danger | L1：完整命令、输出（mono 13，`max-h-80` 内滚，超长时提供"展开全部"），复制按钮悬停出现 |
 | 读文件/搜索/MCP 调用 | L0 → L1 | 动作 + 对象（路径或工具名 mono）+ 结果计数（"12 matches"） | 参数与结果 |
@@ -665,6 +665,7 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | 侧栏项、竖排子标签（Memory 范围）、菜单项 | 高 28、`rounded-md`、`px-2`、`text-ui`；图标 16 `fg-muted`；悬停 `bg-hover`；选中 `bg-selected` + `font-medium` + `fg` |
 | 分组标题（workspace） | `text-small` `font-medium` `fg-subtle` + 折叠箭头；已归档分组默认折叠，放在最底部 |
 | 行尾元信息 | `text-small` `fg-subtle`（相对时间、计数）；运行中换成 spinner，等待/失败换成圆点 |
+| 右键菜单 | 用系统原生菜单（`desktop.contextMenu`），不自己画；只放这一行能做的事，例如文件面板里文件和文件夹的"在访达中显示" |
 | 悬停才出现的操作 | 直接替换行尾元信息的位置，不额外占宽度，悬停时文字不跳；sm 图标按钮（24px）；行 `focus-within` 或其菜单打开时保持显示；最多 2 个，更多的放进 "…" 菜单 |
 | 横排标签（Settings） | `text-ui` `font-medium`；未选中 `fg-muted`，悬停 `fg`；选中 `fg` + 2px 下划线（`fg` 色，不用 accent）；标签栏底部 `border-b border-line` |
 | 卡片列表（MCP 服务器、模型提供方） | 用 3.5 的设置卡片：每行名称（`fg` `font-medium`）+ 一行摘要（`text-small` `fg-muted` mono）+ 状态徽标 + 悬停操作；点行打开编辑对话框 |

@@ -2,10 +2,10 @@
 // may use. Handlers validate their input; the renderer gets no general shell
 // access.
 
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
@@ -129,6 +129,7 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.RevealFile, (_event, path: unknown) => {
     shell.showItemInFolder(absolute(path))
   })
+  ipcMain.handle(IpcChannel.ContextMenu, (event, items: unknown) => contextMenu(event.sender, menuItems(items)))
   ipcMain.handle(IpcChannel.SetColorScheme, (_event, scheme: unknown) => {
     if (!colorSchemes.includes(scheme as ColorScheme)) throw new Error('expected system, light or dark')
     nativeTheme.themeSource = scheme as ColorScheme
@@ -214,5 +215,22 @@ function validChanges(changes: unknown): ConfigChange[] {
     }
     if (c.kind !== 'set') throw new Error('a change is set, delete or move')
     return { kind: 'set', path, value: JSON.parse(JSON.stringify(c.value ?? null)) }
+  })
+}
+
+function menuItems(items: unknown): ContextMenuItem[] {
+  if (!Array.isArray(items) || !items.every((i) => typeof i?.id === 'string' && typeof i?.label === 'string')) {
+    throw new Error('expected menu items with an id and a label')
+  }
+  return items as ContextMenuItem[]
+}
+
+/** Pops a menu up at the pointer in the window that asked. The menu's
+ * callback can run before the chosen item's click, so the close waits a
+ * moment before settling on no choice. */
+function contextMenu(sender: WebContents, items: ContextMenuItem[]): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const menu = Menu.buildFromTemplate(items.map((i) => ({ label: i.label, click: () => resolve(i.id) })))
+    menu.popup({ window: BrowserWindow.fromWebContents(sender) ?? undefined, callback: () => setTimeout(() => resolve(undefined), 100) })
   })
 }

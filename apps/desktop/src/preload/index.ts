@@ -124,6 +124,7 @@ const api: DesktopApi = {
   saveFile: (name, text) => ipcRenderer.invoke(IpcChannel.SaveFile, name, text),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
   revealFile: (path) => ipcRenderer.invoke(IpcChannel.RevealFile, path),
+  contextMenu: (items) => ipcRenderer.invoke(IpcChannel.ContextMenu, items),
   setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),
 }
 
