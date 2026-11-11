@@ -8,7 +8,6 @@
 import { approvalCallOf } from '@ollupi/core'
 import type { Decision, ThreadRow } from '@ollupi/protocol'
 import { ActionCard, Button, type ButtonProps } from '@ollupi/ui'
-import { ShieldAlert } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTimeline } from '../../domains/conversation'
 import type { PendingRequest } from '../../domains/requests'
@@ -37,10 +36,10 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
   return (
     <ActionCard
       tone={fullAccess ? 'danger' : 'warning'}
-      icon={<ShieldAlert size={16} />}
+      kicker={m.requests.approval.kicker}
       title={approval.title(m, call, p)}
       actions={decisions.map((d) => (
-        <Button key={d} size="sm" variant={variant(d)} onClick={() => request.respond(d)}>
+        <Button key={d} variant={variant(d)} onClick={() => request.respond(d)}>
           {label(d)}
         </Button>
       ))}

@@ -18,8 +18,8 @@ const item = (id: string, type: ItemRow['type'], responseId: string | undefined,
 const prepared = { cwd: '/w', settingsDigest: '', argumentsDigest: '' }
 const command = (id: string, responseId: string, extra: Partial<ItemRow> = {}) =>
   item(id, 'toolCall', responseId, { tool: 'run_command', preparedExecution: { ...prepared, program: 'git', args: ['status'] }, ...extra })
-const edit = (id: string, responseId: string, path: string) =>
-  item(id, 'toolCall', responseId, { tool: 'edit_file', preparedExecution: { ...prepared, files: [{ path, after: '', diff: '', added: 1, removed: 0 }] } })
+const edit = (id: string, responseId: string, path: string, extra: Partial<ItemRow> = {}) =>
+  item(id, 'toolCall', responseId, { tool: 'edit_file', preparedExecution: { ...prepared, files: [{ path, after: '', diff: '', added: 2, removed: 1 }] }, ...extra })
 
 const shape = (parts: TurnPart[]) => parts.map((p) => (p.kind === 'process' ? ['process', p.items.map((i) => i.id)] : [p.kind, p.item.id]))
 
@@ -91,7 +91,7 @@ describe('a turn as it reads', () => {
 })
 
 describe('a process summary', () => {
-  it('counts calls by kind, files changed once each', () => {
+  it('counts calls by kind, files changed once each, lines as the changes that went through', () => {
     const items = [
       item('think', 'reasoning', 'r1'),
       command('run1', 'r1'),
@@ -99,11 +99,12 @@ describe('a process summary', () => {
       edit('e1', 'r1', 'a.ts'),
       edit('e2', 'r2', 'a.ts'),
       edit('e3', 'r2', 'b.ts'),
+      edit('e4', 'r2', 'c.ts', { status: 'declined' }),
       item('read', 'toolCall', 'r2', { tool: 'read_file', arguments: JSON.stringify({ path: 'a.ts' }) }),
       item('mcp', 'toolCall', 'r2', { tool: 'echo', server: 'mock' }),
     ]
     const s = summarizeProcess(items)
-    expect(s).toMatchObject({ commands: 2, filesChanged: 2, reads: 1, searches: 0, subagents: 0, tools: 1 })
+    expect(s).toMatchObject({ commands: 2, filesChanged: 2, linesAdded: 6, linesRemoved: 3, reads: 1, searches: 0, subagents: 0, tools: 1 })
     expect(s.startedAt).toBe(items[0]!.startedAt)
     expect(s.completedAt).toBe(items.at(-1)!.completedAt)
   })

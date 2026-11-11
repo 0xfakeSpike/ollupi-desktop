@@ -7,8 +7,10 @@ import { useId, useState, type ReactNode } from 'react'
 import { cn } from './cn'
 
 export interface ProcessRowProps {
-  /** A 14px icon; it carries the row's colour when the step failed. */
-  icon: ReactNode
+  /** A 14px icon; it carries the row's colour when the step failed.
+   * Without one, an opening row leads with its chevron instead (the
+   * process summary). */
+  icon?: ReactNode
   /** What was done and to what, on one line. */
   title: ReactNode
   /** After the title, e.g. a property of the call. */
@@ -35,14 +37,17 @@ export function ProcessRow({ icon, title, badge, meta, children, defaultOpen = f
   const setOpen = (next: boolean) => (owned === undefined ? setOwn(next) : onOpenChange?.(next))
   const detailsId = useId()
   const expandable = children != null && children !== false
+  const leads = icon === undefined && expandable
   const line = (
     <>
-      <span className="flex size-3.5 shrink-0 items-center justify-center">{icon}</span>
+      <span className="flex size-3.5 shrink-0 items-center justify-center">
+        {leads ? <ChevronRight size={14} aria-hidden className={cn('transition duration-160 ease-standard', open && 'rotate-90')} /> : icon}
+      </span>
       <span className="min-w-0 truncate">{title}</span>
       {badge}
       <span className="flex-1" />
       {meta && <span className="flex shrink-0 items-center gap-1.5 text-small text-fg-subtle tabular-nums">{meta}</span>}
-      {expandable && (
+      {expandable && !leads && (
         <ChevronRight
           size={14}
           aria-hidden
@@ -115,13 +120,13 @@ export function Block({ label, actions, children, className }: BlockProps) {
 /** accent asks, warning confirms a change, danger crosses a safety line. */
 export type ActionTone = 'accent' | 'warning' | 'danger'
 
-const outlines: Record<ActionTone, string> = { accent: 'border-accent/45', warning: 'border-warning/45', danger: 'border-danger/45' }
-const icons: Record<ActionTone, string> = { accent: 'text-accent', warning: 'text-warning', danger: 'text-danger' }
+const outlines: Record<ActionTone, string> = { accent: 'border-accent/35', warning: 'border-warning/35', danger: 'border-danger/35' }
+const kickers: Record<ActionTone, string> = { accent: 'text-accent', warning: 'text-warning', danger: 'text-danger' }
 
 export interface ActionCardProps {
   tone: ActionTone
-  /** A 16px icon, coloured by the tone. */
-  icon: ReactNode
+  /** Who asks for what, small and in the tone's colour: "Ollupi is asking". */
+  kicker: ReactNode
   /** The question the user answers, e.g. "Allow this command?". */
   title: ReactNode
   children?: ReactNode
@@ -134,20 +139,20 @@ export interface ActionCardProps {
 
 /** What waits on the user. The only thing in the flow that floats: raised,
  * shadowed, outlined in a tint of its tone. */
-export function ActionCard({ tone, icon, title, children, actions, status, className }: ActionCardProps) {
+export function ActionCard({ tone, kicker, title, children, actions, status, className }: ActionCardProps) {
   const titleId = useId()
   return (
     <section
       aria-labelledby={titleId}
       className={cn(
-        'flex animate-enter flex-col gap-3 rounded-lg border bg-raised p-3 shadow-sm motion-reduce:animate-fade',
+        'flex animate-enter flex-col gap-3 rounded-xl border bg-raised p-4 shadow-sm motion-reduce:animate-fade',
         outlines[tone],
         className,
       )}
     >
-      <div className="flex items-start gap-2">
-        <span className={cn('mt-0.5 flex shrink-0', icons[tone])}>{icon}</span>
-        <h3 id={titleId} className="min-w-0 flex-1 text-ui font-medium text-fg">
+      <div className="flex flex-col gap-0.5">
+        <span className={cn('text-caption', kickers[tone])}>{kicker}</span>
+        <h3 id={titleId} className="selectable text-title text-fg">
           {title}
         </h3>
       </div>

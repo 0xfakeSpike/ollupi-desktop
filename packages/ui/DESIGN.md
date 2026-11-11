@@ -49,7 +49,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
   - 流式输出的光标：一个 8×16 的 `ink` 方块，530ms 一亮一灭，硬切（`.streaming-caret`）；
   - 加载（页面、面板、连接这类"像素加载 + 动词"的位置）：三个 6px 方块依次亮起，300ms 一拍，前 300ms 不显示（`PixelLoader`）；按钮里和列表行尾的 14px spinner 不变；
   - 发送按钮的箭头：7×7 像素箭头，颜色 `send-fg`（`PixelArrow`），发送和插话都用它。
-- **不要**：像素字体；按钮、卡片、边框做像素锯齿；旋转、拉伸、换色；改轮廓比例；对话流里每条消息旁边放头像。
+- **不要**：像素字体；按钮、卡片、边框做像素锯齿；旋转、拉伸、换色；改轮廓比例；对话流里每条消息旁边放头像；侧栏顶部放小狼或字标（那里只有红绿灯）。
 
 ### 0.4 字标与字体
 
@@ -108,7 +108,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 
 - 窗口底色是 `ground`。侧栏直接画在 ground 上，没有边框。
 - 当前屏幕（对话、Memory、Settings、新会话）铺满侧栏右边的整个窗口，贴着窗口的上、右、下边，没有圆角，和侧栏之间只有一条 `border-l border-line`；底色 `bg-canvas`。深色主题里屏幕比 ground 亮一级，浅色主题里屏幕是纯白。圆角留给屏幕里面的东西（Context 卡片、列表卡片、对话框）。
-- 屏幕的标题栏高 40px，在窗口最上面，也是窗口的拖动区；macOS 红绿灯按钮垂直居中在这一行上（`trafficLightPosition` y 13）。侧栏顶部留出同样的 40px，第一项落在标题栏下沿。
+- 屏幕的标题栏高 40px，在窗口最上面，也是窗口的拖动区；macOS 红绿灯按钮垂直居中在这一行上（`trafficLightPosition` y 13）。侧栏顶部留出同样的 40px，只放红绿灯，不放小狼或字标；第一项落在标题栏下沿。
 - **侧栏网格**：每行高 28px，`px-2`；行首 16px 图标槽，图标与文字间距 8px。所以新会话、分组名、会话标题、底部导航的文字都从行内 32px 处开始。会话行没有图标，用 `pl-8` 对齐到同一处。
 - **居中的列**：对话、Settings、Memory 的内容是 `mx-auto max-w-* px-6` 的列。所在的滚动区加 `scroll-centered`（两侧都留滚动条位），列才与滚动区外的东西（对话下面的输入框）对齐。Settings 的标签页放在同一条列里。
 
@@ -442,15 +442,17 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 - **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。
 - **等宽**：命令、路径、文件名、模型 ID、环境变量、退出码用 `font-mono`。对话流的工具行里用 12px（`text-small`），代码块和输出用 13px（`text-ui`），Markdown 行内代码 0.88em。等宽字体栈末尾带苹方，代码里的中文有回退。等宽文字关掉连字，`<-`、`:=` 按原字符显示。
 - **数字**：表格、Context 面板、时长、token 数一律 `tabular-nums`。
-- **对话列宽**：`max-w-thread`（800px）居中，左右至少 24px 留白。
+- **对话列宽**：内容宽 760px，左右各留 24px：`max-w-thread`（808px，含两侧 `px-6`）居中；对话流顶部留 32。一轮里各块之间 20（`gap-5`）。
 
 ### 2.4 间距
 
 基数 4px（`--spacing: 4px`，`p-3` = 12px）。只用这几档：
 
-| class 后缀 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 12 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| px | 2 | 4 | 6 | 8 | 12 | 16 | 20 | 24 | 32 | 48 |
+| class 后缀 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 5 | 6 | 8 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| px | 2 | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 20 | 24 | 32 | 48 |
+
+2.5 和 3.5 只给方向稿定下的几处：输入框外壳（`px-3.5 pt-3 pb-2.5`，各行间距 10）、用户消息气泡（`px-3.5 py-2.5`）、提问的选项行（控件与文字间距 10）。
 
 | 场合 | 值 |
 |---|---|
@@ -462,7 +464,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 | 表单字段之间 | 16（`gap-4`）；标签与字段 6，字段与提示 4 |
 | 块内各段之间 | 12（`gap-3`） |
 | 过程行之间 | 4（`gap-1`） |
-| 对话流中块与块 | 12（`gap-3`） |
+| 对话流中块与块 | 20（`gap-5`） |
 | 一轮与一轮（用户消息前） | 24（`mt-6`） |
 | 页面内区块之间（设置分区） | 32（`gap-8`） |
 | 页面边距 | 24（`px-6`） |
@@ -476,8 +478,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 | `rounded-sm` | 4 | 徽标、行内代码、复选框、快捷键提示 |
 | `rounded-md` | 6 | 按钮、输入框、下拉框、侧栏项、菜单项、子标签 |
 | `rounded-lg` | 8 | 对话流里的块（代码块、工具输出、计划、行动块）、列表卡片 |
-| `rounded-xl` | 12 | Context 卡片、对话框、菜单浮层、toast（屏幕本身不圆角） |
-| `rounded-2xl` | 16 | 输入框外壳（Composer）、用户消息气泡、排队中的消息 |
+| `rounded-xl` | 12 | 输入框外壳（Composer）、用户消息气泡、排队中的消息、行动块（审批、提问）、Context 卡片、对话框、菜单浮层、toast（屏幕本身不圆角） |
 | `rounded-full` | — | 圆点、开关、头像 |
 
 - 嵌套时，内圆角 = 外圆角 − 内边距；内边距 ≥ 外圆角时内层可以是直角。
@@ -486,7 +487,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 | class | 用于 |
 |---|---|
 | （无阴影） | 对话流里的所有普通块、设置卡片、侧栏 |
-| `shadow-sm` | 需要用户行动的块、输入框外壳 |
+| `shadow-sm` | 需要用户行动的块（输入框外壳不加阴影，只靠 `line-strong` 描边） |
 | `shadow-md` | 菜单、选择浮层、toast、气泡提示 |
 | `shadow-lg` | 对话框 |
 
@@ -538,7 +539,7 @@ agent 产出的每一块都用同一个骨架：
 |---|---|---|
 | **L0 行** | 无底无框；`text-ui` `fg-muted`；悬停时整行 `hover` 底、`rounded-md`；可点击展开 | 推理、工具调用、文件改动、子 agent、记忆载入、一轮的过程摘要 |
 | **L1 块** | `bg-surface` `rounded-lg` `p-3`，无边框无阴影 | 代码块、展开后的工具输出、计划、Markdown 表格、用户消息气泡（`rounded-xl`） |
-| **L2 行动** | `bg-raised` `rounded-lg` `shadow-sm` `p-3`，1px 整圈描边用状态色的 45%（`border-accent/45`、`border-warning/45`、`border-danger/45`） | 审批、提问 |
+| **L2 行动** | `bg-raised` `rounded-xl` `shadow-sm` `p-4`，1px 整圈描边用状态色的 35%（`border-accent/35`、`border-warning/35`、`border-danger/35`） | 审批、提问 |
 
 ```
 L0  ⌄ Thought for 3.8s
@@ -560,7 +561,7 @@ L2  ╭────────────────────────�
 
 | 内容 | 形态 | 折叠时 | 展开后 |
 |---|---|---|---|
-| 用户消息 | L1 气泡，靠右，最大宽度 85%，`text-body` `fg` | — | — |
+| 用户消息 | L1 气泡，靠右，`rounded-xl` `px-3.5 py-2.5`，最大宽度 560px，`text-body` `fg` | — | — |
 | agent 回复 | 直接写在画布上，不加容器，`text-body` `fg` | — | — |
 | 推理 | L0，大脑/思考图标 | "Thought for 3.8s"；进行中 "Thinking…" + shimmer | 推理全文，`fg-muted` `text-ui`，左侧 1px `line` 引导线、缩进 16 |
 | 命令 | L0 → L1 | `Ran` + 命令首行（mono，单行截断）+ 时长；非零退出码显示 `exit 1`（`text-danger`），图标变 danger | L1：完整命令、输出（mono 13，`max-h-80` 内滚，超长时提供"展开全部"），复制按钮悬停出现 |
@@ -568,7 +569,7 @@ L2  ╭────────────────────────�
 | 文件改动 | L0 → L1 | `Edited` + 路径 + `+n`（success）`−m`（danger） | diff，L1 |
 | 子 agent | L0 | 名称 + 任务一句话 + 状态 | 嵌套时间线：缩进 16 + 1px 引导线，里面仍是 L0/L1，**不嵌套卡片** |
 | 计划 | L1 | — | 清单：○ 待做（`fg-subtle`）、◐ 进行中（`fg` + shimmer）、✓ 完成（`fg-subtle`）；不用颜色区分 |
-| 过程摘要 | L0 | "Worked for 42s · 6 commands · 2 files changed"；有失败时追加 "· 1 failed"（danger） | 这一轮全部过程行 |
+| 过程摘要 | L0，行首是展开箭头（不另放图标） | "Worked for 42s · 6 commands · 2 files changed"，后面跟改动行数 `+12`（success）`−3`（danger），mono；只算真正写入的改动；有失败时追加 "· 1 failed"（danger） | 这一轮全部过程行 |
 | 压缩标记 | 横向分隔线，中间 `text-small` `fg-subtle` | "Context compacted · 182k → 24k tokens" | — |
 | 记忆载入 | L0，`text-small` `fg-subtle` | "Loaded 3 memories" | 记忆标题列表，可跳到 Memory 页 |
 | 错误通知 | L0 + danger 图标与文字 | 错误一句话 | 原始错误（mono），可复制 |
@@ -586,21 +587,21 @@ L2  ╭────────────────────────�
 | 危险审批：完全访问、删除、不可逆 | danger | "Give this command full access?"，下一行用一句话说明后果 | `Allow full access`（危险）· `Deny`（次）。不提供"本会话允许"，或者折进 "…" 菜单并二次确认 |
 
 **审批块**
-- 结构：图标 + 标题；需要审批的对象放进 L1 mono 块（可复制）；agent 给出的理由 `text-ui` `fg-muted`；按钮行右对齐。
+- 结构：一行小字说谁要什么（`text-caption`，状态色："Ollupi needs your approval" / "Ollupi is asking"），下面是标题（`text-title`）；不放图标。需要审批的对象放进 L1 mono 块（可复制）；agent 给出的理由 `text-ui` `fg-muted`；按钮行右对齐。
 - 键盘：`↵` 执行主按钮，`Esc` 拒绝；在按钮上用 `text-caption` 标出快捷键。
 - 危险审批的默认焦点放在 `Deny`，不放在危险按钮上。
 - 已处理的审批收成 L0 行："Allowed once · `rm -rf build`" / "Denied · …"，不保留卡片。
 
 **提问块**
-- 一个问题：问题（`text-ui` `fg` `font-medium`）→ 选项 → 自由输入。
-- 选项是整行可点击的行：左边单选或复选控件，右边标签（`fg`）+ 说明（`text-small` `fg-muted`）。行内边距 `px-2 py-1.5`、`rounded-md`，悬停 `hover` 底。
-- 选中态 = 控件填 accent，行底 `hover`。**边框不加粗，整行或整块都不变蓝。**
+- 一个问题：问题就是块的标题（`text-title`）→ 选项 → 自由输入；问多个时每个问题 `text-ui` `fg` `font-medium`。
+- 选项是整行可点击的行，至少高 32：左边单选或复选控件，间距 10，右边标签（`fg`）+ 说明（`text-small` `fg-muted`）。行内边距 `px-2 py-1.5`、`rounded-md`，悬停 `hover` 底。
+- 选中态 = 控件填 accent，行底 `selected`。**边框不加粗，整行或整块都不变蓝。**
 - 自由输入是最后一行："Other…"，选中后变成输入框。
 - 一次问多个：纵向排列，问题之间用 `line` 分隔、间距 12；底部显示 "2 of 3 answered"（`text-small` `fg-subtle`），全部答完才启用 `Submit`。超过 3 个问题时分页，标题旁显示 "1 / 5"。
 - 提交后收成 L0 行："Answered 3 questions"，展开可见答案。
 
 **流外的回响**
-- 侧栏该会话显示 accent 圆点；顶栏显示 `Needs approval` / `Needs answer` 徽标。
+- 侧栏该会话显示 accent 圆点；顶栏右侧、面板按钮前显示描边胶囊 "Waiting for you"（高 20、`rounded-full`、`border-accent/35`、`text-caption` `accent`，不铺底）。
 - 输入框上方的状态行：小狼换成看着你的脸，写 "Waiting for your approval above" 或 "Waiting for your answer above"（子 agent 的等待也算）；运行中没人被问时是左右张望的小狼和 "Working…"，对话流里不再另写；行动块滚出视野时，在输入框上方浮出胶囊按钮 "1 request waiting ↓"，点击滚到块。
 - 窗口不在前台时发系统通知。
 
@@ -668,7 +669,7 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | 横排标签（Settings） | `text-ui` `font-medium`；未选中 `fg-muted`，悬停 `fg`；选中 `fg` + 2px 下划线（`fg` 色，不用 accent）；标签栏底部 `border-b border-line` |
 | 卡片列表（MCP 服务器、模型提供方） | 用 3.5 的设置卡片：每行名称（`fg` `font-medium`）+ 一行摘要（`text-small` `fg-muted` mono）+ 状态徽标 + 悬停操作；点行打开编辑对话框 |
 
-侧栏底部固定：Memory、Settings 两个导航项，下面是连接状态（圆点 + `text-small`）。
+侧栏宽 264px。顶部依次是新会话（`fg` `font-medium`，+ 图标）、搜索、定时任务；底部固定 Memory、能力、Settings，下面是连接状态（圆点 + `text-small`）。除新会话外，没选中的导航项是 `fg-muted`，悬停变 `fg`。
 
 ### 3.7 浮层
 
@@ -805,10 +806,10 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 | 界面 | 主要用到 |
 |---|---|
 | 侧边栏 | 3.6 列表与导航（新建会话、添加 workspace 为幽灵按钮；分组、悬停操作、已归档分组）、3.3 圆点、底部连接状态 |
-| 新会话页 | `text-display` 标题、workspace 与模型的选择浮层（3.7）、输入框外壳（`rounded-2xl shadow-sm`） |
-| 对话页顶栏 | `text-title` 标题 + `text-small fg-subtle` 的 workspace；状态徽标（3.3）；定时任务、权限、Context 面板开关为 md 图标按钮（开启时 `active`） |
+| 新会话页 | 问候旁的小狼（0.3）+ `text-display` 标题、和对话页同样的输入框 |
+| 对话页顶栏 | `text-ui font-semibold` 标题 + `text-ui fg-subtle` 的 workspace 名（不带图标）；右侧是等待胶囊（3.2）和各面板开关（md 图标按钮，开启时 `active`） |
 | 对话流 | 3.1、3.2 |
-| 输入框 | `bg-raised border-line rounded-2xl shadow-sm`，聚焦时 `border-line-strong shadow-md`（不用强调色）；宽度与对话列相同（`max-w-thread px-6`）；运行中右侧主按钮变为 `Stop`（次要样式 + square 图标），输入内容时为 `Send`（追加）；等待用户时上方提示 |
+| 输入框 | `bg-canvas border-line-strong rounded-xl`，没有阴影，聚焦时不变（不用强调色）；`px-3.5 pt-3 pb-2.5`，正文 `text-body`；宽度与对话列相同（`max-w-thread px-6`），离窗口底 20。工具栏：附件按钮（sm 图标按钮），环境、workspace、模型是描边小标签（高 24、`rounded-md border-line`、`text-small fg-muted`，不带图标和箭头）；右端发送是 32px `rounded-lg` 的 `send` 方块，内放像素箭头。运行中右端是 Stop（32px `rounded-lg` 描边）、排队、插话（`rounded-lg`）。快捷键和插话、排队的含义放在按钮的提示里，输入框下面不再写一行说明。上方是状态行（3.2） |
 | Context 面板 | 屏幕内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
 | Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
 | Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |

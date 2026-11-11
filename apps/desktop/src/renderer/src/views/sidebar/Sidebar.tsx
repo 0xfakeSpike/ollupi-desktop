@@ -1,6 +1,6 @@
 import { groupByWorkspace } from '@ollupi/core'
 import { cn } from '@ollupi/ui'
-import { Blocks, Brain, CalendarClock, FolderPlus, Search, Settings, SquarePen } from 'lucide-react'
+import { Blocks, Bookmark, Clock, FolderPlus, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { go, useNavigation } from '../../domains/navigation'
 import { useThreads } from '../../domains/threads'
@@ -22,15 +22,18 @@ export function Sidebar() {
   const groups = useMemo(() => groupByWorkspace(workspaces, threads), [workspaces, threads])
 
   return (
-    <aside className="flex w-65 shrink-0 flex-col">
+    <aside className="flex w-66 shrink-0 flex-col">
       {/* Level with the screen's 40px header; the traffic lights sit here. */}
       <div className="drag h-10 shrink-0" />
       <nav className="flex flex-col gap-0.5 px-2 pb-2">
-        <NavButton icon={<SquarePen size={16} />} active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
+        <NavButton icon={<Plus size={16} />} primary active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
           {m.newThread}
         </NavButton>
         <NavButton icon={<Search size={16} />} active={screen.kind === 'search'} onClick={() => go({ kind: 'search' })} shortcut="⌘K">
           {m.search}
+        </NavButton>
+        <NavButton icon={<Clock size={16} />} active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
+          {m.cron}
         </NavButton>
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
@@ -60,16 +63,13 @@ export function Sidebar() {
       </div>
       <div className="flex flex-col gap-0.5 px-2 pt-2 pb-3">
         <UpdatePrompt />
-        <NavButton icon={<Brain size={16} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
+        <NavButton icon={<Bookmark size={16} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
           {m.memory}
-        </NavButton>
-        <NavButton icon={<CalendarClock size={16} />} active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
-          {m.cron}
         </NavButton>
         <NavButton icon={<Blocks size={16} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
           {m.capabilities}
         </NavButton>
-        <NavButton icon={<Settings size={16} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
+        <NavButton icon={<SlidersHorizontal size={16} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
           {m.settings}
         </NavButton>
         <ConnectionStatus />
@@ -78,8 +78,24 @@ export function Sidebar() {
   )
 }
 
-/** Sidebar rows share one grid: a 16px icon slot at 8px, the label at 32px. */
-function NavButton({ icon, active, onClick, shortcut, children }: { icon: ReactNode; active?: boolean; onClick(): void; shortcut?: string; children: ReactNode }) {
+/** Sidebar rows share one grid: a 16px icon slot at 8px, the label at 32px.
+ * Places read muted until chosen; starting a conversation, the primary
+ * action, reads in full. */
+function NavButton({
+  icon,
+  primary,
+  active,
+  onClick,
+  shortcut,
+  children,
+}: {
+  icon: ReactNode
+  primary?: boolean
+  active?: boolean
+  onClick(): void
+  shortcut?: string
+  children: ReactNode
+}) {
   return (
     <button
       type="button"
@@ -88,7 +104,7 @@ function NavButton({ icon, active, onClick, shortcut, children }: { icon: ReactN
       className={cn(
         'flex h-7 items-center gap-2 rounded-md px-2 text-left text-ui transition-colors duration-100 ease-standard',
         'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-        active ? 'bg-selected font-medium text-fg' : 'text-fg hover:bg-hover',
+        active ? 'bg-selected font-medium text-fg' : primary ? 'font-medium text-fg hover:bg-hover' : 'text-fg-muted hover:bg-hover hover:text-fg',
       )}
     >
       <span className="flex size-4 shrink-0 items-center justify-center text-fg-muted">

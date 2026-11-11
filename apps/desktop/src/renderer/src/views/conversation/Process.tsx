@@ -5,10 +5,9 @@
 // is no answer to read in their place; opening it, or a search landing in
 // it, keeps it open.
 
-import { callOf, groupReads, summarizeProcess, waitsForAnswer, waitsForApproval } from '@ollupi/core'
+import { callOf, groupReads, summarizeProcess, waitsForAnswer, waitsForApproval, type ProcessSummary } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { ProcessRow } from '@ollupi/ui'
-import { ListChecks } from 'lucide-react'
 import { useLayoutEffect, useMemo, useState } from 'react'
 import { useNavigation } from '../../domains/navigation'
 import { useT, type Messages } from '../../i18n'
@@ -31,10 +30,18 @@ export function Process({ items, ended, answered, endedAt }: { items: ItemRow[];
   // What waits on the person is never folded away.
   if (!ended || items.some((i) => waitsForApproval(i) || waitsForAnswer(i))) return steps
   const failed = failures(m, items)
+  const s = summarizeProcess(items)
   return (
     <ProcessRow
-      icon={<ListChecks size={14} />}
-      title={summaryLine(m, items, endedAt)}
+      title={summaryLine(m, s, endedAt)}
+      badge={
+        s.linesAdded + s.linesRemoved > 0 && (
+          <span className="shrink-0 font-mono text-small tabular-nums">
+            {s.linesAdded > 0 && <span className="text-success">+{s.linesAdded}</span>}
+            {s.linesRemoved > 0 && <span className="ml-1 text-danger">−{s.linesRemoved}</span>}
+          </span>
+        )
+      }
       meta={failed > 0 && <span className="text-danger">{m.conversation.process.failed(failed)}</span>}
       open={focused || (chosen ?? !answered)}
       onOpenChange={setChosen}
@@ -62,9 +69,9 @@ function Steps({ items }: { items: ItemRow[] }) {
   )
 }
 
-/** "Worked for 25s · 6 commands · read 3 files": what was done, by kind. */
-function summaryLine(m: Messages, items: ItemRow[], endedAt: string | undefined): string {
-  const s = summarizeProcess(items)
+/** "Worked for 25s · 6 commands · read 3 files": what was done, by kind;
+ * the lines changed follow it in their colours. */
+function summaryLine(m: Messages, s: ProcessSummary, endedAt: string | undefined): string {
   const p = m.conversation.process
   return [
     p.worked(duration(m, s.startedAt, s.completedAt ?? endedAt)),

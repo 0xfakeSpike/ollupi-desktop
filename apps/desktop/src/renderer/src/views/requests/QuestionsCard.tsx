@@ -4,7 +4,6 @@
 
 import type { UserInputAnswer, UserInputQuestion } from '@ollupi/protocol'
 import { ActionCard, Button, cn, Input } from '@ollupi/ui'
-import { MessageCircleQuestion } from 'lucide-react'
 import { useState } from 'react'
 import type { PendingRequest } from '../../domains/requests'
 import { useT } from '../../i18n'
@@ -25,12 +24,12 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
   return (
     <ActionCard
       tone="accent"
-      icon={<MessageCircleQuestion size={16} />}
+      kicker={m.requests.questions.kicker}
       // One question is the card's own; several are listed under a count.
       title={single ? questions[0]!.question : m.requests.questions.many(questions.length)}
       status={!single && m.requests.questions.progress(answered, questions.length)}
       actions={
-        <Button size="sm" variant="primary" disabled={answered < questions.length} onClick={submit}>
+        <Button variant="primary" disabled={answered < questions.length} onClick={submit}>
           {m.requests.questions.submit}
         </Button>
       }
@@ -81,9 +80,9 @@ function Question({ question, asked, value, onChange }: QuestionProps) {
               aria-checked={value === o.label}
               onClick={() => onChange(o.label)}
               className={cn(
-                'flex items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-100 ease-standard hover:bg-hover',
+                'flex min-h-8 items-start gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors duration-100 ease-standard hover:bg-hover',
                 'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-                value === o.label && 'bg-hover',
+                value === o.label && 'bg-selected hover:bg-selected',
               )}
             >
               <Radio checked={value === o.label} className="mt-0.5" />
@@ -93,7 +92,7 @@ function Question({ question, asked, value, onChange }: QuestionProps) {
               </span>
             </button>
           ))}
-          <div className="flex items-center gap-2 px-2 py-1">
+          <div className="flex min-h-8 items-center gap-2.5 px-2 py-1">
             <Radio checked={own} />
             <Input placeholder={m.requests.questions.ownAnswer} value={own ? value : ''} onChange={(e) => onChange(e.target.value)} />
           </div>

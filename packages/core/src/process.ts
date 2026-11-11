@@ -64,8 +64,11 @@ export function layoutTurn(items: readonly ItemRow[]): TurnPart[] {
 /** What a process did, by kind of call, for the line it folds into. */
 export interface ProcessSummary {
   commands: number
-  /** Distinct files edited or written. */
+  /** Distinct files edited or written, by the calls that went through. */
   filesChanged: number
+  /** Lines those calls added and removed, as their diffs count them. */
+  linesAdded: number
+  linesRemoved: number
   reads: number
   /** glob and grep calls. */
   searches: number
@@ -78,7 +81,18 @@ export interface ProcessSummary {
 }
 
 export function summarizeProcess(items: readonly ItemRow[]): ProcessSummary {
-  const summary: ProcessSummary = { commands: 0, filesChanged: 0, reads: 0, searches: 0, subagents: 0, tools: 0, startedAt: items[0]?.startedAt ?? '', completedAt: undefined }
+  const summary: ProcessSummary = {
+    commands: 0,
+    filesChanged: 0,
+    linesAdded: 0,
+    linesRemoved: 0,
+    reads: 0,
+    searches: 0,
+    subagents: 0,
+    tools: 0,
+    startedAt: items[0]?.startedAt ?? '',
+    completedAt: undefined,
+  }
   const changed = new Set<string>()
   for (const item of items) {
     if (item.type !== 'toolCall') continue
@@ -88,7 +102,11 @@ export function summarizeProcess(items: readonly ItemRow[]): ProcessSummary {
         summary.commands++
         break
       case 'file':
+        // A declined or failed change wrote nothing.
+        if (item.status !== 'completed') break
         changed.add(call.change.path)
+        summary.linesAdded += call.change.added
+        summary.linesRemoved += call.change.removed
         break
       case 'read':
         summary.reads++

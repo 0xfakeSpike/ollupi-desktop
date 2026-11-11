@@ -10,7 +10,7 @@ export function UserMessage({ item }: { item: ItemRow }) {
   return (
     <div className="flex flex-col items-end gap-2">
       <Attachments attachments={item.attachments} />
-      {item.text && <div className="selectable max-w-4/5 rounded-2xl bg-surface px-4 py-2 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>}
+      {item.text && <div className="selectable max-w-140 rounded-xl bg-surface px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>}
     </div>
   )
 }

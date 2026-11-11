@@ -4,7 +4,7 @@
 // draft itself is kept by domain/drafts, so it outlives the box: switching
 // conversations and coming back leaves the text where it was.
 
-import { AutoTextarea, cn, IconButton, Kbd, PixelArrow, useTooltip } from '@ollupi/ui'
+import { AutoTextarea, cn, IconButton, PixelArrow, useTooltip } from '@ollupi/ui'
 import { FileText, ListEnd, Paperclip, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
 import type { DraftAttachment } from '../../domains/attachments'
@@ -29,7 +29,12 @@ export interface ComposerProps {
 
 /** The two ways to send while a turn runs: into it, or after it. */
 const pill =
-  'flex h-8 items-center gap-1.5 rounded-full px-3 text-small font-medium transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25'
+  'flex h-8 items-center gap-1.5 rounded-lg px-3 text-small font-medium transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25'
+
+/** A choice on the box's toolbar (environment, workspace, model): a small
+ * outlined chip holding a native select. */
+export const chip =
+  'relative flex h-6 max-w-72 items-center rounded-md border border-line px-2 text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg focus-within:ring-3 focus-within:ring-focus'
 
 export function Composer({ draft, placeholder, running, disabled, onSubmit, onStop, toolbar }: ComposerProps) {
   const { text, attachments } = useDraft(draft)
@@ -38,7 +43,10 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
   const m = useT()
-  const sendTip = useTooltip({ label: m.conversation.composer.send })
+  const t = m.conversation.composer
+  const sendTip = useTooltip({ label: t.send, hint: t.sendHint })
+  const interjectTip = useTooltip({ label: t.interject, hint: t.interjectHint })
+  const queueTip = useTooltip({ label: t.queue, hint: t.queueHint })
   // A draft put back after a reload or a switch is there to be continued: the
   // caret goes after it, not where the browser focuses a filled box.
   useEffect(() => {
@@ -94,18 +102,18 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-thread px-6 pb-3">
+    <div className="relative mx-auto w-full max-w-thread px-6 pb-5">
       <div
         onDragOver={onDragOver}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          'relative rounded-2xl border border-line bg-raised shadow-sm transition duration-160 ease-standard focus-within:border-line-strong focus-within:shadow-md',
+          'relative flex flex-col gap-2.5 rounded-xl border border-line-strong bg-canvas px-3.5 pt-3 pb-2.5 transition duration-160 ease-standard',
           dragging && 'border-accent ring-3 ring-focus',
         )}
       >
         {attachments.length > 0 && (
-          <ul aria-label={m.conversation.composer.attachments} className="flex flex-wrap gap-2 px-3 pt-3">
+          <ul aria-label={t.attachments} className="flex flex-wrap gap-2">
             {attachments.map((a) => (
               <li key={a.id}>
                 <AttachmentChip draft={a} onRemove={() => detach(a.id)} />
@@ -113,20 +121,18 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
             ))}
           </ul>
         )}
-        <div className="px-4 pt-3">
-          <AutoTextarea
-            ref={input}
-            value={text}
-            placeholder={placeholder}
-            disabled={disabled}
-            onChange={(e) => setDraftText(draft, e.target.value)}
-            onKeyDown={onKeyDown}
-            onPaste={onPaste}
-          />
-        </div>
-        <div className="flex items-center gap-2 px-2 pt-1 pb-2">
-          <IconButton label={m.conversation.composer.attach} disabled={disabled} onClick={() => picker.current?.click()}>
-            <Paperclip size={16} />
+        <AutoTextarea
+          ref={input}
+          value={text}
+          placeholder={placeholder}
+          disabled={disabled}
+          onChange={(e) => setDraftText(draft, e.target.value)}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
+        />
+        <div className="flex items-center gap-2">
+          <IconButton label={t.attach} size="sm" disabled={disabled} className="-ml-1" onClick={() => picker.current?.click()}>
+            <Paperclip size={14} />
           </IconButton>
           <input
             ref={picker}
@@ -138,31 +144,33 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
               e.target.value = ''
             }}
           />
-          <div className="flex min-w-0 flex-1 items-center gap-1">{toolbar}</div>
+          <div className="flex min-w-0 flex-1 items-center gap-2">{toolbar}</div>
           {running && onStop && (
-            <IconButton label={m.conversation.composer.stop} onClick={onStop} className="size-8 rounded-full border border-line-strong">
+            <IconButton label={t.stop} onClick={onStop} className="size-8 rounded-lg border border-line-strong">
               <Square size={12} fill="currentColor" />
             </IconButton>
           )}
           {running ? (
             <>
-              <button type="button" title="⌥ Enter" disabled={blocked} onClick={() => void submit('queue')} className={cn(pill, 'border border-line-strong text-fg hover:bg-hover')}>
+              <button type="button" disabled={blocked} onClick={() => void submit('queue')} className={cn(pill, 'border border-line-strong text-fg hover:bg-hover')} {...queueTip.trigger}>
                 <ListEnd size={14} />
-                {m.conversation.composer.queue}
+                {t.queue}
               </button>
-              <button type="button" title="Enter" disabled={blocked} onClick={() => void submit('steer')} className={cn(pill, 'bg-send text-send-fg hover:opacity-85')}>
+              {queueTip.tooltip}
+              <button type="button" disabled={blocked} onClick={() => void submit('steer')} className={cn(pill, 'bg-send text-send-fg hover:opacity-85')} {...interjectTip.trigger}>
                 <PixelArrow />
-                {m.conversation.composer.interject}
+                {t.interject}
               </button>
+              {interjectTip.tooltip}
             </>
           ) : (
             <>
               <button
                 type="button"
-                aria-label={m.conversation.composer.send}
+                aria-label={t.send}
                 disabled={blocked}
                 onClick={() => void submit('steer')}
-                className="flex size-8 items-center justify-center rounded-full bg-send text-send-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
+                className="flex size-8 items-center justify-center rounded-lg bg-send text-send-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
                 {...sendTip.trigger}
               >
                 <PixelArrow />
@@ -171,16 +179,6 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
             </>
           )}
         </div>
-      </div>
-      <div className="mt-2 flex justify-center gap-3 text-small text-fg-subtle">
-        {running ? (
-          <>
-            <span>{m.conversation.composer.interjects(<Kbd>Enter</Kbd>)}</span>
-            <span>{m.conversation.composer.queues(<Kbd>⌥ Enter</Kbd>)}</span>
-          </>
-        ) : (
-          <span>{m.conversation.composer.idle(<Kbd>Enter</Kbd>, <Kbd>Shift Enter</Kbd>)}</span>
-        )}
       </div>
     </div>
   )
