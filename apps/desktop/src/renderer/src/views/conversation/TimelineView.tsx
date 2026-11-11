@@ -2,25 +2,14 @@
 // Items are drawn by ItemView; a turn reads as core's layoutTurn: the
 // person's words, the process (Process) and the answer.
 
-import {
-  activeTurn,
-  groupByTurn,
-  layoutTurn,
-  needsUser,
-  queuedTurns,
-  turnActive,
-  waitingOnUser,
-  type Timeline,
-  type TurnGroup,
-} from '@ollupi/core'
-import type { ItemRow, TurnRow } from '@ollupi/protocol'
+import { groupByTurn, layoutTurn, queuedTurns, turnActive, type Timeline, type TurnGroup } from '@ollupi/core'
+import type { TurnRow } from '@ollupi/protocol'
 import { Button, Callout } from '@ollupi/ui'
 import { CalendarClock, Clock, OctagonX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { loadOlder } from '../../domains/conversation'
 import { useCron } from '../../domains/cron'
 import { focusItem, useNavigation } from '../../domains/navigation'
-import { useThreadSummary } from '../../domains/threads'
 import { useT } from '../../i18n'
 import { duration, usageLine } from '../../i18n/format'
 import { markFound } from '../common/found'
@@ -33,11 +22,6 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
   const groups = useMemo(() => groupByTurn(timeline), [timeline])
   const queued = queuedTurns(timeline)
-  const summary = useThreadSummary(threadId)
-  const running = activeTurn(timeline)
-  // Working: the turn runs and nobody is asked anything, here or (as the
-  // thread's status reports) in one of its subagents.
-  const working = !!running && !waitingOnUser(timeline) && !needsUser(summary?.status)
   const jobNames = useJobNames()
   const m = useT()
   useFocusedItem(timeline)
@@ -48,7 +32,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
         {timeline.hasMore && <LoadOlder threadId={threadId} />}
         {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
         {groups.map((g) => (
-          <TurnSection key={g.turn.id} group={g} working={working && g.turn.id === running?.id} jobName={jobNames(g.turn)} />
+          <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} />
         ))}
         {queued.map((t) => (
           <QueuedTurn key={t.id} turn={t} jobName={jobNames(t)} />
@@ -103,12 +87,11 @@ function LoadOlder({ threadId }: { threadId: string }) {
   )
 }
 
-function TurnSection({ group, working, jobName }: { group: TurnGroup; working: boolean; jobName: string | undefined }) {
+function TurnSection({ group, jobName }: { group: TurnGroup; jobName: string | undefined }) {
   const { turn, items } = group
   const parts = useMemo(() => layoutTurn(items), [items])
   const ended = !turnActive(turn.status)
   const answered = parts.some((p) => p.kind === 'answer')
-  const m = useT()
   return (
     <section className="flex flex-col gap-3">
       {jobName && <ScheduledBy name={jobName} />}
@@ -122,7 +105,6 @@ function TurnSection({ group, working, jobName }: { group: TurnGroup; working: b
           </div>
         ),
       )}
-      {working && !streaming(items.at(-1)) && <div className="shimmer w-fit text-ui">{m.conversation.timeline.working}</div>}
       <TurnOutcome turn={turn} />
     </section>
   )
@@ -135,10 +117,6 @@ function ScheduledBy({ name }: { name: string }) {
       <CalendarClock size={14} /> {m.conversation.timeline.sentBy(name)}
     </div>
   )
-}
-
-function streaming(item: ItemRow | undefined): boolean {
-  return !!item && item.status === 'inProgress' && (item.type === 'agentMessage' || item.type === 'reasoning')
 }
 
 function TurnOutcome({ turn }: { turn: TurnRow }) {

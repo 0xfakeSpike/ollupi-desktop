@@ -1,7 +1,7 @@
 // Shown until the backend is up and the first sync is done: starting,
 // connecting, or a startup failure and what to do about it.
 
-import { Button, Callout, Spinner } from '@ollupi/ui'
+import { Button, Callout, PixelLoader } from '@ollupi/ui'
 import { FileCog, RotateCw, TriangleAlert } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import type { BackendFailure } from '../../../../shared/ipc'
@@ -28,8 +28,7 @@ export function BackendScreen() {
   return (
     <Shell>
       <div className="flex flex-col items-center gap-3 text-ui text-fg-muted">
-        <Spinner size={20} />
-        <div>{label}</div>
+        <PixelLoader label={label} />
         {gateway === 'reconnecting' && lastError && <div className="text-small text-fg-subtle">{lastError}</div>}
       </div>
     </Shell>

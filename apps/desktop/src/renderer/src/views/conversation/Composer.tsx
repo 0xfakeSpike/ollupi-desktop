@@ -4,8 +4,8 @@
 // draft itself is kept by domain/drafts, so it outlives the box: switching
 // conversations and coming back leaves the text where it was.
 
-import { AutoTextarea, cn, IconButton, Kbd, useTooltip } from '@ollupi/ui'
-import { ArrowUp, FileText, ListEnd, Paperclip, Square, X } from 'lucide-react'
+import { AutoTextarea, cn, IconButton, Kbd, PixelArrow, useTooltip } from '@ollupi/ui'
+import { FileText, ListEnd, Paperclip, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
 import type { DraftAttachment } from '../../domains/attachments'
 import { addDraftFiles, removeDraftAttachment, sentDraft, setDraftText, useDraft } from '../../domains/drafts'
@@ -25,15 +25,13 @@ export interface ComposerProps {
   onStop?(): void
   /** Controls on the toolbar's left (model, workspace...). */
   toolbar?: ReactNode
-  /** Sits on the box's top edge, near its right end, behind the box. */
-  perch?: ReactNode
 }
 
 /** The two ways to send while a turn runs: into it, or after it. */
 const pill =
   'flex h-8 items-center gap-1.5 rounded-full px-3 text-small font-medium transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25'
 
-export function Composer({ draft, placeholder, running, disabled, onSubmit, onStop, toolbar, perch }: ComposerProps) {
+export function Composer({ draft, placeholder, running, disabled, onSubmit, onStop, toolbar }: ComposerProps) {
   const { text, attachments } = useDraft(draft)
   const [sending, setSending] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -97,11 +95,6 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
 
   return (
     <div className="relative mx-auto w-full max-w-thread px-6 pb-3">
-      {perch && (
-        <div aria-hidden className="pointer-events-none absolute right-14 bottom-full">
-          {perch}
-        </div>
-      )}
       <div
         onDragOver={onDragOver}
         onDragLeave={() => setDragging(false)}
@@ -158,7 +151,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
                 {m.conversation.composer.queue}
               </button>
               <button type="button" title="Enter" disabled={blocked} onClick={() => void submit('steer')} className={cn(pill, 'bg-send text-send-fg hover:opacity-85')}>
-                <ArrowUp size={14} strokeWidth={2.5} />
+                <PixelArrow />
                 {m.conversation.composer.interject}
               </button>
             </>
@@ -172,7 +165,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
                 className="flex size-8 items-center justify-center rounded-full bg-send text-send-fg transition duration-100 ease-standard hover:opacity-85 focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none disabled:opacity-25"
                 {...sendTip.trigger}
               >
-                <ArrowUp size={16} strokeWidth={2.5} />
+                <PixelArrow />
               </button>
               {sendTip.tooltip}
             </>

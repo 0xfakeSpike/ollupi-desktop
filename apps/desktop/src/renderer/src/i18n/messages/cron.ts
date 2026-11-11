@@ -2,6 +2,7 @@
 
 export const en = {
   title: 'Scheduled tasks',
+  loading: 'Loading scheduled tasks…',
   scope: 'Workspace',
   all: 'All',
   general: 'No workspace',
@@ -64,6 +65,7 @@ export const en = {
 
 export const zh: typeof en = {
   title: '定时任务',
+  loading: '正在加载定时任务…',
   scope: '工作区',
   all: '全部',
   general: '无工作区',

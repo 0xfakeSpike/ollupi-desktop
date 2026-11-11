@@ -3,7 +3,7 @@
 // not start with a skill it cannot load, so every change is checked with
 // its own rules first and then restarts the backend.
 
-import { Badge, Button, Callout, Dialog, EmptyState, Field, IconButton, Input, Spinner, Textarea } from '@ollupi/ui'
+import { Badge, Button, Callout, Dialog, EmptyState, Field, IconButton, Input, PixelLoader, Textarea } from '@ollupi/ui'
 import { FolderInput, FolderOpen, Pencil, Plus, RotateCw, Sparkles, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { NewSkill, Skill, SkillChange, SkillList } from '../../../../shared/ipc'
@@ -62,8 +62,8 @@ export function SkillsSection() {
   return (
     <>
       {!list ? (
-        <div className="flex justify-center py-12 text-fg-subtle">
-          <Spinner />
+        <div className="flex justify-center py-12">
+          <PixelLoader label={m.skills.screen.loading} />
         </div>
       ) : !list.dir ? (
         list.ok ? (
@@ -334,8 +334,8 @@ function EditSkillDialog({ name, onClose, onSave }: { name: string; onClose(): v
     >
       <div className="flex flex-col gap-4">
         {text === undefined ? (
-          <div className="flex justify-center py-12 text-fg-subtle">
-            <Spinner />
+          <div className="flex justify-center py-12">
+            <PixelLoader label={t.loading} />
           </div>
         ) : (
           <Field label={t.file} hint={t.fileHint}>

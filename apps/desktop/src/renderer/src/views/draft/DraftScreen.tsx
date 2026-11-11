@@ -2,7 +2,7 @@
 // message; sending creates it. Its workspace's panels and a browser show
 // beside it; the pages it opens become the thread's.
 
-import { IconButton } from '@ollupi/ui'
+import { IconButton, Pup } from '@ollupi/ui'
 import { ChevronDown, Cloud, Folder, Globe, Laptop } from 'lucide-react'
 import { useState } from 'react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
@@ -17,7 +17,6 @@ import { Composer } from '../conversation/Composer'
 import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { WorkspacePanel, WorkspacePanelButtons } from '../conversation/WorkspacePanels'
-import { Pup } from './Pup'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
@@ -37,7 +36,11 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           {workspace && <WorkspacePanelButtons />}
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
-          <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
+          <div className="flex items-center gap-3">
+            {/* Idle: it smiles beside the greeting and blinks every few seconds. */}
+            <Pup motion="idle" size={40} />
+            <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
+          </div>
           <p className="text-ui text-fg-muted">
             {workspace ? (
               m.conversation.draft.commandsRunIn(<span className="font-mono text-small">{workspace.rootPath}</span>)
@@ -57,7 +60,6 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           draft={NEW_CONVERSATION}
           placeholder={m.conversation.draft.placeholder}
           onSubmit={(message) => startThread(workspaceId, message)}
-          perch={<Pup />}
           toolbar={
             <>
               <EnvironmentPicker onManage={() => setManaging(true)} />

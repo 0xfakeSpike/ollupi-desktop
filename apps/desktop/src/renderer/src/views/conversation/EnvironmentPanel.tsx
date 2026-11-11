@@ -7,7 +7,7 @@
 // message.
 
 import type { EnvironmentRow, WorkspaceRow } from '@ollupi/protocol'
-import { Button, IconButton, Spinner, Textarea } from '@ollupi/ui'
+import { Button, IconButton, PixelLoader, Textarea } from '@ollupi/ui'
 import { ArrowLeft, Cloud, ExternalLink, Folder, GitBranch, GitCommitHorizontal, Laptop, RotateCw, Undo2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Changes, FileChange, FileDiff, Head } from '../../../../shared/ipc'
@@ -69,8 +69,8 @@ export function EnvironmentPanel({
         {/* A diff is read at length: it takes the whole panel. */}
         {!open && <Where environment={environment} root={root} head={changes?.repo ? changes.head : undefined} />}
         {!changes ? (
-          <div className="flex justify-center py-8 text-fg-subtle">
-            <Spinner />
+          <div className="flex justify-center py-8">
+            <PixelLoader label={t.loading} />
           </div>
         ) : !changes.repo ? (
           <p className="text-small text-fg-subtle">{t.notRepo}</p>
@@ -260,8 +260,8 @@ function Diff({ root, file, version, onBack }: { root: string; file: FileChange;
         )}
       </div>
       {!diff ? (
-        <div className="flex justify-center py-8 text-fg-subtle">
-          <Spinner />
+        <div className="flex justify-center py-8">
+          <PixelLoader label={t.loadingDiff} />
         </div>
       ) : (
         <>

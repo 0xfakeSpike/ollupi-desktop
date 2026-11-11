@@ -3,7 +3,7 @@
 // is read from the gateway when first shown.
 
 import type { Attachment } from '@ollupi/protocol'
-import { cn, Dialog, Spinner } from '@ollupi/ui'
+import { cn, Dialog, PixelLoader, Spinner } from '@ollupi/ui'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useAttachmentURL } from '../../../domains/attachments'
@@ -76,7 +76,7 @@ function TextContent({ threadId, attachment, onClose }: { threadId: string; atta
   const m = useT()
   return (
     <Dialog title={attachment.name} wide closeLabel={m.common.close} onClose={onClose}>
-      {url ? <CodeBlock code={decodeText(url)} label={attachment.mimeType} /> : <Spinner />}
+      {url ? <CodeBlock code={decodeText(url)} label={attachment.mimeType} /> : <PixelLoader label={m.common.reading} />}
     </Dialog>
   )
 }

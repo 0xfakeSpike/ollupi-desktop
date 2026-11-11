@@ -5,7 +5,7 @@
 // files as it works, so reloading reads every open folder again.
 
 import type { WorkspaceRow } from '@ollupi/protocol'
-import { cn, IconButton, Spinner } from '@ollupi/ui'
+import { cn, IconButton, PixelLoader } from '@ollupi/ui'
 import { ChevronRight, Code, ExternalLink, Eye, File, Folder, RotateCw } from 'lucide-react'
 import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
@@ -125,8 +125,8 @@ function Entries({
 
   if (!entries) {
     return depth === 0 ? (
-      <div className="flex justify-center py-8 text-fg-subtle">
-        <Spinner />
+      <div className="flex justify-center py-8">
+        <PixelLoader label={t.loadingFolder} />
       </div>
     ) : null
   }
@@ -240,8 +240,8 @@ function Preview({
         </IconButton>
       </div>
       {!file ? (
-        <div className="flex justify-center py-8 text-fg-subtle">
-          <Spinner />
+        <div className="flex justify-center py-8">
+          <PixelLoader label={t.loadingFile} />
         </div>
       ) : file.kind === 'text' ? (
         <>

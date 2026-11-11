@@ -25,6 +25,7 @@ import {
   upsertItem,
   upsertThread,
   upsertTurn,
+  waitingFor,
   waitsForAnswer,
   waitsForApproval,
   elapsed,
@@ -97,6 +98,18 @@ describe('timeline', () => {
       expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, status)])))?.id).toBe('u1')
     }
     expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, 'queued')])))).toBeUndefined()
+  })
+
+  it('says what the running turn waits for: its own calls, or a subagent by the status', () => {
+    const asks = item('c', 1, { type: 'toolCall', status: 'pending', approval: { id: 'a', requestedAt: '2026-01-01T00:00:00Z' } })
+    const answer = item('q', 2, { type: 'toolCall', status: 'inProgress', await: { by: 'user', request: {} } })
+    const running = (items: ItemRow[]) => timelineFromPage(page(items, [turn('u1', 1, 'inProgress')]))
+    expect(waitingFor(running([]), 'active')).toBeUndefined()
+    expect(waitingFor(running([asks, answer]), 'active')).toBe('approval')
+    expect(waitingFor(running([answer]), 'active')).toBe('answer')
+    expect(waitingFor(running([]), 'waitingOnUserInput')).toBe('answer')
+    expect(waitingFor(running([]), 'waitingOnApproval')).toBe('approval')
+    expect(waitingFor(timelineFromPage(page([asks], [turn('u1', 1)])), 'waitingOnApproval')).toBeUndefined()
   })
 
   it('keeps older loaded history when refreshing from the latest page', () => {

@@ -3,7 +3,7 @@
 // Timeline, so any state container can hold it and unchanged parts keep
 // their identity.
 
-import type { ItemRow, ServerNotifications, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
+import type { ItemRow, ServerNotifications, ThreadPageResult, ThreadRow, ThreadStatus, TurnRow } from '@ollupi/protocol'
 import { waitsForAnswer, waitsForApproval } from './calls'
 
 /** The notifications that change a thread's timeline. */
@@ -118,12 +118,17 @@ export function activeTurn(t: Timeline): TurnRow | undefined {
   return t.turns.find((turn) => turnActive(turn.status))
 }
 
-/** repo.ThreadState.PendingRequests for this thread alone: a call of the
- * running turn waits for an approval or an answer. (The thread's status
- * also counts its subagents' waits; this does not.) */
-export function waitingOnUser(t: Timeline): boolean {
+/** What the running turn waits on the person for: an approval or an
+ * answer. A call of its own says so (repo.ThreadState.PendingRequests); a
+ * subagent's wait shows only in the thread's status, which counts it as the
+ * thread's own. An approval comes first: it blocks the call it is asked for. */
+export function waitingFor(t: Timeline, status: ThreadStatus | undefined): 'approval' | 'answer' | undefined {
   const turn = activeTurn(t)
-  return !!turn && t.items.some((it) => it.turnId === turn.id && (waitsForApproval(it) || waitsForAnswer(it)))
+  if (!turn) return undefined
+  const own = t.items.filter((it) => it.turnId === turn.id)
+  if (status === 'waitingOnApproval' || own.some(waitsForApproval)) return 'approval'
+  if (status === 'waitingOnUserInput' || own.some(waitsForAnswer)) return 'answer'
+  return undefined
 }
 
 /** Turns waiting to start, in the order they will run. Their input lives on

@@ -253,3 +253,39 @@
     --ol-chart-4: #c98500;
   }
 }
+
+/* PixelLoader (pixels.tsx): hidden for its first 300ms, then three squares
+   light in ink one after another, 300ms each, and rest a beat. A pixel
+   jumps between frames (steps), never eases. */
+@keyframes pixel-appear {
+  from {
+    visibility: hidden;
+  }
+}
+@keyframes pixel-beat {
+  0% {
+    background: var(--color-ink);
+  }
+  25% {
+    background: var(--color-line-strong);
+  }
+}
+.pixel-loader {
+  animation: pixel-appear 0s 300ms both;
+}
+.pixel-loader > span > span {
+  background: var(--color-line-strong);
+  animation: pixel-beat 1200ms steps(1, end) infinite;
+}
+.pixel-loader > span > span:nth-child(2) {
+  animation-delay: 300ms;
+}
+.pixel-loader > span > span:nth-child(3) {
+  animation-delay: 600ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pixel-loader > span > span {
+    animation: none;
+    background: var(--color-fg-subtle);
+  }
+}
