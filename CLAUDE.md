@@ -2,8 +2,8 @@
 
 ## 功能清单
 
-`docs/features.md` 列出 ollupi（引擎）和 ollupi-desktop 的全部功能。新增、删除或修改功能时，在同一次改动里更新它：
+功能清单在文档仓库 ollupi-docs 的 `docs/zh/reference/features.md`，列出 ollupi（引擎）和 ollupi-desktop 的全部功能；还没做的功能在同目录的 `backlog.md`。在这里新增、删除或修改功能后，到 ollupi-docs 更新清单，写法见那个仓库的 CLAUDE.md。
 
-- 保持现有结构：大模块下分层级的小功能点，简洁
-- 每项标注来源：〔引擎〕ollupi 提供，〔桌面〕desktop 提供
-- 删掉的功能直接从清单移除，不标"已废弃"
+## 设计
+
+界面的设计准则在 `packages/ui/DESIGN.md`。改界面、加组件前先看它，token 只用 `packages/ui/src/theme.css` 里定义的。

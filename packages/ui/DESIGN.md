@@ -1,12 +1,12 @@
 # ollupi desktop 设计准则
 
-这是 [design-brief.md](design-brief.md) 的答复：设计思想、设计语言（token）、组件与模式的规则、文案语气。改写现有界面和新增界面都以它为准。每条规则都尽量落到具体的值或可判断的条件上；拿不准时，回到第 1 节的四个关键词做取舍。第 0 节是品牌：颜色和像素小狼从哪来、产品和传播各用多大的音量。
+ollupi desktop 的设计思想、设计语言（token）、组件与模式的规则、文案语气。改写现有界面和新增界面都以它为准。每条规则都尽量落到具体的值或可判断的条件上；拿不准时，回到第 1 节的四个关键词做取舍。第 0 节是品牌：颜色和像素小狼从哪来、产品和传播各用多大的音量。
 
 ---
 
 ## 0. 品牌：格墨
 
-Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，是 Ollupi 的性格；**墨**是纸与墨的产品界面，安静、可信。颜色、形状、语气都从小狼来，不向任何一家产品对齐数值。方向稿在 [brand-direction/](brand-direction/README.md)，那里是推导和示意，规则以本节为准。
+Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，是 Ollupi 的性格；**墨**是纸与墨的产品界面，安静、可信。颜色、形状、语气都从小狼来，不向任何一家产品对齐数值。推导过程的方向稿已经不在仓库里，要看可以翻 `a2b0368` 及之前的 `docs/brand-direction/`；规则以本节为准。
 
 ### 0.1 一个源头：小狼身上的五种颜色
 
@@ -34,7 +34,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 ### 0.3 像素小狼
 
 - **网格**：20×20，每格一种颜色，只用 0.1 的颜色。格子落在整像素上：尺寸取 20 的整数倍（20、40、60、120、240）；16px 只给 favicon 和系统通知。矢量文件用 `shape-rendering="crispEdges"`。
-- **脸与状态**。界面里由 `Pup`（`packages/ui/src/pixels.tsx`）按 `face` / `motion` 画，图标和传播用 `docs/logo/` 里的文件。产品里只用这几张：
+- **脸与状态**。界面里由 `Pup`（`packages/ui/src/pixels.tsx`）按 `face` / `motion` 画，图标和传播用 `assets/logo/` 里的文件。产品里只用这几张：
 
 | 脸 | 文件 | 状态 | 产品里的位置 |
 |---|---|---|---|
@@ -121,7 +121,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
    (bg-canvas, text-fg-muted, border-line, text-ui, rounded-lg, ...), so a
    theme is a set of variable values and dark mode needs no per-component
    classes. The resets below remove Tailwind's defaults: a class outside
-   these scales produces no style. See docs/design-guidelines.md. */
+   these scales produces no style. See packages/ui/DESIGN.md. */
 
 /* Inter for the interface and prose, JetBrains Mono for code, both bundled
    (OFL); Chinese falls through to the system's PingFang. */
@@ -266,7 +266,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
   --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
-/* The 格墨 palette, one for the whole product (docs/design-guidelines.md
+/* The 格墨 palette, one for the whole product (packages/ui/DESIGN.md
    §0). Every colour comes from the pixel pup: Night is its outline,
    Lavender its fur, Snow its face, Blush its cheeks. The neutrals lean a
    little toward Night, and everything translucent (hover, lines,

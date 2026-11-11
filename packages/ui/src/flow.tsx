@@ -1,4 +1,4 @@
-// The conversation flow's three weights (docs/design-guidelines.md §3.1):
+// The conversation flow's three weights (packages/ui/DESIGN.md §3.1):
 // a ProcessRow for each step of the agent's process, a Block for content
 // that stands on its own, an ActionCard for what waits on the user.
 

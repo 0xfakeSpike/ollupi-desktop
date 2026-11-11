@@ -1,5 +1,5 @@
 <h1>
-  <img alt="Ollupi" src="docs/logo/logo.svg" width="240">
+  <img alt="Ollupi" src="assets/logo/logo.svg" width="240">
 </h1>
 
 [ollupi](https://github.com/0xfakeSpike/ollupi) 的 macOS 桌面端。所有会话、子 agent 和定时任务共享一个执行池，可以同时开很多个会话；等你审批或回答的会话不占并发名额，状态存在本机，重启后接着跑。
@@ -26,9 +26,13 @@ xattr -dr com.apple.quarantine /Applications/Ollupi.app
 
 此外还有 **定时任务**（到点向会话发一条消息）、**记忆**（从会话中学习，在会话中使用），以及 **能力** 里的技能、MCP 服务器和工具列表。
 
-想在手机上操作，可以接一个飞书机器人：在机器人的单聊里发消息就会开始一个会话，在它回复的话题里接着聊，审批和提问用卡片处理。设置步骤见 [docs/feishu.md](docs/feishu.md)。
+想在手机上操作，可以接一个飞书机器人：在机器人的单聊里发消息就会开始一个会话，在它回复的话题里接着聊，审批和提问用卡片处理。设置步骤见[文档站](https://0xfakespike.github.io/ollupi-docs/zh/app/feishu)。
 
 配置和数据都在 `~/.ollupi`，配置文件是 `~/.ollupi/config.yaml`，可在 **设置 → 通用** 里打开。后端起不来时，界面会显示原因和后端日志。
+
+## 文档
+
+使用指南、实现说明、功能清单和待办都在[文档站](https://0xfakespike.github.io/ollupi-docs/zh/)。
 
 ## 许可
 
