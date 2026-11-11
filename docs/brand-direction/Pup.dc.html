@@ -13,7 +13,7 @@ body{margin:0}
 </style>
 </helmet>
 <div role="img" aria-label="{{label}}" style="width: {{px}}px; height: {{px}}px; display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); grid-template-rows: repeat(20, minmax(0, 1fr));">
-<sc-for list="{{cells}}" as="c" hint-placeholder-count="400"><div style="background: {{c}}"></div></sc-for>
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="400"><div style="background: {{c}}; box-shadow: 0 0 0 0.5px {{c}}"></div></sc-for>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"face":{"editor":"enum","options":["smile","oh","blink","look-left","look-right","grin","wink"],"default":"smile"},"cell":{"editor":"int","min":1,"max":24,"default":12},"animate":{"editor":"enum","options":["none","think","blink"],"default":"none"},"$preview":{"width":240,"height":240}}'>
