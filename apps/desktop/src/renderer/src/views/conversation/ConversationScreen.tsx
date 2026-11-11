@@ -1,6 +1,6 @@
 import { activeTurn, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
 import { Badge, Button, IconButton, PixelLoader, Pup, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Folder, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
 import { exportThread, type ExportFormat } from '../../domains/export'
@@ -72,9 +72,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           )}
           {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
           {workspace && (
-            <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={workspace.rootPath}>
-              <Folder size={14} className="shrink-0" />
-              <span className="truncate">{workspace.name}</span>
+            <span className="min-w-0 truncate text-ui text-fg-subtle" title={workspace.rootPath}>
+              {workspace.name}
             </span>
           )}
           {environment && environment.kind !== 'local' && (
@@ -83,8 +82,10 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               <span className="truncate">{environment.name}</span>
             </span>
           )}
-          {needsUser(summary?.status) && <Badge tone="accent">{m.conversation.screen.waiting}</Badge>}
           <div className="flex-1" />
+          {needsUser(summary?.status) && (
+            <span className="flex h-5 shrink-0 items-center rounded-full border border-accent/35 px-2 text-caption text-accent">{m.conversation.screen.waiting}</span>
+          )}
           <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
             <Globe size={16} />
           </IconButton>

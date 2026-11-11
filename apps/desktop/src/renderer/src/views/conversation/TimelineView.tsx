@@ -28,7 +28,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
 
   return (
     <ThreadWorkspace.Provider value={timeline.thread.workspaceId || undefined}>
-      <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-6 pb-10">
+      <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-8 pb-10">
         {timeline.hasMore && <LoadOlder threadId={threadId} />}
         {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
         {groups.map((g) => (
@@ -93,7 +93,7 @@ function TurnSection({ group, jobName }: { group: TurnGroup; jobName: string | u
   const ended = !turnActive(turn.status)
   const answered = parts.some((p) => p.kind === 'answer')
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-5">
       {jobName && <ScheduledBy name={jobName} />}
       {parts.map((p) =>
         p.kind === 'process' ? (
@@ -157,7 +157,7 @@ function QueuedTurn({ turn, jobName }: { turn: TurnRow; jobName: string | undefi
       {jobName && <ScheduledBy name={jobName} />}
       <Attachments attachments={turn.attachments} className="opacity-70" />
       {turn.input && (
-        <div className="max-w-4/5 rounded-2xl border border-dashed border-line-strong px-4 py-2 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
+        <div className="max-w-140 rounded-xl border border-dashed border-line-strong px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
       )}
       <span className="flex items-center gap-1 text-small text-fg-subtle">
         <Clock size={14} /> {m.conversation.timeline.queued}

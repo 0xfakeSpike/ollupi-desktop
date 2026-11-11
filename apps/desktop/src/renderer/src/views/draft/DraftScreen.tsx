@@ -3,7 +3,7 @@
 // beside it; the pages it opens become the thread's.
 
 import { IconButton, Pup } from '@ollupi/ui'
-import { ChevronDown, Cloud, Folder, Globe, Laptop } from 'lucide-react'
+import { Globe } from 'lucide-react'
 import { useState } from 'react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
@@ -13,7 +13,7 @@ import { chooseEnvironment, go, togglePanel, useNavigation } from '../../domains
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { BrowserPanel } from '../conversation/BrowserPanel'
-import { Composer } from '../conversation/Composer'
+import { chip, Composer } from '../conversation/Composer'
 import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { WorkspacePanel, WorkspacePanelButtons } from '../conversation/WorkspacePanels'
@@ -84,10 +84,8 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
   const current = workspaces.find((w) => w.id === workspaceId)
   const m = useT()
   return (
-    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg">
-      <Folder size={14} />
-      <span className="max-w-48 truncate">{current?.name ?? m.conversation.draft.noWorkspace}</span>
-      <ChevronDown size={14} />
+    <label className={chip}>
+      <span className="truncate">{current?.name ?? m.conversation.draft.noWorkspace}</span>
       <select
         aria-label={m.conversation.draft.workspace}
         className="absolute inset-0 cursor-pointer opacity-0"
@@ -113,12 +111,9 @@ function EnvironmentPicker({ onManage }: { onManage(): void }) {
   const chosen = useNavigation((s) => s.environment)
   const current = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
   const m = useT()
-  const Icon = current?.kind === 'machine' ? Cloud : Laptop
   return (
-    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg">
-      <Icon size={14} />
-      <span className="max-w-40 truncate">{current?.name ?? m.conversation.draft.environment}</span>
-      <ChevronDown size={14} />
+    <label className={chip}>
+      <span className="truncate">{current?.name ?? m.conversation.draft.environment}</span>
       <select
         aria-label={m.conversation.draft.environment}
         className="absolute inset-0 cursor-pointer opacity-0"

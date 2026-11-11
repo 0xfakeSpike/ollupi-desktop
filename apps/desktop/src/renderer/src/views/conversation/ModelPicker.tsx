@@ -1,8 +1,8 @@
 import { cn } from '@ollupi/ui'
-import { ChevronDown, Cpu } from 'lucide-react'
 import { useModels } from '../../domains/models'
 import { chooseModel, useNavigation } from '../../domains/navigation'
 import { useT } from '../../i18n'
+import { chip } from './Composer'
 
 /** Chooses the model for the next turn. Without a choice the turn is sent
  * without a connection and the server continues with `inherited` (the
@@ -20,10 +20,8 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
   const unavailable = !models.some((m) => m.connection === shown)
   if (models.length === 0) return null
   return (
-    <label className="relative flex h-7 items-center gap-1.5 rounded-md px-2 text-small text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg">
-      <Cpu size={14} />
-      <span className={cn('max-w-72 truncate', unavailable && 'text-warning')}>{unavailable ? t.unavailable(shown) : shown}</span>
-      <ChevronDown size={14} />
+    <label className={chip}>
+      <span className={cn('truncate', unavailable && 'text-warning')}>{unavailable ? t.unavailable(shown) : shown}</span>
       <select aria-label={t.label} className="absolute inset-0 cursor-pointer opacity-0" value={shown} onChange={(e) => chooseModel(e.target.value)}>
         {unavailable && (
           <option value={shown} disabled>

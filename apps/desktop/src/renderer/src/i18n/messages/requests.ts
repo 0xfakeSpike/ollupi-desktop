@@ -3,6 +3,7 @@
 
 export const en = {
   approval: {
+    kicker: 'Ollupi needs your approval',
     command: 'Allow this command?',
     tool: (tool: string) => `Allow ${tool}?`,
     commandFullAccess: 'Give this command full access?',
@@ -30,6 +31,7 @@ export const en = {
     allowFullAccess: 'Allow full access',
   },
   questions: {
+    kicker: 'Ollupi is asking',
     submit: 'Submit',
     ownAnswer: 'Or type your own answer',
     answer: 'Your answer',
@@ -40,6 +42,7 @@ export const en = {
 
 export const zh: typeof en = {
   approval: {
+    kicker: 'Ollupi 需要你批准',
     command: '允许运行这条命令？',
     tool: (tool) => `允许 ${tool}？`,
     commandFullAccess: '允许这条命令完全访问？',
@@ -63,6 +66,7 @@ export const zh: typeof en = {
     allowFullAccess: '允许完全访问',
   },
   questions: {
+    kicker: 'Ollupi 想问你',
     submit: '提交',
     ownAnswer: '或输入你自己的回答',
     answer: '你的回答',
