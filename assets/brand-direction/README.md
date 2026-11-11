@@ -4,6 +4,8 @@ Ollupi 的品牌与界面方向稿的源文件。定下来的规则在 [DESIGN.m
 
 **看**：用浏览器打开 [index.html](index.html)，所有画板排成一列，可以从顶部跳转，小狼的动画也会动。字体从 Google Fonts 加载，离线时会退回系统字体。这里是方向稿唯一的一份，没有在线版本。
 
+**图片**：每块画板在 [images/](images) 里存有一张 PNG（`01-Main.png` … `09-Pup.png`，按画板原尺寸、2 倍像素密度），不用开浏览器也能看、能贴进文档。带动画的画板截的是第一帧。
+
 ## 画板
 
 | 文件 | 内容 |
@@ -18,6 +20,7 @@ Ollupi 的品牌与界面方向稿的源文件。定下来的规则在 [DESIGN.m
 | `Spread.dc.html` | 08 传播：README 头图、头像、发版卡片、招牌瞬间、表情包 |
 | `Pup.dc.html` | 组件：像素小狼，按 `face`、`cell`、`animate` 画出 20×20 网格，其他画板都引用它 |
 | `canvas.json` | 画布索引：每块画板的位置和尺寸 |
+| `images/` | 每块画板导出的 PNG，由 `shoot.mjs` 生成 |
 
 ## 格式与生成
 
@@ -28,3 +31,11 @@ Ollupi 的品牌与界面方向稿的源文件。定下来的规则在 [DESIGN.m
 ```bash
 node assets/brand-direction/build.mjs
 ```
+
+然后重新导出图片（用本机的 Google Chrome 截图，需要联网加载字体；Chrome 不在默认位置时用 `CHROME=` 指定）：
+
+```bash
+node assets/brand-direction/shoot.mjs
+```
+
+两步之后 `index.html` 和 `images/` 一起提交。
