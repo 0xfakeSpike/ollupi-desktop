@@ -4,6 +4,7 @@ import type { MemoryFailureCode } from '@ollupi/protocol'
 
 export const en = {
   screen: {
+    loading: 'Loading memories…',
     title: 'Memory',
     scope: 'Scope',
     global: 'Global',
@@ -72,6 +73,7 @@ export const en = {
 
 export const zh: typeof en = {
   screen: {
+    loading: '正在加载记忆…',
     title: '记忆',
     scope: '范围',
     global: '全局',

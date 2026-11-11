@@ -27,6 +27,10 @@ export const en = {
     rename: 'Rename thread',
     archived: 'This thread is archived. Restore it to continue.',
     restore: 'Restore',
+    working: 'Working…',
+    waitingApproval: 'Waiting for your approval above',
+    waitingAnswer: 'Waiting for your answer above',
+    loading: 'Loading the conversation…',
   },
   terminal: {
     title: 'Terminal',
@@ -53,7 +57,6 @@ export const en = {
   timeline: {
     empty: 'No messages yet.',
     loadOlder: 'Load earlier messages',
-    working: 'Working…',
     failed: 'The turn failed.',
     stopped: (error: string | undefined) => `Stopped${error ? `: ${error}` : ''}`,
     queued: 'Queued',
@@ -143,6 +146,8 @@ export const en = {
     dismissDownload: 'Dismiss',
   },
   files: {
+    loadingFolder: 'Reading the folder…',
+    loadingFile: 'Reading the file…',
     title: 'Files',
     close: 'Close files',
     reload: 'Reload',
@@ -167,6 +172,8 @@ export const en = {
     detached: (commit: string) => `No branch, at ${commit}`,
   },
   changes: {
+    loading: 'Reading the changes…',
+    loadingDiff: 'Reading the diff…',
     reload: 'Reload',
     notRepo: 'This workspace is not in a git repository, so there is nothing to compare with.',
     none: 'Nothing differs from the last commit.',
@@ -298,6 +305,10 @@ export const zh: typeof en = {
     rename: '重命名会话',
     archived: '这个会话已归档。恢复后才能继续。',
     restore: '恢复',
+    working: '正在处理…',
+    waitingApproval: '等你在上方批准',
+    waitingAnswer: '等你在上方回答',
+    loading: '正在加载对话…',
   },
   terminal: {
     title: '终端',
@@ -324,7 +335,6 @@ export const zh: typeof en = {
   timeline: {
     empty: '还没有消息。',
     loadOlder: '加载更早的消息',
-    working: '正在处理…',
     failed: '这一轮失败了。',
     stopped: (error) => `已停止${error ? `：${error}` : ''}`,
     queued: '排队中',
@@ -412,6 +422,8 @@ export const zh: typeof en = {
     dismissDownload: '关闭提示',
   },
   files: {
+    loadingFolder: '正在读取文件夹…',
+    loadingFile: '正在读取文件…',
     title: '文件',
     close: '关闭文件',
     reload: '刷新',
@@ -436,6 +448,8 @@ export const zh: typeof en = {
     detached: (commit) => `不在分支上，位于 ${commit}`,
   },
   changes: {
+    loading: '正在读取改动…',
+    loadingDiff: '正在读取 diff…',
     reload: '刷新',
     notRepo: '这个工作区不在 git 仓库里，没有可对比的内容。',
     none: '和上次提交相比没有改动。',

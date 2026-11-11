@@ -3,6 +3,7 @@
 
 export const en = {
   screen: {
+    loading: 'Loading skills…',
     off: 'Skills are off',
     offHint: 'Turn them on to keep skills in a folder in the backend’s data folder. You can choose another folder afterwards.',
     turnOn: 'Turn on',
@@ -32,6 +33,7 @@ export const en = {
     confirmRemove: (name: string) => `Move ${name}’s folder to the Trash?`,
   },
   dialog: {
+    loading: 'Reading the skill…',
     newTitle: 'New skill',
     editTitle: (name: string) => `Edit ${name}`,
     name: 'Name',
@@ -48,6 +50,7 @@ export const en = {
 
 export const zh: typeof en = {
   screen: {
+    loading: '正在加载技能…',
     off: '技能未开启',
     offHint: '开启后，技能保存在后端数据文件夹中的一个文件夹里，之后也可以换成其他文件夹。',
     turnOn: '开启',
@@ -77,6 +80,7 @@ export const zh: typeof en = {
     confirmRemove: (name) => `将 ${name} 的文件夹移到废纸篓？`,
   },
   dialog: {
+    loading: '正在读取技能…',
     newTitle: '新建技能',
     editTitle: (name) => `编辑 ${name}`,
     name: '名称',

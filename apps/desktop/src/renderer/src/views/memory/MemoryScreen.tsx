@@ -4,7 +4,7 @@
 // global, or forgotten.
 
 import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
-import { Badge, Button, cn, EmptyState, IconButton, Spinner, Tabs, Textarea } from '@ollupi/ui'
+import { Badge, Button, cn, EmptyState, IconButton, PixelLoader, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Brain, ChevronRight, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
@@ -119,8 +119,8 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
             {searching && matches?.length === 0 ? (
               <p className="text-small text-fg-subtle">{m.memory.screen.noMatch}</p>
             ) : loading && !data ? (
-              <div className="flex justify-center py-12 text-fg-subtle">
-                <Spinner />
+              <div className="flex justify-center py-12">
+                <PixelLoader label={m.memory.screen.loading} />
               </div>
             ) : active.length === 0 ? (
               elsewhere ? (

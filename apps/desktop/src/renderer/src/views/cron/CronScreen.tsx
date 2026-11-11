@@ -5,7 +5,7 @@
 
 import { cronSpec, isTopLevel, onceAt, scheduleOf } from '@ollupi/core'
 import type { CronJobView, WorkspaceRow } from '@ollupi/protocol'
-import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Spinner, Switch, Tabs, Textarea } from '@ollupi/ui'
+import { Badge, Button, EmptyState, Field, IconButton, Input, Select, PixelLoader, Switch, Tabs, Textarea } from '@ollupi/ui'
 import { CalendarClock, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
@@ -51,8 +51,8 @@ export function CronScreen({ found }: { found?: string }) {
         <div role="tabpanel" id={`panel-${place}`} aria-labelledby={`tab-${place}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-5 px-6 py-6">
             {!jobs ? (
-              <div className="flex justify-center py-12 text-fg-subtle">
-                <Spinner />
+              <div className="flex justify-center py-12">
+                <PixelLoader label={m.cron.loading} />
               </div>
             ) : shown.length === 0 ? (
               jobs.length > 0 ? (

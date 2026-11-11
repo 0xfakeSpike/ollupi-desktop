@@ -1,5 +1,5 @@
-import { activeTurn, lastConnection, needsUser } from '@ollupi/core'
-import { Badge, Button, IconButton, Spinner, useTooltip } from '@ollupi/ui'
+import { activeTurn, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
+import { Badge, Button, IconButton, PixelLoader, Pup, useTooltip } from '@ollupi/ui'
 import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Folder, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
 import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
@@ -108,8 +108,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             {timeline ? (
               <TimelineView timeline={timeline} />
             ) : (
-              <div className="flex h-full items-center justify-center text-fg-subtle">
-                <Spinner />
+              <div className="flex h-full items-center justify-center">
+                <PixelLoader label={m.conversation.screen.loading} />
               </div>
             )}
           </div>
@@ -129,6 +129,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           )}
         </div>
 
+        {timeline && <StatusLine timeline={timeline} />}
         {archived ? (
           <div className="flex items-center justify-center gap-3 px-6 pb-5 text-small text-fg-subtle">
             {m.conversation.screen.archived}
@@ -186,5 +187,21 @@ function ExportButton({ threadId }: { threadId: string }) {
       </select>
       {tip.tooltip}
     </label>
+  )
+}
+
+/** Above the message box while a turn runs: the pup thinks while it works,
+ * and looks at you when an approval or an answer waits above. It is the
+ * screen's one pup (design-guidelines 0.3). */
+function StatusLine({ timeline }: { timeline: Timeline }) {
+  const status = useThreadSummary(timeline.thread.id)?.status
+  const m = useT()
+  if (!activeTurn(timeline)) return null
+  const waiting = waitingFor(timeline, status)
+  return (
+    <div className="mx-auto flex w-full max-w-thread items-center gap-2 px-7 pb-2 text-ui text-fg-muted" role="status">
+      {waiting ? <Pup face="oh" /> : <Pup motion="think" />}
+      {waiting === 'approval' ? m.conversation.screen.waitingApproval : waiting === 'answer' ? m.conversation.screen.waitingAnswer : m.conversation.screen.working}
+    </div>
   )
 }

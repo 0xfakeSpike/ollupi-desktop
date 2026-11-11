@@ -213,16 +213,27 @@ code,
   color: var(--color-fg-muted);
 }
 
+/* The streaming caret is a pixel: an 8 by 16 block of ink that is on for
+   530ms and off for 530ms, cut, never faded (design-guidelines 0.3). */
 @keyframes caret-blink {
   50% {
     opacity: 0;
   }
 }
 .streaming-caret::after {
-  content: '▍';
-  margin-left: 1px;
-  color: var(--color-fg-subtle);
-  animation: caret-blink 1s steps(1) infinite;
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--color-ink);
+  animation: caret-blink 1060ms steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .streaming-caret::after {
+    animation: none;
+  }
 }
 
 /* An item a search led to, marked for a moment once it is in view. */
@@ -263,35 +274,3 @@ code,
   }
 }
 
-/* The draft's wolf pup rises from behind the message box in pixel steps,
-   and shows the eyes, mouth and head turn its pose calls for. */
-.pup [data-look] {
-  display: none;
-}
-.pup[data-eyes='left'] [data-look='left'],
-.pup[data-eyes='right'] [data-look='right'],
-.pup[data-eyes='shut'] [data-look='shut'] {
-  display: inline;
-}
-.pup[data-mouth='open'] [data-shut-mouth] {
-  display: none;
-}
-.pup[data-eyes='left'] [data-head] {
-  transform: translateX(-12px);
-}
-.pup[data-eyes='right'] [data-head] {
-  transform: translateX(12px);
-}
-@keyframes peek {
-  from {
-    transform: translateY(100%);
-  }
-}
-.peek {
-  animation: peek 420ms steps(5, end) 200ms both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .peek {
-    animation: var(--animate-fade);
-  }
-}
