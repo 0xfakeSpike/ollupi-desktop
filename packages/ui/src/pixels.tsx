@@ -1,4 +1,4 @@
-// The pixel pieces of 格墨 (design-guidelines 0.3): the wolf pup, the
+// The pixel pieces of 格墨 (DESIGN.md 0.3): the wolf pup, the
 // loader and the send arrow. Pixels move on a beat, a frame at a time, and
 // never in between; under reduced motion they hold still.
 

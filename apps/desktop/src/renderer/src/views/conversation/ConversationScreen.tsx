@@ -192,7 +192,7 @@ function ExportButton({ threadId }: { threadId: string }) {
 
 /** Above the message box while a turn runs: the pup thinks while it works,
  * and looks at you when an approval or an answer waits above. It is the
- * screen's one pup (design-guidelines 0.3). */
+ * screen's one pup (DESIGN.md 0.3). */
 function StatusLine({ timeline }: { timeline: Timeline }) {
   const status = useThreadSummary(timeline.thread.id)?.status
   const m = useT()

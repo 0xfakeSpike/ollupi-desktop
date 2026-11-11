@@ -2,7 +2,7 @@
    (bg-canvas, text-fg-muted, border-line, text-ui, rounded-lg, ...), so a
    theme is a set of variable values and dark mode needs no per-component
    classes. The resets below remove Tailwind's defaults: a class outside
-   these scales produces no style. See docs/design-guidelines.md. */
+   these scales produces no style. See packages/ui/DESIGN.md. */
 
 /* Inter for the interface and prose, JetBrains Mono for code, both bundled
    (OFL); Chinese falls through to the system's PingFang. */
@@ -147,7 +147,7 @@
   --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
-/* The 格墨 palette, one for the whole product (docs/design-guidelines.md
+/* The 格墨 palette, one for the whole product (packages/ui/DESIGN.md
    §0). Every colour comes from the pixel pup: Night is its outline,
    Lavender its fur, Snow its face, Blush its cheeks. The neutrals lean a
    little toward Night, and everything translucent (hover, lines,

@@ -1,7 +1,7 @@
 // A turn's process (core's layoutTurn): the steps the agent took between
 // the person's words and its answer. While the turn runs they are shown as
 // they happen. Once it has ended they fold into one line that says what was
-// done (docs/design-guidelines.md §3.1, the process summary), unless there
+// done (packages/ui/DESIGN.md §3.1, the process summary), unless there
 // is no answer to read in their place; opening it, or a search landing in
 // it, keeps it open.
 
