@@ -1,5 +1,5 @@
-// Builds index.html: every board of this canvas in one file that opens in a
-// browser straight from disk, no Claude needed. The .dc.html sources are
+// Builds index.html: every board listed in canvas.json in one file that opens
+// in a browser straight from disk. The .dc.html sources are
 // inlined and drawn by the small runtime below, which covers what these
 // boards use: {{holes}}, <sc-for>, <sc-if>, <dc-import>, <helmet> and a
 // DCLogic class with state, setState and mount/unmount.
