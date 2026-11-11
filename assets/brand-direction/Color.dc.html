@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>颜色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400&amp;family=Noto+Sans+SC:wght@900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 960px; box-sizing: border-box; padding: 64px 96px; background: #FFFFFF; color: #17161F; font-family: Inter, 'PingFang SC', sans-serif; display: flex; flex-direction: column; gap: 40px;">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between;">
+    <h2 style="margin: 0; font-family: 'Noto Sans SC', sans-serif; font-size: 40px; font-weight: 900; color: #1B1838;">颜色</h2>
+    <span style="font-size: 14px; color: #52515F;">五种品牌色都取自小狼，重新调过，不再是 Tailwind 原值。中性灰带一点夜的冷调，和标志同一个色温。</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 1.4fr 1.4fr 1.2fr 1fr; gap: 12px; height: 220px;">
+    <div style="background: #1B1838; border-radius: 12px; padding: 20px; color: #EFF0FB; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 18px; font-weight: 600;">夜 Night</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.7;">#1B1838</span></div>
+      <span style="font-size: 13px; line-height: 19px; opacity: 0.85;">小狼的轮廓。App 图标底色；浅色主题的主按钮、发送按钮、标题与字标。</span>
+    </div>
+    <div style="background: #4D4AC6; border-radius: 12px; padding: 20px; color: #FFFFFF; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 18px; font-weight: 600;">鸢尾 Iris</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.75;">#4D4AC6 · 白字 6.8:1</span></div>
+      <span style="font-size: 13px; line-height: 19px; opacity: 0.9;">浅色主题的强调色：链接、焦点环、控件选中、等你回答。取代借来的蓝。</span>
+    </div>
+    <div style="background: #AEB5F5; border-radius: 12px; padding: 20px; color: #1B1838; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 18px; font-weight: 600;">薰衣 Lavender</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.7;">#AEB5F5</span></div>
+      <span style="font-size: 13px; line-height: 19px;">小狼的毛色。深色主题的强调色与发送按钮。</span>
+    </div>
+    <div style="background: #EFF0FB; border-radius: 12px; padding: 20px; color: #1B1838; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 18px; font-weight: 600;">雪 Snow</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.7;">#EFF0FB</span></div>
+      <span style="font-size: 13px; line-height: 19px;">小狼的脸。深色主题的主按钮。</span>
+    </div>
+    <div style="background: #F4AACB; border-radius: 12px; padding: 20px; color: #1B1838; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 18px; font-weight: 600;">腮红 Blush</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.7;">#F4AACB</span></div>
+      <span style="font-size: 13px; line-height: 19px;">只在小狼脸上。</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #52515F;"><span>产品界面一屏的颜色预算（传播物料不受限：可以整面铺夜色）</span><span>纸 80 · 墨（文字）14 · 夜 4 · 鸢尾 1.5 · 腮红只在小狼身上</span></div>
+    <div style="display: flex; height: 16px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(27,24,56,0.08);">
+      <span style="flex: 80; background: #FFFFFF;"></span>
+      <span style="flex: 14; background: #17161F;"></span>
+      <span style="flex: 4; background: #1B1838; border-left: 1px solid #FFFFFF;"></span>
+      <span style="flex: 1.5; background: #4D4AC6;"></span>
+      <span style="flex: 0.5; background: #F4AACB;"></span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+    <div style="background: #F5F5F8; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+      <span style="font-size: 13px; font-weight: 500; color: #52515F;">浅色中性</span>
+      <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #F5F5F8; border: 1px solid rgba(27,24,56,0.16);"></span><span style="font-size: 12px; color: #17161F;">ground</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #737284;">#F5F5F8</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #FFFFFF; border: 1px solid rgba(27,24,56,0.08);"></span><span style="font-size: 12px; color: #17161F;">canvas</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #737284;">#FFFFFF</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #F0F0F5; border: 1px solid rgba(27,24,56,0.08);"></span><span style="font-size: 12px; color: #17161F;">surface</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #737284;">#F0F0F5</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #17161F;"></span><span style="font-size: 12px; color: #17161F;">fg</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #737284;">#17161F</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #52515F;"></span><span style="font-size: 12px; color: #17161F;">fg-muted</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #737284;">#52515F</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #737284;"></span><span style="font-size: 12px; color: #17161F;">fg-subtle</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #737284;">#737284 · 4.7:1</span></div>
+      </div>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">线：夜 8% / 16%。悬停：夜 5%。选中：夜 7%。所有半透明都用夜，不用纯黑。</span>
+    </div>
+    <div style="background: #121119; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+      <span style="font-size: 13px; font-weight: 500; color: #A6A5B6;">深色中性</span>
+      <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #121119; border: 1px solid rgba(239,240,251,0.16);"></span><span style="font-size: 12px; color: #ECEBF3;">ground</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #84839A;">#121119</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #1B1A23; border: 1px solid rgba(239,240,251,0.08);"></span><span style="font-size: 12px; color: #ECEBF3;">canvas</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #84839A;">#1B1A23</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #262530; border: 1px solid rgba(239,240,251,0.08);"></span><span style="font-size: 12px; color: #ECEBF3;">surface</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #84839A;">#262530</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #EDECF4;"></span><span style="font-size: 12px; color: #ECEBF3;">fg</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #84839A;">#EDECF4</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #B7B6C6;"></span><span style="font-size: 12px; color: #ECEBF3;">fg-muted</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #84839A;">#B7B6C6</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 48px; border-radius: 6px; background: #8B8AA0;"></span><span style="font-size: 12px; color: #ECEBF3;">fg-subtle</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #84839A;">#8B8AA0 · 5.2:1</span></div>
+      </div>
+      <span style="font-size: 12px; line-height: 18px; color: #A6A5B6;">线：雪 7.5% / 14%。屏幕比侧栏亮一级。主按钮是雪底夜字，强调色和发送是薰衣。</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <span style="font-size: 13px; font-weight: 500; color: #52515F;">状态色（浅 / 深）</span>
+      <div style="display: flex; gap: 20px; font-size: 13px;">
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #C42F4A;"></span><span style="width: 16px; height: 16px; border-radius: 4px; background: #F27088;"></span><span>danger 失败、完全访问</span></div>
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #9A5B00;"></span><span style="width: 16px; height: 16px; border-radius: 4px; background: #E2A746;"></span><span>warning 审批</span></div>
+        <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #2F7D4F;"></span><span style="width: 16px; height: 16px; border-radius: 4px; background: #5DC48A;"></span><span>success 只用于 diff</span></div>
+      </div>
+      <span style="font-size: 12px; line-height: 18px; color: #737284;">红往玫瑰偏、黄往琥珀偏，和夜、薰衣同一个色温；三种只出现在图标、文字和 1px 描边上。</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 20px; color: #17161F;">
+      <span style="font-size: 13px; font-weight: 500; color: #52515F;">不变的规则（沿用 design-guidelines）</span>
+      <span>· 强调色只用于焦点、控件选中、链接、进度、等你回答。</span>
+      <span>· 成功不着色；状态色不做块的底色。</span>
+      <span>· 不再有 palette 切换：去掉 aurora、sunset、candy、rainbow。</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
