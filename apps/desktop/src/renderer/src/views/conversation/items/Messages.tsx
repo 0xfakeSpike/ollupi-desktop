@@ -3,14 +3,23 @@ import { cn, ProcessRow } from '@ollupi/ui'
 import { Lightbulb } from 'lucide-react'
 import { useT } from '../../../i18n'
 import { duration } from '../../../i18n/format'
-import { Markdown } from '../../common/Markdown'
+import { CopyButton, Markdown } from '../../common/Markdown'
 import { Attachments } from './Attachments'
 
 export function UserMessage({ item }: { item: ItemRow }) {
+  const m = useT()
   return (
     <div className="flex flex-col items-end gap-2">
       <Attachments attachments={item.attachments} />
-      {item.text && <div className="selectable max-w-140 rounded-xl bg-surface px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>}
+      {item.text && (
+        // Copying sits beside the bubble's foot, shown while the message is pointed at or focused.
+        <div className="group flex max-w-full items-end gap-1">
+          <span className="opacity-0 transition-opacity duration-100 ease-standard group-focus-within:opacity-100 group-hover:opacity-100">
+            <CopyButton text={item.text} label={m.conversation.timeline.copyMessage} />
+          </span>
+          <div className="selectable max-w-140 min-w-0 rounded-xl bg-surface px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>
+        </div>
+      )}
     </div>
   )
 }

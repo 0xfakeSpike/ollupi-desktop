@@ -377,9 +377,18 @@ export interface DesktopApi {
   openPath(path: string): Promise<void>
   /** Shows a file in Finder, selected. */
   revealFile(path: string): Promise<void>
+  /** A native menu at the pointer; resolves to the chosen item's id, or
+   * undefined when it closed without a choice. */
+  contextMenu(items: ContextMenuItem[]): Promise<string | undefined>
   /** Sets the window's scheme, which the renderer's prefers-color-scheme
    * and the native window chrome both follow. */
   setColorScheme(scheme: ColorScheme): Promise<void>
+}
+
+/** One entry of a context menu, named by the renderer in its language. */
+export interface ContextMenuItem {
+  id: string
+  label: string
 }
 
 export const IpcChannel = {
@@ -447,6 +456,7 @@ export const IpcChannel = {
   SaveFile: 'dialog:saveFile',
   OpenPath: 'shell:openPath',
   RevealFile: 'shell:revealFile',
+  ContextMenu: 'menu:context',
   SetColorScheme: 'theme:setColorScheme',
 } as const
 

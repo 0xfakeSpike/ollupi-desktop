@@ -6,13 +6,14 @@ import { groupByTurn, layoutTurn, queuedTurns, turnActive, type Timeline, type T
 import type { TurnRow } from '@ollupi/protocol'
 import { Button, Callout } from '@ollupi/ui'
 import { CalendarClock, Clock, OctagonX } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { loadOlder } from '../../domains/conversation'
 import { useCron } from '../../domains/cron'
 import { focusItem, useNavigation } from '../../domains/navigation'
 import { useT } from '../../i18n'
 import { duration, usageLine } from '../../i18n/format'
 import { markFound } from '../common/found'
+import { CopyButton } from '../common/Markdown'
 import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
 import { ThreadWorkspace } from '../common/FileLink'
@@ -92,6 +93,9 @@ function TurnSection({ group, jobName }: { group: TurnGroup; jobName: string | u
   const parts = useMemo(() => layoutTurn(items), [items])
   const ended = !turnActive(turn.status)
   const answered = parts.some((p) => p.kind === 'answer')
+  // The answer once the turn is over, as written (Markdown), to copy.
+  const answer = ended ? parts.flatMap((p) => (p.kind === 'answer' && p.item.text ? [p.item.text] : [])).join('\n\n') : ''
+  const m = useT()
   return (
     <section className="flex flex-col gap-5">
       {jobName && <ScheduledBy name={jobName} />}
@@ -105,7 +109,7 @@ function TurnSection({ group, jobName }: { group: TurnGroup; jobName: string | u
           </div>
         ),
       )}
-      <TurnOutcome turn={turn} />
+      <TurnOutcome turn={turn} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
     </section>
   )
 }
@@ -119,25 +123,37 @@ function ScheduledBy({ name }: { name: string }) {
   )
 }
 
-function TurnOutcome({ turn }: { turn: TurnRow }) {
+/** How the turn ended, led by the copy button for its answer when it has one. */
+function TurnOutcome({ turn, copy }: { turn: TurnRow; copy: ReactNode }) {
   const m = useT()
+  // The 24px button keeps to the line's height and its icon to the column's edge.
+  const lead = copy && <span className="-my-1 -ml-1.5 flex">{copy}</span>
   switch (turn.status) {
     case 'failed':
       return (
-        <Callout tone="danger">
-          <span className="selectable">{turn.error || m.conversation.timeline.failed}</span>
-        </Callout>
+        <>
+          {lead && <div className="flex text-small">{lead}</div>}
+          <Callout tone="danger">
+            <span className="selectable">{turn.error || m.conversation.timeline.failed}</span>
+          </Callout>
+        </>
       )
     case 'interrupted':
       return (
         <div className="flex items-center gap-1.5 text-small text-fg-subtle">
+          {lead}
           <OctagonX size={14} /> {m.conversation.timeline.stopped(turn.error)}
         </div>
       )
     case 'completed': {
       const usage = usageLine(m, turn.usage)
       const facts = [turn.model.connection, turn.completedAt && duration(m, turn.startedAt, turn.completedAt), usage].filter(Boolean)
-      return <div className="text-small text-fg-subtle tabular-nums">{facts.join(' · ')}</div>
+      return (
+        <div className="flex items-center gap-1.5 text-small text-fg-subtle tabular-nums">
+          {lead}
+          {facts.join(' · ')}
+        </div>
+      )
     }
     case 'queued':
     case 'ready':

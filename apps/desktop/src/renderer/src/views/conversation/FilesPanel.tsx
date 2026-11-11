@@ -6,11 +6,10 @@
 
 import type { WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, PixelLoader } from '@ollupi/ui'
-import { ChevronRight, Code, ExternalLink, Eye, File, Folder, RotateCw } from 'lucide-react'
+import { ChevronRight, Code, Eye, File, Folder, FolderOpen, RotateCw } from 'lucide-react'
 import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
-import { readFolder, readPreview } from '../../domains/files'
-import { openPath } from '../../domains/files'
+import { fileMenu, readFolder, readPreview, revealPath } from '../../domains/files'
 import { showFile, useNavigation } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
@@ -152,6 +151,10 @@ function Entries({
                   : undefined
               }
               onClick={() => (e.kind === 'folder' ? onToggle(p) : onOpen(p))}
+              onContextMenu={(ev) => {
+                ev.preventDefault()
+                void fileMenu(`${root}/${p}`, { reveal: t.reveal })
+              }}
               // Each level indents by the chevron's width, so names line up under their folder's.
               style={{ paddingLeft: 4 + depth * 16 }}
               className="flex h-7 w-full items-center gap-1 rounded-md pr-2 text-left text-ui text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
@@ -235,8 +238,8 @@ function Preview({
           </IconButton>
         )}
         <CopyButton text={`${root}/${path}`} label={t.copyPath} />
-        <IconButton label={t.open} size="sm" onClick={() => void openPath(`${root}/${path}`)}>
-          <ExternalLink size={14} />
+        <IconButton label={t.reveal} size="sm" onClick={() => void revealPath(`${root}/${path}`)}>
+          <FolderOpen size={14} />
         </IconButton>
       </div>
       {!file ? (
