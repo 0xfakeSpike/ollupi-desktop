@@ -2,9 +2,7 @@
 
 Ollupi 的品牌与界面方向稿的源文件。定下来的规则在 [design-guidelines.md](../design-guidelines.md) 第 0 节，以准则为准；这里留着推导过程和示意。
 
-**在本地看**：用浏览器打开 [index.html](index.html)，所有画板排成一列，可以从顶部跳转，小狼的动画也会动。字体从 Google Fonts 加载，离线时会退回系统字体。
-
-在线画布：https://claude.ai/artifact/BJZhy98W4ED51eRQtreWoQ （私有，需要所有者分享才能打开）
+**看**：用浏览器打开 [index.html](index.html)，所有画板排成一列，可以从顶部跳转，小狼的动画也会动。字体从 Google Fonts 加载，离线时会退回系统字体。这里是方向稿唯一的一份，没有在线版本。
 
 ## 画板
 
@@ -23,10 +21,10 @@ Ollupi 的品牌与界面方向稿的源文件。定下来的规则在 [design-g
 
 ## 格式与生成
 
-`.dc.html` 是 Claude Design 画布的组件格式，单独打开不会显示（`./support.js` 由画布提供）。`index.html` 由 `build.mjs` 生成：它把 `canvas.json` 列出的画板内联进一个文件，用一段小运行时画出来（`{{}}` 插值、`<sc-for>`、`<sc-if>`、`<dc-import>`、`<helmet>`、带 state 的 `DCLogic`）。改了画板后重新生成，不要手改 `index.html`：
+每块画板是一个 `.dc.html` 组件文件，单独打开不会显示（它引用的 `./support.js` 不存在）。`index.html` 由 `build.mjs` 生成：它把 `canvas.json` 列出的画板内联进一个文件，用一段小运行时画出来（`{{}}` 插值、`<sc-for>`、`<sc-if>`、`<dc-import>`、`<helmet>`、带 state 的 `DCLogic`）。
+
+改方向稿就改 `.dc.html`；加画板时同时在 `canvas.json` 的 `order` 和 `boards` 里登记。改完重新生成，不要手改 `index.html`：
 
 ```bash
 node docs/brand-direction/build.mjs
 ```
-
-发布回在线画布时，每个文件发布到 `project/<文件名>`。
