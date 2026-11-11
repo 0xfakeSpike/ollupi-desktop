@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>像素小狼</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="img" aria-label="{{label}}" style="width: {{px}}px; height: {{px}}px; display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); grid-template-rows: repeat(20, minmax(0, 1fr));">
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="400"><div style="background: {{c}}; box-shadow: 0 0 0 0.5px {{c}}"></div></sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"face":{"editor":"enum","options":["smile","oh","blink","look-left","look-right","grin","wink"],"default":"smile"},"cell":{"editor":"int","min":1,"max":24,"default":12},"animate":{"editor":"enum","options":["none","think","blink"],"default":"none"},"$preview":{"width":240,"height":240}}'>
+var PUP_TOP = [
+  '...N............N...',
+  '..NLN..........NLN..',
+  '..NLLN........NLLN..',
+  '..NLPLN......NLPLN..',
+  '..NLPPLNNNNNNLPPLN..',
+  '.NLLPPLLLLLLLLPPLLN.',
+  '.NLLLLLLLSSLLLLLLLN.'
+];
+var PUP_BOTTOM = [
+  '...NSSSSSSSSSSSSN...',
+  '....NNSSSSSSSSNN....',
+  '......NNSSSSNN......',
+  '........NNNN........',
+  '....................'
+];
+var EYES = {
+  open: ['.NLLLWNLLSSLLWNLLLN.', 'NLLLLNNLSSSSLNNLLLLN', 'NLSSSNNSSSSSSNNSSSLN'],
+  closed: ['.NLLLLLLLSSLLLLLLLN.', 'NLLLLLLLSSSSLLLLLLLN', 'NLSSSNNSSSSSSNNSSSLN'],
+  left: ['.NLLWNLLLSSLWNLLLLN.', 'NLLLNNLLSSSSNNLLLLLN', 'NLSSNNSSSSSSNNSSSSLN'],
+  right: ['.NLLLLWNLSSLLLWNLLN.', 'NLLLLLNNSSSSLLNNLLLN', 'NLSSSSNNSSSSSSNNSSLN'],
+  wink: ['.NLLLWNLLSSLLLLLLLN.', 'NLLLLNNLSSSSLLLLLLLN', 'NLSSSNNSSSSSSNNSSSLN']
+};
+var NOSE = ['NSPPSSSSNNNNSSSSPPSN', '.NSSSSSSSNNSSSSSSSN.'];
+var MOUTH = {
+  smile: ['NSSSSSSSSSSSSSSSSSSN', '.NSSSSSNSNNSNSSSSSN.', '..NSSSSSNSSNSSSSSN..'],
+  oh: ['NSSSSSSSSSSSSSSSSSSN', '.NSSSSSSSNNSSSSSSSN.', '..NSSSSSNTTNSSSSSN..'],
+  grin: ['NSSSSSNSSSSSSNSSSSSN', '.NSSSSSNNNNNNSSSSSN.', '..NSSSSSNTTNSSSSSN..']
+};
+var LAST = { oh: '...NSSSSNTTNSSSSN...', grin: '...NSSSSSNNSSSSSN...' };
+var FACES = {
+  'smile': ['open', 'smile'],
+  'oh': ['open', 'oh'],
+  'blink': ['closed', 'smile'],
+  'look-left': ['left', 'smile'],
+  'look-right': ['right', 'smile'],
+  'grin': ['open', 'grin'],
+  'wink': ['wink', 'grin']
+};
+var COLORS = { N: '#1B1838', L: '#AEB5F5', S: '#EFF0FB', P: '#F4AACB', T: '#EE6E8A', W: '#FFFFFF', '.': 'transparent' };
+var LABELS = { 'smile': '小狼：微笑', 'oh': '小狼：看着你', 'blink': '小狼：眨眼', 'look-left': '小狼：向左看', 'look-right': '小狼：向右看', 'grin': '小狼：咧嘴笑', 'wink': '小狼：眨一只眼' };
+var THINK = ['look-left', 'look-left', 'look-left', 'look-right', 'look-right', 'look-right', 'blink', 'look-left', 'look-left', 'look-right', 'look-right', 'look-right'];
+var IDLE = ['smile', 'smile', 'smile', 'smile', 'smile', 'smile', 'smile', 'blink'];
+
+function grid(face) {
+  var f = FACES[face] || FACES.smile;
+  var rows = PUP_TOP.concat(EYES[f[0]], NOSE, MOUTH[f[1]]);
+  var bottom = PUP_BOTTOM.slice();
+  if (LAST[f[1]]) bottom[0] = LAST[f[1]];
+  return rows.concat(bottom);
+}
+
+class Component extends DCLogic {
+  state = { tick: 0 };
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () {
+      if ((self.props.animate || 'none') !== 'none') self.setState({ tick: self.state.tick + 1 });
+    }, 420);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    var animate = this.props.animate || 'none';
+    var face = this.props.face || 'smile';
+    if (animate === 'think') face = THINK[this.state.tick % THINK.length];
+    if (animate === 'blink') face = IDLE[this.state.tick % IDLE.length];
+    var cell = parseFloat(this.props.cell) || 12;
+    var cells = [];
+    grid(face).forEach(function (row) {
+      for (var i = 0; i < row.length; i++) cells.push(COLORS[row[i]]);
+    });
+    return { cells: cells, px: cell * 20, label: LABELS[face] };
+  }
+}
+</script>
+</body>
+</html>
