@@ -65,9 +65,8 @@ export const en = {
     chooseModel: 'Choose a model',
     use: 'Use memories in conversations',
     useHint: 'Each conversation starts with the memories that fit in its context, and the agent can search the rest.',
-    restarts: 'Saving restarts the backend, which reads these at start.',
+    restarts: 'Each change is saved right away and restarts the backend, which reads these at start.',
     stale: 'config.yaml differs from what the backend is using.',
-    saveAndRestart: 'Save and restart',
   },
 }
 
@@ -128,8 +127,7 @@ export const zh: typeof en = {
     chooseModel: '选择模型',
     use: '在会话中使用记忆',
     useHint: '每个会话开始时会带上其上下文能容纳的记忆，其余的由 agent 按需搜索。',
-    restarts: '保存会重启后端，后端在启动时读取这些设置。',
+    restarts: '每次改动都会立即保存并重启后端，后端在启动时读取这些设置。',
     stale: 'config.yaml 与后端正在使用的设置不一致。',
-    saveAndRestart: '保存并重启',
   },
 }
