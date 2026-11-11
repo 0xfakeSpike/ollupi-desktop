@@ -1,4 +1,4 @@
-// A ```mermaid block drawn as its diagram, in the app's palette. The types
+// A ```mermaid block drawn as its diagram, in the app's colours. The types
 // beautiful-mermaid draws (flowcharts, state, sequence, class, ER and xy
 // charts) it draws at once, coloured by the design tokens' CSS variables;
 // a flowchart's decisions have their labels balanced over lines first. The
@@ -13,7 +13,6 @@ import { Block } from '@ollupi/ui'
 import { parseMermaid, renderMermaidSVG } from 'beautiful-mermaid'
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react'
 import { useIsCodeFenceIncomplete } from 'streamdown'
-import { useAppearance } from '../../domains/appearance'
 import { useT } from '../../i18n'
 import { CodeBlock, CopyButton } from './Markdown'
 import { useNearViewport } from './useNearViewport'
@@ -45,7 +44,7 @@ function tokenOn(background: string): (name: string) => string {
   }
 }
 
-/** Mermaid's base theme, from the design tokens of the palette showing. */
+/** Mermaid's base theme, from the design tokens of the scheme showing. */
 function themeVariables(isDark: boolean) {
   const surface = tokenOn('#000000')('--ol-surface')
   const token = tokenOn(surface)
@@ -95,7 +94,7 @@ function header(code: string): string {
   return lines.slice(i).find((l) => l && !l.startsWith('%%')) ?? ''
 }
 
-/** The tokens as CSS variables, so a palette or scheme change recolours
+/** The tokens as CSS variables, so a scheme change recolours
  * the diagram without drawing it again. The block draws the background. */
 const tokens = {
   bg: 'var(--ol-surface)',
@@ -192,7 +191,6 @@ function beautiful(code: string): string | undefined {
 
 export function MermaidBlock({ code }: { code: string }) {
   const streaming = useIsCodeFenceIncomplete()
-  const palette = useAppearance((s) => s.palette)
   const isDark = useSyncExternalStore(subscribe, () => dark.matches)
   const id = `mermaid-${useId().replace(/[^\w-]/g, '')}`
   const [drawn, setDrawn] = useState<Drawn>()
@@ -241,7 +239,7 @@ export function MermaidBlock({ code }: { code: string }) {
     return () => {
       current = false
     }
-  }, [code, streaming, fast, isDark, palette, id, near])
+  }, [code, streaming, fast, isDark, id, near])
 
   const content = fast ? (
     <Diagram code={code} svg={fast} />

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>像素小狼</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400&amp;family=Noto+Sans+SC:wght@900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 64px 96px; background: #FFFFFF; color: #17161F; font-family: Inter, 'PingFang SC', sans-serif; display: flex; flex-direction: column; gap: 36px;">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between;">
+    <h2 style="margin: 0; font-family: 'Noto Sans SC', sans-serif; font-size: 40px; font-weight: 900; color: #1B1838;">像素小狼 · 产品里</h2>
+    <span style="font-size: 14px; color: #52515F;">在产品里，小狼不是装饰，是状态：每张脸只对应一种状态，一屏最多一只。传播时的规则见 08。</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+    <div style="background: #F5F5F8; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 120px; display: flex; align-items: center; justify-content: center;"><dc-import name="Pup" animate="think" cell="5" hint-size="100px,100px"></dc-import></div>
+      <span style="font-size: 15px; font-weight: 600; color: #1B1838;">思考</span>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">左右看，偶尔眨眼。agent 运行中：输入框上方的状态行，16px。</span>
+    </div>
+    <div style="background: #F5F5F8; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 120px; display: flex; align-items: center; justify-content: center;"><dc-import name="Pup" face="oh" cell="5" hint-size="100px,100px"></dc-import></div>
+      <span style="font-size: 15px; font-weight: 600; color: #1B1838;">看着你</span>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">等你批准或回答。替代思考那只，出现在同一个位置。</span>
+    </div>
+    <div style="background: #F5F5F8; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 120px; display: flex; align-items: center; justify-content: center;"><dc-import name="Pup" animate="blink" cell="5" hint-size="100px,100px"></dc-import></div>
+      <span style="font-size: 15px; font-weight: 600; color: #1B1838;">闲着</span>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">微笑，每三秒眨一次眼。新会话页的问候旁，32px。</span>
+    </div>
+    <div style="background: #F5F5F8; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 120px; display: flex; align-items: center; justify-content: center;"><dc-import name="Pup" face="grin" cell="5" hint-size="100px,100px"></dc-import></div>
+      <span style="font-size: 15px; font-weight: 600; color: #1B1838;">完成</span>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">App 图标、"做完了"的系统通知。界面里不庆祝：成功是常态。</span>
+    </div>
+    <div style="background: #F5F5F8; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 120px; display: flex; align-items: center; justify-content: center;"><dc-import name="Pup" face="smile" cell="5" hint-size="100px,100px"></dc-import></div>
+      <span style="font-size: 15px; font-weight: 600; color: #1B1838;">标志</span>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">字标、官网、关于页、侧栏顶部的品牌位。</span>
+    </div>
+    <div style="border: 1px dashed rgba(27,24,56,0.16); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="height: 120px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #C42F4A;">exit 1</div>
+      <span style="font-size: 15px; font-weight: 600; color: #1B1838;">出错：没有小狼</span>
+      <span style="font-size: 12px; line-height: 18px; color: #52515F;">出错时不卖萌。失败只用图标、红字和原始输出说话。</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+    <div style="border: 1px solid rgba(27,24,56,0.08); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+      <span style="font-size: 13px; font-weight: 500; color: #52515F;">流式输出的光标</span>
+      <div style="font-size: 15px; line-height: 24px; color: #17161F;">已经找到问题：token 过期时间用的是秒，比较时当成了毫秒<span style="display: inline-block; width: 8px; height: 16px; margin-left: 2px; vertical-align: -2px; background: #1B1838; opacity: {{cursorOpacity}};"></span></div>
+      <span style="font-size: 12px; line-height: 18px; color: #737284;">一个夜色像素块，8×16，530ms 一亮一灭，硬切不渐变。</span>
+    </div>
+    <div style="border: 1px solid rgba(27,24,56,0.08); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+      <span style="font-size: 13px; font-weight: 500; color: #52515F;">加载</span>
+      <div style="height: 24px; display: flex; align-items: center; gap: 4px;">
+        <sc-for list="{{dots}}" as="d" hint-placeholder-count="3"><span style="width: 6px; height: 6px; background: {{d}};"></span></sc-for>
+        <span style="font-size: 13px; color: #52515F; margin-left: 8px;">Connecting to ollupid</span>
+      </div>
+      <span style="font-size: 12px; line-height: 18px; color: #737284;">三个方形像素依次亮起，300ms 一拍。不用圆形 spinner。</span>
+    </div>
+    <div style="border: 1px solid rgba(27,24,56,0.08); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+      <span style="font-size: 13px; font-weight: 500; color: #52515F;">发送按钮：像素箭头</span>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button aria-label="Send" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: #1B1838; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;">
+          <span style="width: 14px; height: 14px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr));"><sc-for list="{{arrowLight}}" as="a" hint-placeholder-count="49"><span style="background: {{a}};"></span></sc-for></span>
+        </button>
+        <div style="background: #111018; border-radius: 10px; padding: 8px;">
+          <button aria-label="Send" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: #AEB5F5; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;">
+            <span style="width: 14px; height: 14px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr));"><sc-for list="{{arrowDark}}" as="a" hint-placeholder-count="49"><span style="background: {{a}};"></span></sc-for></span>
+          </button>
+        </div>
+        <span style="font-size: 12px; line-height: 18px; color: #737284;">全界面唯一的像素图标。其余图标仍是 lucide。</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; font-size: 13px; line-height: 22px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-weight: 600; color: #1B1838;">要</span>
+      <span>· 像素动在节拍上（steps，硬切）；界面动在曲线上（ease-standard）。两种节奏不混。</span>
+      <span>· 尺寸取 20 的整数倍：16（缩到 0.8 格）、20、40、60、120、240。格子要落在整像素上。</span>
+      <span>· 小狼出现在固定位置：状态行、新会话页、图标、官网。用户学会了就知道去哪看。</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-weight: 600; color: #C42F4A;">不要（产品里）</span>
+      <span>· 不用像素字体，不给按钮、卡片、边框做像素锯齿。</span>
+      <span>· 产品里只用这六张脸；新表情只进传播物料（见 08）。任何场合都不旋转、不拉伸、不换色。</span>
+      <span>· 不在同一屏放两只；不在对话流的每条消息旁边放头像。</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+var ARROW = [
+  '...#...',
+  '..###..',
+  '.#.#.#.',
+  '#..#..#',
+  '...#...',
+  '...#...',
+  '...#...'
+];
+function arrow(color) {
+  var out = [];
+  ARROW.forEach(function (row) {
+    for (var i = 0; i < row.length; i++) out.push(row[i] === '#' ? color : 'transparent');
+  });
+  return out;
+}
+class Component extends DCLogic {
+  state = { tick: 0 };
+  componentDidMount() {
+    var self = this;
+    this.timer = setInterval(function () { self.setState({ tick: self.state.tick + 1 }); }, 300);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    var t = this.state.tick;
+    var lit = t % 4;
+    var dots = [0, 1, 2].map(function (i) { return i === lit ? '#1B1838' : '#D9DAF0'; });
+    return {
+      dots: dots,
+      cursorOpacity: Math.floor(t / 2) % 2 === 0 ? 1 : 0,
+      arrowLight: arrow('#EFF0FB'),
+      arrowDark: arrow('#1B1838')
+    };
+  }
+}
+</script>
+</body>
+</html>

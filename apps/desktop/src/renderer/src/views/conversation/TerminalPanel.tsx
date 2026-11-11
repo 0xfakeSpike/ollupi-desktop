@@ -66,7 +66,7 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
       offExit()
       term.dispose()
     }
-  }, [key, cwd, restarts, appearance.palette, appearance.scheme, t.exited])
+  }, [key, cwd, restarts, appearance.scheme, t.exited])
 
   return (
     <SidePanel
