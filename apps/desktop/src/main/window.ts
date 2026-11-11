@@ -19,8 +19,8 @@ export function createMainWindow(keepOnClose: () => boolean): BrowserWindow {
     titleBarStyle: 'hiddenInset',
     // Centred on the screen's 40px header at the top of the window.
     trafficLightPosition: { x: 16, y: 13 },
-    // The default palette's --ol-ground (theme.css), shown before the renderer paints.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#141414' : '#f9f9f7',
+    // --ol-ground (theme.css), shown before the renderer paints.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#121119' : '#f5f5f8',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,

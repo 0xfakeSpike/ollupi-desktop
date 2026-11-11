@@ -27,8 +27,7 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
   return (
-    // ol-plane: the canvas's colours, also when the sidebar opened it.
-    <div className="ol-plane fixed inset-0 z-50 flex animate-fade items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex animate-fade items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal

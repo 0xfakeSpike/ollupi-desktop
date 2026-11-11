@@ -16,7 +16,7 @@ export function UpdatePrompt() {
   if (!version || version === later || state.status === 'checking') return null
   const failed = state.status === 'failed'
   return (
-    <div role={failed ? 'alert' : 'status'} className="ol-plane mb-2 flex animate-enter flex-col gap-2 rounded-lg border border-line bg-raised p-2.5 text-ui text-fg motion-reduce:animate-fade">
+    <div role={failed ? 'alert' : 'status'} className="mb-2 flex animate-enter flex-col gap-2 rounded-lg border border-line bg-raised p-2.5 text-ui text-fg motion-reduce:animate-fade">
       <div className="flex items-start gap-2">
         {failed ? (
           <CircleAlert size={16} className="mt-0.5 shrink-0 text-danger" aria-hidden />
