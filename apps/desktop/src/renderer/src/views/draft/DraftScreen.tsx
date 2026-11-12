@@ -9,12 +9,14 @@ import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
 import { defaultEnvironment, useEnvironments } from '../../domains/environments'
-import { chooseEnvironment, go, togglePanel, useNavigation } from '../../domains/navigation'
+import { chooseApproval, chooseEnvironment, go, togglePanel, useNavigation } from '../../domains/navigation'
+import { useAgentPolicy } from '../../domains/backendConfig'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { BrowserPanel } from '../conversation/BrowserPanel'
 import { chip, Composer } from '../conversation/Composer'
 import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
+import { ApprovalPicker } from '../conversation/ApprovalPicker'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { WorkspacePanel, WorkspacePanelButtons } from '../conversation/WorkspacePanels'
 
@@ -25,6 +27,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const chosen = useNavigation((s) => s.environment)
   const environment = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
   const [managing, setManaging] = useState(false)
+  const approval = useNavigation((s) => s.approval)
+  const agentPolicy = useAgentPolicy((s) => s.policy)
   const m = useT()
   return (
     <div className="flex h-full">
@@ -39,7 +43,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           <div className="flex items-center gap-3">
             {/* Idle: it smiles beside the greeting and blinks every few seconds. */}
             <Pup motion="idle" size={40} />
-            <h1 className="text-display text-fg">{m.conversation.draft.title}</h1>
+            {/* The one place the interface borrows the brand's typeface. */}
+            <h1 className="font-brand text-display text-fg">{m.conversation.draft.title}</h1>
           </div>
           <p className="text-ui text-fg-muted">
             {workspace ? (
@@ -65,6 +70,12 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
               <EnvironmentPicker onManage={() => setManaging(true)} />
               <WorkspacePicker workspaceId={workspaceId} />
               <ModelPicker inherited={undefined} />
+              <ApprovalPicker
+                value={approval}
+                inherited={workspace?.settings.approvalPolicy ?? agentPolicy}
+                from={workspace ? m.settings.permissions.fromWorkspace : m.settings.permissions.fromAgent}
+                onChange={chooseApproval}
+              />
             </>
           }
         />

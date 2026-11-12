@@ -10,7 +10,8 @@ import { useId, useState } from 'react'
 import { useT, type Messages } from '../../i18n'
 
 /** Strictest first, so the order itself reads as how much is asked. */
-const policies = (m: Messages): { value: ApprovalPolicy; label: string; hint: string }[] => [
+/** The approval policies, strictest first, as the person reads them. */
+export const approvalPolicies = (m: Messages): { value: ApprovalPolicy; label: string; hint: string }[] => [
   { value: 'untrusted', ...m.settings.permissions.policies.untrusted },
   { value: 'on-request', ...m.settings.permissions.policies.onRequest },
   { value: 'never', ...m.settings.permissions.policies.never },
@@ -64,11 +65,11 @@ export function PermissionEditor({
     <div className="flex flex-col gap-4">
       <Field
         label={m.settings.permissions.policy}
-        hint={policy === INHERIT ? m.settings.permissions.inheritHint(inheritFrom) : policies(m).find((p) => p.value === policy)?.hint}
+        hint={policy === INHERIT ? m.settings.permissions.inheritHint(inheritFrom) : approvalPolicies(m).find((p) => p.value === policy)?.hint}
       >
         <Select value={policy} onChange={(e) => setPolicy(e.target.value as ApprovalPolicy | typeof INHERIT)}>
           <option value={INHERIT}>{m.settings.permissions.inherit}</option>
-          {policies(m).map((p) => (
+          {approvalPolicies(m).map((p) => (
             <option key={p.value} value={p.value}>
               {p.label}
             </option>
