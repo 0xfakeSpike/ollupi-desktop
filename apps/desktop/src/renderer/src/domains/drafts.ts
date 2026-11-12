@@ -24,8 +24,10 @@ const NOTHING: Draft = { text: '', attachments: [] }
 /** Draft text as sessionStorage keeps it: by key, text only. */
 const STORE_KEY = 'ollupi.drafts'
 
-/** The boxes' drafts, by key. The functions below are how they change. */
-export const useDrafts = create<{ drafts: Record<string, Draft> }>()(() => ({ drafts: {} }))
+/** The boxes' drafts, by key, and how many times each box was given a sent
+ * message back to edit (reopenDraft), which is the box's cue to take the
+ * focus. The functions below are how they change. */
+export const useDrafts = create<{ drafts: Record<string, Draft>; reopened: Record<string, number> }>()(() => ({ drafts: {}, reopened: {} }))
 
 /** Writes each box's text to the window's sessionStorage, where a reload
  * finds it. A full or missing storage leaves today's draft in memory. */
@@ -103,6 +105,19 @@ export function sentDraft(key: string, sent: Pick<Draft, 'text' | 'attachments'>
     text: d.text === sent.text ? '' : d.text,
     attachments: d.attachments.filter((a) => !sent.attachments.includes(a)),
   }))
+}
+
+/** A sent message given back to its box to be written again: its text goes
+ * before whatever the box held and its files after the box's, so nothing
+ * typed there meanwhile is lost. */
+export function reopenDraft(key: string, text: string, files: readonly File[]): void {
+  const added = files.map(draftAttachment)
+  update(key, (d) => ({
+    text: [text, d.text].filter(Boolean).join('\n\n'),
+    attachments: [...d.attachments, ...added],
+  }))
+  const { reopened } = useDrafts.getState()
+  useDrafts.setState({ reopened: { ...reopened, [key]: (reopened[key] ?? 0) + 1 } })
 }
 
 /** Drops a box's draft and its previews: the conversation it was for is

@@ -1,24 +1,41 @@
 import type { ItemRow } from '@ollupi/protocol'
-import { cn, ProcessRow } from '@ollupi/ui'
-import { Lightbulb } from 'lucide-react'
+import { cn, IconButton, ProcessRow } from '@ollupi/ui'
+import { Lightbulb, Pencil } from 'lucide-react'
+import { editMessage } from '../../../domains/conversation'
+import { useOpenThreadId } from '../../../domains/navigation'
 import { useT } from '../../../i18n'
 import { duration } from '../../../i18n/format'
 import { CopyButton, Markdown } from '../../common/Markdown'
 import { Attachments } from './Attachments'
 
-export function UserMessage({ item }: { item: ItemRow }) {
+/** editable: the thread's latest message, which can be taken back to the
+ * box to edit (editMessage). */
+export function UserMessage({ item, editable }: { item: ItemRow; editable?: boolean }) {
   const m = useT()
+  const threadId = useOpenThreadId()
+  const edit = editable && threadId && (
+    <IconButton label={m.conversation.timeline.editMessage} size="sm" onClick={() => void editMessage(threadId, item)}>
+      <Pencil size={14} />
+    </IconButton>
+  )
+  // The message's buttons sit beside the bubble's foot, or under the files
+  // of a message that has no text, shown while it is pointed at or focused.
+  const actions = (
+    <span className="flex opacity-0 transition-opacity duration-100 ease-standard group-focus-within:opacity-100 group-hover:opacity-100">
+      {edit}
+      {item.text && <CopyButton text={item.text} label={m.conversation.timeline.copyMessage} />}
+    </span>
+  )
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="group flex flex-col items-end gap-2">
       <Attachments attachments={item.attachments} />
-      {item.text && (
-        // Copying sits beside the bubble's foot, shown while the message is pointed at or focused.
-        <div className="group flex max-w-full items-end gap-1">
-          <span className="opacity-0 transition-opacity duration-100 ease-standard group-focus-within:opacity-100 group-hover:opacity-100">
-            <CopyButton text={item.text} label={m.conversation.timeline.copyMessage} />
-          </span>
+      {item.text ? (
+        <div className="flex max-w-full items-end gap-1">
+          {actions}
           <div className="selectable max-w-140 min-w-0 rounded-xl bg-surface px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>
         </div>
+      ) : (
+        edit && actions
       )}
     </div>
   )

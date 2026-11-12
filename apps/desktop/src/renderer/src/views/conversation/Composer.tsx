@@ -8,7 +8,7 @@ import { AutoTextarea, cn, IconButton, PixelArrow, useTooltip } from '@ollupi/ui
 import { FileText, ListEnd, Paperclip, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
 import type { DraftAttachment } from '../../domains/attachments'
-import { addDraftFiles, removeDraftAttachment, sentDraft, setDraftText, useDraft } from '../../domains/drafts'
+import { addDraftFiles, removeDraftAttachment, sentDraft, setDraftText, useDraft, useDrafts } from '../../domains/drafts'
 import type { Message, SendMode } from '../../domains/conversation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
@@ -47,14 +47,16 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
   const sendTip = useTooltip({ label: t.send, hint: t.sendHint })
   const interjectTip = useTooltip({ label: t.interject, hint: t.interjectHint })
   const queueTip = useTooltip({ label: t.queue, hint: t.queueHint })
-  // A draft put back after a reload or a switch is there to be continued: the
-  // caret goes after it, not where the browser focuses a filled box.
+  // A draft put back after a reload or a switch, or a sent message given
+  // back to edit, is there to be continued: the caret goes after it, not
+  // where the browser focuses a filled box.
+  const reopened = useDrafts((s) => s.reopened[draft])
   useEffect(() => {
     const box = input.current
     if (!box) return
     box.focus()
     box.setSelectionRange(box.value.length, box.value.length)
-  }, [])
+  }, [reopened])
 
   const attach = (files: Iterable<File>) => addDraftFiles(draft, files)
   const detach = (id: string) => removeDraftAttachment(draft, id)
