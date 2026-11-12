@@ -1,6 +1,7 @@
 // Client-only UI state: the screen showing, the model chosen for the next
 // message, and the panel a conversation shows beside it. Nothing here reaches the server until an action reads it.
 
+import type { ApprovalPolicy } from '@ollupi/protocol'
 import { create } from 'zustand'
 
 /** What a conversation shows beside it. */
@@ -28,6 +29,10 @@ interface NavigationStore {
   /** The connection chosen in the composer. Undefined sends none, and the
    * server continues with the thread's last model, or the default. */
   model: string | undefined
+  /** The approval policy a new conversation starts with, chosen in the
+   * draft's composer. Undefined starts it inheriting its workspace's, or
+   * the agent's. */
+  approval: ApprovalPolicy | undefined
   /** Stays open across threads, like a pane. */
   panel: Panel | undefined
   /** An item to bring into view once its thread shows it, e.g. a message
@@ -47,6 +52,7 @@ export const useNavigation = create<NavigationStore>()(() => ({
   screen: { kind: 'draft', workspaceId: undefined },
   environment: undefined,
   model: undefined,
+  approval: undefined,
   panel: undefined,
   focus: undefined,
   file: undefined,
@@ -67,6 +73,8 @@ export function go(screen: Screen): void {
   useNavigation.setState((s) => ({
     screen,
     model: sameThread(s.screen, screen) ? s.model : undefined,
+    // Kept while the person stays on new conversations, e.g. picking a workspace.
+    approval: s.screen.kind === 'draft' && screen.kind === 'draft' ? s.approval : undefined,
   }))
 }
 
@@ -87,6 +95,10 @@ export function focusItem(focus: NavigationStore['focus']): void {
 
 export function chooseModel(model: string | undefined): void {
   useNavigation.setState({ model })
+}
+
+export function chooseApproval(approval: ApprovalPolicy | undefined): void {
+  useNavigation.setState({ approval })
 }
 
 /** Where the conversations started from now on run. A thread keeps the

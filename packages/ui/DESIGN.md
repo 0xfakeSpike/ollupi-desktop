@@ -56,7 +56,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 - **字标**：小狼加 "ollupi"，Bricolage Grotesque 700，全小写，字距 −3.5%，浅底用夜、深底用雪。小狼高 = 字高，间距 = 小狼宽的 ¼。小狼和字并排，不替代任何字母。
 - **读音和来历**跟着字标第一次出现（官网首屏、README 头图），一句话讲清楚。〔待定〕
 - **传播的标题**：Bricolage Grotesque 700–800，中文用思源黑体 Heavy；正文用 Inter。不用衬线，也不用像素字体。
-- **产品界面**：Inter、苹方、JetBrains Mono，按 2.3 的六级。只有新会话页的问候可以借一次 Bricolage。
+- **产品界面**：Inter、苹方、JetBrains Mono，按 2.3 的六级。只有新会话页的问候借一次 Bricolage（`font-brand`，中文仍落到苹方）。
 - **App 图标**：夜底圆角方，咧嘴笑的小狼；轮廓和底色融成一体，只剩毛色和脸。所有平台的头像都用同一张。
 
 ### 0.5 传播时
@@ -92,7 +92,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 ### 1.3 克制与强调
 
 - **主按钮是墨色（ink）**：浅色主题里是夜，深色主题里是雪。颜色不承担"这是主操作"的意思，位置和墨色承担。例外是**发送**（输入框的发送和插话）：那是交给 agent 去做事，用 `send`（`bg-send text-send-fg`）——浅色是夜，深色是薰衣，一屏只有这一个。
-- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户的信号（侧栏圆点、顶栏徽标、提问块描边）。选中项的底（`selected`）是中性的夜 7%（深色是雪 9%），不用强调色。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
+- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户和未读的信号（侧栏圆点、顶栏徽标、提问块描边）。选中项的底（`selected`）是中性的夜 7%（深色是雪 9%），不用强调色。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
 - **成功是常态，不着色。** 工具成功、任务完成不显示绿色；只有失败、等待、被拒才有标记。例外：diff 的 `+12 −3`，以及 diff 代码块里增删行的底色。
 - **粗体（600）** 只给标题和按钮。正文里的强调交给 Markdown 本身。500 用于导航选中项、标签、列表行的主名称。
 - **底色** 只表示"这是一块独立的内容"（代码、输出、用户消息、设置列表），不表示状态。
@@ -413,7 +413,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 |---|---|
 | `ink` / `ink-fg` | 主按钮、图标按钮的提示 |
 | `send` / `send-fg` | 发送和插话按钮（`bg-send text-send-fg`） |
-| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"的圆点和徽标 |
+| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"和未读的圆点、"等待你"的徽标 |
 | `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
 | `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
 | `success` | diff 的 `+n`；`success-soft` 是 diff 代码块里新增行的底色；用量条之外几乎不用。成功默认不着色 |
@@ -582,7 +582,7 @@ L2  ╭────────────────────────�
 
 | 级别 | 描边 / 图标 | 标题 | 按钮（从右到左） |
 |---|---|---|---|
-| 提问 | accent | 问题本身 | `Submit`（主） |
+| 提问 | accent | 问题本身 | `Answer`（主）· `Skip`（幽灵，跳过后这次调用记为拒绝，agent 不带答案继续） |
 | 普通审批：写文件、跑命令、调用 MCP | warning | "Run this command?" / "Edit 3 files?" / "Call `github.create_issue`?" | `Allow once`（主）· `Allow for this session`（次）· `Deny`（幽灵） |
 | 危险审批：完全访问、删除、不可逆 | danger | "Give this command full access?"，下一行用一句话说明后果 | `Allow full access`（危险）· `Deny`（次）。不提供"本会话允许"，或者折进 "…" 菜单并二次确认 |
 
@@ -601,7 +601,7 @@ L2  ╭────────────────────────�
 - 提交后收成 L0 行："Answered 3 questions"，展开可见答案。
 
 **流外的回响**
-- 侧栏该会话显示 accent 圆点；顶栏右侧、面板按钮前显示描边胶囊 "Waiting for you"（高 20、`rounded-full`、`border-accent/35`、`text-caption` `accent`，不铺底）。
+- 侧栏该会话显示带光晕的 accent 圆点（`ring-3 ring-accent/25`，和未读的实心圆点区分开）；顶栏右侧、面板按钮前显示描边胶囊 "Waiting for you"（高 20、`rounded-full`、`border-accent/35`、`text-caption` `accent`，不铺底）。
 - 输入框上方的状态行：小狼换成看着你的脸，写 "Waiting for your approval above" 或 "Waiting for your answer above"（子 agent 的等待也算）；运行中没人被问时是左右张望的小狼和 "Working…"，对话流里不再另写；行动块滚出视野时，在输入框上方浮出胶囊按钮 "1 request waiting ↓"，点击滚到块。
 - 窗口不在前台时发系统通知。
 
@@ -609,7 +609,7 @@ L2  ╭────────────────────────�
 
 | 载体 | 用于 | 规格 |
 |---|---|---|
-| **圆点** | 列表里表示"这里有事"（侧栏会话、workspace、连接状态） | 6px `rounded-full`，放在行尾元信息的位置 |
+| **圆点** | 列表里表示"这里有事"（侧栏会话、workspace、连接状态） | 6px `rounded-full`，放在行尾元信息的位置。侧栏会话按优先级只显示一个：等你处理（accent + 光晕）> 运行中（spinner）> 未读（accent 实心，标题同时变 `fg` `font-medium`）> 相对时间 |
 | **徽标** | 标题或顶栏里说出状态名，或计数 | `text-caption` 高 18、`px-1.5`、`rounded-sm`；状态色徽标 = `*-soft` 底 + 状态色字；中性徽标 = `hover` 底 + `fg-muted` 字；一行最多一个 |
 | **图标 + 文字** | 对话流里 | 见 3.1 |
 
@@ -810,7 +810,7 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 | 新会话页 | 问候旁的小狼（0.3）+ `text-display` 标题、和对话页同样的输入框 |
 | 对话页顶栏 | `text-ui font-semibold` 标题 + `text-ui fg-subtle` 的 workspace 名（不带图标）；右侧是等待胶囊（3.2）和各面板开关（md 图标按钮，开启时 `active`） |
 | 对话流 | 3.1、3.2 |
-| 输入框 | `bg-canvas border-line-strong rounded-xl`，没有阴影，聚焦时不变（不用强调色）；`px-3.5 pt-3 pb-2.5`，正文 `text-body`；宽度与对话列相同（`max-w-thread px-6`），离窗口底 20。工具栏：附件按钮（sm 图标按钮），环境、workspace、模型是描边小标签（高 24、`rounded-md border-line`、`text-small fg-muted`，不带图标和箭头）；右端发送是 32px `rounded-lg` 的 `send` 方块，内放像素箭头。运行中右端是 Stop（32px `rounded-lg` 描边）、排队、插话（`rounded-lg`）。快捷键和插话、排队的含义放在按钮的提示里，输入框下面不再写一行说明。上方是状态行（3.2） |
+| 输入框 | `bg-canvas border-line-strong rounded-xl`，没有阴影，聚焦时不变（不用强调色）；`px-3.5 pt-3 pb-2.5`，正文 `text-body`；宽度与对话列相同（`max-w-thread px-6`），离窗口底 20。工具栏：附件按钮（sm 图标按钮），环境、workspace、模型、审批策略是描边小标签（高 24、`rounded-md border-line`、`text-small fg-muted`，不带图标和箭头）；审批策略显示生效的那一档（"审批：适中"），可改成这个会话自己的，或回到跟随工作区 / agent 默认；右端发送是 32px `rounded-lg` 的 `send` 方块，内放像素箭头。运行中右端是 Stop（32px `rounded-lg` 描边）、排队、插话（`rounded-lg`）。快捷键和插话、排队的含义放在按钮的提示里，输入框下面不再写一行说明。上方是状态行（3.2） |
 | Context 面板 | 屏幕内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
 | Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
 | Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |

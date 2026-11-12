@@ -1,7 +1,8 @@
 import { activeTurn, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
 import { Badge, Button, IconButton, PixelLoader, Pup, useTooltip } from '@ollupi/ui'
 import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
-import { interrupt, openThread, sendMessage, useTimeline } from '../../domains/conversation'
+import { useAgentPolicy } from '../../domains/backendConfig'
+import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
 import { exportThread, type ExportFormat } from '../../domains/export'
 import { togglePanel, useNavigation } from '../../domains/navigation'
@@ -12,6 +13,7 @@ import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
 import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
+import { ApprovalPicker } from './ApprovalPicker'
 import { BrowserPanel } from './BrowserPanel'
 import { Composer } from './Composer'
 import { ContextPanel } from './ContextPanel'
@@ -38,6 +40,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
   const panel = useNavigation((s) => s.panel)
   const m = useT()
+  const agentPolicy = useAgentPolicy((s) => s.policy)
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
 
   return (
@@ -152,7 +155,20 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             disabled={!timeline}
             onSubmit={(message, mode) => sendMessage(threadId, message, mode)}
             onStop={() => void interrupt(threadId)}
-            toolbar={<ModelPicker inherited={timeline && lastConnection(timeline)} />}
+            toolbar={
+              <>
+                <ModelPicker inherited={timeline && lastConnection(timeline)} />
+                {thread && (
+                  <ApprovalPicker
+                    value={thread.settings.approvalPolicy}
+                    inherited={workspace?.settings.approvalPolicy ?? agentPolicy}
+                    from={workspace ? m.settings.permissions.fromWorkspace : m.settings.permissions.fromAgent}
+                    // The thread's own rules stay; only its policy changes, or goes to inherit.
+                    onChange={(p) => void updateThreadPermissions(thread.id, { permissions: thread.settings.permissions, ...(p ? { approvalPolicy: p } : {}) })}
+                  />
+                )}
+              </>
+            }
           />
         )}
       </div>

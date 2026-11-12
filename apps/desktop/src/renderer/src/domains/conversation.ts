@@ -141,6 +141,8 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
       // One that is no longer there (deleted elsewhere) starts here too.
       environmentId: chosenEnvironment(),
       title: title || undefined,
+      // The policy chosen on the draft's composer; none inherits.
+      approvalPolicy: useNavigation.getState().approval,
       permissions: {},
     })
     // thread/started has put it in the list already.

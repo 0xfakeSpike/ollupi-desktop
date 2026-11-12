@@ -3,7 +3,10 @@
 // first checks the changed file with the backend itself.
 
 import { isWorking } from '@ollupi/core'
+import type { ApprovalPolicy } from '@ollupi/protocol'
+import { create } from 'zustand'
 import type { ConfigChange, ConfigCheck } from '../../../shared/ipc'
+import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
@@ -36,4 +39,18 @@ export async function applyConfig(changes: ConfigChange[]): Promise<CheckedConfi
     return undefined
   }
   return result
+}
+
+/** The agent's approval policy in config.yaml (permissions.approval), which
+ * a thread inherits when neither it nor its workspace sets one. */
+export const useAgentPolicy = create<{ policy: ApprovalPolicy | undefined }>()(() => ({ policy: undefined }))
+
+/** Read on every connection: a change to config.yaml restarts the backend,
+ * so the next connection reads the new one. Unreadable leaves it unknown;
+ * the settings screens say why. */
+export const agentPolicyDomain: Domain = {
+  sync: async () => {
+    const r = await desktop.config.read().catch(() => undefined)
+    useAgentPolicy.setState({ policy: r?.ok ? ((r.config.permissions.approval || undefined) as ApprovalPolicy | undefined) : undefined })
+  },
 }

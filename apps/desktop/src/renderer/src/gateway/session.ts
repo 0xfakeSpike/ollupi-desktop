@@ -15,6 +15,7 @@ import { noticesDomain } from '../domains/notices'
 import { notificationsDomain } from '../domains/notifications'
 import { requestsDomain } from '../domains/requests'
 import { settingsDomain } from '../domains/settings'
+import { agentPolicyDomain } from '../domains/backendConfig'
 import { threadsDomain } from '../domains/threads'
 import { toolsDomain } from '../domains/tools'
 import { environmentsDomain } from '../domains/environments'
@@ -27,7 +28,7 @@ type ReadyBackend = Extract<BackendState, { status: 'ready' }>
 
 // Sync runs in this order: threads are listed per workspace, so workspaces
 // come first.
-const domains: Domain[] = [environmentsDomain, workspacesDomain, threadsDomain, conversationDomain, requestsDomain, noticesDomain, notificationsDomain, modelsDomain, toolsDomain, cronDomain, settingsDomain]
+const domains: Domain[] = [environmentsDomain, workspacesDomain, threadsDomain, conversationDomain, requestsDomain, noticesDomain, notificationsDomain, modelsDomain, toolsDomain, cronDomain, settingsDomain, agentPolicyDomain]
 const CLIENT_INFO = { name: 'ollupi-desktop', version: '0.2.0' }
 const MAX_BACKOFF_MS = 5000
 
