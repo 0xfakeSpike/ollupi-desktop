@@ -79,12 +79,13 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="@container/page flex h-full flex-col">
       <header className="drag flex h-16 shrink-0 items-center pl-6">
         <h1 className="text-title">{t.title}</h1>
       </header>
-      {/* A column of sections beside the page; in a narrow window, a row above it. */}
-      <div className="@container/page flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
+      {/* A column of sections beside the page; in a narrow window, a row above it. The
+          screen's root is the container it reads: an element cannot query its own width. */}
+      <div className="flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
         {/* Its labels start under the header's title. */}
         <nav
           aria-label={t.title}
