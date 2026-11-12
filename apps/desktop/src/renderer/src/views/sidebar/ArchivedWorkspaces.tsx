@@ -28,7 +28,7 @@ export function ArchivedWorkspaces({ workspaces }: { workspaces: WorkspaceRow[] 
       {open && (
         <ul className="flex flex-col gap-0.5">
           {workspaces.map((w) => (
-            <li key={w.id} className="group flex h-7 items-center gap-2 rounded-md pr-0.5 pl-8 text-ui text-fg-subtle hover:bg-hover">
+            <li key={w.id} className="group flex h-9 items-center gap-2 rounded-full pr-1 pl-3.5 text-ui text-fg-subtle hover:bg-hover">
               <span className="min-w-0 flex-1 truncate" title={w.rootPath}>
                 {w.name}
               </span>

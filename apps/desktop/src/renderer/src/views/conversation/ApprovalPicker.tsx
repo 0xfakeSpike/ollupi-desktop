@@ -53,10 +53,11 @@ export function ApprovalPicker({
       onChange={(v) => onChange(v || undefined)}
       actions={actions}
       width={380}
-      className={cn(chip, 'gap-1', loose && 'border-warning/40 text-warning hover:text-warning')}
+      // The rules the agent works under stay readable at any width (PRODUCT.md, principle 5).
+      className={cn(chip, 'max-w-none gap-1', loose && 'border-warning/40 text-warning hover:text-warning')}
     >
       {loose ? <ShieldAlert size={14} className="shrink-0" aria-hidden /> : <Shield size={14} className="shrink-0" aria-hidden />}
-      <span className="truncate">{shown ? t.approval(shown) : t.approvalLabel}</span>
+      <span className="min-w-0 truncate">{shown ? t.approval(shown) : t.approvalLabel}</span>
       <ChevronDown size={12} className="shrink-0 opacity-60" aria-hidden />
     </Picker>
   )

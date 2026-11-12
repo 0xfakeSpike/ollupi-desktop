@@ -16,7 +16,7 @@ export function Toasts() {
           <div
             key={n.id}
             role={n.tone === 'danger' ? 'alert' : 'status'}
-            className="pointer-events-auto flex animate-enter items-start gap-2 rounded-xl border border-line bg-raised p-3 text-ui text-fg shadow-md motion-reduce:animate-fade"
+            className="pointer-events-auto flex animate-enter items-start gap-2 rounded-3xl bg-raised p-3.5 text-ui text-fg shadow-md dark:ring-1 dark:ring-line motion-reduce:animate-fade"
           >
             <Icon size={16} className={cn('mt-0.5 shrink-0', n.tone === 'danger' ? 'text-danger' : 'text-fg-muted')} aria-hidden />
             <span className="selectable min-w-0 flex-1 break-words">{n.message}</span>

@@ -1,5 +1,5 @@
 import { cn, Picker, type PickerOption } from '@ollupi/ui'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Sparkles } from 'lucide-react'
 import { useMemo } from 'react'
 import { useModels } from '../../domains/models'
 import { chooseModel, useNavigation } from '../../domains/navigation'
@@ -29,7 +29,7 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
         const slash = m.connection.indexOf('/')
         return {
           value: m.connection,
-          label: slash < 0 ? m.connection : m.connection.slice(slash + 1),
+          label: modelName(m.connection),
           group: slash < 0 ? undefined : m.connection.slice(0, slash),
           search: m.connection,
           note: m.connection === fallback ? t.default : undefined,
@@ -44,11 +44,21 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
       value={shown}
       options={options}
       onChange={chooseModel}
-      className={cn(chip, 'gap-1')}
+      // In a narrow box it is a whole icon capsule rather than a cut-off name.
+      className={cn(chip, 'shrink-0 gap-1')}
       filter={models.length > FILTER_FROM ? { placeholder: t.filter, empty: t.noMatch } : undefined}
     >
-      <span className={cn('truncate', unavailable && 'text-warning')}>{unavailable ? t.unavailable(shown) : shown}</span>
+      {/* What is left when a narrow box squeezes the name away. */}
+      <Sparkles size={14} className="shrink-0" aria-hidden />
+      <span className={cn('hidden min-w-0 truncate @xl:inline', unavailable && 'text-warning')}>{unavailable ? t.unavailable(shown) : modelName(shown)}</span>
       <ChevronDown size={12} className="shrink-0 opacity-60" aria-hidden />
     </Picker>
   )
+}
+
+/** The model's own name, without the provider in front: the provider is
+ * the list's heading, one step further. */
+function modelName(connection: string): string {
+  const slash = connection.indexOf('/')
+  return slash < 0 ? connection : connection.slice(slash + 1)
 }

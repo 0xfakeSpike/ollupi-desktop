@@ -11,7 +11,7 @@ export function Highlight({ text, terms }: { text: string; terms: string[] }) {
       {text.split(pattern).map((part, i) =>
         // split keeps the matches at the odd indexes.
         i % 2 ? (
-          <mark key={i} className="rounded-sm bg-accent-soft px-0.5 text-fg">
+          <mark key={i} className="rounded-sm bg-area-4 px-0.5 text-fg">
             {part}
           </mark>
         ) : (

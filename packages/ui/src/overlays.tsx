@@ -33,12 +33,12 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
         aria-modal
         aria-label={title}
         className={cn(
-          'flex max-h-full w-full animate-dialog flex-col rounded-xl border border-line bg-raised shadow-lg motion-reduce:animate-fade',
+          'flex max-h-full w-full animate-dialog flex-col rounded-4xl bg-raised shadow-lg dark:ring-1 dark:ring-line motion-reduce:animate-fade',
           wide ? 'max-w-dialog-wide' : 'max-w-dialog',
         )}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-3 px-5 pt-5">
+        <div className="flex items-start gap-3 px-6 pt-6">
           <div className="min-w-0 flex-1">
             <h2 className="text-title text-fg">{title}</h2>
             {description && <p className="mt-1 text-ui text-fg-muted">{description}</p>}
@@ -47,10 +47,10 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
             <X size={14} />
           </IconButton>
         </div>
-        <div ref={body} className="overflow-y-auto px-5 py-4">
+        <div ref={body} className="overflow-y-auto px-6 py-4">
           <div ref={content}>{children}</div>
         </div>
-        {footer && <div className={cn('flex justify-end gap-2 px-5 pb-5', scrolls && 'border-t border-line pt-4')}>{footer}</div>}
+        {footer && <div className={cn('flex justify-end gap-2.5 px-6 pb-6', scrolls && 'border-t border-line pt-4')}>{footer}</div>}
       </div>
     </div>
   )

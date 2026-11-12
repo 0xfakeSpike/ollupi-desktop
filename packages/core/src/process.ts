@@ -66,6 +66,8 @@ export interface ProcessSummary {
   commands: number
   /** Distinct files edited or written, by the calls that went through. */
   filesChanged: number
+  /** Those files' paths, as the calls named them, in the order first changed. */
+  changedPaths: string[]
   /** Lines those calls added and removed, as their diffs count them. */
   linesAdded: number
   linesRemoved: number
@@ -84,6 +86,7 @@ export function summarizeProcess(items: readonly ItemRow[]): ProcessSummary {
   const summary: ProcessSummary = {
     commands: 0,
     filesChanged: 0,
+    changedPaths: [],
     linesAdded: 0,
     linesRemoved: 0,
     reads: 0,
@@ -128,6 +131,7 @@ export function summarizeProcess(items: readonly ItemRow[]): ProcessSummary {
     }
   }
   summary.filesChanged = changed.size
+  summary.changedPaths = [...changed]
   if (items.every((i) => i.completedAt)) summary.completedAt = items.map((i) => i.completedAt!).reduce((a, b) => (a > b ? a : b), '')
   return summary
 }

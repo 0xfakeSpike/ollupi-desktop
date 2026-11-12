@@ -5,7 +5,7 @@
 // files as it works, so reloading reads every open folder again.
 
 import type { WorkspaceRow } from '@ollupi/protocol'
-import { cn, IconButton, PixelLoader } from '@ollupi/ui'
+import { cn, IconButton, Loader } from '@ollupi/ui'
 import { ChevronRight, Code, Eye, File, Folder, FolderOpen, RotateCw } from 'lucide-react'
 import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
@@ -125,7 +125,7 @@ function Entries({
   if (!entries) {
     return depth === 0 ? (
       <div className="flex justify-center py-8">
-        <PixelLoader label={t.loadingFolder} />
+        <Loader label={t.loadingFolder} />
       </div>
     ) : null
   }
@@ -157,7 +157,7 @@ function Entries({
               }}
               // Each level indents by the chevron's width, so names line up under their folder's.
               style={{ paddingLeft: 4 + depth * 16 }}
-              className="flex h-7 w-full items-center gap-1 rounded-md pr-2 text-left text-ui text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+              className="flex h-8 w-full items-center gap-1 rounded-full pr-3 text-left text-ui text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
             >
               <ChevronRight
                 size={14}
@@ -244,7 +244,7 @@ function Preview({
       </div>
       {!file ? (
         <div className="flex justify-center py-8">
-          <PixelLoader label={t.loadingFile} />
+          <Loader label={t.loadingFile} />
         </div>
       ) : file.kind === 'text' ? (
         <>
@@ -252,7 +252,7 @@ function Preview({
           {file.truncated && <p className="text-small text-fg-subtle">{t.truncated(fileSize(locale, file.size))}</p>}
         </>
       ) : file.kind === 'image' ? (
-        <img src={file.dataUrl} alt={path} className="max-w-full self-start rounded-md border border-line" />
+        <img src={file.dataUrl} alt={path} className="max-w-full self-start rounded-2xl" />
       ) : file.kind === 'pdf' ? (
         <Pdf data={file.data} title={path} />
       ) : (
@@ -274,7 +274,7 @@ function Pdf({ data, title }: { data: Uint8Array<ArrayBuffer>; title: string }) 
   // The viewer would take the pointer from an edge being dragged across it.
   const resizing = usePanelWidths((s) => s.resizing)
   return url ? (
-    <iframe src={url} title={title} className={cn('min-h-96 w-full flex-1 rounded-md border border-line', resizing && 'pointer-events-none')} />
+    <iframe src={url} title={title} className={cn('min-h-96 w-full flex-1 rounded-2xl bg-surface', resizing && 'pointer-events-none')} />
   ) : null
 }
 
@@ -377,12 +377,12 @@ function FolderCrumb({
             positionTryFallbacks: 'flip-block, flip-inline',
           } as CSSProperties
         }
-        className="m-0 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-line bg-raised p-1 font-sans text-fg shadow-lg"
+        className="m-0 mt-1 max-h-80 w-72 overflow-y-auto rounded-2xl bg-raised p-1 font-sans text-fg shadow-lg dark:ring-1 dark:ring-line"
       >
         <button
           type="button"
           onClick={() => leave(() => onReveal(folder))}
-          className="flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-left text-ui text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+          className="flex h-8 w-full items-center gap-1.5 rounded-full px-3 text-left text-ui text-fg-muted transition-colors duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
         >
           <Folder size={14} className="shrink-0" />
           {t.showInList}

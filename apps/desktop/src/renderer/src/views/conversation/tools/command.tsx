@@ -5,7 +5,7 @@ import type { ItemRow } from '@ollupi/protocol'
 import { Badge, Block, cn } from '@ollupi/ui'
 import { Terminal } from 'lucide-react'
 import { useT } from '../../../i18n'
-import { CodeBlock } from '../../common/Markdown'
+import { CodeBlock, CopyButton } from '../../common/Markdown'
 import { CallRow, ErrorText } from './CallRow'
 import type { ToolView } from './types'
 
@@ -24,7 +24,10 @@ export const command: ToolView<Command> = {
   approval: {
     title: (m, call) => (call.command.escalated ? m.requests.approval.commandFullAccess : m.requests.approval.command),
     // Approving runs exactly this program, arguments and directory.
-    Body: ({ call }) => <CodeBlock code={commandLine(call.command)} label={`sh · ${call.command.cwd}`} />,
+    subject: (call) => commandLine(call.command),
+    // Where it runs is certain; what the command does is its own words above.
+    consequence: (m, call) => m.requests.approval.runsIn(call.command.cwd.split('/').filter(Boolean).at(-1) ?? call.command.cwd),
+    Body: ({ call }) => <CommandPlace command={call.command} />,
     showsContent: true,
   },
 }
@@ -81,5 +84,18 @@ function CommandDetails({ item, call: { command: cmd, output: out } }: { item: I
       )}
       {item.error && <ErrorText text={item.error} />}
     </>
+  )
+}
+
+/** The folded detail of a command approval: the folder it runs in, in
+ * full, and the command to copy; the command itself is the card's subject. */
+function CommandPlace({ command: cmd }: { command: Command['command'] }) {
+  const m = useT()
+  return (
+    <div className="flex items-center gap-2 text-small text-fg-muted">
+      <span className="shrink-0">{m.requests.approval.folder}</span>
+      <span className="selectable min-w-0 flex-1 font-mono break-all">{cmd.cwd}</span>
+      <CopyButton text={commandLine(cmd)} label={m.requests.approval.copyCommand} />
+    </div>
   )
 }

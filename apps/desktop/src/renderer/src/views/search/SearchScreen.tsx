@@ -30,13 +30,13 @@ export function SearchScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
-        <h1 className="text-ui font-semibold">{t.title}</h1>
+      <header className="drag flex h-16 shrink-0 items-center gap-3 pr-4 pl-6">
+        <h1 className="text-title">{t.title}</h1>
       </header>
       <div className="scroll-centered flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-6">
           <div className="flex items-center gap-2">
-            <label className="flex h-9 flex-1 items-center gap-2 rounded-lg border border-line-strong px-3 focus-within:border-accent focus-within:ring-3 focus-within:ring-focus">
+            <label className="flex h-10 flex-1 items-center gap-2 rounded-full bg-surface px-4 focus-within:ring-3 focus-within:ring-focus">
               <Search size={16} className="shrink-0 text-fg-subtle" />
               <input
                 ref={input}
@@ -96,7 +96,7 @@ function Group<T>({ title, items, children }: { title: string; items: T[] | null
         {title}
         <span className="tabular-nums">{items.length}</span>
       </h2>
-      <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">{items.map(children)}</ul>
+      <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">{items.map(children)}</ul>
     </section>
   )
 }

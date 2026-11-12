@@ -7,17 +7,18 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-ink text-ink-fg hover:opacity-85',
-  secondary: 'border border-line-strong bg-raised text-fg hover:bg-hover',
+  primary: 'bg-ink text-ink-fg hover:opacity-90',
+  secondary: 'bg-surface text-fg hover:bg-hover',
   ghost: 'text-fg-muted hover:bg-hover hover:text-fg',
   danger: 'bg-danger text-danger-fg hover:brightness-110',
 }
 
-// sm sits inside cards and rows, md is the default, lg ends dialogs and pages.
+// Every button is a capsule (DESIGN.md §0, stone and moss). sm sits inside
+// rows, md is the default, lg answers a card or ends a dialog.
 const sizes: Record<Size, string> = {
-  sm: 'h-6 gap-1.5 px-2 text-small',
-  md: 'h-7 gap-1.5 px-2.5 text-ui',
-  lg: 'h-8 gap-1.5 px-3 text-ui',
+  sm: 'h-6 gap-1.5 px-2.5 text-small',
+  md: 'h-8 gap-1.5 px-3.5 text-ui',
+  lg: 'h-10 gap-2 px-4.5 text-ui',
 }
 
 const focus = 'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none'
@@ -38,7 +39,7 @@ export function Button({ variant = 'secondary', size = 'md', icon, loading, clas
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-md font-medium whitespace-nowrap',
+        'inline-flex shrink-0 items-center justify-center rounded-full font-semibold whitespace-nowrap',
         motion,
         'disabled:pointer-events-none disabled:opacity-50',
         focus,
@@ -73,7 +74,7 @@ export function IconButton({ label, hint, size = 'md', active, className, childr
         aria-label={label}
         aria-pressed={active}
         className={cn(
-          'inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg',
+          'inline-flex shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-hover hover:text-fg',
           'disabled:pointer-events-none disabled:opacity-50',
           motion,
           focus,

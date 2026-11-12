@@ -76,9 +76,11 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
     setQuery('')
     if (refocus) trigger.current?.focus()
   }
-  const pick = (row: Row<V> | undefined) => {
+  // Back to the trigger after a key, so the keyboard keeps its place; after
+  // a click the focus is let go, so no focus ring lingers on the trigger.
+  const pick = (row: Row<V> | undefined, byKey: boolean) => {
     if (!row) return
-    close(true)
+    close(byKey)
     if (row.kind === 'option') onChange(row.option.value)
     else row.action.onSelect()
   }
@@ -143,7 +145,7 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
       setActive(e.key === 'Home' ? 0 : rows.length - 1)
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      pick(rows[active])
+      pick(rows[active], true)
     } else if (e.key === 'Escape') {
       e.preventDefault()
       e.stopPropagation()
@@ -182,7 +184,7 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
             data-overlay
             onKeyDown={onKeyDown}
             style={{ left: place.left, top: place.top, bottom: place.bottom, maxHeight: place.maxHeight, minWidth: place.minWidth, maxWidth: width }}
-            className="fixed z-50 flex animate-enter flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-md motion-reduce:animate-fade"
+            className="fixed z-50 flex animate-enter flex-col overflow-hidden rounded-2xl bg-raised shadow-md dark:ring-1 dark:ring-line motion-reduce:animate-fade"
           >
             {filter && (
               <div className="flex shrink-0 items-center gap-2 border-b border-line px-3">
@@ -195,7 +197,7 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
                   aria-label={filter.placeholder}
                   aria-controls={id}
                   aria-activedescendant={rows[active] ? `${id}-${active}` : undefined}
-                  className="h-9 min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-subtle"
+                  className="h-9 min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-muted"
                 />
               </div>
             )}
@@ -211,7 +213,7 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
               aria-activedescendant={!filter && rows[active] ? `${id}-${active}` : undefined}
               className="min-h-0 overflow-y-auto p-1 outline-none"
             >
-              {shown.length === 0 && filter && <div className="px-2 py-1.5 text-ui text-fg-subtle">{filter.empty}</div>}
+              {shown.length === 0 && filter && <div className="px-2.5 py-1.5 text-ui text-fg-subtle">{filter.empty}</div>}
               {rows.map((row, i) => {
                 if (row.kind === 'action') {
                   return (
@@ -223,8 +225,8 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
                         role="option"
                         aria-selected={false}
                         onPointerMove={() => setActive(i)}
-                        onClick={() => pick(row)}
-                        className={cn('flex min-h-7 cursor-default items-center gap-2 rounded-md px-2 text-ui text-fg-muted', i === active && 'bg-hover text-fg')}
+                        onClick={() => pick(row, false)}
+                        className={cn('flex min-h-8 cursor-default items-center gap-2 rounded-xl px-2.5 text-ui text-fg-muted', i === active && 'bg-hover text-fg')}
                       >
                         {row.action.icon}
                         {row.action.label}
@@ -238,16 +240,16 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
                 const selected = o.value === value
                 return (
                   <div key={o.value}>
-                    {heading !== undefined && <div className="px-2 pt-2 pb-1 text-small font-medium text-fg-subtle first:pt-1">{heading}</div>}
+                    {heading !== undefined && <div className="px-2.5 pt-2 pb-1 text-small font-medium text-fg-subtle first:pt-1">{heading}</div>}
                     <div
                       id={`${id}-${i}`}
                       data-row={i}
                       role="option"
                       aria-selected={selected}
                       onPointerMove={() => setActive(i)}
-                      onClick={() => pick(row)}
+                      onClick={() => pick(row, false)}
                       className={cn(
-                        'flex min-h-7 cursor-default items-start gap-2 rounded-md px-2 py-1 text-ui text-fg',
+                        'flex min-h-8 cursor-default items-start gap-2 rounded-xl px-2.5 py-1.5 text-ui text-fg',
                         i === active && 'bg-hover',
                         selected && 'bg-selected font-medium',
                       )}

@@ -4,15 +4,12 @@
    classes. The resets below remove Tailwind's defaults: a class outside
    these scales produces no style. See packages/ui/DESIGN.md. */
 
-/* Inter for the interface and prose, JetBrains Mono for code, both bundled
-   (OFL); Chinese falls through to the system's PingFang. Bricolage Grotesque
-   (OFL) is the brand's voice: in the product only the new conversation's
-   greeting borrows it (DESIGN.md 0.4). */
-@import '@fontsource-variable/inter';
+/* Manrope for the interface and prose, JetBrains Mono for code, both
+   bundled (OFL); Chinese falls through to the system's PingFang. */
+@import '@fontsource-variable/manrope';
 @import '@fontsource-variable/jetbrains-mono';
-@import '@fontsource-variable/bricolage-grotesque';
 
-/* Chinese text wants full-width punctuation, which Inter would otherwise
+/* Chinese text wants full-width punctuation, which Manrope would otherwise
    draw: under a Chinese interface the quotes, the em dash and the ellipsis
    come from PingFang. */
 @font-face {
@@ -68,6 +65,13 @@
   --color-chart-2: var(--ol-chart-2);
   --color-chart-3: var(--ol-chart-3);
   --color-chart-4: var(--ol-chart-4);
+  /* Workspace areas: the flat fields a workspace is recognised by. */
+  --color-area-1: var(--ol-area-1);
+  --color-area-2: var(--ol-area-2);
+  --color-area-3: var(--ol-area-3);
+  --color-area-4: var(--ol-area-4);
+  --color-area-5: var(--ol-area-5);
+  --color-area-6: var(--ol-area-6);
 
   --font-sans: var(--ol-font-sans);
   --font-mono: var(--ol-font-mono);
@@ -89,6 +93,10 @@
   --text-display: 20px;
   --text-display--line-height: 28px;
   --text-display--font-weight: 600;
+  --text-hero: 28px;
+  --text-hero--line-height: 36px;
+  --text-hero--font-weight: 600;
+  --text-hero--letter-spacing: -0.015em;
 
   --font-weight-*: initial;
   --font-weight-normal: 400;
@@ -103,6 +111,8 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
   --radius-2xl: 16px;
+  --radius-3xl: 22px;
+  --radius-4xl: 28px;
 
   --shadow-*: initial;
   --shadow-sm: var(--ol-shadow-sm);
@@ -144,114 +154,117 @@
 /* Font stacks, as variables so the Chinese interface can put full-width
    punctuation first. */
 :root {
-  --ol-font-sans: 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
+  --ol-font-sans: 'Manrope Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
   --ol-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
-  /* Latin in Bricolage; Chinese and its punctuation from the sans stack. */
-  --ol-font-brand: 'Bricolage Grotesque Variable', var(--ol-font-sans);
+  --ol-font-brand: var(--ol-font-sans);
 }
 :root:lang(zh) {
-  --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
+  --ol-font-sans: 'CJK Punctuation', 'Manrope Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
 }
 
-/* The 格墨 palette, one for the whole product (packages/ui/DESIGN.md
-   §0). Every colour comes from the pixel pup: Night is its outline,
-   Lavender its fur, Snow its face, Blush its cheeks. The neutrals lean a
-   little toward Night, and everything translucent (hover, lines,
-   selection, shadows) is mixed from --ol-tint, Night in the light and
-   Snow in the dark, never from plain black or white.
-
-   Brand colours, for reference:
-     Night    #1b1838  ink and send in the light; the app icon
-     Iris     #4d4ac6  the accent in the light
-     Lavender #aeb5f5  the accent and send in the dark
-     Snow     #eff0fb  ink in the dark
-     Blush    #f4aacb  the pup's cheeks only, never the interface */
+/* Stone and moss (packages/ui/DESIGN.md §0): a guide map for your own
+   errands. The ground is stone, the working sheet a lighter stone above
+   it, actions deep moss, and one signal, ochre red, says "this needs
+   you". Workspaces are areas in a family of muted fields (area-1..6).
+   Everything translucent (hover, lines, selection, shadows) is mixed from
+   --ol-tint, the ink in the light and the paper in the dark. Text that
+   sits on an area field uses fg or fg-muted, which pass on every area. */
 :root {
   color-scheme: light dark;
-  --ol-tint: #1b1838;
-  --ol-ground: #f5f5f8;
-  --ol-canvas: #ffffff;
-  --ol-surface: #f0f0f5;
+  --ol-tint: #22252a;
+  --ol-ground: #eeede8;
+  --ol-canvas: #f8f7f4;
+  --ol-surface: #eeede8;
   --ol-raised: #ffffff;
   --ol-knob: #ffffff;
-  --ol-fg: #17161f;
-  --ol-fg-muted: #52515f;
-  --ol-fg-subtle: #666577;
-  --ol-ink: #1b1838;
-  --ol-ink-fg: #ffffff;
-  --ol-accent: #4d4ac6;
+  --ol-fg: #22252a;
+  --ol-fg-muted: #4c5057;
+  --ol-fg-subtle: #63676e;
+  --ol-ink: #263b30;
+  --ol-ink-fg: #f3f5f1;
+  --ol-accent: #a84a2b;
   --ol-accent-fg: #ffffff;
-  --ol-send: #1b1838;
-  --ol-send-fg: #eff0fb;
+  --ol-send: #263b30;
+  --ol-send-fg: #f3f5f1;
+
+  --ol-area-1: #bccbb4;
+  --ol-area-2: #bfccd6;
+  --ol-area-3: #cfc7db;
+  --ol-area-4: #d9cfb8;
+  --ol-area-5: #b5ccc7;
+  --ol-area-6: #c9cdbf;
 
   --ol-hover: color-mix(in srgb, var(--ol-tint) 5%, transparent);
   --ol-selected: color-mix(in srgb, var(--ol-tint) 7%, transparent);
   --ol-line: color-mix(in srgb, var(--ol-tint) 8%, transparent);
-  --ol-line-strong: color-mix(in srgb, var(--ol-tint) 16%, transparent);
-  --ol-scrim: color-mix(in srgb, var(--ol-tint) 32%, transparent);
-  --ol-accent-soft: color-mix(in srgb, var(--ol-accent) 10%, transparent);
-  --ol-focus: color-mix(in srgb, var(--ol-accent) 30%, transparent);
-  --ol-shadow-sm: 0 1px 2px color-mix(in srgb, var(--ol-tint) 5%, transparent), 0 4px 12px -4px color-mix(in srgb, var(--ol-tint) 8%, transparent);
+  --ol-line-strong: color-mix(in srgb, var(--ol-tint) 15%, transparent);
+  --ol-scrim: color-mix(in srgb, var(--ol-tint) 30%, transparent);
+  --ol-accent-soft: #f6e1d7;
+  --ol-focus: color-mix(in srgb, var(--ol-ink) 35%, transparent);
+  --ol-shadow-sm: 0 1px 2px color-mix(in srgb, var(--ol-tint) 6%, transparent), 0 4px 12px -4px color-mix(in srgb, var(--ol-tint) 8%, transparent);
   --ol-shadow-md: 0 2px 6px color-mix(in srgb, var(--ol-tint) 5%, transparent), 0 12px 28px -8px color-mix(in srgb, var(--ol-tint) 14%, transparent);
-  --ol-shadow-lg: 0 4px 12px color-mix(in srgb, var(--ol-tint) 6%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--ol-tint) 24%, transparent);
+  --ol-shadow-lg: 0 4px 12px color-mix(in srgb, var(--ol-tint) 6%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--ol-tint) 22%, transparent);
 
-  /* States lean toward the palette's temperature: red toward rose, yellow
-     toward amber. Each reads at 4.5:1 or better on the canvas. */
-  --ol-success: #2f7d4f;
-  --ol-success-soft: rgb(47 125 79 / 0.1);
-  --ol-warning: #9a5b00;
+  /* States, each 4.5:1 or better on the canvas. */
+  --ol-success: #2f6e46;
+  --ol-success-soft: rgb(47 110 70 / 0.1);
+  --ol-warning: #8f5a0a;
   --ol-warning-soft: rgb(196 128 20 / 0.14);
-  --ol-danger: #c42f4a;
+  --ol-danger: #a3264a;
   --ol-danger-fg: #ffffff;
-  --ol-danger-soft: rgb(196 47 74 / 0.08);
+  --ol-danger-soft: rgb(163 38 74 / 0.08);
 
-  /* Categorical chart colours, in this order: the dataviz reference
-     palette's first four slots (blue, orange, aqua, yellow), validated for
-     colour-blind separation on the light and dark canvas. */
   --ol-chart-1: #2a78d6;
   --ol-chart-2: #eb6834;
   --ol-chart-3: #1baf7a;
   --ol-chart-4: #eda100;
 }
 
-/* In the dark the screen sits a step above the ground, ink and the accent
-   turn light, and what sits on them is Night. */
+/* In the dark the sheet sits a step above the ground, the areas turn to
+   deep muted fields, and moss and ochre turn light. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ol-tint: #eff0fb;
-    --ol-ground: #121119;
-    --ol-canvas: #1b1a23;
-    --ol-surface: #262530;
-    --ol-raised: #25242f;
-    --ol-knob: #eff0fb;
-    --ol-fg: #edecf4;
-    --ol-fg-muted: #b7b6c6;
-    --ol-fg-subtle: #8b8aa0;
-    --ol-ink: #eff0fb;
-    --ol-ink-fg: #1b1838;
-    --ol-accent: #aeb5f5;
-    --ol-accent-fg: #1b1838;
-    --ol-send: #aeb5f5;
-    --ol-send-fg: #1b1838;
+    --ol-tint: #ecedea;
+    --ol-ground: #151716;
+    --ol-canvas: #1d201f;
+    --ol-surface: #262a28;
+    --ol-raised: #272b29;
+    --ol-knob: #ecedea;
+    --ol-fg: #ecedea;
+    --ol-fg-muted: #adb3ab;
+    --ol-fg-subtle: #8e948c;
+    --ol-ink: #cfe0c9;
+    --ol-ink-fg: #18241d;
+    --ol-accent: #e58b66;
+    --ol-accent-fg: #1d1410;
+    --ol-send: #cfe0c9;
+    --ol-send-fg: #18241d;
+
+    --ol-area-1: #2f3a2d;
+    --ol-area-2: #2b3540;
+    --ol-area-3: #35303f;
+    --ol-area-4: #3d3528;
+    --ol-area-5: #2e3b3a;
+    --ol-area-6: #33372f;
 
     --ol-hover: color-mix(in srgb, var(--ol-tint) 5.5%, transparent);
     --ol-selected: color-mix(in srgb, var(--ol-tint) 9%, transparent);
     --ol-line: color-mix(in srgb, var(--ol-tint) 7.5%, transparent);
     --ol-line-strong: color-mix(in srgb, var(--ol-tint) 14%, transparent);
     --ol-scrim: rgb(0 0 0 / 0.55);
-    --ol-accent-soft: color-mix(in srgb, var(--ol-accent) 15%, transparent);
-    --ol-focus: color-mix(in srgb, var(--ol-accent) 40%, transparent);
+    --ol-accent-soft: rgb(229 139 102 / 0.16);
+    --ol-focus: color-mix(in srgb, var(--ol-ink) 40%, transparent);
     --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
     --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
     --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
 
-    --ol-success: #5dc48a;
-    --ol-success-soft: rgb(93 196 138 / 0.14);
+    --ol-success: #7fc79a;
+    --ol-success-soft: rgb(127 199 154 / 0.14);
     --ol-warning: #e2a746;
     --ol-warning-soft: rgb(226 167 70 / 0.15);
-    --ol-danger: #f27088;
-    --ol-danger-fg: #1b1838;
-    --ol-danger-soft: rgb(242 112 136 / 0.13);
+    --ol-danger: #f08aa6;
+    --ol-danger-fg: #1d1410;
+    --ol-danger-soft: rgb(240 138 166 / 0.13);
 
     --ol-chart-1: #3987e5;
     --ol-chart-2: #d95926;
@@ -260,38 +273,50 @@
   }
 }
 
-/* PixelLoader (pixels.tsx): hidden for its first 300ms, then three squares
-   light in ink one after another, 300ms each, and rest a beat. A pixel
-   jumps between frames (steps), never eases. */
-@keyframes pixel-appear {
+/* Loader (loader.tsx): hidden for its first 300ms, then three dots
+   brighten one after another and fade back, in a slow breath. */
+@keyframes loader-appear {
   from {
     visibility: hidden;
   }
 }
-@keyframes pixel-beat {
-  0% {
-    background: var(--color-ink);
-  }
-  25% {
+@keyframes loader-breathe {
+  0%,
+  100% {
     background: var(--color-line-strong);
   }
+  40% {
+    background: var(--color-ink);
+  }
 }
-.pixel-loader {
-  animation: pixel-appear 0s 300ms both;
+.loader {
+  animation: loader-appear 0s 300ms both;
 }
-.pixel-loader > span > span {
+.loader > span > span {
   background: var(--color-line-strong);
-  animation: pixel-beat 1200ms steps(1, end) infinite;
+  animation: loader-breathe 1200ms ease-in-out infinite;
 }
-.pixel-loader > span > span:nth-child(2) {
-  animation-delay: 300ms;
+.loader > span > span:nth-child(2) {
+  animation-delay: 200ms;
 }
-.pixel-loader > span > span:nth-child(3) {
-  animation-delay: 600ms;
+.loader > span > span:nth-child(3) {
+  animation-delay: 400ms;
+}
+/* A dot that breathes: something is working. */
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+.breathe {
+  animation: breathe 1600ms ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .pixel-loader > span > span {
+  .loader > span > span,
+  .breathe {
     animation: none;
+  }
+  .loader > span > span {
     background: var(--color-fg-subtle);
   }
 }

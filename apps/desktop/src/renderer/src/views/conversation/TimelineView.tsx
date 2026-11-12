@@ -2,7 +2,7 @@
 // Items are drawn by ItemView; a turn reads as core's layoutTurn: the
 // person's words, the process (Process) and the answer.
 
-import { groupByTurn, layoutTurn, queuedTurns, turnActive, type Timeline, type TurnGroup } from '@ollupi/core'
+import { groupByTurn, layoutTurn, queuedTurns, summarizeProcess, turnActive, type Timeline, type TurnGroup, type TurnPart } from '@ollupi/core'
 import type { TurnRow } from '@ollupi/protocol'
 import { Button, Callout, EmptyState } from '@ollupi/ui'
 import { CalendarClock, Clock, MessageSquare, RotateCcw, Square } from 'lucide-react'
@@ -18,6 +18,7 @@ import { Attachments } from './items/Attachments'
 import { ItemView } from './items/ItemView'
 import { ThreadWorkspace } from '../common/FileLink'
 import { Process } from './Process'
+import { ResultFiles } from './ResultFiles'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
@@ -102,22 +103,36 @@ function TurnSection({ group, jobName, latest, last }: { group: TurnGroup; jobNa
   // The answer once the turn is over, as written (Markdown), to copy.
   const answer = ended ? parts.flatMap((p) => (p.kind === 'answer' && p.item.text ? [p.item.text] : [])).join('\n\n') : ''
   const m = useT()
+  // Once it is over, the result comes first: the answer and the files it
+  // made, then the one line that folds how it got there. A turn that was
+  // steered keeps its order, as its steps belong between its messages.
+  const shown = useMemo(() => (ended && answered ? resultFirst(parts) : parts), [parts, ended, answered])
+  const changed = useMemo(() => (ended ? summarizeProcess(items).changedPaths : []), [items, ended])
   return (
-    <section className="flex flex-col gap-5">
+    <section className="group/turn flex flex-col gap-5">
       {jobName && <ScheduledBy name={jobName} />}
-      {parts.map((p) =>
+      {shown.map((p) =>
         p.kind === 'process' ? (
           <Process key={p.items[0]!.id} items={p.items} ended={ended} answered={answered} endedAt={turn.completedAt ?? undefined} />
         ) : (
           // Takes no box, so the section's gap stays; a search finds the item by it.
           <div key={p.item.id} data-item-id={p.item.id} className="contents">
             <ItemView item={p.item} editable={p.item.id === latest} />
+            {p.kind === 'answer' && <ResultFiles paths={changed} />}
           </div>
         ),
       )}
       <TurnOutcome turn={turn} retry={last} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
     </section>
   )
+}
+
+/** One message, its process, its answer: the answer moves ahead of the
+ * process. Anything else stays as it happened. */
+function resultFirst(parts: TurnPart[]): TurnPart[] {
+  if (parts.length !== 3) return parts
+  const [message, process, answer] = parts
+  return message!.kind === 'message' && process!.kind === 'process' && answer!.kind === 'answer' ? [message!, answer!, process!] : parts
 }
 
 function ScheduledBy({ name }: { name: string }) {
@@ -158,8 +173,10 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
     case 'completed': {
       const usage = usageLine(m, turn.usage)
       const facts = [turn.model.connection, turn.completedAt && duration(m, turn.startedAt, turn.completedAt), usage].filter(Boolean)
+      // Which model, how long, how much: one step further, shown while the
+      // turn is pointed at or focused (PRODUCT.md, principle 0).
       return (
-        <div className="flex items-center gap-1.5 text-small text-fg-subtle tabular-nums">
+        <div className="flex items-center gap-1.5 text-small text-fg-subtle tabular-nums opacity-0 transition-opacity duration-160 ease-standard group-focus-within/turn:opacity-100 group-hover/turn:opacity-100">
           {lead}
           {facts.join(' · ')}
         </div>
@@ -202,7 +219,7 @@ function QueuedTurn({ turn, jobName }: { turn: TurnRow; jobName: string | undefi
       {jobName && <ScheduledBy name={jobName} />}
       <Attachments attachments={turn.attachments} className="opacity-70" />
       {turn.input && (
-        <div className="max-w-140 rounded-xl border border-dashed border-line-strong px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
+        <div className="max-w-130 rounded-3xl rounded-br-md border-2 border-dashed border-line-strong px-4.5 py-3 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
       )}
       <span className="flex items-center gap-1 text-small text-fg-subtle">
         <Clock size={14} /> {m.conversation.timeline.queued}

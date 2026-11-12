@@ -25,13 +25,13 @@ export function App() {
   return (
     <>
       {synced && !failed ? (
-        // The sidebar sits on the window's ground; the screen fills the
-        // rest of the window, divided from it by a line.
+        // The sidebar sits on the window's ground; the screen is one large
+        // rounded sheet laid on it (DESIGN.md §0, stone and moss).
         <div className="flex h-full flex-col bg-ground">
           <ContractBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-line bg-canvas">
+            <main className="my-2.5 mr-2.5 flex min-w-0 flex-1 flex-col overflow-hidden rounded-4xl bg-canvas">
               <CurrentScreen />
             </main>
           </div>

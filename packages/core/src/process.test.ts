@@ -105,6 +105,7 @@ describe('a process summary', () => {
     ]
     const s = summarizeProcess(items)
     expect(s).toMatchObject({ commands: 2, filesChanged: 2, linesAdded: 6, linesRemoved: 3, reads: 1, searches: 0, subagents: 0, tools: 1 })
+    expect(s.changedPaths).toEqual(['a.ts', 'b.ts'])
     expect(s.startedAt).toBe(items[0]!.startedAt)
     expect(s.completedAt).toBe(items.at(-1)!.completedAt)
   })

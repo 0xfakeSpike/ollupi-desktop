@@ -168,7 +168,7 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="-mx-1.5 flex h-7 items-center gap-2 rounded-md px-1.5 text-left text-ui transition-colors duration-100 ease-standard hover:bg-hover"
+        className="-mx-2.5 flex h-8 items-center gap-2 rounded-full px-2.5 text-left text-ui transition-colors duration-100 ease-standard hover:bg-hover"
       >
         {row}
       </button>

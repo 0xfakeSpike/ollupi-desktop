@@ -1,71 +1,40 @@
 # ollupi desktop 设计准则
 
-ollupi desktop 的设计思想、设计语言（token）、组件与模式的规则、文案语气。改写现有界面和新增界面都以它为准。每条规则都尽量落到具体的值或可判断的条件上；拿不准时，回到第 1 节的四个关键词做取舍。第 0 节是品牌：颜色和像素小狼从哪来、产品和传播各用多大的音量。
+ollupi desktop 的设计思想、设计语言（token）、组件与模式的规则、文案语气。改写现有界面和新增界面都以它为准。每条规则都尽量落到具体的值或可判断的条件上；拿不准时，回到第 1 节的关键词做取舍。第 0 节是品牌：这套视觉从哪来、为谁、不做什么。产品事实（用户、定位、原则）在 [apps/desktop/PRODUCT.md](../../apps/desktop/PRODUCT.md)。
 
 ---
 
-## 0. 品牌：格墨
+## 0. 品牌：石与苔
 
-Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，是 Ollupi 的性格；**墨**是纸与墨的产品界面，安静、可信。颜色、形状、语气都从小狼来，不向任何一家产品对齐数值。方向稿在 [assets/brand-direction/](../../assets/brand-direction/README.md)，那里是推导和示意，规则以本节为准。
+Ollupi 的设计语言叫**石与苔**：一张给你自己的事情画的导览图。每个工作区是一块你一眼就认得出颜色的区域；进到一件事里，先看到结果，背后做了什么收成一句人话。它不做这一类产品的默认样子——灰色列表旁边一长串命令、路径、模型和 token，要人读完才知道事情到哪了。
 
-### 0.1 一个源头：小狼身上的五种颜色
+方向在 2026-11-12 由用户从 impeccable 的方向轮里选定：动物园导览图的理念（大块、可辨认的区域代替密密麻麻的列表），配色和细节按"有消费能力的成年上班族和专业人士"成熟化。上一版"格墨"（夜蓝墨色、像素小狼、Bricolage）已经整体替换，不再适用。方向合同在 `apps/desktop/.impeccable/surfaces/`。
 
-| 名字 | 值 | 在小狼身上 | 用于 |
+### 0.1 颜色从哪来
+
+| 名字 | 浅色 | 深色 | 用于 |
 |---|---|---|---|
-| 夜 Night | `#1b1838` | 轮廓 | 浅色主题的 `ink` 和 `send`；App 图标底；字标；浅色主题里所有半透明（悬停、线、选中、阴影）都用它调 |
-| 鸢尾 Iris | `#4d4ac6` | 毛色加深 | 浅色主题的 `accent`（白字 6.8:1） |
-| 薰衣 Lavender | `#aeb5f5` | 毛色 | 深色主题的 `accent` 和 `send` |
-| 雪 Snow | `#eff0fb` | 脸 | 深色主题的 `ink`；深色主题里的半透明用它调 |
-| 腮红 Blush | `#f4aacb` | 腮红 | 只在小狼身上 |
+| 石 ground | `#eeede8` | `#151716` | 窗口底色、侧栏 |
+| 纸 canvas | `#f8f7f4` | `#1d201f` | 屏幕那张大圆角工作面 |
+| 墨 fg | `#22252a` | `#ecedea` | 正文；浅色里所有半透明都用它调（`--ol-tint`） |
+| 苔 ink | `#263b30` | `#cfe0c9` | 动作：主按钮、发送、开关的开、链接、进度 |
+| 赭 accent | `#a84a2b`，底 `#f6e1d7` | `#e58b66` | **只表示"需要你"**：等你的胶囊、审批和提问卡片、等你的圆点和计数 |
+| 区域 area-1…6 | 苔 `#bccbb4`、雾 `#bfccd6`、石楠 `#cfc7db`、燕麦 `#d9cfb8`、鼠尾草青 `#b5ccc7`、灰鼠尾草 `#c9cdbf` | 同色族的深色版 | 工作区的颜色（侧栏的区域、标题栏的区域标签） |
 
-舌头 `#ee6e8a` 和眼睛高光 `#ffffff` 也只在小狼身上。中性灰带一点夜的冷调（2.1）。产品只有一套配色，浅色、深色各一份；不提供换肤，样子就是品牌。
+- 产品只有一套配色，浅色、深色各一份；不提供换肤。
+- **一个信号**：赭只说"这件事需要你"。链接、选中、默认项、搜索高亮、进度都不用它；失败用比它更冷的 `danger`（`#a3264a`），不会被读成"等你"。
+- 区域色都是低饱和的雾色，不放红色系，免得被当成提醒。工作区按 id 稳定地分到六色之一（`views/common/areas.ts`），侧栏怎么排序都不变色。
 
-### 0.2 两层音量
+### 0.2 为谁、什么样
 
-| | 产品界面 | 传播（官网、README、社媒、发版、表情包） |
-|---|---|---|
-| 小狼 | 只表示状态，固定位置，一屏最多一只 | 主角：头像、头图、动图、贴纸，可以 200px 以上 |
-| 表情 | 0.3 的六张，不扩 | 受控扩展：新表情先设计、加进集合，再用 |
-| 颜色 | 纸与墨；夜和强调色合起来不超过一屏的 5% | 可以整面铺夜色或薰衣 |
-| 标题字体 | Inter（2.3） | Bricolage Grotesque + 思源黑体 Heavy（0.4） |
+- **为谁**：有消费能力的成年上班族和专业人士，不一定会写代码。要省心，也要体面、可信；不是给小朋友的，所以没有吉祥物、没有像素、没有饱和的糖果色。
+- **什么样**：安静的大面积石色和纸色，圆润的大圆角和胶囊，颜色集中在区域和一个赭色信号上。界面本身少说话，结果和要你做的决定站在最前面。
+- **不要**：吉祥物和表情；像素、锯齿和硬切动画；渐变、玻璃、霓虹；大面积的赭色；把区域色用于状态；一屏出现两个以上的主按钮。
 
-产品要克制，是因为一个能跑命令、能拿完全访问的 agent 首先要让人信任；传播要大声，是因为一个人做的项目缺的是被记住。
+### 0.3 字标与字体
 
-### 0.3 像素小狼
-
-- **网格**：20×20，每格一种颜色，只用 0.1 的颜色。格子落在整像素上：尺寸取 20 的整数倍（20、40、60、120、240）；16px 只给 favicon 和系统通知。矢量文件用 `shape-rendering="crispEdges"`。
-- **脸与状态**。界面里由 `Pup`（`packages/ui/src/pixels.tsx`）按 `face` / `motion` 画，图标和传播用 `assets/logo/` 里的文件。产品里只用这几张：
-
-| 脸 | 文件 | 状态 | 产品里的位置 |
-|---|---|---|---|
-| 左右看，偶尔眨眼 | `mark-look-left` / `mark-look-right` / `mark-blink` | 思考：agent 运行中 | 输入框上方的状态行，20px |
-| 张嘴看着你 | `mark` | 等你批准或回答 | 同一位置，替代思考那只 |
-| 微笑，每 3 秒眨一次眼 | `mark-smile` / `mark-blink` | 闲着 | 新会话页的问候旁，40px |
-| 咧嘴笑 | `mark-grin` | 完成 | App 图标、"做完了"的系统通知；界面里不庆祝，成功是常态 |
-| — | — | 出错 | 不放小狼：失败只用图标、红字和原始输出说话 |
-
-- **节奏**：像素动在节拍上，帧硬切（`steps`），思考 420ms 一帧；界面动在曲线上（`ease-standard`）。两种节奏不混。`prefers-reduced-motion` 时小狼停在静态的脸上。
-- **产品里另外三处像素**，其余图标都是 lucide：
-  - 流式输出的光标：一个 8×16 的 `ink` 方块，530ms 一亮一灭，硬切（`.streaming-caret`）；
-  - 加载（页面、面板、连接这类"像素加载 + 动词"的位置）：三个 6px 方块依次亮起，300ms 一拍，前 300ms 不显示（`PixelLoader`）；按钮里和列表行尾的 14px spinner 不变；
-  - 发送按钮的箭头：7×7 像素箭头，颜色 `send-fg`（`PixelArrow`），发送和插话都用它。
-- **不要**：像素字体；按钮、卡片、边框做像素锯齿；旋转、拉伸、换色；改轮廓比例；对话流里每条消息旁边放头像；侧栏顶部放小狼或字标（那里只有红绿灯）。
-
-### 0.4 字标与字体
-
-- **字标**：小狼加 "ollupi"，Bricolage Grotesque 700，全小写，字距 −3.5%，浅底用夜、深底用雪。小狼高 = 字高，间距 = 小狼宽的 ¼。小狼和字并排，不替代任何字母。
-- **读音和来历**跟着字标第一次出现（官网首屏、README 头图），一句话讲清楚。〔待定〕
-- **传播的标题**：Bricolage Grotesque 700–800，中文用思源黑体 Heavy；正文用 Inter。不用衬线，也不用像素字体。
-- **产品界面**：Inter、苹方、JetBrains Mono，按 2.3 的六级。只有新会话页的问候借一次 Bricolage（`font-brand`，中文仍落到苹方）。
-- **App 图标**：夜底圆角方，咧嘴笑的小狼；轮廓和底色融成一体，只剩毛色和脸。所有平台的头像都用同一张。
-
-### 0.5 传播时
-
-- **定位句**：一只住在你 Mac 里、会干活的像素小狼。（A pixel wolf pup that works on your Mac.）
-- **招牌瞬间**：三格故事讲产品最核心的行为——它在干活（思考）→ 停下来看着你（审批）→ 你点头，它接着干（咧嘴笑）。README 第一屏、推文、发布会都用它。
-- **每次发版**：一张发版卡片，薰衣底、夜字、大版本号，一句话说这一版最重要的事，配一张小狼。
-- **可以**：大面积铺夜色或薰衣；小狼做主视觉；动图；节日、里程碑的新表情和道具（先进集合）。
-- **任何场合都不可以**：五种颜色以外的颜色给小狼上色；把小狼放到渐变或彩虹底上；画成非像素的写实狼或 3D 狼；用衬线做标题。
+- **产品界面**：Manrope（`Manrope Variable`）+ 苹方，代码用 JetBrains Mono，按 2.3 的字号。不另设品牌字体，新会话页的问候也用同一套（`text-hero`）。
+- **字标、图标**：〔待定〕新稿还没做，`apps/desktop/logo/` 和 `brand-direction/` 里仍是格墨时期的文件，只作历史参考。
 
 ---
 
@@ -75,30 +44,29 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 
 | 关键词 | 取舍时意味着 |
 |---|---|
-| **安静** | 默认中性灰。颜色、粗体、底色是预算，一屏之内只该有一处在"说话"。 |
-| **可扫读** | 每一块的第一行就说清"它是什么、结果如何"；细节靠展开，不靠堆字。 |
-| **诚实** | 状态准确：在跑就显示在跑，失败就显示失败，不做装饰性的"看起来很忙"。 |
-| **紧凑** | 长时间使用的工具：行高、内边距偏小，但正文的阅读舒适度不让步。 |
+| **省心** | AI 是让事情变简单的。第一层只放结论、进展和要你做的决定；过程、命令、路径、模型、用量是可以展开的细节（PRODUCT.md 原则 0）。少一样要读的东西，就是多一分省心。 |
+| **一眼看清** | 侧栏是地图：哪片区域有事、哪件在做、哪件等你，不用点开就知道。每一块的第一行说清"它是什么、结果如何"。 |
+| **诚实** | 状态准确：在跑就显示在跑，失败就显示失败；后果说得出口的才写（"只改这一个文件"），说不准的不编。 |
+| **体面** | 成年人用的东西：大留白、低饱和、圆润，但不软塌；正文阅读舒适度不让步。 |
 
 ### 1.2 信息的四个层级
 
 从上到下越来越安静：
 
-1. **需要你**：审批、提问。全界面唯一"浮起来"的东西（阴影 + 一圈淡淡的状态色描边）。同时在对话流之外有回响：侧栏会话圆点、顶栏徽标、输入框上方的状态行 "Waiting for your answer above"。
-2. **对话内容**：用户消息、agent 的最终回复。`fg`、`text-body`，是页面的主体。
-3. **过程**：推理、工具调用、子 agent、计划。`fg-muted`、`text-ui`，每项一行，默认折叠。一轮结束后整段过程收成一行摘要（"Worked for 42s · 6 commands · 2 files changed"），展开见全部；运行中保持展开，让人看到当前在做什么。
-4. **系统**：压缩、记忆载入。`fg-subtle`、`text-small`，一行或一条分隔线。token 用量不进对话流，只在 Context 面板。
+1. **需要你**：审批、提问。全界面唯一铺赭色底的东西（`bg-accent-soft` 的大圆角区域，3.2）。同时在流之外有回响：侧栏的"等你"胶囊和区域计数、标题栏的"N 件等你"、输入框上方的状态行、卡片滚出视野时的胶囊。
+2. **结果**：用户的话、agent 的回答、这一轮改动的文件（文件卡片，3.1）。`fg`、`text-body`，是页面的主体。
+3. **过程**：推理、工具调用、子 agent、计划。一轮结束后收成一句人话（"看了 9 个文件，改了 1 个文件"），放在回答后面，展开见全部；运行中保持展开。
+4. **系统和元信息**：模型、时长、token 用量、压缩、记忆载入。`fg-subtle`、`text-small`；一轮的元信息只在指向或聚焦这一轮时出现。
 
 ### 1.3 克制与强调
 
-- **主按钮是墨色（ink）**：浅色主题里是夜，深色主题里是雪。颜色不承担"这是主操作"的意思，位置和墨色承担。例外是**发送**（输入框的发送和插话）：那是交给 agent 去做事，用 `send`（`bg-send text-send-fg`）——浅色是夜，深色是薰衣，一屏只有这一个。
-- **强调色（accent）只用于 5 处**：焦点环、表单控件的选中态（单选点、复选框、开关）、链接、进度填充，以及等待用户和未读的信号（侧栏圆点、顶栏徽标、提问块描边）。选中项的底（`selected`）是中性的夜 7%（深色是雪 9%），不用强调色。其余地方一律不用；任何大于一个控件的面积都不能铺 accent 或 `accent-soft`。
-- **成功是常态，不着色。** 工具成功、任务完成不显示绿色；只有失败、等待、被拒才有标记。例外：diff 的 `+12 −3`，以及 diff 代码块里增删行的底色。
-- **粗体（600）** 只给标题和按钮。正文里的强调交给 Markdown 本身。500 用于导航选中项、标签、列表行的主名称。
-- **底色** 只表示"这是一块独立的内容"（代码、输出、用户消息、设置列表），不表示状态。
-- **状态色** 只出现在图标、文字、行动块的淡色描边和 soft 徽标上，不做块的底色。
-- **不用单侧色条**：圆角卡片上的左侧（或顶部）色条会被圆角裁成弧形，又和图标重复表达同一件事。单侧的线只用作结构线（引用块、展开内容的引导线），直角、中性色。
-- **边框** 一律 1px：`line` 做分隔和普通轮廓，`line-strong` 做输入框和需要用户行动的块。
+- **动作是苔色（ink）**：主按钮、发送、插话、开关的开、复选框、链接、进度条都是苔色；一块区域最多一个苔色实心按钮。
+- **赭色只说"需要你"**（0.1）。任何"选中""默认""强调"都不用它。
+- **成功是常态，不着色。** 只有失败、等待、被拒才有标记。例外：展开后 diff 里的增删行底色。
+- **粗体（600）** 给标题、按钮、侧栏里打开或未读的会话；500 给导航项、区域名、列表行主名称。
+- **底色表示"这是一块"**：区域（侧栏）、色块（设置卡片、文件卡片、用户消息）、输入框的井。分区靠底色和留白，**不靠边框和分隔线**。
+- **边框** 几乎不用：只剩输入框的焦点环、虚线的排队消息、浮层在深色里的轮廓。需要分隔时，色块里用 `canvas` 色的缝（`divide-canvas`）。
+- **不用标题上方的小字标签**（eyebrow / kicker）：标题自己说话。
 
 ---
 
@@ -106,586 +74,316 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 
 ### 2.0 窗口布局
 
-- 窗口底色是 `ground`。侧栏直接画在 ground 上，没有边框。
-- 当前屏幕（对话、Memory、Settings、新会话）铺满侧栏右边的整个窗口，贴着窗口的上、右、下边，没有圆角，和侧栏之间只有一条 `border-l border-line`；底色 `bg-canvas`。深色主题里屏幕比 ground 亮一级，浅色主题里屏幕是纯白。圆角留给屏幕里面的东西（Context 卡片、列表卡片、对话框）。
-- 屏幕的标题栏高 40px，在窗口最上面，也是窗口的拖动区；macOS 红绿灯按钮垂直居中在这一行上（`trafficLightPosition` y 13）。侧栏顶部留出同样的 40px，只放红绿灯，不放小狼或字标；第一项落在标题栏下沿。
-- **侧栏网格**：每行高 28px，`px-2`；行首 16px 图标槽，图标与文字间距 8px。所以新会话、分组名、会话标题、底部导航的文字都从行内 32px 处开始。会话行没有图标，用 `pl-8` 对齐到同一处。
-- **居中的列**：对话、Settings、Memory 的内容是 `mx-auto max-w-* px-6` 的列。所在的滚动区加 `scroll-centered`（两侧都留滚动条位），列才与滚动区外的东西（对话下面的输入框）对齐。Settings 的标签页放在同一条列里。
+- 窗口底色是 `ground`。侧栏直接画在 ground 上，宽 280px。
+- 当前屏幕（对话、新会话、记忆、能力、定时任务、搜索、设置）是一张 `bg-canvas` 的大工作面，四周离窗口 10px（左边贴着侧栏），圆角 28px（`rounded-4xl`），和侧栏之间不画线。
+- 屏幕的标题栏高 64px，在工作面顶部，也是窗口的拖动区；没有底边线，内容滚到它下面时以 20px 渐隐（`.fade-edges`）。侧栏顶部 40px 只放红绿灯。
+- **侧栏**：顶部一行是"新的事"苔色胶囊（`⌘N`）和搜索、定时任务两个圆形胶囊；下面是工作区区域（3.6）；底部一行记忆、能力、设置三个小胶囊和连接状态。
+- **对话页标题栏**：左边区域标签（工作区的颜色 + 名字）和标题，右边只有"N 件等你"（有时）和一个"工具"胶囊，所有面板（浏览器、文件、环境、终端、任务、上下文）和导出都在"工具"菜单里，每项带一句它是干什么的。
+- **居中的列**：对话、设置、记忆的内容是 `mx-auto max-w-* px-6` 的列，滚动区加 `scroll-centered`。
+- **最小窗口** 860×560：输入框工具栏按顺序让位——模型标签先收成图标，排队/插话收成图标，审批策略始终显示完整文字；审批卡片的"看细节"换到自己一行，三个答案留在一起。
 
-### 2.1 Token：直接替换 `packages/ui/src/theme.css`
+### 2.1 Token
 
-下面是 `packages/ui/src/theme.css` 的完整新内容。`@theme` 里的 `initial` 会清掉 Tailwind 的默认色板、字号、字重、圆角、阴影、缓动，**只留这里定义的几档**，越界的写法（`text-sm`、`rounded-2xl`、`bg-blue-500`、`text-white`、`font-bold`）直接不生成样式，迁移时一眼就能发现。迁移对照见第 5 节。
+token 全部写在 `packages/ui/src/theme.css`，组件只用语义名（`bg-canvas`、`text-fg-muted`、`rounded-3xl`……），深色模式不需要逐个组件写。`--color-*`、`--text-*`、`--radius-*` 等都先 `initial` 清空，不在这里的值不会生效。
 
-```css
-/* Design tokens for @ollupi/ui. Components use only these semantic names
-   (bg-canvas, text-fg-muted, border-line, text-ui, rounded-lg, ...), so a
-   theme is a set of variable values and dark mode needs no per-component
-   classes. The resets below remove Tailwind's defaults: a class outside
-   these scales produces no style. See packages/ui/DESIGN.md. */
+| 组 | token |
+|---|---|
+| 面 | `ground`、`canvas`、`surface`（= 石色，用作色块）、`raised`（浮层、对话框） |
+| 字 | `fg`、`fg-muted`、`fg-subtle` |
+| 动作 | `ink` / `ink-fg`、`send` / `send-fg`（与 ink 相同） |
+| 信号 | `accent` / `accent-fg` / `accent-soft` |
+| 区域 | `area-1` … `area-6` |
+| 半透明 | `hover`、`selected`、`line`、`line-strong`、`scrim`、`focus`，都由 `--ol-tint` 调出 |
+| 状态 | `success`、`warning`、`danger` 及其 `-soft`、`danger-fg` |
+| 图表 | `chart-1` … `chart-4` |
+| 字号 | `caption`、`small`、`ui`、`body`、`title`、`display`、`hero` |
+| 圆角 | `sm` 4、`md` 6、`lg` 8、`xl` 12、`2xl` 16、`3xl` 22、`4xl` 28，另有 `rounded-full` |
 
-/* Inter for the interface and prose, JetBrains Mono for code, both bundled
-   (OFL); Chinese falls through to the system's PingFang. */
-@import '@fontsource-variable/inter';
-@import '@fontsource-variable/jetbrains-mono';
-
-/* Chinese text wants full-width punctuation, which Inter would otherwise
-   draw: under a Chinese interface the quotes, the em dash and the ellipsis
-   come from PingFang. */
-@font-face {
-  font-family: 'CJK Punctuation';
-  src: local('PingFangSC-Regular'), local('PingFang SC Regular');
-  font-weight: 400;
-  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
-}
-@font-face {
-  font-family: 'CJK Punctuation';
-  src: local('PingFangSC-Medium'), local('PingFang SC Medium');
-  font-weight: 500;
-  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
-}
-@font-face {
-  font-family: 'CJK Punctuation';
-  src: local('PingFangSC-Semibold'), local('PingFang SC Semibold');
-  font-weight: 600;
-  unicode-range: U+2014, U+2018-2019, U+201C-201D, U+2026;
-}
-
-@theme inline {
-  --color-*: initial;
-  --color-canvas: var(--ol-canvas);
-  --color-ground: var(--ol-ground);
-  --color-surface: var(--ol-surface);
-  --color-raised: var(--ol-raised);
-  --color-hover: var(--ol-hover);
-  --color-selected: var(--ol-selected);
-  --color-line: var(--ol-line);
-  --color-line-strong: var(--ol-line-strong);
-  --color-scrim: var(--ol-scrim);
-  --color-knob: var(--ol-knob);
-  --color-fg: var(--ol-fg);
-  --color-fg-muted: var(--ol-fg-muted);
-  --color-fg-subtle: var(--ol-fg-subtle);
-  --color-ink: var(--ol-ink);
-  --color-ink-fg: var(--ol-ink-fg);
-  --color-accent: var(--ol-accent);
-  --color-accent-fg: var(--ol-accent-fg);
-  --color-accent-soft: var(--ol-accent-soft);
-  --color-send: var(--ol-send);
-  --color-send-fg: var(--ol-send-fg);
-  --color-focus: var(--ol-focus);
-  --color-success: var(--ol-success);
-  --color-success-soft: var(--ol-success-soft);
-  --color-warning: var(--ol-warning);
-  --color-warning-soft: var(--ol-warning-soft);
-  --color-danger: var(--ol-danger);
-  --color-danger-fg: var(--ol-danger-fg);
-  --color-danger-soft: var(--ol-danger-soft);
-  --color-chart-1: var(--ol-chart-1);
-  --color-chart-2: var(--ol-chart-2);
-  --color-chart-3: var(--ol-chart-3);
-  --color-chart-4: var(--ol-chart-4);
-
-  --font-sans: var(--ol-font-sans);
-  --font-mono: var(--ol-font-mono);
-
-  --text-*: initial;
-  --text-caption: 11px;
-  --text-caption--line-height: 16px;
-  --text-caption--font-weight: 500;
-  --text-small: 12px;
-  --text-small--line-height: 18px;
-  --text-ui: 13px;
-  --text-ui--line-height: 20px;
-  --text-body: 15px;
-  --text-body--line-height: 24px;
-  --text-title: 15px;
-  --text-title--line-height: 22px;
-  --text-title--font-weight: 600;
-  --text-display: 20px;
-  --text-display--line-height: 28px;
-  --text-display--font-weight: 600;
-
-  --font-weight-*: initial;
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-
-  --spacing: 4px;
-
-  --radius-*: initial;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-
-  --shadow-*: initial;
-  --shadow-sm: var(--ol-shadow-sm);
-  --shadow-md: var(--ol-shadow-md);
-  --shadow-lg: var(--ol-shadow-lg);
-
-  --ease-*: initial;
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-
-  /* Entrances: menus and toasts rise, dialogs scale. Under reduced motion
-     an element swaps its entrance for animate-fade. */
-  --animate-enter: enter 160ms cubic-bezier(0.2, 0, 0, 1);
-  --animate-dialog: dialog 240ms cubic-bezier(0.2, 0, 0, 1);
-  --animate-fade: fade 160ms cubic-bezier(0.2, 0, 0, 1);
-
-  @keyframes enter {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
-  }
-  @keyframes dialog {
-    from {
-      opacity: 0;
-      transform: scale(0.98);
-    }
-  }
-  @keyframes fade {
-    from {
-      opacity: 0;
-    }
-  }
-
-  --container-thread: 800px;
-  --container-dialog: 480px;
-  --container-dialog-wide: 640px;
-}
-
-/* Font stacks, as variables so the Chinese interface can put full-width
-   punctuation first. */
-:root {
-  --ol-font-sans: 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
-  --ol-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, 'PingFang SC', monospace;
-}
-:root:lang(zh) {
-  --ol-font-sans: 'CJK Punctuation', 'Inter Variable', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Hiragino Sans GB', sans-serif;
-}
-
-/* The 格墨 palette, one for the whole product (packages/ui/DESIGN.md
-   §0). Every colour comes from the pixel pup: Night is its outline,
-   Lavender its fur, Snow its face, Blush its cheeks. The neutrals lean a
-   little toward Night, and everything translucent (hover, lines,
-   selection, shadows) is mixed from --ol-tint, Night in the light and
-   Snow in the dark, never from plain black or white.
-
-   Brand colours, for reference:
-     Night    #1b1838  ink and send in the light; the app icon
-     Iris     #4d4ac6  the accent in the light
-     Lavender #aeb5f5  the accent and send in the dark
-     Snow     #eff0fb  ink in the dark
-     Blush    #f4aacb  the pup's cheeks only, never the interface */
-:root {
-  color-scheme: light dark;
-  --ol-tint: #1b1838;
-  --ol-ground: #f5f5f8;
-  --ol-canvas: #ffffff;
-  --ol-surface: #f0f0f5;
-  --ol-raised: #ffffff;
-  --ol-knob: #ffffff;
-  --ol-fg: #17161f;
-  --ol-fg-muted: #52515f;
-  --ol-fg-subtle: #666577;
-  --ol-ink: #1b1838;
-  --ol-ink-fg: #ffffff;
-  --ol-accent: #4d4ac6;
-  --ol-accent-fg: #ffffff;
-  --ol-send: #1b1838;
-  --ol-send-fg: #eff0fb;
-
-  --ol-hover: color-mix(in srgb, var(--ol-tint) 5%, transparent);
-  --ol-selected: color-mix(in srgb, var(--ol-tint) 7%, transparent);
-  --ol-line: color-mix(in srgb, var(--ol-tint) 8%, transparent);
-  --ol-line-strong: color-mix(in srgb, var(--ol-tint) 16%, transparent);
-  --ol-scrim: color-mix(in srgb, var(--ol-tint) 32%, transparent);
-  --ol-accent-soft: color-mix(in srgb, var(--ol-accent) 10%, transparent);
-  --ol-focus: color-mix(in srgb, var(--ol-accent) 30%, transparent);
-  --ol-shadow-sm: 0 1px 2px color-mix(in srgb, var(--ol-tint) 5%, transparent), 0 4px 12px -4px color-mix(in srgb, var(--ol-tint) 8%, transparent);
-  --ol-shadow-md: 0 2px 6px color-mix(in srgb, var(--ol-tint) 5%, transparent), 0 12px 28px -8px color-mix(in srgb, var(--ol-tint) 14%, transparent);
-  --ol-shadow-lg: 0 4px 12px color-mix(in srgb, var(--ol-tint) 6%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--ol-tint) 24%, transparent);
-
-  /* States lean toward the palette's temperature: red toward rose, yellow
-     toward amber. Each reads at 4.5:1 or better on the canvas. */
-  --ol-success: #2f7d4f;
-  --ol-success-soft: rgb(47 125 79 / 0.1);
-  --ol-warning: #9a5b00;
-  --ol-warning-soft: rgb(196 128 20 / 0.14);
-  --ol-danger: #c42f4a;
-  --ol-danger-fg: #ffffff;
-  --ol-danger-soft: rgb(196 47 74 / 0.08);
-
-  /* Categorical chart colours, in this order: the dataviz reference
-     palette's first four slots (blue, orange, aqua, yellow), validated for
-     colour-blind separation on the light and dark canvas. */
-  --ol-chart-1: #2a78d6;
-  --ol-chart-2: #eb6834;
-  --ol-chart-3: #1baf7a;
-  --ol-chart-4: #eda100;
-}
-
-/* In the dark the screen sits a step above the ground, ink and the accent
-   turn light, and what sits on them is Night. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ol-tint: #eff0fb;
-    --ol-ground: #121119;
-    --ol-canvas: #1b1a23;
-    --ol-surface: #262530;
-    --ol-raised: #25242f;
-    --ol-knob: #eff0fb;
-    --ol-fg: #edecf4;
-    --ol-fg-muted: #b7b6c6;
-    --ol-fg-subtle: #8b8aa0;
-    --ol-ink: #eff0fb;
-    --ol-ink-fg: #1b1838;
-    --ol-accent: #aeb5f5;
-    --ol-accent-fg: #1b1838;
-    --ol-send: #aeb5f5;
-    --ol-send-fg: #1b1838;
-
-    --ol-hover: color-mix(in srgb, var(--ol-tint) 5.5%, transparent);
-    --ol-selected: color-mix(in srgb, var(--ol-tint) 9%, transparent);
-    --ol-line: color-mix(in srgb, var(--ol-tint) 7.5%, transparent);
-    --ol-line-strong: color-mix(in srgb, var(--ol-tint) 14%, transparent);
-    --ol-scrim: rgb(0 0 0 / 0.55);
-    --ol-accent-soft: color-mix(in srgb, var(--ol-accent) 15%, transparent);
-    --ol-focus: color-mix(in srgb, var(--ol-accent) 40%, transparent);
-    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
-    --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
-    --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
-
-    --ol-success: #5dc48a;
-    --ol-success-soft: rgb(93 196 138 / 0.14);
-    --ol-warning: #e2a746;
-    --ol-warning-soft: rgb(226 167 70 / 0.15);
-    --ol-danger: #f27088;
-    --ol-danger-fg: #1b1838;
-    --ol-danger-soft: rgb(242 112 136 / 0.13);
-
-    --ol-chart-1: #3987e5;
-    --ol-chart-2: #d95926;
-    --ol-chart-3: #199e70;
-    --ol-chart-4: #c98500;
-  }
-}
-```
-
-`transparent`、`current`、`inherit` 是 Tailwind 内置的值，不受 `--color-*: initial` 影响。
+`transparent`、`current`、`inherit` 是 Tailwind 内置的值，不受 `initial` 影响。theme.css 里新增一档字号、缓动、动画或容器名时，同步登记到 `packages/ui/src/cn.ts`，否则 `cn()` 会把它当成别的类合并掉。
 
 ### 2.1.1 配色与外观
 
-- **配色**：只有一套，格墨（第 0 节），浅色、深色各一份，都写在 `theme.css` 的 `:root` 上。正文、次要文字和强调色在画布上都达到 WCAG AA；`fg-subtle` 在侧栏的 `ground` 和选中行上也要达到（浅色画布 5.7:1、`ground` 5.2:1、选中行 4.6:1；深色画布 5.1:1、`ground` 5.6:1、选中行 4.5:1）。
-- **改颜色**：只改 `:root` 里的基础值（`ground`、`canvas`、`surface`、`raised`、`knob`、三档文字、`ink`、`accent`、`send`、状态色）和 `--ol-tint`。悬停、选中、线、遮罩、阴影都由 `--ol-tint` 调出来，不单独写。
-- **外观**：跟随系统、浅色、深色，在 Settings → General，存在本应用自己的存储里（`ollupi.colorScheme`），窗口加载时由 `startAppearance` 应用。渲染进程通过 `desktop.setColorScheme` 设 Electron 的 `nativeTheme.themeSource`，`prefers-color-scheme` 和原生窗口一起跟着变，所以 CSS 里只有媒体查询一种深色写法。窗口在渲染进程画出来之前显示的底色（`window.ts`）和 `--ol-ground` 保持一致。
+- **对比度**：正文、次要文字、苔色和赭色在画布、石色、区域色上都达到 WCAG AA。`fg-muted` 在六种区域色上都 ≥4.7:1，所以区域里的次要文字用 `fg-muted`，不用 `fg-subtle`；`fg-subtle` 只放在 `canvas` 和 `ground` 上（浅色 `#63676e`：画布 5.3:1、石色 4.85:1）。输入框的占位符用 `fg-muted`。改颜色后用 `impeccable detect --cdp` 在两种主题下扫一遍。
+- **改颜色**：只改 `:root` 里的基础值和 `--ol-tint`；悬停、选中、线、遮罩、阴影都由 tint 调出来。
+- **外观**：跟随系统、浅色、深色，在设置 → 通用，存在本应用自己的存储里（`ollupi.colorScheme`），由 `startAppearance` 应用到 Electron 的 `nativeTheme.themeSource`；CSS 里只有 `prefers-color-scheme` 一种深色写法。窗口画出来之前的底色（`window.ts`）和 `--ol-ground` 一致。
+- **选中文字** 用苔色调的底（`::selection`），不用系统蓝。
 
 ### 2.2 颜色
 
-**中性色**
+**面**
 
 | token | 用于 | 不用于 |
 |---|---|---|
-| `canvas` | 主画布（对话页、Memory、Settings 内容区） | — |
-| `ground` | 窗口底色：侧栏 | 屏幕里的任何东西 |
-| `surface` | 代码块、工具输出、用户消息气泡、计划、表头 | 浮层、设置列表卡片 |
-| `raised` | 对话框、菜单、toast、气泡提示、**需要用户行动的块** | 流里的普通块 |
-| `hover` | 悬停底色；行内代码底色 | 选中态 |
-| `selected` | 侧栏项、竖排子标签、菜单的选中项；`tint` 的淡底 | 表单控件（用 accent） |
-| `line` | 分隔线、普通卡片轮廓、表格线 | 输入框 |
-| `line-strong` | 输入框、次要按钮、行动块的边框；滚动条 | 分隔线 |
-| `scrim` | 对话框背后的遮罩 | — |
-| `knob` | 开关的圆钮（两套主题里都是近白色） | — |
+| `ground` | 窗口底、侧栏 | 屏幕里的任何东西 |
+| `canvas` | 屏幕工作面；色块里的二级面（色块里的代码、命令行、按钮底） | — |
+| `surface` | 色块：设置卡片、记忆和技能列表、文件卡片、用户消息、代码块、输入框外壳、选中的导航项 | 浮层 |
+| `raised` | 对话框、菜单、选择浮层、toast、提示 | 流里的块 |
+| `selected` | 输入框的井（墨色 7%，在纸上和石上都看得见） | 状态 |
+| `hover` | 悬停 | 选中 |
+| `line` / `line-strong` | 极少：色块里内容的细分隔、虚线、滚动条 | 分区（分区用底色和留白） |
 
-**文字三档**
+**文字三档**：`fg` 正文、标题、主名称；`fg-muted` 次要说明、过程行、区域里的次要文字、占位符；`fg-subtle` 元信息（时间、时长）、只在纸和石上。
 
-| token | 用于 |
-|---|---|
-| `fg` | 对话正文、标题、列表项主名称、输入的值、数值 |
-| `fg-muted` | 过程行（推理、工具调用）、次要说明、未选中的标签页、幽灵按钮、默认图标色 |
-| `fg-subtle` | 元信息（时间、时长、单位、分母）、占位符、系统信息、分组标题、空状态图标 |
-
-**强调色与状态色**
+**动作、信号、状态**
 
 | token | 用于 |
 |---|---|
-| `ink` / `ink-fg` | 主按钮、图标按钮的提示 |
-| `send` / `send-fg` | 发送和插话按钮（`bg-send text-send-fg`） |
-| `accent` / `accent-fg` | 表单控件选中态；链接；进度填充；提问块的描边和图标；"等待你"和未读的圆点、"等待你"的徽标 |
-| `accent-soft` | 选中的单选/复选行内控件本身的底（不是整行），accent 徽标的底 |
-| `focus` | 焦点环：`focus-visible:ring-3 ring-focus outline-none` |
-| `success` | diff 的 `+n`；`success-soft` 是 diff 代码块里新增行的底色；用量条之外几乎不用。成功默认不着色 |
-| `warning` | 普通审批的描边和图标；用量接近自动压缩点；可恢复的提醒 |
-| `danger` / `danger-fg` | 失败（图标、退出码、错误文字）；完全访问/不可逆审批；危险按钮；diff 的 `−m`；`danger-soft` 是 diff 代码块里删除行的底色 |
-| `chart-1`…`chart-4` | 图表的分类色（Context 面板的组成部分、对话里 mermaid 饼图的扇区），见 3.9；不用于界面状态 |
-| `*-soft` | 只做徽标的底，或 toast/错误块里图标后面的小块底，面积不超过一行 |
+| `ink` / `ink-fg` | 主按钮、发送和插话、开关的开、复选框和单选点、链接、进度、"工具"打开时的胶囊、焦点环（`focus` 是它的 35%） |
+| `accent` / `accent-fg` / `accent-soft` | 只表示需要你：审批和提问卡片的底（soft）和圆点、"等你"胶囊、区域的"N 件等你"、侧栏底部的等你胶囊、标题栏的"N 件等你"（soft 底 + accent 字） |
+| `area-*` | 工作区的颜色，只做区域和区域标签的底 |
+| `success` | 展开后 diff 里新增行的底（soft）；成功默认不着色 |
+| `warning` | "放手去做"审批策略的标签（什么都不问）；可恢复的提醒 |
+| `danger` | 失败（图标、退出码、"N 项失败"）；完全访问的审批（`danger-soft` 底）；危险按钮 |
+| `chart-*` | 图表的分类色，不用于界面状态 |
 
 ### 2.3 字号
 
 | class | 字号 / 行高 / 字重 | 用在 |
 |---|---|---|
-| `text-caption` | 11 / 16 / 500 | 徽标、快捷键提示（`↵`、`⌘K`） |
-| `text-small` | 12 / 18 / 400 | 元信息、时间、辅助说明、错误提示、系统信息、分组标题、Context 面板的数据行 |
-| `text-ui` | 13 / 20 / 400 | **界面默认**：侧栏、按钮、表单、工具调用行、列表、设置行 |
-| `text-body` | 15 / 24 / 400 | 对话正文（用户消息、agent 回复的 Markdown） |
-| `text-title` | 15 / 22 / 600 | 顶栏标题、对话框标题、设置分区标题、页面标题（Memory、Settings） |
-| `text-display` | 20 / 28 / 600 | 新会话页标题、整页空状态和整页错误 |
+| `text-caption` | 11 / 16 / 500 | 徽标、胶囊里的状态词、快捷键提示 |
+| `text-small` | 12 / 18 / 400 | 元信息、区域名、辅助说明、错误提示 |
+| `text-ui` | 13 / 20 / 400 | **界面默认**：侧栏、按钮、表单、过程行、列表 |
+| `text-body` | 15 / 24 / 400 | 对话正文 |
+| `text-title` | 15 / 22 / 600 | 屏幕标题（标题栏）、对话框标题 |
+| `text-display` | 20 / 28 / 600 | 审批和提问卡片的问题、设置等页面的分节标题 |
+| `text-hero` | 28 / 36 / 600，字距 −1.5% | 新会话页的问候 |
 
-- 字重只用 `font-normal`、`font-medium`、`font-semibold`。`caption`、`title`、`display` 自带字重，不再叠加。
-- Markdown 里的标题相对正文放大（h1 1.35em、h2 1.2em、h3 1.05em，600），不使用上面的阶梯，因为它们属于内容，不属于界面。
-- Markdown 由 Streamdown 解析（流式输出时先补全没收尾的代码块、表格再渲染），但每个元素都画成普通标签，只用 `.markdown` 里基于 token 的样式，不用它自带的样式类。代码块用 Shiki 高亮，浅色 `github-light`、深色 `github-dark`，跟随外观；代码块底色仍是 `surface`，高亮只改文字颜色；唯一的例外是 `diff` 代码块，以 `+` / `-` 开头的行铺满整行的 `success-soft` / `danger-soft` 底色。没有对应语言的代码块不高亮。表格是一个 `rounded-lg` 的 `line` 外框，宽度随内容，超出时横向滚动；表头底色 `surface`、不折行。任务列表的勾选框占圆点的位置。脚注在消息末尾，上方一条 `line`，字号 `text-ui`、颜色 `fg-muted`；脚注的标题只给读屏器。
-- ` ```mermaid ` 代码块画成图。流程图、状态图、时序图、类图、ER 图和 xy 图由 beautiful-mermaid 画：扁平、细线，颜色直接写成 token 的 CSS 变量（`surface` 底、节点 `raised` 底 `line-strong` 边、`fg` 字，连线 `fg-muted`，强调 `accent`），换配色或深浅不用重画。判断节点（菱形）是按标签最长一行定边长的正方形，一行写完的问句会把它撑得比旁边的步骤大好几倍，所以作者没换行的判断标签按词（中文按分词）均匀断成几行，取正方形接近最小时行数最少的那种，不留单独一两个字的末行。其余类型（饼图、甘特图、思维导图等）由 mermaid 的 base 主题画，颜色取同样的 token，饼图扇区用 `chart-1`…`chart-4`、扇区之间用 `surface` 隔开而不描黑边，字都是 13px；mermaid 在第一张这样的图出现时才加载，换配色或深浅时重画。字体用界面字体 13px。还在流式输出时显示源码，写错的图保留源码并在下面用 `text-small danger` 说一句原因。图放在和代码块一样的块里（标签 mermaid，可复制源码），图按自身尺寸画、不随列宽缩放（缩放会让宽图的字变小、窄图的字变大），过宽时在块内横向滚动。
-- **字体**：英文、数字和标点用 Inter（`Inter Variable`），中文落到系统的苹方，代码用 JetBrains Mono（`JetBrains Mono Variable`）。两款都通过 `@fontsource-variable/*` 打包进应用（OFL），离线可用，只加载用到的字符区段。字体栈在 theme.css 的 `--ol-font-sans` / `--ol-font-mono`，组件只用 `font-sans` / `font-mono`。
-- **中文标点**：界面语言是中文时（`<html lang="zh-CN">`），字体栈最前面是 `CJK Punctuation`：弯引号、破折号、省略号改用苹方的字形，不让 Inter 画成西文的窄标点。英文界面不受影响。
-- **中英混排**：不加 `letter-spacing`、不用 `uppercase`（全大写英文标签和中文放在一起很难看）、中文不用斜体。用户和 agent 的文字原样显示，不自动在中英文之间加空格。
-- **等宽**：命令、路径、文件名、模型 ID、环境变量、退出码用 `font-mono`。对话流的工具行里用 12px（`text-small`），代码块和输出用 13px（`text-ui`），Markdown 行内代码 0.88em。等宽字体栈末尾带苹方，代码里的中文有回退。等宽文字关掉连字，`<-`、`:=` 按原字符显示。
-- **数字**：表格、Context 面板、时长、token 数一律 `tabular-nums`。
-- **对话列宽**：内容宽 760px，左右各留 24px：`max-w-thread`（808px，含两侧 `px-6`）居中；对话流顶部留 32。一轮里各块之间 20（`gap-5`）。
+- 一屏里相邻两档至少差 1.25 倍；页面里的分节标题用 `display`，不和 13px 正文挤在同一档附近。
+- 字重只用 400、500、600；`caption`、`title`、`display`、`hero` 自带字重。
+- Markdown 由 Streamdown 解析，元素画成普通标签，只用 `.markdown` 里基于 token 的样式；代码用 Shiki（浅色 `github-light`、深色 `github-dark`），代码块底色 `surface`；`diff` 代码块的增删行铺 `success-soft` / `danger-soft`。表格是 `line` 外框、宽度随内容，单元格只在必要时断词。中文里的裸链接到第一个中文字符或全角标点为止（`cjkAutolink.ts`）。行内代码换行时每段各自圆角（`box-decoration-break: clone`）。mermaid 图的颜色取 token（连线 `fg-muted`、强调 `ink`）。
+- **字体**：Manrope（`@fontsource-variable/manrope`）+ 苹方，代码 JetBrains Mono，都打包进应用（OFL）。中文界面时字体栈最前面是 `CJK Punctuation`，引号、破折号、省略号用苹方的字形。
+- **中英混排**：不加字距、不用全大写、中文不用斜体；中英文之间不手打空格。
+- **等宽**：命令、路径、文件名、代码用 `font-mono`；模型在第一层只写模型名，不写"服务商/模型"。
+- **数字**：表格、时长、计数、token 数用 `tabular-nums`。
+- **对话列宽**：`max-w-thread`（808px，含两侧 `px-6`）居中；一轮里各块之间 20（`gap-5`）。
 
 ### 2.4 间距
 
-基数 4px（`--spacing: 4px`，`p-3` = 12px）。只用这几档：
-
-| class 后缀 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 5 | 6 | 8 | 12 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| px | 2 | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 20 | 24 | 32 | 48 |
-
-2.5 和 3.5 只给方向稿定下的几处：输入框外壳（`px-3.5 pt-3 pb-2.5`，各行间距 10）、用户消息气泡（`px-3.5 py-2.5`）、提问的选项行（控件与文字间距 10）。
+基数 4px。常用档：0.5、1、1.5、2、2.5、3、3.5、4、4.5、5、5.5、6、8、12（2–48px）。
 
 | 场合 | 值 |
 |---|---|
-| 图标与文字 | 6（`gap-1.5`） |
-| 按钮内边距 | sm `px-2`，md `px-2.5`，lg `px-3` |
-| 列表行、导航项内边距 | `px-2`，高度由控件高度决定 |
-| 块（L1、L2）内边距 | 12（`p-3`）；对话框 20（`p-5`） |
-| 列表项之间 | 2（`gap-0.5`） |
-| 表单字段之间 | 16（`gap-4`）；标签与字段 6，字段与提示 4 |
-| 块内各段之间 | 12（`gap-3`） |
-| 过程行之间 | 4（`gap-1`） |
-| 对话流中块与块 | 20（`gap-5`） |
-| 一轮与一轮（用户消息前） | 24（`mt-6`） |
-| 页面内区块之间（设置分区） | 32（`gap-8`） |
-| 页面边距 | 24（`px-6`） |
+| 区域（侧栏）内边距 | 6（`p-1.5`）；区域之间 10 |
+| 会话行 | 高 36，`px-2.5`，胶囊 |
+| 色块内边距 | 16–20（卡片 `px-5 py-3`，审批卡片 `px-6 pt-5.5 pb-5`） |
+| 对话框 | 24（`px-6 pt-6`，底部 `pb-6`） |
+| 输入框外壳 | `pt-4 pr-3 pb-3 pl-5`，各行之间 12 |
+| 用户消息 | `px-4.5 py-3` |
+| 页面边距 | 24（`px-6`）；标题栏左 20–24 |
 
-不在表里的值（`p-7`、`gap-2.5`、`mt-[13px]`）就是不对。
+不在 theme 里的值（`mt-[13px]`、`p-[7px]`）就是不对。
 
 ### 2.5 圆角、边框、阴影
 
 | class | 值 | 用于 |
 |---|---|---|
-| `rounded-sm` | 4 | 徽标、行内代码、复选框、快捷键提示 |
-| `rounded-md` | 6 | 按钮、输入框、下拉框、侧栏项、菜单项、子标签 |
-| `rounded-lg` | 8 | 对话流里的块（代码块、工具输出、计划、行动块）、列表卡片 |
-| `rounded-xl` | 12 | 输入框外壳（Composer）、用户消息气泡、排队中的消息、行动块（审批、提问）、Context 卡片、对话框、菜单浮层、toast（屏幕本身不圆角） |
-| `rounded-full` | — | 圆点、开关、头像 |
+| `rounded-sm` / `md` | 4 / 6 | 行内代码、搜索高亮、小图 |
+| `rounded-xl` | 12 | 输入框的井（单行）、小图片 |
+| `rounded-2xl` | 16 | 代码块、文件卡片的图标、多行输入框、色块里的命令行、浮层、附件 |
+| `rounded-3xl` | 22 | 区域、设置和列表色块、用户消息（右下角 `rounded-br-md`）、文件卡片、toast |
+| `rounded-4xl` | 28 | 屏幕工作面、输入框外壳、审批和提问卡片、对话框 |
+| `rounded-full` | — | 所有按钮、胶囊、标签、会话行、导航项、开关、圆点 |
 
-- 嵌套时，内圆角 = 外圆角 − 内边距；内边距 ≥ 外圆角时内层可以是直角。
-- 不用无后缀的 `rounded`。
+- 嵌套时内圆角 = 外圆角 − 内边距。
+- 不用无后缀的 `rounded`，不用 1px 卡片边框。
 
-| class | 用于 |
+| 阴影 | 用于 |
 |---|---|
-| （无阴影） | 对话流里的所有普通块、设置卡片、侧栏 |
-| `shadow-sm` | 需要用户行动的块（输入框外壳不加阴影，只靠 `line-strong` 描边） |
-| `shadow-md` | 菜单、选择浮层、toast、气泡提示 |
+| 无 | 区域、色块、卡片、侧栏 |
+| `shadow-sm` | 侧栏里打开的那一行、选中的胶囊 |
+| `shadow-md` | 菜单、选择浮层、toast、"回到底部"和"N 个请求在等你"的浮动胶囊 |
 | `shadow-lg` | 对话框 |
-
-深色模式下阴影几乎看不见，层次由更亮的 `raised` 底色加 `line-strong` 边框承担：所有带阴影的东西也必须有 1px 边框（行动块 `line-strong`，浮层和对话框 `line`）。
 
 ### 2.6 图标（lucide）
 
 | 尺寸 | 用于 |
 |---|---|
-| 14 | `text-ui`、`text-small` 的行内：工具行、元信息、徽标前、sm 按钮 |
-| 16 | 默认：md/lg 按钮、导航项、顶栏、表单 |
-| 20 | 空状态、整页错误 |
+| 14 | 胶囊和小按钮里、行内、元信息 |
+| 16 | 默认：按钮、导航、标题栏 |
+| 18–20 | 文件卡片、空状态 |
 
-- `strokeWidth={1.75}` 统一（14px 时可用 2，保证清晰）。
-- 颜色继承 `currentColor`，默认跟随文字的 `fg-muted`。只有图标本身表达状态时才着状态色（失败的 ✕、提问的 ?、审批的盾牌）。
-- 纯图标按钮必须有 `label`（作为无障碍名称和提示）。点击区：sm 24px（紧凑行内），md 28px（默认）。
-- 图标看不出后果的动作（比如转移记忆会改变哪些会话用到它），给 `hint`：提示里在动作下面多一行，说清做了之后会怎样。
+- 颜色继承 `currentColor`，默认 `fg-muted`。
+- 纯图标按钮必须有 `label`（无障碍名称和提示）；后果看不出的动作给 `hint`。
 
 ### 2.7 动效
 
 | 时长 | 用于 |
 |---|---|
-| `duration-100` | 悬停、按下的颜色变化 |
-| `duration-160` | 展开/折叠、浮层出现、箭头旋转 |
-| `duration-240` | 对话框出现、侧面板滑入 |
+| `duration-100` | 悬停、按下 |
+| `duration-160` | 展开折叠、浮层出现、悬停才出现的元信息 |
+| `duration-240` | 对话框、侧面板 |
 
-- 界面的缓动统一 `ease-standard`；像素（小狼、光标、加载）硬切，见 0.3。浮层和 toast 出现用 `animate-enter`（透明度 0→1 加 4px 位移）；对话框用 `animate-dialog`（透明度加 0.98→1 缩放），遮罩用 `animate-fade`。
-- **流式输出**：不做逐字淡入，只保留末尾的像素光标（0.3），自动贴底滚动；用户向上滚动后停止贴底，出现"回到底部"按钮。
-- **加载**：等待 <300ms 不显示任何东西；之后列表用骨架行，其余用像素加载（0.3）+ 动词。对话流里只有"当前那一步"闪 shimmer（`.shimmer`），同一时刻最多一处。
-- 超长输出展开不做高度动画，直接出现。
-- 遵守 `prefers-reduced-motion: reduce`：带入场动画的元素同时写 `motion-reduce:animate-fade`，只保留透明度变化；shimmer 关掉。
+- 缓动统一 `ease-standard`。浮层和 toast 用 `animate-enter`，对话框 `animate-dialog`，遮罩 `animate-fade`。
+- **在做**：状态行前一个苔色圆点缓慢呼吸（`.breathe`，1.6s）；加载用三个圆点依次变深（`Loader`，前 300ms 不显示）；只有当前那一步闪 shimmer。
+- **流式输出**：不逐字淡入，末尾一个块状光标（`.streaming-caret`），自动贴底，上滚后出现"回到底部"。
+- 遵守 `prefers-reduced-motion`：呼吸、加载、shimmer 停住，入场只保留透明度。
 
 ---
 
 ## 3. 组件与模式
 
-### 3.1 对话流：三种视觉重量
+### 3.1 对话流：结果在前
 
-agent 产出的每一块都用同一个骨架：
+一轮的顺序是：**用户的话 → 回答 → 这一轮改动的文件 → 过程**。过程放在回答后面（`resultFirst()`），运行中还没有回答时，过程照常出现在用户的话下面。
+
+agent 产出的每一块用同一个骨架，区别只在重量：
 
 ```
-[图标 14]  动作  对象                          元信息(右对齐, fg-subtle)
+[图标 14]  一句话                             元信息(右对齐, fg-subtle)
            └─ 展开后的正文(可选)
 ```
 
-区别只在重量，共三档：
-
 | 档 | 样式 | 用于 |
 |---|---|---|
-| **L0 行** | 无底无框；`text-ui` `fg-muted`；悬停时整行 `hover` 底、`rounded-md`；可点击展开 | 推理、工具调用、文件改动、子 agent、记忆载入、一轮的过程摘要 |
-| **L1 块** | `bg-surface` `rounded-lg` `p-3`，无边框无阴影 | 代码块、展开后的工具输出、计划、Markdown 表格、用户消息气泡（`rounded-xl`） |
-| **L2 行动** | `bg-raised` `rounded-xl` `shadow-sm` `p-4`，1px 整圈描边用状态色的 35%（`border-accent/35`、`border-warning/35`、`border-danger/35`） | 审批、提问 |
-
-```
-L0  ⌄ Thought for 3.8s
-    ▸ Ran  pnpm test                           1.2s · exit 1
-    ▸ Edited  src/foo.ts                           +12 −3
-    ▸ Loaded 3 memories
-
-L1  ┌──────────────────────────────────────┐
-    │ $ pnpm test                          │   surface 底
-    │ FAIL src/foo.test.ts …               │
-    └──────────────────────────────────────┘
-
-L2  ╭──────────────────────────────────────╮
-    │ ? Which branch should I base this on?│   raised 底 + 阴影 + 淡色描边
-    │   ○ main                             │
-    │   ● release/1.4                      │
-    ╰──────────────────────────────────────╯
-```
+| **L0 行** | 无底；`text-ui` `fg-muted`；悬停整行 `hover` 底、`rounded-md`；可点击展开 | 推理、工具调用、文件改动、子 agent、记忆载入、一轮的过程摘要 |
+| **L1 块** | `bg-surface` `rounded-2xl` `p-3.5`，无边框无阴影 | 代码块、展开后的工具输出、计划、Markdown 表格 |
+| **L2 行动** | `bg-accent-soft` `rounded-4xl` `px-6 pt-5.5 pb-5`，无边框无阴影；完全访问为 `danger-soft` | 审批、提问（3.2） |
 
 | 内容 | 形态 | 折叠时 | 展开后 |
 |---|---|---|---|
-| 用户消息 | L1 气泡，靠右，`rounded-xl` `px-3.5 py-2.5`，最大宽度 560px，`text-body` `fg`；悬停或聚焦时气泡左侧底部出现按钮（sm 图标按钮），平时隐藏：复制；会话里最新一条（后面没有排队消息时）还有编辑（铅笔），在前、复制在后。编辑会停止还在跑的一轮，把这条的文字和附件放回输入框并聚焦，光标在末尾；输入框里已有的字接在后面，不丢 | — | — |
-| agent 回复 | 直接写在画布上，不加容器，`text-body` `fg`；一轮结束后，回答下面的元信息行（模型 · 时长 · 用量）开头是复制回答的按钮，复制 Markdown 原文 | — | — |
-| 推理 | L0，大脑/思考图标 | "Thought for 3.8s"；进行中 "Thinking…" + shimmer | 推理全文，`fg-muted` `text-ui`，左侧 1px `line` 引导线、缩进 16 |
-| 命令 | L0 → L1 | `Ran` + 命令首行（mono，单行截断）+ 时长；非零退出码显示 `exit 1`（`text-danger`），图标变 danger | L1：完整命令、输出（mono 13，`max-h-80` 内滚，超长时提供"展开全部"），复制按钮悬停出现 |
-| 读文件/搜索/MCP 调用 | L0 → L1 | 动作 + 对象（路径或工具名 mono）+ 结果计数（"12 matches"） | 参数与结果 |
-| 文件改动 | L0 → L1 | `Edited` + 路径 + `+n`（success）`−m`（danger） | diff，L1 |
-| 子 agent | L0 | 名称 + 任务一句话 + 状态 | 嵌套时间线：缩进 16 + 1px 引导线，里面仍是 L0/L1，**不嵌套卡片** |
-| 计划 | L1 | — | 清单：○ 待做（`fg-subtle`）、◐ 进行中（`fg` + shimmer）、✓ 完成（`fg-subtle`）；不用颜色区分 |
-| 过程摘要 | L0，行首是展开箭头（不另放图标） | "Worked for 42s · 6 commands · 2 files changed"，后面跟改动行数 `+12`（success）`−3`（danger），mono；只算真正写入的改动；有失败时追加 "· 1 failed"（danger） | 这一轮全部过程行 |
-| 压缩标记 | 横向分隔线，中间 `text-small` `fg-subtle` | "Context compacted · 182k → 24k tokens" | — |
-| 记忆载入 | L0，`text-small` `fg-subtle` | "Loaded 3 memories" | 记忆标题列表，可跳到 Memory 页 |
+| 用户消息 | 靠右的石色气泡：`rounded-3xl rounded-br-md bg-surface px-4.5 py-3`，最宽 520，`text-body`；悬停或聚焦时气泡左下出现按钮：复制；最新一条（后面没有排队消息时）还有编辑（铅笔），在前。编辑会停止还在跑的一轮，把文字和附件放回输入框并聚焦，光标在末尾；框里已有的字接在后面 | — | — |
+| agent 回答 | 直接写在纸上，不加容器，`text-body` `fg` | — | — |
+| 改动的文件 | 回答下面一排文件卡片（`ResultFiles`）：`rounded-3xl bg-surface`，最宽 440：40px 纸色方圆图标 + 文件名（`fg` `font-semibold`）+ 所在文件夹（`fg-subtle`）+ 纸色的"打开"（sm）；只列这一轮真正写入的文件 | — | — |
+| 一轮的元信息 | 回答下面一行：复制回答、重试、模型名 · 时长 · 用量，`text-small` `fg-subtle`；**只在指向或聚焦这一轮时出现**（`group/turn`），平时不占眼 | — | — |
+| 过程摘要 | L0，行首展开箭头 | 一句人话："看了 9 个文件，运行了 2 条命令"；有失败时句末接 "1 项失败"（danger） | 这一轮全部过程行 |
+| 推理 | L0 | 思考的时长；进行中 "思考中" + shimmer | 推理全文，`fg-muted`，左侧 1px `line` 引导线 |
+| 命令 | L0 → L1 | 命令首行（mono，单行截断）+ 时长；非零退出码 `exit 1`（danger） | L1：完整命令、输出（mono，`max-h-80` 内滚） |
+| 读文件/搜索/MCP | L0 → L1 | 动作 + 对象 + 结果计数 | 参数与结果 |
+| 文件改动 | L0 → L1 | 动作 + 路径 | diff，增删行铺 `success-soft` / `danger-soft` |
+| 子 agent | L0 | 名称 + 任务一句话 + 状态 | 嵌套时间线：缩进 + 1px 引导线，**不嵌套卡片** |
+| 计划 | L1 | — | 清单：○ 待做、◐ 进行中（shimmer）、✓ 完成；不用颜色区分 |
+| 压缩标记 | 横向细线，中间 `text-small` `fg-subtle` | "之前的上下文已压缩" | — |
 | 错误通知 | L0 + danger 图标与文字 | 错误一句话 | 原始错误（mono），可复制 |
+| 停止 | 实心方块图标 + "已停止"（有原因时接在冒号后），`fg-muted` | — | — |
 
-**展开规则**：运行中的那一项自动展开输出的最后几行（最多 6 行），完成后自动收起；失败项完成后保持折叠，只靠 danger 图标和退出码引起注意。用户手动展开过的，不再自动收起。
+**展开规则**：运行中的那一项自动展开最后几行输出（最多 6 行），完成后收起；失败项完成后保持折叠，只靠 danger 图标和退出码引起注意。用户手动展开过的不再自动收起。
 
-### 3.2 需要用户行动的块
+**空状态**：没有消息的会话写"还没有消息"和一句怎么开始；新会话页的问候是"有什么可以交给我？"。都不放插图。
 
-醒目靠"浮起来"，不靠满底颜色。描边和图标的颜色就是危险分级：
+### 3.2 需要你的块：审批和提问
 
-| 级别 | 描边 / 图标 | 标题 | 按钮（从右到左） |
-|---|---|---|---|
-| 提问 | accent | 问题本身 | `Answer`（主）· `Skip`（幽灵，跳过后这次调用记为拒绝，agent 不带答案继续） |
-| 普通审批：写文件、跑命令、调用 MCP | warning | "Run this command?" / "Edit 3 files?" / "Call `github.create_issue`?" | `Allow once`（主）· `Allow for this session`（次）· `Deny`（幽灵） |
-| 危险审批：完全访问、删除、不可逆 | danger | "Give this command full access?"，下一行用一句话说明后果 | `Allow full access`（危险）· `Deny`（次）。不提供"本会话允许"，或者折进 "…" 菜单并二次确认 |
+全界面唯一铺赭色底的东西：`ActionCard`，`bg-accent-soft` 的 `rounded-4xl` 区域（完全访问为 `danger-soft`），没有边框、阴影和标题上方的小字。宽度随对话列，用 `@container` 自己判断窄宽。
 
-**审批块**
-- 结构：一行小字说谁要什么（`text-caption`，状态色："Ollupi needs your approval" / "Ollupi is asking"），下面是标题（`text-title`）；不放图标。需要审批的对象放进 L1 mono 块（可复制）；agent 给出的理由 `text-ui` `fg-muted`；按钮行右对齐。
-- 键盘：`↵` 执行主按钮，`Esc` 拒绝；在按钮上用 `text-caption` 标出快捷键。危险审批不绑 `↵`，允许完全访问必须点按钮。
-- 卡片出现时焦点移到它的默认按钮上：普通审批是 `Allow once`，危险审批是 `Deny`，不放在危险按钮上。用户正在输入框里打字（框里有字）时不抢焦点。
-- 已处理的审批收成 L0 行：调用那一行的行尾写 "Allowed once" / "Allowed for this thread" / "Always allowed"（盾牌图标 + `fg-subtle`），拒绝的写 "Denied"，不保留卡片。
+**结构**（从上到下）
+1. 标题：一个圆点（`accent`，完全访问 `danger`）+ 问题本身（`text-display`），可选中复制。
+2. 对象（`subject`）：要跑的命令、要改的文件，mono，L1 块里（色块里用 `canvas` 底）。
+3. 后果（`consequence`）：一句人话说清会发生什么，说不准就不写——命令写"在「ollupi-desktop」文件夹里运行。"，文件写只改或只新建这一个文件，完全访问写它能碰到什么。
+4. 答案行：左边状态位放"看细节 / 收起细节"，右边三个答案。细节里是工具自己的正文（命令所在文件夹 + 复制、diff 等）、agent 给的理由、"以后…都可以"和适用的规则。
+
+| 答案 | 样式（lg） | 键 |
+|---|---|---|
+| 先不要 | 幽灵 | `Esc` |
+| 这件事里都可以 | 次要 | — |
+| 可以 | 主要（苔色） | `↵` |
+
+- 完全访问：主答案是危险按钮，不绑 `↵`，默认焦点在"先不要"；不提供"这件事里都可以"。
+- 卡片出现时焦点移到它的默认答案（`data-default`），并滚进视野；用户正在输入框里打字时不抢焦点。
+- 窄宽（`@max-xl`）时"看细节"换到自己一行，三个答案留在一起。
+- 已处理的审批收成调用那一行行尾的一句"你同意了"/"这件事里都可以"/"以后都可以"/"已拒绝"（`fg-subtle`），不保留卡片。
 
 **提问块**
-- 一个问题：问题就是块的标题（`text-title`）→ 选项 → 自由输入；问多个时每个问题 `text-ui` `fg` `font-medium`。
-- 选项是整行可点击的行，至少高 32：左边单选或复选控件，间距 10，右边标签（`fg`）+ 说明（`text-small` `fg-muted`）。行内边距 `px-2 py-1.5`、`rounded-md`，悬停 `hover` 底。
-- 选中态 = 控件填 accent，行底 `selected`。**边框不加粗，整行或整块都不变蓝。**
-- 自由输入是最后一行："Other…"，选中后变成输入框。
-- 一次问多个：纵向排列，问题之间用 `line` 分隔、间距 12；底部显示 "2 of 3 answered"（`text-small` `fg-subtle`），全部答完才启用 `Submit`。超过 3 个问题时分页，标题旁显示 "1 / 5"。
-- 提交后收成 L0 行："Answered 3 questions"，展开可见答案。
+- 一个问题：问题就是标题 → 选项 → 自由输入；问多个时每个问题 `text-ui` `font-semibold`。
+- 选项是整行可点的行：`min-h-9 rounded-2xl px-3 py-2`，悬停 `hover`，左边苔色单选/复选，右边标签（`fg`）+ 说明（`text-small` `fg-muted`）。选中时行底 `canvas`；**不加粗边框，不整块变色**。
+- 自由输入是最后一行。多个问题之间间距 12，底部写"已回答 2/3"，全部答完才能提交；提交后收成 L0 行"回答了 3 个问题"，展开可见答案。
 
-**流外的回响**
-- 侧栏该会话显示带光晕的 accent 圆点（`ring-3 ring-accent/25`，和未读的实心圆点区分开）；顶栏右侧、面板按钮前显示描边胶囊 "Waiting for you"（高 20、`rounded-full`、`border-accent/35`、`text-caption` `accent`，不铺底）。
-- 输入框上方的状态行：小狼换成看着你的脸，写 "Waiting for your approval above" 或 "Waiting for your answer above"（子 agent 的等待也算）；运行中没人被问时是左右张望的小狼和 "Working…"，对话流里不再另写；行动块滚出视野（露出不到四分之一且不到 120px）时，在输入框上方浮出胶囊按钮 "1 request waiting ↓"（`rounded-full border-accent/35 text-accent`，`raised` 底），取代"滚动到最新"；点击滚到块，并把焦点放到它的默认按钮。
-- 窗口不在前台时发系统通知。
+**流外的回响**（离开回来时一眼看到"有事等你"）
+- 侧栏：会话行尾"等你"赭色胶囊；区域标题后"N 件等你"；列表滚动后看不到的等你会话，在列表下方单独一行出现"N 件等你 ↓"胶囊，点击滚到它。
+- 标题栏：右侧"N 件等你"（`accent-soft` 底、`accent` 字，胶囊）。
+- 输入框上方状态行：赭色圆点 + "等你在上方点个头"（提问时说等你回答）；在做时是呼吸的苔色圆点 + 在做什么。
+- 卡片滚出视野（露出不到四分之一且不到 120px）时，输入框上方浮出"1 个请求在等你"胶囊（`raised` 底、`accent` 字、`shadow-md`），取代"回到底部"；点击滚到卡片并聚焦默认答案。
+- 窗口不在前台时发系统通知，Dock 显示等你的数量。
 
 ### 3.3 状态的表达
 
 | 载体 | 用于 | 规格 |
 |---|---|---|
-| **圆点** | 列表里表示"这里有事"（侧栏会话、workspace、连接状态） | 6px `rounded-full`，放在行尾元信息的位置。侧栏会话按优先级只显示一个：等你处理（accent + 光晕）> 运行中（spinner）> 未读（accent 实心，标题同时变 `fg` `font-medium`）> 相对时间 |
-| **徽标** | 标题或顶栏里说出状态名，或计数 | `text-caption` 高 18、`px-1.5`、`rounded-sm`；状态色徽标 = `*-soft` 底 + 状态色字；中性徽标 = `hover` 底 + `fg-muted` 字；一行最多一个 |
-| **图标 + 文字** | 对话流里 | 见 3.1 |
+| **胶囊标签** | 列表行尾说出状态（等你、在做）或计数 | `text-caption` `font-semibold`、高 20、`px-2`、`rounded-full`。等你 = `accent` 底 + `accent-fg`；在做 = 中性 |
+| **圆点** | 未读、连接状态、状态行 | 6–8px `rounded-full`；未读是 `ink` 实心，标题同时变 `fg` `font-semibold` |
+| **徽标** | 名称旁的状态名或计数（`Badge`） | `h-5 rounded-full px-2 text-caption font-semibold`；状态色 = `*-soft` 底 + 状态色字；默认中性（`hover` 底 + `fg-muted`）；一行最多一个 |
 
 | 状态 | 表达 |
 |---|---|
-| 进行中 | shimmer 文字或 14px spinner，`fg-subtle`，**不着色**；侧栏里 spinner 代替时间 |
-| 等待用户 | accent（圆点、徽标、描边）；普通审批的块用 warning 描边，但侧栏圆点和顶栏徽标统一用 accent，表示"轮到你了" |
-| 完成 | 默认无标记 |
-| 失败 | danger（图标、文字、圆点） |
-| 被拒绝 | ban 图标 + "Denied"，`fg-muted`。拒绝是用户的选择，不是错误，**不用红色** |
-| 已停止 | square 图标 + "Stopped"，`fg-muted` |
-| 已断开 / 重连中 | 侧栏底部连接状态：断开 danger 圆点 + "Disconnected"，重连中 spinner + "Reconnecting…" |
+| 在做 | 呼吸的苔色圆点；侧栏行尾"在做"胶囊；不用 spinner 占满界面 |
+| 等你 | 赭色（3.2 的回响）；只有这一种状态用赭色 |
+| 完成 | 默认无标记；侧栏显示相对时间 |
+| 失败 | danger（图标、文字） |
+| 被拒绝 | "已拒绝"，`fg-muted`。拒绝是用户的选择，**不用红色** |
+| 已停止 | 实心方块 + "已停止"，`fg-muted` |
+| 后端停止 / 重连中 | 侧栏底部连接状态：停止是 danger 圆点 + "后端已停止"，重连中 `Loader` + "正在重新连接…" |
+
+侧栏会话行尾按优先级只显示一个：等你 > 在做 > 未读圆点 > 相对时间。
 
 ### 3.4 按钮
 
+所有按钮都是胶囊（`rounded-full`、`font-semibold`）。
+
 | 尺寸 | 高 | 文字 | 用于 |
 |---|---|---|---|
-| `sm` | 24（`h-6`） | `text-small` `font-medium` | 块里、行内、列表行的操作 |
-| `md` | 28（`h-7`） | `text-ui` `font-medium` | 默认：顶栏、表单、设置 |
-| `lg` | 32（`h-8`） | `text-ui` `font-medium` | 对话框底部、新会话页、整页错误 |
+| `sm` | 24（`h-6`） | `text-small` | 块里、行内、列表行的操作 |
+| `md` | 32（`h-8`） | `text-ui` | 默认：标题栏、表单、设置 |
+| `lg` | 40（`h-10`） | `text-ui` | 审批和提问的答案、对话框底部、整页错误 |
+
+`IconButton`：`sm` 24、`md` 28，圆形；开着的面板等"开启"状态用 `active`（`selected` 底 + `aria-pressed`）。
 
 | 种类 | 样式 | 用途 |
 |---|---|---|
-| **主要** | `bg-ink text-ink-fg`，悬停 `opacity-85` | 区域里最推荐的那一个动作。一个区域（一张卡片、一个对话框、一个设置分区、一个空状态）**最多 1 个** |
-| **次要** | `bg-raised border border-line-strong text-fg`，悬停 `bg-hover` | 其它正向动作、Cancel |
-| **幽灵** | 透明，`text-fg-muted`，悬停 `bg-hover text-fg` | 工具栏、图标按钮、第三选项、`Deny` |
-| **危险** | `bg-danger text-danger-fg` | 只用于"确认执行破坏性动作"的那一下（对话框里的 `Delete`、完全访问的 `Allow full access`） |
-| **危险入口** | 幽灵样式 + `text-danger` | 菜单和列表里的 `Forget`、`Delete`、`Remove` 入口；点了之后再确认 |
+| **主要** | `bg-ink text-ink-fg`，悬停 `opacity-90` | 区域里最推荐的那一个动作，**最多 1 个** |
+| **次要** | `bg-surface text-fg`，悬停 `bg-hover` | 其它正向动作、取消 |
+| **幽灵** | 透明，`text-fg-muted`，悬停 `bg-hover text-fg` | 工具栏、第三选项、"先不要" |
+| **危险** | `bg-danger text-danger-fg` | 只用于"确认执行破坏性动作"的那一下 |
+| **危险入口** | 幽灵 + `text-danger` | 菜单和列表里的删除、忘记、移除入口；点了再确认 |
 
-- 顺序按 macOS 惯例：主按钮在最右，Cancel 在它左边，按钮间距 8。
-- 禁用：`opacity-50`，不改颜色；禁用的主按钮旁边或下方要说明为什么不能点（"2 of 3 answered"）。
-- 加载：按钮内 spinner 替换图标，文字不变，按钮宽度不跳。
-- 焦点：`focus-visible:ring-3 ring-focus`。
+- 顺序按 macOS 惯例：主按钮在最右，取消在它左边，间距 10。
+- 禁用：`opacity-50`，旁边说明为什么不能点。加载：`Loader` 替换图标，宽度不跳。焦点：`focus-visible:ring-3 ring-focus`。
 
 ### 3.5 表单
 
 ```
-Label                          ← text-ui font-medium fg，下方 6
-[ input                    ]   ← h-7（对话框里 h-8），rounded-md
-Help text                      ← text-small fg-subtle，上方 4；出错时替换成错误文字
+标签                           ← text-ui font-medium fg，下方 6
+[ 输入框                   ]   ← h-8（对话框里 h-10），rounded-xl，selected 底
+说明                           ← text-small fg-subtle；出错时换成错误文字
 ```
 
-- **输入框 / 下拉框 / 多行文本**：`bg-transparent`（取所在表面的颜色：页面上是 canvas，对话框里是 raised）+ `border border-line-strong` + `rounded-md` + `px-2.5` + `text-ui`。占位符 `fg-subtle`。聚焦：边框 `accent` + `ring-3 ring-focus`。命令、路径、JSON 类的输入用 `font-mono`。
-- **错误**：通过 `Field` 的 `error`（不要塞进 `hint`），边框变 `danger`，提示换成 `text-small text-danger` 的错误文字，说清楚哪里不对、怎么改（"Must be a URL starting with http:// or https://"）。在失焦或提交时校验，不在输入过程中报错。
-- **开关 vs 复选框**：立即生效的设置用开关，没有保存按钮；需要统一保存的表单里用复选框。
-- **设置行**（macOS 系统设置的写法）：左边标签（`text-ui` `fg`）+ 说明（`text-small` `fg-muted`），右边控件，行高至少 44、`px-3 py-2.5`。多行组成一张列表卡片：`rounded-lg border border-line`，行之间 `divide-y divide-line`。在页面上和对话框里都用这一种。
-- **必填** 不打星号；可选字段在标签后写 "(optional)"，`fg-subtle`。
+- **输入框 / 下拉框 / 多行文本**：无边框的井——`bg-selected rounded-xl px-3.5 text-ui`（多行 `rounded-2xl`）；占位符 `fg-muted`；聚焦 `ring-3 ring-focus`。命令、路径、JSON 用 `font-mono`。搜索框是胶囊（`rounded-full bg-surface`）。
+- **错误**：`Field` 的 `error`，井外一圈 `ring-danger`，下方 `text-small text-danger` 说清哪里不对、怎么改；失焦或提交时校验。
+- **开关 vs 复选框**：立即生效用开关（开是苔色），需要统一保存的表单用复选框（`accent-ink`）。
+- **设置行**：左边标签 + 说明（`text-small fg-muted`），右边控件，行高至少 44、`px-5 py-3`。多行组成一张色块：`rounded-3xl bg-surface`，行之间 `divide-y divide-canvas`（纸色的缝，不是线）。
+- **必填** 不打星号；可选字段在标签后写"（可选）"，`fg-subtle`。
 
 ### 3.6 列表与导航
 
+**侧栏是导览图**：每个工作区是一块区域——`rounded-3xl p-1.5`，底色是它的区域色（`areaClass(workspaceId)`，没有工作区的会话用 `canvas/60`），区域之间 10。
+
 | 元素 | 规格 |
 |---|---|
-| 侧栏项、竖排子标签（Memory 范围）、菜单项 | 高 28、`rounded-md`、`px-2`、`text-ui`；图标 16 `fg-muted`；悬停 `bg-hover`；选中 `bg-selected` + `font-medium` + `fg` |
-| 分组标题（workspace） | `text-small` `font-medium` `fg-subtle` + 折叠箭头；已归档分组默认折叠，放在最底部 |
-| 行尾元信息 | `text-small` `fg-subtle`（相对时间、计数）；运行中换成 spinner，等待/失败换成圆点 |
-| 右键菜单 | 用系统原生菜单（`desktop.contextMenu`），不自己画；只放这一行能做的事，例如文件面板里文件和文件夹的"在访达中显示" |
-| 悬停才出现的操作 | 直接替换行尾元信息的位置，不额外占宽度，悬停时文字不跳；sm 图标按钮（24px）；行 `focus-within` 或其菜单打开时保持显示；最多 2 个，更多的放进 "…" 菜单 |
-| 横排标签（Settings） | `text-ui` `font-medium`；未选中 `fg-muted`，悬停 `fg`；选中 `fg` + 2px 下划线（`fg` 色，不用 accent）；标签栏底部 `border-b border-line` |
-| 卡片列表（MCP 服务器、模型提供方） | 用 3.5 的设置卡片：每行名称（`fg` `font-medium`）+ 一行摘要（`text-small` `fg-muted` mono）+ 状态徽标 + 悬停操作；点行打开编辑对话框 |
+| 区域标题 | 工作区名（`text-ui font-medium fg`）+ "· N 件"（`fg-muted`）+ 有等你时的赭色"N 件等你"；悬停出现两个操作：+（在这里开新的事）和 "…"（原生菜单） |
+| 会话行 | 高 36、`rounded-full`、`px-2.5`、`text-ui`；悬停 `hover`；打开的那一行 `bg-canvas shadow-sm`；行尾按 3.3 的优先级 |
+| 顶部 | "新的事"苔色胶囊（`h-10`，行尾 `⌘N`）+ 搜索、定时任务两个圆形胶囊（`bg-canvas`） |
+| 底部 | 记忆、能力、设置三个小胶囊（放不下时换行）+ 连接状态 |
+| 竖排导航（设置、能力、记忆范围） | `Tabs vertical`：高 36、胶囊；选中 `bg-surface font-semibold fg`，其余 `font-medium fg-muted`；不画右边线 |
+| 横排标签 | `Tabs`：高 32 的胶囊，选中 `bg-surface`；不画下划线和底边 |
+| 右键和 "…" 菜单 | 系统原生菜单（`desktop.contextMenu`），只放这一行能做的事，危险项放最后 |
+| 悬停才出现的操作 | 替换行尾元信息的位置，不额外占宽；行 `focus-within` 或菜单打开时保持显示；最多 2 个，更多放进 "…" |
+| 卡片列表（MCP、模型服务商） | 3.5 的设置色块：名称（`fg` `font-medium`）+ 一行摘要（`text-small fg-muted`）+ 徽标 + 悬停操作；点行打开编辑对话框 |
 
-侧栏宽 264px。顶部依次是新会话（`fg` `font-medium`，+ 图标）、搜索、定时任务；底部固定 Memory、能力、Settings，下面是连接状态（圆点 + `text-small`）。除新会话外，没选中的导航项是 `fg-muted`，悬停变 `fg`。
+侧栏列表上下以 `.fade-edges` 渐隐，不画分隔线。
 
 ### 3.7 浮层
 
+浮层都是 `bg-raised`，没有边框；深色模式里加一圈 `ring-1 ring-line`（`dark:`），因为深色的 raised 和石色几乎一样亮。
+
 | 浮层 | 何时用 | 规格 |
 |---|---|---|
-| **对话框** | 需要专注的多字段编辑：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方；破坏性动作的确认 | `max-w-dialog`（480）或 `max-w-dialog-wide`（640）；`bg-raised border border-line rounded-xl shadow-lg`；背后 `bg-scrim`；标题区 `px-5 pt-5`，`text-title` + 一句 `text-ui fg-muted` 说明；内容 `px-5 py-4`；底部 `px-5 pb-5` 右对齐按钮（lg），不画分隔线，内容滚动时才在底部出现 `border-t border-line` |
-| **菜单 / 选择浮层** | 从触发器展开的选择：模型选择、审批策略、workspace 选择 | `@ollupi/ui` 的 `Picker`：`bg-raised border border-line rounded-xl shadow-md p-1`；菜单项同 3.6，可带一行 `text-small fg-muted` 说明，选中项 `selected` 底 + 对勾；来源不止一个时按来源分组（`text-small font-medium fg-subtle` 小标题）；长列表顶部有查找框；动作项放在分隔线下面。上方空间更大时向上展开（输入框在窗口底部）。`↑` `↓` 移动、`↵` 选择、`Esc` 关闭并回到触发器；点外面或窗口失焦时关闭。行尾 "…" 菜单用系统原生菜单（同右键菜单），危险项放最后 |
-| **Toast** | 用户没在原地等待的异步结果；后台动作的失败 | 右下角，宽 360，`bg-raised border border-line rounded-xl shadow-md p-3`；图标 + 一句话 + 可选的一个操作按钮；成功类 4 秒自动消失，错误类要手动关闭；最多同时 3 条 |
-| **提示** | 图标按钮的名字（`IconButton` 自带；自己画的图标按钮用 `useTooltip`），不用浏览器原生 `title` | 悬停 500ms 出现，刚关掉一个提示后 300ms 内移到下一个按钮立即出现；键盘聚焦时立即出现；按下、移开、滚动或 Escape 消失。在按钮下方 6px 居中，下方放不下时放上方，离窗口边至少 8px；`bg-ink text-ink-fg rounded-md shadow-md text-small`，最宽 288px；只有名字时 `px-2 py-1`，带 `hint` 时 `px-2.5 py-1.5`，名字 `font-medium`、hint 是 `ink-fg` 的 70%、`text-pretty`。名字和按钮的无障碍名称相同，只有 hint 作为描述读出 |
-| **气泡提示** | 图标按钮的名称和快捷键；截断文字的全文；绝对时间 | 延迟 500ms；`bg-raised border border-line rounded-md shadow-md px-2 py-1 text-small` |
+| **对话框** | 多字段编辑：定时任务、会话权限、工作区设置、MCP、模型服务商；破坏性确认 | `max-w-dialog`（480）或 `dialog-wide`（640）；`rounded-4xl shadow-lg`；背后 `bg-scrim`；标题区 `px-6 pt-6`，`text-title` + 一句 `fg-muted` 说明；底部 `px-6 pb-6` 右对齐 lg 按钮，内容滚动时才出现顶部细线 |
+| **选择浮层** | 模型、审批策略、工具菜单、工作区选择 | `@ollupi/ui` 的 `Picker`：`rounded-2xl shadow-md p-1`，选项 `rounded-xl min-h-8 px-2.5`，可带一行 `text-small fg-muted` 说明，选中项 `selected` 底 + 对勾；按来源分组（`text-small font-medium fg-subtle`）；长列表顶部有查找框；动作项在细线下面。上方空间更大时向上展开。`↑` `↓` 移动、`↵` 选择、`Esc` 关闭并回到触发器；点外面或窗口失焦时关闭，点选后不把焦点还给触发器（免得留下焦点环） |
+| **面板里的小浮层** | 文件面板的"打开方式"、浏览器的历史和标签 | `rounded-2xl shadow-lg p-1` |
+| **Toast** | 用户没在原地等的异步结果；后台动作失败 | 右下角，宽 360，`rounded-3xl shadow-md p-3.5`；图标 + 一句话 + 可选一个操作；成功类 4 秒消失，错误类手动关闭；最多 3 条 |
+| **提示** | 图标按钮的名字（`IconButton` 自带；自画的用 `useTooltip`），不用原生 `title` | 悬停 500ms，刚关掉一个后 300ms 内移到下一个立即出现；键盘聚焦立即出现；按下、移开、滚动、Esc 消失。按钮下方 6px 居中，放不下放上方；`bg-ink text-ink-fg rounded-md shadow-md text-small`，最宽 288；带 `hint` 时名字 `font-medium`、hint 是 `ink-fg` 的 70% |
 
-- **不叠对话框。** 对话框里的删除用对话框内的二次确认（按钮变成 "Click again to delete"）或者一个小确认浮层。
-- 原地已经能看到结果的动作不发 toast（保存设置后开关已经变了，就不要再 toast "Saved"）。
+- **不叠对话框。** 对话框里的删除用按钮内二次确认或小确认浮层。
+- 原地已能看到结果的动作不发 toast。
 - `Esc` 关闭任何浮层；有未保存修改的对话框关闭前确认。没有浮层、也没有卡片在等时，`Esc` 停止正在跑的一轮（在输入框里也可以）。
-- 全局快捷键：`⌘N` 新会话、`⌘K` 搜索，写在侧栏对应项的行尾。
+- 全局快捷键：`⌘N` 新的事、`⌘K` 搜索。
 
 ### 3.8 空状态、加载、错误
 
@@ -693,90 +391,42 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 
 | 状态 | 写法 |
 |---|---|
-| **空状态** | 区域内居中：20px `fg-subtle` 图标 → `text-ui font-medium fg` 一行标题 → `text-small fg-subtle` 一行说明 → 最多一个次要按钮。例："No memories yet" / "ollupi saves what it learns about you here." |
-| **加载** | 前 300ms 不显示；之后列表用 3 行骨架（`bg-hover rounded-md`，高度同真实行），其余用像素加载 + 动词（"Loading models…"） |
-| **错误** | danger 图标 + 什么失败了（`fg`）+ 为什么（`fg-muted`）+ 操作按钮（`Retry`）；原始错误放在可展开的 L1 mono 块里，可复制 |
-| **后端启动失败页** | 错误写法的整页版：居中，`max-w-dialog-wide`；`text-display` 标题 "ollupi didn't start"；一段原因；日志末尾 L1 mono 块（可复制，`max-h-80` 内滚）；`Retry`（主，lg）+ `Open logs`（次，lg） |
+| **空状态** | 区域内居中：20px `fg-subtle` 图标 → `text-ui font-medium fg` 一行标题 → `text-small fg-subtle` 一行说明 → 最多一个次要按钮。不放插图和吉祥物 |
+| **加载** | 前 300ms 不显示；之后列表用 3 行骨架（`bg-hover`，胶囊，高度同真实行），其余用 `Loader` + 动词（"正在加载对话…"） |
+| **错误** | danger 图标 + 什么失败了（`fg`）+ 为什么（`fg-muted`）+ 操作按钮（重试）；原始错误放在可展开的 L1 mono 块里 |
+| **后端启动失败页** | 整页版：居中，`max-w-dialog-wide`；`text-display` 标题；一段原因；日志末尾 L1 mono 块（可复制，`max-h-80`）；重试（主，lg）+ 打开日志（次，lg） |
 
-### 3.9 数据展示（Context 面板）
+### 3.9 数据展示（上下文面板）
 
 - **数字**：`tabular-nums`，列内右对齐。主值 `fg`，单位和分母 `fg-subtle`：`182.4k` `/ 200k`。
-- **键值行**：左边标签 `text-small fg-muted`，右边值 `text-small fg`，行距 6，不画分隔线。分组之间用 `border-t border-line` + 16 间距，组标题 `text-small font-medium fg-subtle`。
-- **用量条**：高 8，各段 `rounded-sm`、彼此隔 2px（不靠颜色也能分开），按提示词里的先后从左到右排（系统提示词、工具定义、记忆快照、消息，与 ollupi 组装提示词的顺序一致），剩余空间是最后一段 `fg` 10%。自动压缩点画成一根竖刻度（`fg-muted`）。
-- **组成部分的颜色**：分类色 `chart-1`…`chart-4`（蓝、橙、青、黄；dataviz 参考色板的前四位，浅色、深色各自验证过色盲区分），所有配色方案共用，不跟随主题色。颜色跟着部分走、不跟大小：系统提示词 `chart-2`（橙）、工具定义 `chart-3`（青）、记忆 `chart-4`（黄）、消息 `chart-1`（蓝）。这样分配是因为按上面的先后，相邻两段要能区分：橙和黄挨着时浅色模式正常视力都难分，深色模式色盲也分不开，所以工具定义不能是橙。占本次提示词不到 5% 的部分细得在条上找不到，改用中性灰（`fg` 30%），所以醒目的颜色只留给占比大的部分。
-- **图例**：条下方每部分一行，高 28、`text-ui`：14px 方块色块（`size-3.5 rounded-sm`，不用圆点）、名称 `fg`、token 数 `fg-subtle`、占比 `fg` 保留一位小数。顺序与条一致。浅色模式里青、黄对白底不足 3:1，所以图例的文字和数值必须一直显示。
-- **最近一次调用**：同样一条分段条，按 API 报告的数分三段：缓存输入（`chart-1` 45%，提示词的开头部分所以在最前）、未缓存输入（`chart-1`）、输出（`chart-2`）。缓存和未缓存是同一色系，表示它们合起来是输入。图例在条下方排成一行（放不下时换行），每项是 12px 方块、名称 `fg-muted`、token 数 `fg`。
-- 面板里不重复显示模型名：对话的每一轮下面已经写了它，模型调用列表里也有。
-- **格式**
-  - token：`950`、`1.2k`、`182k`、`1.2M`（≥10k 不留小数）
-  - 时长：`820ms`、`3.8s`、`1m 12s`
-  - 时间：列表里相对时间（"just now"、"3m ago"、"Yesterday"、"Oct 12"），悬停显示绝对时间
-  - 金额：`$0.042`
-- **模型调用列表**：每行一个调用，左边模型名（mono `text-small`）+ 时间，右边 token 和时长；点开显示该调用的组成。最近一次调用放在列表上方单独一块。
+- **键值行**：左边标签 `text-small fg-muted`，右边值 `text-small fg`，行距 6，不画分隔线。分组之间 16 的间距，组标题 `text-small font-medium fg-subtle`。
+- **用量条**：高 8，各段 `rounded-sm`、彼此隔 2px（不靠颜色也能分开），按提示词组装顺序从左到右（系统提示词、工具定义、记忆快照、消息），剩余空间是最后一段 `fg` 10%；自动压缩点是一根 `fg-muted` 竖刻度。
+- **组成部分的颜色**：分类色 `chart-1`…`chart-4`（蓝、橙、青、黄；dataviz 参考色板前四位，浅色、深色各自验证过色盲区分）。颜色跟着部分走：系统提示词 `chart-2`、工具定义 `chart-3`、记忆 `chart-4`、消息 `chart-1`——按上面的先后，相邻两段必须能区分，橙和黄不能挨着。占比不到 5% 的部分用中性灰（`fg` 30%）。
+- **图例**：条下方每部分一行，高 28：14px 方块（`size-3.5 rounded-sm`）、名称 `fg`、token 数 `fg-subtle`、占比保留一位小数；顺序与条一致。浅色里青、黄对白底不足 3:1，所以图例文字和数值必须一直显示。
+- **最近一次调用**：同样的分段条，三段：缓存输入（`chart-1` 45%）、未缓存输入（`chart-1`）、输出（`chart-2`）。
+- **格式**：token `950`、`1.2k`、`182k`、`1.2M`（≥10k 不留小数）；时长 `820ms`、`3.8s`、`1m 12s`；列表里用相对时间，悬停显示绝对时间；金额 `$0.042`。
+- **模型调用列表**：每行一个调用，模型名（mono `text-small`）+ 时间，右边 token 和时长；点开显示组成。
 
 ---
 
 ## 4. 文案
 
-- **全部 sentence case**：`Add workspace`、`Allow once`、`New conversation`，不用 Title Case。专有名词保持原样（MCP、ollupi 永远小写）。
-- **按钮**：动词开头，1–3 个词，说出结果：`Allow full access`，不写 `OK`、`Yes`、`Confirm`。会打开对话框的按钮加 `…`：`Edit…`、`Add server…`。
-- **时态**：进行中用现在分词加省略号（"Running…"、"Thinking…"），完成后用过去式（"Ran 3 commands"、"Thought for 3.8s"）。省略号用单个字符 `…`。
-- **语气**：平实、直接。不用感叹号，不写 "Oops"、"Uh-oh"，不拟人卖萌，不道歉堆砌。
-- **出错提示** 三段：什么失败了 → 为什么 → 用户能做什么。
-  - "Couldn't start ollupi. Port 8421 is already in use. Quit the other instance or change the port in Settings."
-  - "Couldn't connect to the MCP server. The command exited with code 127. Check that `npx` is installed."
-  - 不知道原因时直接给原始错误，不编造解释。
-- **审批和提问** 的标题是一个问句，主语是动作："Run this command?"、"Edit 3 files?"。
-- **空状态**：标题说现状（"No scheduled tasks"），说明说它是什么或怎么开始，不重复标题。
-- **数字** 一律用阿拉伯数字；复数要对（"1 file"、"2 files"）。
-- 界面文案是英文；用户和 agent 的内容原样显示。
+中文和英文同等重要，两种都要读起来像人写的（PRODUCT.md）。
+
+- **说人话**：第一层写用户的事，不写系统的事。"新的事"不写"新建会话"；"等你在上方点个头"不写"等待审批"；"看了 9 个文件"不写"read_file ×9"。命令、路径、模型、token 是展开后的细节。
+- **审批**：标题是一个问句，主语是动作（"允许运行这条命令？"/"Allow this command?"）；答案是"先不要 / 这件事里都可以 / 可以"（英文 "Not now / Yes, for this whole thread / Yes"），永久放行写成"以后…都可以"（"Always, in …"）。审批策略三档："什么都先问我 / 要紧的先问我 / 放手去做"（"Always ask first / Ask on what matters / Just do it"）。
+- **英文**：sentence case（`Add workspace`），不用 Title Case；MCP 等专有名词保持原样。复数要对（"1 file"、"2 files"）。
+- **按钮**：动词开头，说出结果；不写"确定""OK""Yes"。会打开对话框的按钮加 `…`。
+- **时态**：进行中用"正在…"/现在分词加省略号（"正在读取文件…"、"Reading the file…"）；完成后说结果（"看了 9 个文件"、"looked at 9 files"）。省略号用单个字符 `…`。
+- **语气**：平实、直接、体面。不用感叹号，不写"哎呀""Oops"，不拟人卖萌，不道歉堆砌。
+- **出错** 三段：什么失败了 → 为什么 → 能做什么。不知道原因时给原始错误，不编造解释。
+- **空状态**：标题说现状，说明说它是什么或怎么开始，不重复标题。
+- **数字** 一律用阿拉伯数字。
+- 文案集中在 `apps/desktop/src/renderer/src/i18n/messages/`，中英两份同时改；改完在 860px 宽的窗口里两种语言各看一遍，英文更长也不能撑破布局。
 
 ---
 
-## 5. 迁移
-
-### 5.1 旧写法 → 新 token
-
-| 旧 | 新 |
-|---|---|
-| `text-[10px]`、`text-[11px]` | `text-caption` |
-| `text-xs`、`text-[12px]` | `text-small` |
-| `text-[13px]`、界面里的 `text-sm` | `text-ui` |
-| Markdown 和消息里的 `text-sm`、`text-[14px]`、`text-base` | `text-body` |
-| `text-[15px]`、`text-lg` | `text-title` |
-| `text-xl`、`text-2xl` | `text-display` |
-| `font-bold` | `font-semibold` |
-| `uppercase tracking-wide` | 删掉，用 `text-small font-medium fg-subtle` |
-| `rounded`、`rounded-xs` | `rounded-sm` |
-| `rounded-2xl`、`rounded-3xl` | `rounded-xl` |
-| 原 `rounded-sm`（2px） | `rounded-sm`（现在是 4px），检查效果 |
-| `shadow`、`shadow-xs`、`shadow-xl`、`shadow-2xl` | 按 2.5 选 `shadow-sm` / `md` / `lg` |
-| `bg-black/30` | `bg-scrim` |
-| `text-white`（危险按钮） | `text-danger-fg` |
-| `bg-white` | `bg-raised` 或 `bg-canvas` |
-| `ring-2 ring-accent/50` | `ring-3 ring-focus` |
-| `Dialog width={…}` | 默认 480；长表单传 `wide`（640） |
-| `Field hint={error ?? hint}` | `Field error={error} hint={hint}` |
-| `Callout icon={…}` | 去掉：图标由 `tone` 决定 |
-| Switch 圆钮 `bg-white` | `bg-knob` |
-| 侧栏选中的 `bg-hover` | `bg-selected` |
-| 提问卡片 `border-accent/30 bg-accent-soft/40` | L2：`bg-raised shadow-sm` + accent 淡色描边 |
-| 审批卡片的黄色底 | L2 + warning 淡色描边（完全访问为 danger） |
-| Button `sm` `h-7` / `md` `h-8` | `sm` `h-6` / `md` `h-7` / 新增 `lg` `h-8` |
-| IconButton `size-6` / `size-8` | `size-6` / `size-7` |
-| `apps/desktop/src/renderer/src/styles.css` 里 `body { font-size: 14px }` | 改为 13px，行高 20px（界面默认是 `text-ui`）；`.markdown` 加 `font-size: 14px; line-height: 23px` |
-
-不保留任何旧 class 的别名：替换完 token 后，旧写法不生成样式，逐个改掉即可。
-
-### 5.2 顺序
-
-1. 替换 `packages/ui/src/theme.css`（2.1），修改 `styles.css` 的 body 和 `.markdown` 字号。
-2. 改 `@ollupi/ui` 的基础组件：Button、IconButton、Input、Dialog、Toast、Tabs，对齐 3.4–3.7。
-   `cn`（tailwind-merge）已登记 theme.css 的字号、缓动、动画、容器名；以后在 theme.css 新增一档，也要同步登记到 `packages/ui/src/cn.ts`，否则 `cn('text-ui', 'text-fg')` 会把字号当成颜色合并掉。
-3. 新增对话流的三个组件，放在 `@ollupi/ui`：`ProcessRow`（L0，取代原来的 `Disclosure`）、`Block`（L1，`CodeBlock` 建在它上面）、`ActionCard`（L2，接收 `tone: 'accent' | 'warning' | 'danger'`），把 `ToolCallView`、`SystemItems`、推理、`ApprovalCard`、`QuestionsCard` 迁过去。提问和审批先改，差异最大。
-4. 侧栏、Memory、Settings、各对话框、Context 面板、后端启动失败页。
-
-### 5.3 自查
+## 5. 自查
 
 改完一个界面，用下面几条判断是否合规：
 
@@ -786,20 +436,27 @@ rg -n 'text-\[|rounded-\[|bg-\[#|text-\[#|p[xytrbl]?-\[|m[xytrbl]?-\[|gap-\[' ap
 ```
 
 ```bash
-# 全大写标签、粗体
+# 全大写标签、粗体、字距
 rg -n 'uppercase|font-bold|tracking-' apps packages --glob '!**/node_modules/**'
 ```
 
 ```bash
-# 强调色铺底：逐个确认只出现在选中控件、进度填充、等待用户的信号上
-rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
+# 赭色：逐个确认只出现在"需要你"的信号上
+rg -n 'bg-accent|text-accent|ring-accent|border-accent' apps packages --glob '!**/node_modules/**'
 ```
 
+```bash
+# 设计检测（开着 dev 应用时，浅色、深色各跑一次）
+~/.claude/skills/impeccable/scripts/impeccable detect --cdp 9333 --target localhost:5173
+```
+
+- 赭色用在了"需要你"以外的地方 → 错。
 - 一个区域里主按钮超过 1 个 → 错。
-- 成功状态用了绿色 → 错（diff 计数除外）。
-- 对话流里的普通块有阴影或状态色底 → 错。
+- 成功状态着色 → 错（diff 的增删行底除外）。
+- 卡片或区域用 1px 边框分区，或画了分隔线 → 错（用底色和留白）。
+- 方角或小圆角的按钮 → 错（按钮都是胶囊）。
 - 被拒绝显示成红色 → 错。
-- 有阴影但没有 1px 边框 → 深色模式下会糊，错。
+- 第一层出现命令、路径、模型全名、token 用量 → 多半错（PRODUCT.md 原则 0）。
 
 ---
 
@@ -807,14 +464,17 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 
 | 界面 | 主要用到 |
 |---|---|
-| 侧边栏 | 3.6 列表与导航（新建会话、添加 workspace 为幽灵按钮；分组、悬停操作、已归档分组）、3.3 圆点、底部连接状态 |
-| 新会话页 | 问候旁的小狼（0.3）+ `text-display` 标题、和对话页同样的输入框 |
-| 对话页顶栏 | `text-ui font-semibold` 标题 + `text-ui fg-subtle` 的 workspace 名（不带图标，最宽 192，先截断标题）；右侧是等待胶囊（3.2）和各面板开关（md 图标按钮，开启时 `active`：`selected` 底 + `aria-pressed`），按"工作的地方"（浏览器、文件、环境、终端）和"这个会话的"（任务、上下文）分两组，再加导出，组间用 1px × 16 的 `line` 竖线隔开。会话权限不在顶栏，从审批策略菜单进入 |
+| 侧栏 | 3.6 导览图（区域、会话行、新的事、底部胶囊）、3.3 状态、3.2 流外的回响 |
+| 新会话页 | `text-hero` 问候 + 和对话页同样的输入框；右上角"工具"菜单 |
+| 对话页标题栏 | 高 64：区域标签（区域色胶囊 + 工作区名）+ 标题（`text-title`，先截断标题）；右边"N 件等你"（有时）和"工具"胶囊。"工具"是 3.7 的选择浮层：浏览器、文件、环境、终端、任务、上下文，每项一句说明，开着的打勾；导出在细线下面。会话权限不在标题栏，从审批策略菜单进入 |
 | 对话流 | 3.1、3.2 |
-| 输入框 | `bg-canvas border-line-strong rounded-xl`，没有阴影，聚焦时不变（不用强调色）；`px-3.5 pt-3 pb-2.5`，正文 `text-body`；宽度与对话列相同（`max-w-thread px-6`），离窗口底 20。工具栏：附件按钮（sm 图标按钮），环境、workspace、模型、审批策略是描边小标签（高 24、`rounded-md border-line`、`text-small fg-muted`）；模型和审批策略是 3.7 的选择浮层，标签末尾带 12px 下箭头。模型按服务商分组，超过 8 个时顶部有查找框，默认模型标"默认"。审批策略前面是盾牌图标，显示生效的那一档（"审批：适中"）；"宽松"什么都不问，标签整个用 warning（盾牌换成带感叹号的）；菜单里每一档写一句它放行什么，可改成这个会话自己的，或回到跟随工作区 / agent 默认，最后一项是"此会话的权限规则…"，打开会话权限面板；右端发送是 32px `rounded-lg` 的 `send` 方块，内放像素箭头。运行中右端是 Stop（32px `rounded-lg` 描边）、排队、插话（`rounded-lg`）。快捷键和插话、排队的含义放在按钮的提示里，输入框下面不再写一行说明。上方是状态行（3.2） |
-| Context 面板 | 屏幕内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
-| Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
-| Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |
-| 对话框 | 3.7 对话框 + 3.5 表单：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方 |
+| 输入框 | 外壳 `@container rounded-4xl bg-surface pt-4 pr-3 pb-3 pl-5`，没有边框和阴影，聚焦时不变；正文 `text-body`；宽度与对话列相同，离工作面底 20。工具栏：附件、环境、工作区、模型、审批策略都是 `h-8` 的纸色胶囊（`bg-canvas`）。模型只写模型名（前面一个星形图标），按服务商分组，超过 8 个时有查找框，默认的标"默认"；窄时只剩图标。审批策略前面是盾牌，写生效的那一档；"放手去做"整个用 warning（盾牌带感叹号）；菜单里每档一句它放行什么，最后一项"此会话的权限规则…"打开会话权限面板。右端发送是 40px 的苔色圆。运行中右端是停止（36px 纸色圆，实心方块，`Esc`）、排队（纸色胶囊）、插话（苔色胶囊）；窄时排队和插话只剩图标，审批策略始终显示文字。上方是状态行（3.2） |
+| 侧面板 | 工作面里右侧一栏，`bg-canvas`，左边一条 `line` 可拖动改宽；标题行高 64，无底线 |
+| 记忆页 | 左侧范围（竖排导航）；右侧记忆开关（设置行）+ 条目色块，悬停操作编辑 / 移到…，忘记为危险入口 |
+| 能力页 | 竖排导航：技能、MCP、工具；卡片列表 + 编辑对话框 |
+| 定时任务页 | 任务色块列表；新建表单不套卡片，`text-display` 分节标题 |
+| 设置页 | 竖排导航；通用为设置色块；模型、MCP 为卡片列表 + 编辑对话框；分节标题 `text-display` |
+| 搜索页 | 胶囊搜索框；结果行里命中词用 `bg-area-4` 高亮（不用赭色） |
+| 对话框 | 3.7 + 3.5 |
 | 后端启动失败页 | 3.8 |
 | Toast | 3.7 |

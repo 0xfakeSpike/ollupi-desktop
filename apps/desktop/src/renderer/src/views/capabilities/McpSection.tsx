@@ -123,7 +123,7 @@ function ServerCard({
   const c = useT().settings.mcp.card
   const keys = Object.keys((s.url ? s.headers : s.env) ?? {})
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-line px-4 py-3">
+    <div className="flex flex-col gap-2 rounded-3xl bg-surface px-5 py-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ function ServerCard({
         </IconButton>
       </div>
       {status?.error && (
-        <pre className="selectable max-h-40 overflow-auto rounded-lg bg-surface px-3 py-2 font-mono text-small whitespace-pre-wrap text-danger">
+        <pre className="selectable max-h-40 overflow-auto rounded-2xl bg-canvas px-3.5 py-2.5 font-mono text-small whitespace-pre-wrap text-danger">
           {status.error}
         </pre>
       )}

@@ -80,12 +80,12 @@ export function SettingsScreen() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center border-b border-line pl-4">
-        <h1 className="text-ui font-semibold">{t.title}</h1>
+      <header className="drag flex h-16 shrink-0 items-center pl-6">
+        <h1 className="text-title">{t.title}</h1>
       </header>
       <div className="flex min-h-0 flex-1">
         {/* Its labels start under the header's title. */}
-        <nav aria-label={t.title} className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-line p-2">
+        <nav aria-label={t.title} className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {sections.map((id) => (
             <button
               key={id}
@@ -93,8 +93,8 @@ export function SettingsScreen() {
               aria-current={id === current ? 'true' : undefined}
               onClick={() => jump(id)}
               className={cn(
-                'flex h-7 w-full items-center rounded-md px-2 text-left text-ui transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-                id === current ? 'bg-selected font-medium text-fg' : 'text-fg hover:bg-hover',
+                'flex h-9 w-full items-center rounded-full px-3.5 text-left text-ui transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+                id === current ? 'bg-surface font-semibold text-fg' : 'font-medium text-fg-muted hover:bg-hover hover:text-fg',
               )}
             >
               {t.sections[id].label}
@@ -108,7 +108,7 @@ export function SettingsScreen() {
               return (
                 <section key={id} aria-labelledby={`settings-${id}`} className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1">
-                    <h2 id={`settings-${id}`} className="scroll-mt-6 text-ui font-semibold text-fg">
+                    <h2 id={`settings-${id}`} className="scroll-mt-6 text-display text-fg">
                       {t.sections[id].label}
                     </h2>
                     {t.sections[id].description && <p className="text-small text-fg-muted">{t.sections[id].description}</p>}
@@ -141,7 +141,7 @@ function General() {
       </Button>
     )
   return (
-    <dl className="flex flex-col divide-y divide-line rounded-lg border border-line">
+    <dl className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
       <Row label={t.version} value={<span className="font-mono">{info?.version ?? '—'}</span>} note={<UpdateNote />} action={<UpdateAction />}>
         <UpdateProgress />
       </Row>
@@ -231,7 +231,7 @@ function Notifications() {
   const t = useT().notifications.settings
   const prefs = useNotificationPrefs()
   return (
-    <div className="rounded-lg border border-line px-4 py-4">
+    <div className="rounded-3xl bg-surface px-5 py-4">
       <div className="flex flex-col gap-2">
         {noticeKinds.map((kind) => (
           <div key={kind} className="flex items-center gap-4">
@@ -249,7 +249,7 @@ function Redaction() {
   const t = useT().settings.general
   const settings = useSettings((s) => s.settings)
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-line px-4 py-3">
+    <div className="flex items-center gap-4 rounded-3xl bg-surface px-5 py-3">
       <span className="min-w-0 flex-1 text-ui text-fg">{t.redactionSwitch}</span>
       <Switch label={t.redactionSwitch} checked={settings?.redaction ?? false} disabled={!settings} onChange={(on) => void setRedaction(on)} />
     </div>

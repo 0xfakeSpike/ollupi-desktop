@@ -4,7 +4,7 @@
 // global, or forgotten.
 
 import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
-import { Badge, Button, cn, EmptyState, IconButton, PixelLoader, Tabs, Textarea } from '@ollupi/ui'
+import { Badge, Button, cn, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Brain, ChevronRight, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
@@ -89,8 +89,8 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
 
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
-        <h1 className="text-ui font-semibold">{m.memory.screen.title}</h1>
+      <header className="drag flex h-16 shrink-0 items-center gap-3 pr-4 pl-6">
+        <h1 className="text-title">{m.memory.screen.title}</h1>
         <div className="flex-1" />
         <IconButton label={m.common.reload} onClick={() => void reload()}>
           <RotateCw size={16} />
@@ -98,14 +98,14 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
       </header>
       <div className="flex min-h-0 flex-1">
         {/* Its labels start under the header's title. */}
-        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-2">
+        <nav className="w-56 shrink-0 overflow-y-auto px-3 py-2">
           <Tabs label={m.memory.screen.scope} orientation="vertical" tabs={scopes} value={scope} onChange={setScope} />
         </nav>
         <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
             <MemorySettings status={data?.status} />
             {data && <StatusLine status={data.status} />}
-            <label className="flex h-8 items-center gap-2 rounded-md border border-line-strong px-2.5 focus-within:border-accent focus-within:ring-3 focus-within:ring-focus">
+            <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
               <Search size={14} className="shrink-0 text-fg-subtle" />
               <input
                 value={query}
@@ -120,7 +120,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
               <p className="text-small text-fg-subtle">{m.memory.screen.noMatch}</p>
             ) : loading && !data ? (
               <div className="flex justify-center py-12">
-                <PixelLoader label={m.memory.screen.loading} />
+                <Loader label={m.memory.screen.loading} />
               </div>
             ) : active.length === 0 ? (
               elsewhere ? (
@@ -133,7 +133,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
                 </EmptyState>
               )
             ) : (
-              <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
+              <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
                 {active.map((e) => (
                   <Entry
                     key={e.id}
@@ -184,7 +184,7 @@ function Disclosure({ summary, className, children }: { summary: ReactNode; clas
         aria-controls={id}
         onClick={() => setOpen(!open)}
         className={cn(
-          'group/line -mx-1 flex items-center gap-1 rounded-md px-1 text-left transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+          'group/line -mx-1.5 flex items-center gap-1 rounded-full px-1.5 text-left transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
           className,
         )}
       >
@@ -198,7 +198,7 @@ function Disclosure({ summary, className, children }: { summary: ReactNode; clas
 
 /** ollupi's own message, opened under the line that words it. */
 function Original({ text }: { text: string }) {
-  return <pre className="selectable mt-1 max-h-40 overflow-auto rounded-lg bg-surface p-2 font-mono text-small whitespace-pre-wrap text-fg-muted">{text}</pre>
+  return <pre className="selectable mt-1 max-h-40 overflow-auto rounded-2xl bg-canvas p-3 font-mono text-small whitespace-pre-wrap text-fg-muted">{text}</pre>
 }
 
 /** The failure ollupi is waiting to retry. A failure before any batch was
