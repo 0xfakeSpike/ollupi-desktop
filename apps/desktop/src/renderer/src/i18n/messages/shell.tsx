@@ -27,6 +27,7 @@ export const en = {
     renameThread: 'Rename',
     archiveThread: 'Archive',
     deleteThread: 'Delete',
+    threadMenu: 'More',
     deleteThreadConfirm: (title: string) =>
       `Delete "${title}"? Its messages, attachments, subagent threads and scheduled tasks are deleted too. Files its commands changed stay as they are.`,
     archivedThreads: (n: string) => `Archived threads · ${n}`,
@@ -104,6 +105,7 @@ export const zh: typeof en = {
     renameThread: '重命名',
     archiveThread: '归档',
     deleteThread: '删除',
+    threadMenu: '更多',
     deleteThreadConfirm: (title) => `删除“${title}”？它的消息、附件、子 agent 会话和定时任务会一并删除；命令改过的文件不受影响。`,
     archivedThreads: (n) => `已归档会话 · ${n}`,
     loadMore: '加载更多',

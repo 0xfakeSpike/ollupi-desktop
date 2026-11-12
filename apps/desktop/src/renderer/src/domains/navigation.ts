@@ -79,6 +79,11 @@ export function go(screen: Screen): void {
 }
 
 /** Shows the panel, or closes it when it is the one showing. */
+/** Opens a panel, leaving it open when it already is. */
+export function openPanel(panel: Panel): void {
+  useNavigation.setState({ panel })
+}
+
 export function togglePanel(panel: Panel): void {
   useNavigation.setState((s) => ({ panel: s.panel === panel ? undefined : panel }))
 }

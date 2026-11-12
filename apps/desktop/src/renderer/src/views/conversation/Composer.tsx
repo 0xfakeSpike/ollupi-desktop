@@ -104,7 +104,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-thread px-6 pb-5">
+    <div data-composer className="relative mx-auto w-full max-w-thread px-6 pb-5">
       <div
         onDragOver={onDragOver}
         onDragLeave={() => setDragging(false)}
@@ -125,6 +125,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
         )}
         <AutoTextarea
           ref={input}
+          aria-label={t.inputLabel}
           value={text}
           placeholder={placeholder}
           disabled={disabled}
@@ -148,7 +149,7 @@ export function Composer({ draft, placeholder, running, disabled, onSubmit, onSt
           />
           <div className="flex min-w-0 flex-1 items-center gap-2">{toolbar}</div>
           {running && onStop && (
-            <IconButton label={t.stop} onClick={onStop} className="size-8 rounded-lg border border-line-strong">
+            <IconButton label={t.stop} hint="Esc" onClick={onStop} className="size-8 rounded-lg border border-line-strong">
               <Square size={12} fill="currentColor" />
             </IconButton>
           )}

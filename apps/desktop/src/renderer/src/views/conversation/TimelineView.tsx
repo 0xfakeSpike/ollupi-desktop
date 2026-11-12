@@ -4,10 +4,10 @@
 
 import { groupByTurn, layoutTurn, queuedTurns, turnActive, type Timeline, type TurnGroup } from '@ollupi/core'
 import type { TurnRow } from '@ollupi/protocol'
-import { Button, Callout } from '@ollupi/ui'
-import { CalendarClock, Clock, OctagonX } from 'lucide-react'
+import { Button, Callout, EmptyState } from '@ollupi/ui'
+import { CalendarClock, Clock, MessageSquare, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { loadOlder } from '../../domains/conversation'
+import { loadOlder, retryTurn } from '../../domains/conversation'
 import { useCron } from '../../domains/cron'
 import { focusItem, useNavigation } from '../../domains/navigation'
 import { useT } from '../../i18n'
@@ -33,9 +33,13 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
     <ThreadWorkspace.Provider value={timeline.thread.workspaceId || undefined}>
       <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-8 pb-10">
         {timeline.hasMore && <LoadOlder threadId={threadId} />}
-        {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
-        {groups.map((g) => (
-          <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} latest={latest} />
+        {groups.length === 0 && queued.length === 0 && (
+          <EmptyState icon={<MessageSquare size={20} />} title={m.conversation.timeline.empty}>
+            {m.conversation.timeline.emptyHint}
+          </EmptyState>
+        )}
+        {groups.map((g, i) => (
+          <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} latest={latest} last={i === groups.length - 1 && queued.length === 0 && !timeline.thread.archivedAt && !timeline.thread.parentThreadId} />
         ))}
         {queued.map((t) => (
           <QueuedTurn key={t.id} turn={t} jobName={jobNames(t)} />
@@ -90,7 +94,7 @@ function LoadOlder({ threadId }: { threadId: string }) {
   )
 }
 
-function TurnSection({ group, jobName, latest }: { group: TurnGroup; jobName: string | undefined; latest: string | undefined }) {
+function TurnSection({ group, jobName, latest, last }: { group: TurnGroup; jobName: string | undefined; latest: string | undefined; last: boolean }) {
   const { turn, items } = group
   const parts = useMemo(() => layoutTurn(items), [items])
   const ended = !turnActive(turn.status)
@@ -111,7 +115,7 @@ function TurnSection({ group, jobName, latest }: { group: TurnGroup; jobName: st
           </div>
         ),
       )}
-      <TurnOutcome turn={turn} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
+      <TurnOutcome turn={turn} retry={last} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
     </section>
   )
 }
@@ -125,8 +129,9 @@ function ScheduledBy({ name }: { name: string }) {
   )
 }
 
-/** How the turn ended, led by the copy button for its answer when it has one. */
-function TurnOutcome({ turn, copy }: { turn: TurnRow; copy: ReactNode }) {
+/** How the turn ended, led by the copy button for its answer when it has one.
+ * The thread's last turn, when it failed, can be sent again. */
+function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; retry: boolean }) {
   const m = useT()
   // The 24px button keeps to the line's height and its icon to the column's edge.
   const lead = copy && <span className="-my-1 -ml-1.5 flex">{copy}</span>
@@ -136,7 +141,10 @@ function TurnOutcome({ turn, copy }: { turn: TurnRow; copy: ReactNode }) {
         <>
           {lead && <div className="flex text-small">{lead}</div>}
           <Callout tone="danger">
-            <span className="selectable">{turn.error || m.conversation.timeline.failed}</span>
+            <div className="flex items-start gap-3">
+              <span className="selectable min-w-0 flex-1">{turn.error || m.conversation.timeline.failed}</span>
+              {retry && <RetryButton turn={turn} />}
+            </div>
           </Callout>
         </>
       )
@@ -144,7 +152,7 @@ function TurnOutcome({ turn, copy }: { turn: TurnRow; copy: ReactNode }) {
       return (
         <div className="flex items-center gap-1.5 text-small text-fg-subtle">
           {lead}
-          <OctagonX size={14} /> {m.conversation.timeline.stopped(turn.error)}
+          <Square size={10} fill="currentColor" aria-hidden /> {m.conversation.timeline.stopped(turn.error)}
         </div>
       )
     case 'completed': {
@@ -165,6 +173,25 @@ function TurnOutcome({ turn, copy }: { turn: TurnRow; copy: ReactNode }) {
     case 'waitingOnAgent':
       return null
   }
+}
+
+function RetryButton({ turn }: { turn: TurnRow }) {
+  const [sending, setSending] = useState(false)
+  const m = useT()
+  return (
+    <Button
+      size="sm"
+      icon={<RotateCcw size={14} />}
+      loading={sending}
+      className="-my-0.5"
+      onClick={() => {
+        setSending(true)
+        void retryTurn(turn).finally(() => setSending(false))
+      }}
+    >
+      {m.conversation.timeline.retry}
+    </Button>
+  )
 }
 
 /** A queued turn's input is on the turn row until it starts. */

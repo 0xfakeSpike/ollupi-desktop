@@ -26,7 +26,7 @@ export function Sidebar() {
       {/* Level with the screen's 40px header; the traffic lights sit here. */}
       <div className="drag h-10 shrink-0" />
       <nav className="flex flex-col gap-0.5 px-2 pb-2">
-        <NavButton icon={<Plus size={16} />} primary active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })}>
+        <NavButton icon={<Plus size={16} />} primary active={screen.kind === 'draft'} onClick={() => go({ kind: 'draft', workspaceId: undefined })} shortcut="⌘N">
           {m.newThread}
         </NavButton>
         <NavButton icon={<Search size={16} />} active={screen.kind === 'search'} onClick={() => go({ kind: 'search' })} shortcut="⌘K">

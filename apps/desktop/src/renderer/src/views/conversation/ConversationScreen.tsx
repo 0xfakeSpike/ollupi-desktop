@@ -1,14 +1,14 @@
 import { activeTurn, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
 import { Badge, Button, IconButton, PixelLoader, Pup, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Gauge, Globe, ListChecks, Shield } from 'lucide-react'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Gauge, Globe, ListChecks } from 'lucide-react'
 import { useAgentPolicy } from '../../domains/backendConfig'
 import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
 import { exportThread, type ExportFormat } from '../../domains/export'
-import { togglePanel, useNavigation } from '../../domains/navigation'
+import { openPanel, togglePanel, useNavigation } from '../../domains/navigation'
 import { archiveThread, renameThread, useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
 import { TitleInput } from '../common/TitleInput'
@@ -21,6 +21,7 @@ import { ModelPicker } from './ModelPicker'
 import { PermissionsPanel } from './PermissionsPanel'
 import { TasksPanel } from './TasksPanel'
 import { TimelineView } from './TimelineView'
+import { useWaitingOutOfView } from './useWaitingOutOfView'
 import { WorkspacePanel, WorkspacePanelButtons } from './WorkspacePanels'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
@@ -42,6 +43,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const m = useT()
   const agentPolicy = useAgentPolicy((s) => s.policy)
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
+  const renameTip = useTooltip({ label: m.conversation.screen.rename })
+  const rootTip = useTooltip({ label: workspace?.rootPath ?? '' })
+  const machineTip = useTooltip({ label: m.conversation.environments.machine })
+  const waiting = useWaitingOutOfView(ref, threadId)
+  useEscapeStops(threadId, !!running && waiting.count === 0)
 
   return (
     <div className="flex h-full">
@@ -62,28 +68,38 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             />
           ) : thread && !parent ? (
             // Renaming is for threads the person started; a subagent's is named by its task.
-            <button
-              type="button"
-              title={m.conversation.screen.rename}
-              onClick={() => setRenaming(true)}
-              className="-mx-1 min-w-0 truncate rounded-md px-1 text-ui font-semibold text-fg hover:bg-hover"
-            >
-              {threadTitle(m, thread)}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setRenaming(true)}
+                className="-mx-1 min-w-0 truncate rounded-md px-1 text-ui font-semibold text-fg hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+                {...renameTip.trigger}
+              >
+                {threadTitle(m, thread)}
+              </button>
+              {renameTip.tooltip}
+            </>
           ) : (
             <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
           )}
           {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
+          {/* The title gives way first: where the agent works stays readable. */}
           {workspace && (
-            <span className="min-w-0 truncate text-ui text-fg-subtle" title={workspace.rootPath}>
-              {workspace.name}
-            </span>
+            <>
+              <span className="max-w-48 shrink-0 truncate text-ui text-fg-subtle" {...rootTip.trigger}>
+                {workspace.name}
+              </span>
+              {rootTip.tooltip}
+            </>
           )}
           {environment && environment.kind !== 'local' && (
-            <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" title={m.conversation.environments.machine}>
-              <Cloud size={14} className="shrink-0" />
-              <span className="truncate">{environment.name}</span>
-            </span>
+            <>
+              <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" {...machineTip.trigger}>
+                <Cloud size={14} className="shrink-0" />
+                <span className="truncate">{environment.name}</span>
+              </span>
+              {machineTip.tooltip}
+            </>
           )}
           <div className="flex-1" />
           {needsUser(summary?.status) && (
@@ -93,18 +109,20 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             <Globe size={16} />
           </IconButton>
           {workspace && <WorkspacePanelButtons />}
+          {/* The panels in two groups: where the work happens, then the conversation's own. */}
+          <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
           <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
             <ListChecks size={16} />
           </IconButton>
-          {thread && !parent && (
-            <IconButton label={m.conversation.screen.permissions} active={panel === 'permissions'} onClick={() => togglePanel('permissions')}>
-              <Shield size={16} />
-            </IconButton>
-          )}
           <IconButton label={m.conversation.screen.context} active={panel === 'context'} onClick={() => togglePanel('context')}>
             <Gauge size={16} />
           </IconButton>
-          {thread && <ExportButton threadId={threadId} />}
+          {thread && (
+            <>
+              <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
+              <ExportButton threadId={threadId} />
+            </>
+          )}
         </header>
 
         <div className="relative min-h-0 flex-1">
@@ -117,7 +135,16 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               </div>
             )}
           </div>
-          {!atBottom && (
+          {waiting.hidden ? (
+            <button
+              type="button"
+              onClick={waiting.reveal}
+              className="absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 animate-enter items-center gap-1.5 rounded-full border border-accent/35 bg-raised px-3 text-ui font-medium text-accent shadow-md transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none motion-reduce:animate-fade"
+            >
+              {m.conversation.screen.requestsWaiting(waiting.count)}
+              <ArrowDown size={14} />
+            </button>
+          ) : !atBottom && (
             <>
               <button
                 type="button"
@@ -165,6 +192,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
                     from={workspace ? m.settings.permissions.fromWorkspace : m.settings.permissions.fromAgent}
                     // The thread's own rules stay; only its policy changes, or goes to inherit.
                     onChange={(p) => void updateThreadPermissions(thread.id, { permissions: thread.settings.permissions, ...(p ? { approvalPolicy: p } : {}) })}
+                    onRules={() => openPanel('permissions')}
                   />
                 )}
               </>
@@ -180,6 +208,26 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       {panel === 'context' && <ContextPanel timeline={timeline} />}
     </div>
   )
+}
+
+/** Esc stops the running turn, as the stop button does, from the message box
+ * or anywhere on the screen outside a field, menu or dialog that has its
+ * own use for it. Not while a card waits for the person: there Esc declines
+ * or leaves the card alone. */
+function useEscapeStops(threadId: string, enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return
+      const el = e.target instanceof Element ? e.target : null
+      if (el?.closest('[role="dialog"], [role="menu"], [role="listbox"], [data-overlay]')) return
+      if (el instanceof HTMLInputElement || (el instanceof HTMLTextAreaElement && !el.closest('[data-composer]'))) return
+      e.preventDefault()
+      void interrupt(threadId)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [threadId, enabled])
 }
 
 /** A menu of formats, as a native select under an icon: picking one saves

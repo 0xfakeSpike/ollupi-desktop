@@ -135,6 +135,9 @@ code,
   background: var(--color-selected);
   border-radius: 4px;
   padding: 0.1em 0.35em;
+  /* Wrapped across lines, each piece keeps its own rounded ends. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 /* A table is one rounded block, as wide as its columns need, scrolling
    sideways when wider than the message. Headings stay on one line, so a
@@ -154,6 +157,10 @@ code,
   border-top: 1px solid var(--color-line);
   padding: 0.35em 0.7em;
   text-align: left;
+  /* Breaking anywhere would also shrink a column until a short value such
+     as an ID splits in two; a cell breaks a word only when it must, and a
+     table too wide scrolls instead. */
+  overflow-wrap: break-word;
 }
 .markdown th + th,
 .markdown td + td {
