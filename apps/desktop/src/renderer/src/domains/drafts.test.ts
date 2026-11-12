@@ -7,7 +7,7 @@ vi.hoisted(() => {
   vi.stubGlobal('location', { search: '' })
 })
 
-import { addDraftFiles, draftOf, forgetDraft, NEW_CONVERSATION, sentDraft, setDraftText, startDrafts, useDrafts } from './drafts'
+import { addDraftFiles, draftOf, forgetDraft, NEW_CONVERSATION, reopenDraft, sentDraft, setDraftText, startDrafts, useDrafts } from './drafts'
 
 // A window's sessionStorage: kept across a reload, gone with the window.
 const kept = new Map<string, string>()
@@ -76,5 +76,18 @@ describe('drafts', () => {
     forgetDraft('th1')
     reload()
     expect(draftOf('th1').text).toBe('')
+  })
+
+  it('gives a sent message back to edit before what the box held', () => {
+    setDraftText('th2', 'typed meanwhile')
+    addDraftFiles('th2', [file('a.txt')])
+    reopenDraft('th2', 'the message', [file('b.txt')])
+    expect(draftOf('th2').text).toBe('the message\n\ntyped meanwhile')
+    expect(names('th2')).toEqual(['a.txt', 'b.txt'])
+    expect(useDrafts.getState().reopened.th2).toBe(1)
+
+    forgetDraft('th3')
+    reopenDraft('th3', 'again', [])
+    expect(draftOf('th3').text).toBe('again')
   })
 })

@@ -72,6 +72,13 @@ export function useAttachmentURL(threadId: string, attachment: Attachment): stri
   return url ?? undefined
 }
 
+/** A sent attachment as a file again, to go with a message once more. */
+export async function attachmentFile(threadId: string, attachment: Attachment): Promise<File> {
+  const data = await readAttachment(threadId, attachment.id)
+  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
+  return new File([bytes], attachment.name, { type: attachment.mimeType })
+}
+
 /** async so that gateway() throwing while offline rejects: thrown in an
  * Effect it would take the whole window down. */
 async function readAttachment(threadId: string, attachmentId: string): Promise<string> {

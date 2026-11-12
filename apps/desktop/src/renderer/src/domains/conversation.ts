@@ -17,13 +17,14 @@ import {
   type Timeline,
   type TimelineEvent,
 } from '@ollupi/core'
-import { ErrorCode, type PermissionSettings, type UserInput } from '@ollupi/protocol'
+import { ErrorCode, type ItemRow, type PermissionSettings, type UserInput } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { DRAFT_BROWSER } from '../../../shared/ipc'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
-import { withMessageInput } from './attachments'
+import { attachmentFile, withMessageInput } from './attachments'
+import { reopenDraft } from './drafts'
 import { chosenEnvironment } from './environments'
 import { chooseModel, focusItem, go, openThreadId, useNavigation } from './navigation'
 import { desktop } from '../platform/desktop'
@@ -201,6 +202,20 @@ export function interrupt(threadId: string): Promise<void | undefined> {
     const t = useTimelines.getState().byThread[threadId]
     const running = t && activeTurn(t)
     if (running) await gateway().call('turn/interrupt', { threadId, turnId: running.id })
+  })
+}
+
+/** Takes the thread's latest message back to write it again: a turn still
+ * running stops, as Stop does, and the message, its text and its files,
+ * goes back in the thread's box. The one that was sent stays in the
+ * history; sending the box is a new message. */
+export function editMessage(threadId: string, message: ItemRow): Promise<void | undefined> {
+  return run((e) => e.thread.edit, async () => {
+    const t = useTimelines.getState().byThread[threadId]
+    const running = t && activeTurn(t)
+    if (running) await gateway().call('turn/interrupt', { threadId, turnId: running.id })
+    const files = await Promise.all((message.attachments ?? []).map((a) => attachmentFile(threadId, a)))
+    reopenDraft(threadId, message.text ?? '', files)
   })
 }
 

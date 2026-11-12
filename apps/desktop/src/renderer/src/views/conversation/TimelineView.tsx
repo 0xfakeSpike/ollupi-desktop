@@ -23,6 +23,8 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
   const groups = useMemo(() => groupByTurn(timeline), [timeline])
   const queued = queuedTurns(timeline)
+  // Only the latest message can be taken back to edit; a queued one is later.
+  const latest = queued.length ? undefined : timeline.items.findLast((i) => i.type === 'userMessage')?.id
   const jobNames = useJobNames()
   const m = useT()
   useFocusedItem(timeline)
@@ -33,7 +35,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
         {timeline.hasMore && <LoadOlder threadId={threadId} />}
         {groups.length === 0 && queued.length === 0 && <div className="py-16 text-center text-ui text-fg-subtle">{m.conversation.timeline.empty}</div>}
         {groups.map((g) => (
-          <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} />
+          <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} latest={latest} />
         ))}
         {queued.map((t) => (
           <QueuedTurn key={t.id} turn={t} jobName={jobNames(t)} />
@@ -88,7 +90,7 @@ function LoadOlder({ threadId }: { threadId: string }) {
   )
 }
 
-function TurnSection({ group, jobName }: { group: TurnGroup; jobName: string | undefined }) {
+function TurnSection({ group, jobName, latest }: { group: TurnGroup; jobName: string | undefined; latest: string | undefined }) {
   const { turn, items } = group
   const parts = useMemo(() => layoutTurn(items), [items])
   const ended = !turnActive(turn.status)
@@ -105,7 +107,7 @@ function TurnSection({ group, jobName }: { group: TurnGroup; jobName: string | u
         ) : (
           // Takes no box, so the section's gap stays; a search finds the item by it.
           <div key={p.item.id} data-item-id={p.item.id} className="contents">
-            <ItemView item={p.item} />
+            <ItemView item={p.item} editable={p.item.id === latest} />
           </div>
         ),
       )}
