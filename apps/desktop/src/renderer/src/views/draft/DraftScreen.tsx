@@ -16,7 +16,7 @@ import { chip, Composer } from '../conversation/Composer'
 import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
 import { ApprovalPicker } from '../conversation/ApprovalPicker'
 import { ModelPicker } from '../conversation/ModelPicker'
-import { ToolsMenu } from '../conversation/ToolsMenu'
+import { PanelButtons } from '../conversation/PanelButtons'
 import { WorkspacePanel } from '../conversation/WorkspacePanels'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
@@ -32,8 +32,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="drag flex h-16 shrink-0 items-center justify-end gap-2 pr-4">
-          <ToolsMenu workspace={!!workspace} thread={undefined} />
+        <header className="drag @container flex h-16 shrink-0 items-center justify-end gap-2 pr-4">
+          <PanelButtons workspace={!!workspace} thread={undefined} />
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
           <h1 className="text-hero text-fg">{m.conversation.draft.title}</h1>

@@ -45,8 +45,8 @@ export const en = {
     inFolder: (folder: string) => `In ${folder}`,
     more: (n: number) => (n === 1 ? 'and 1 more file' : `and ${n} more files`),
   },
-  tools: {
-    label: 'Tools',
+  more: {
+    label: 'More',
     exportMarkdown: 'Export as Markdown',
     exportJson: 'Export everything as JSON',
     about: {
@@ -358,8 +358,8 @@ export const zh: typeof en = {
     inFolder: (folder) => `在「${folder}」里`,
     more: (n) => `还有 ${n} 个文件`,
   },
-  tools: {
-    label: '工具',
+  more: {
+    label: '更多',
     exportMarkdown: '导出为 Markdown',
     exportJson: '导出全部内容（JSON）',
     about: {

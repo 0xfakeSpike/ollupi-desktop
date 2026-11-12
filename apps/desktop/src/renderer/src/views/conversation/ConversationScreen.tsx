@@ -22,7 +22,7 @@ import { PermissionsPanel } from './PermissionsPanel'
 import { TasksPanel } from './TasksPanel'
 import { TimelineView } from './TimelineView'
 import { useWaitingOutOfView } from './useWaitingOutOfView'
-import { ToolsMenu } from './ToolsMenu'
+import { PanelButtons } from './PanelButtons'
 import { WorkspacePanel } from './WorkspacePanels'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
@@ -55,7 +55,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Where you are first: the area's colour and name, then the title; on the
             right only what waits for you and the one Tools capsule. */}
-        <header className="drag flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
+        <header className="drag @container flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
           {parent && (
             <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
               <ArrowLeft size={14} />
@@ -113,7 +113,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               {waiting.count > 0 ? m.conversation.screen.waitingCount(waiting.count) : m.conversation.screen.waiting}
             </span>
           )}
-          <ToolsMenu workspace={!!workspace} thread={thread ? threadId : undefined} />
+          <PanelButtons workspace={!!workspace} thread={thread ? threadId : undefined} />
         </header>
 
         <div className="relative min-h-0 flex-1">
