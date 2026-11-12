@@ -9,7 +9,7 @@ import type { Domain } from '../gateway/domain'
 
 export type PendingRequest =
   | { kind: 'approval'; params: ApprovalRequestParams; respond(decision: Decision): void }
-  | { kind: 'question'; params: UserInputRequestParams; respond(answers: Record<string, UserInputAnswer>): void }
+  | { kind: 'question'; params: UserInputRequestParams; respond(answers: Record<string, UserInputAnswer>): void; skip(): void }
 
 const useRequests = create<{ byItem: Record<string, PendingRequest> }>()(() => ({ byItem: {} }))
 
@@ -52,6 +52,11 @@ export const requestsDomain: Domain = {
               respond: (answers) => {
                 remove(params.itemId)
                 resolve({ answers })
+              },
+              // No answers: the call ends declined and the agent goes on without them.
+              skip: () => {
+                remove(params.itemId)
+                resolve({ answers: {}, skipped: true })
               },
             }),
           ),

@@ -29,9 +29,14 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
       title={single ? questions[0]!.question : m.requests.questions.many(questions.length)}
       status={!single && m.requests.questions.progress(answered, questions.length)}
       actions={
-        <Button variant="primary" disabled={answered < questions.length} onClick={submit}>
-          {m.requests.questions.submit}
-        </Button>
+        <>
+          <Button variant="ghost" onClick={request.skip}>
+            {m.requests.questions.skip}
+          </Button>
+          <Button variant="primary" disabled={answered < questions.length} onClick={submit}>
+            {m.requests.questions.submit}
+          </Button>
+        </>
       }
     >
       <div className="flex flex-col divide-y divide-line">

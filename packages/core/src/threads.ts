@@ -56,6 +56,14 @@ export function setThreadStatus(list: readonly ThreadSummary[], threadId: string
  * waitingOn* when this thread, or a subagent thread it waits on, has a
  * request pending, else active (running, waiting for a slot or for a
  * subagent). So a waiting parent's request may live in a child thread. */
+/** repo.ThreadRow.Unread: a turn ended after the user last read the thread
+ * (thread/markRead). The times are parsed, as their fractions of a second
+ * differ in length. */
+export function unread(thread: Pick<ThreadRow, 'repliedAt' | 'readAt'>): boolean {
+  if (!thread.repliedAt) return false
+  return !thread.readAt || Date.parse(thread.repliedAt) > Date.parse(thread.readAt)
+}
+
 export function needsUser(status: ThreadStatus | undefined): boolean {
   return status === 'waitingOnApproval' || status === 'waitingOnUserInput'
 }
@@ -72,16 +80,29 @@ export interface WorkspaceGroup {
 /** Threads under each active workspace, then those outside any workspace.
  * Archived workspaces are not listed. What waits on the person comes first:
  * in each group the threads waiting on an approval or an answer, then the
- * rest, and the workspaces holding such a thread before the others. Each
- * part keeps the order it was given in (thread/list's, workspace/list's).
- * The order is the sidebar's alone: the list itself stays thread/list's, as
- * its last thread is where the next page starts. */
+ * rest, and the workspaces holding such a thread before the others. Past
+ * that, the workspace worked in last comes first: its latest thread's
+ * activity, or its own change (a workspace just added has no thread yet).
+ * Threads keep thread/list's order, newest first. The order is the
+ * sidebar's alone: the list itself stays thread/list's, as its last thread
+ * is where the next page starts. */
 export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: readonly ThreadSummary[]): WorkspaceGroup[] {
   const groups: WorkspaceGroup[] = workspaces
     .filter((w) => !w.archivedAt)
     .map((workspace) => ({ workspace, threads: waitingFirst(threads.filter((t) => t.workspaceId === workspace.id)) }))
+    .map((g) => ({ g, last: lastActivity(g) }))
+    .sort((a, b) => b.last - a.last)
+    .map(({ g }) => g)
   const waits = (g: WorkspaceGroup) => g.threads.some((t) => needsUser(t.status))
   return [...groups.filter(waits), ...groups.filter((g) => !waits(g)), { workspace: undefined, threads: waitingFirst(threads.filter((t) => !t.workspaceId)) }]
+}
+
+/** When a workspace was last worked in, as a time to compare: the later of
+ * its own change and its newest thread's. The times are parsed, as their
+ * fractions of a second differ in length. */
+function lastActivity(g: WorkspaceGroup): number {
+  const times = [g.workspace?.updatedAt, ...g.threads.map((t) => t.updatedAt)].map((at) => (at ? Date.parse(at) : NaN)).filter((t) => !Number.isNaN(t))
+  return times.length ? Math.max(...times) : -Infinity
 }
 
 function waitingFirst(threads: ThreadSummary[]): ThreadSummary[] {

@@ -32,7 +32,8 @@ export const en = {
   },
   questions: {
     kicker: 'Ollupi is asking',
-    submit: 'Submit',
+    submit: 'Answer',
+    skip: 'Skip',
     ownAnswer: 'Or type your own answer',
     answer: 'Your answer',
     many: (n: number) => `${n} questions for you`,
@@ -67,7 +68,8 @@ export const zh: typeof en = {
   },
   questions: {
     kicker: 'Ollupi 想问你',
-    submit: '提交',
+    submit: '回答',
+    skip: '跳过',
     ownAnswer: '或输入你自己的回答',
     answer: '你的回答',
     many: (n) => `有 ${n} 个问题需要你回答`,
