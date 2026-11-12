@@ -3,7 +3,8 @@
 // checked by the backend, written, and the backend restarted. A provider's
 // API key is written there too, like its base URL.
 
-import { Badge, Button, Callout, Checkbox, cn, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
+import { formatTokens } from '@ollupi/core'
+import { Badge, Button, Callout, Checkbox, cn, Details, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
@@ -266,12 +267,12 @@ function ProviderCard({
 
 function ModelDetails({ model }: { model: ProviderModel }) {
   const d = useT().settings.models.details
-  const locale = useLocale((s) => s.locale)
+  // What the model can do, in words; the exact limits are in its editor.
   const parts = [
-    model.calls ? d.calls(model.calls) : undefined,
-    model.thinking === true ? d.thinkingOn : model.thinking === false ? d.thinkingOff : undefined,
     model.images ? d.images : undefined,
-    d.limits(model.limits.context.toLocaleString(locale), model.limits.output.toLocaleString(locale), model.limits.input?.toLocaleString(locale)),
+    model.thinking === true ? d.thinkingOn : model.thinking === false ? d.thinkingOff : undefined,
+    d.limits(formatTokens(model.limits.input ?? model.limits.context), formatTokens(model.limits.output)),
+    model.calls ? d.calls(model.calls) : undefined,
   ].filter(Boolean)
   if (parts.length === 0) return null
   return <div className="mt-0.5 text-small text-fg-subtle">{parts.join(' · ')}</div>
@@ -296,6 +297,20 @@ function ProviderDialog({
   const [name, setName] = useState(provider?.provider ?? '')
   const [type, setType] = useState<ApiType>(provider ? apiTypeOf(provider) : 'openai')
   const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? '')
+  // A new provider starts from a preset: one picked fills in the name, the
+  // API and its address, so only the key is left; Other shows every field.
+  const [preset, setPreset] = useState<PresetId>()
+  const choose = (id: PresetId) => {
+    setPreset(id)
+    const p = presets.find((x) => x.id === id)!
+    if (!p.type) return
+    let n: string = p.id
+    for (let i = 2; taken.includes(n); i++) n = `${p.id}-${i}`
+    setName(n)
+    setType(p.type)
+    setBaseUrl(p.baseUrl ?? '')
+  }
+  const custom = !!provider || preset === 'other'
   const [apiKey, setApiKey] = useState(provider?.api_key ?? '')
   const [showKey, setShowKey] = useState(false)
   const first = useModelForm(name.trim() || 'provider', type, undefined, [])
@@ -320,7 +335,11 @@ function ProviderDialog({
   const fromList = !provider && offered.length > 0
   const badLimits = chosen.length - chosenModels.length
   // Said beside the button: the field at fault may be scrolled out of view.
-  const blocked = nameError
+  const blocked = !provider && !preset
+    ? t.chooseFirst
+    : !custom && !apiKey.trim()
+    ? t.keyFirst
+    : nameError
     ? t.blockedField(t.name, nameError)
     : badLimits > 0
       ? t.badLimits(badLimits)
@@ -357,65 +376,157 @@ function ProviderDialog({
       }
     >
       <div className="flex flex-col gap-4">
-        <Field
-          label={t.name}
-          error={trimmed && nameError}
-        hint={renamed ? t.renamedIds(trimmed, m.settings.models.renamed) : t.nameHint}
-        >
-          <Input value={name} autoFocus spellCheck={false} placeholder="deepseek" onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Field label={t.type} hint={m.settings.models.types[type].hint}>
-          <Select className="max-w-60" value={type} onChange={(e) => setType(e.target.value as ApiType)}>
-            {apiTypes.map((a) => (
-              <option key={a} value={a}>
-                {m.settings.models.types[a].label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t.baseUrl} hint={t.baseUrlHint}>
-          <Input
-            value={baseUrl}
-            spellCheck={false}
-            className="font-mono text-small"
-            placeholder={placeholders[type].baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-          />
-        </Field>
-        <Field label={t.apiKey} hint={t.apiKeyHint}>
-          <div className="flex items-center gap-2">
-            <Input
-              value={apiKey}
-              type={showKey ? 'text' : 'password'}
-              autoComplete="off"
-              spellCheck={false}
-              className="font-mono text-small"
-              placeholder={placeholders[type].apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-            <IconButton label={showKey ? t.hideKey : t.showKey} size="sm" onClick={() => setShowKey(!showKey)}>
-              {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-            </IconButton>
+        {!provider && (
+          <div role="radiogroup" aria-label={t.choose} className="flex flex-col gap-2">
+            <span className="text-ui font-medium text-fg">{t.choose}</span>
+            <div className="flex flex-wrap gap-2">
+              {presets.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={preset === p.id}
+                  onClick={() => choose(p.id)}
+                  className={cn(
+                    'h-8 rounded-full px-3.5 text-ui font-semibold transition-colors duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+                    preset === p.id ? 'bg-ink text-ink-fg' : 'bg-selected text-fg-muted hover:text-fg',
+                  )}
+                >
+                  {t.presets[p.id]}
+                </button>
+              ))}
+            </div>
           </div>
-        </Field>
-        {offered.length > 0 ? (
+        )}
+        {(provider || preset) && (
+          <>
+            <Field label={t.apiKey} hint={custom ? t.apiKeyHint : t.apiKeyFrom(t.presets[preset!])}>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={apiKey}
+                  autoFocus={!custom}
+                  type={showKey ? 'text' : 'password'}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="font-mono text-small"
+                  placeholder={placeholders[type].apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+                <IconButton label={showKey ? t.hideKey : t.showKey} size="sm" onClick={() => setShowKey(!showKey)}>
+                  {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                </IconButton>
+              </div>
+            </Field>
+            {custom ? (
+              <ConnectionFields
+                name={name}
+                setName={setName}
+                nameProblem={trimmed ? nameError : undefined}
+                nameHint={renamed ? t.renamedIds(trimmed, m.settings.models.renamed) : t.nameHint}
+                type={type}
+                setType={setType}
+                baseUrl={baseUrl}
+                setBaseUrl={setBaseUrl}
+                focusName={!provider}
+              />
+            ) : (
+              <Details summary={<span className="text-small text-fg-muted">{t.advanced}</span>}>
+                <div className="mt-3 flex flex-col gap-4">
+                  <ConnectionFields
+                    name={name}
+                    setName={setName}
+                    nameProblem={trimmed ? nameError : undefined}
+                    nameHint={t.nameHint}
+                    type={type}
+                    setType={setType}
+                    baseUrl={baseUrl}
+                    setBaseUrl={setBaseUrl}
+                    focusName={false}
+                  />
+                </div>
+              </Details>
+            )}
+          </>
+        )}
+        {/* What models there are is asked of the service once the key is in. */}
+        {!provider && (!preset || (!custom && !apiKey.trim())) ? null : offered.length > 0 ? (
           <ModelPicker title={provider ? t.addModels : t.models} models={offered} picked={picked} onPick={setPicked} />
         ) : provider ? (
           list.status !== 'idle' && (
             <>
-              <div className="border-t border-line pt-3 text-small font-medium text-fg">{t.addModels}</div>
+              <div className="pt-2 text-ui font-medium text-fg">{t.addModels}</div>
               <ListStatus list={list} retry={retry} existing />
             </>
           )
         ) : (
           <>
-            <div className="border-t border-line pt-3 text-small font-medium text-fg">{t.firstModel}</div>
+            <div className="pt-2 text-ui font-medium text-fg">{t.firstModel}</div>
             <ListStatus list={list} retry={retry} existing={false} />
             {first.form}
           </>
         )}
       </div>
     </Dialog>
+  )
+}
+
+/** The providers a person most likely has a key for, with where their API
+ * answers (an empty address is the API's own). Other shows every field. */
+type PresetId = 'deepseek' | 'qwen' | 'kimi' | 'zhipu' | 'openai' | 'anthropic' | 'gemini' | 'other'
+const presets: { id: PresetId; type?: ApiType; baseUrl?: string }[] = [
+  { id: 'deepseek', type: 'openai', baseUrl: 'https://api.deepseek.com' },
+  { id: 'qwen', type: 'openai', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  { id: 'kimi', type: 'openai', baseUrl: 'https://api.moonshot.cn/v1' },
+  { id: 'zhipu', type: 'openai', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+  { id: 'openai', type: 'openai', baseUrl: 'https://api.openai.com/v1' },
+  { id: 'anthropic', type: 'anthropic', baseUrl: '' },
+  { id: 'gemini', type: 'gemini', baseUrl: '' },
+  { id: 'other' },
+]
+
+/** The provider's name, API and address: in the open for one typed in by
+ * hand or saved before, under Advanced for a preset. */
+function ConnectionFields({
+  name,
+  setName,
+  nameProblem,
+  nameHint,
+  type,
+  setType,
+  baseUrl,
+  setBaseUrl,
+  focusName,
+}: {
+  name: string
+  setName(name: string): void
+  nameProblem: string | undefined
+  nameHint: string
+  type: ApiType
+  setType(type: ApiType): void
+  baseUrl: string
+  setBaseUrl(url: string): void
+  focusName: boolean
+}) {
+  const m = useT()
+  const t = m.settings.models.provider
+  return (
+    <>
+      <Field label={t.name} error={nameProblem} hint={nameHint}>
+        <Input value={name} autoFocus={focusName} spellCheck={false} placeholder={t.namePlaceholder} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <Field label={t.type} hint={m.settings.models.types[type].hint}>
+        <Select className="max-w-60" value={type} onChange={(e) => setType(e.target.value as ApiType)}>
+          {apiTypes.map((a) => (
+            <option key={a} value={a}>
+              {m.settings.models.types[a].label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={t.baseUrl} hint={t.baseUrlHint}>
+        <Input value={baseUrl} spellCheck={false} className="font-mono text-small" placeholder={placeholders[type].baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+      </Field>
+    </>
   )
 }
 

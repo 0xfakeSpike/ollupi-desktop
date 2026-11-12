@@ -18,7 +18,7 @@ export const en = {
       },
       models: {
         label: 'Models',
-        description: 'Grouped by the API that serves them; a model is selected as provider/name. Saving checks the change with the backend, then restarts it.',
+        description: 'The services you have a key for, and the models from each that it can use.',
       },
       redaction: {
         label: 'Redaction',
@@ -94,18 +94,25 @@ export const en = {
       memory: 'memory',
     },
     details: {
-      calls: (n: number) => `${n} concurrent calls`,
-      thinkingOn: 'thinking on',
-      thinkingOff: 'thinking off',
-      images: 'images',
-      limits: (context: string, output: string, input: string | undefined) => `context ${context}${input ? ` · input ${input}` : ''} · output ${output}`,
+      calls: (n: number) => `${n} calls at once`,
+      thinkingOn: 'Thinks before answering',
+      thinkingOff: 'Answers without thinking',
+      images: 'Sees images',
+      limits: (reads: string, writes: string) => `Reads up to ${reads} tokens, writes up to ${writes}`,
     },
     provider: {
       editTitle: (name: string) => `Edit ${name}`,
       addTitle: 'Add provider',
+      choose: 'Which service is your key from?',
+      chooseFirst: 'Choose a service first.',
+      keyFirst: 'Paste the key first.',
+      presets: { deepseek: 'DeepSeek', qwen: 'Qwen', kimi: 'Kimi', zhipu: 'Zhipu GLM', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini', other: 'Other…' },
+      apiKeyFrom: (service: string) => `Create a key in ${service}’s developer console and paste it here. It stays on this computer.`,
+      advanced: 'Advanced: name, API and address',
+      namePlaceholder: 'e.g. deepseek',
       name: 'Name',
       required: 'Required.',
-      noSlash: 'A model is selected as provider/name, so the name cannot contain /.',
+      noSlash: 'The name cannot contain /.',
       blockedField: (field: string, problem: string) => `${field}: ${problem}`,
       badLimits: (n: number) => (n === 1 ? 'A checked model has invalid limits.' : `${n} checked models have invalid limits.`),
       noneChosen: 'Check at least one model.',
@@ -209,9 +216,9 @@ export const en = {
   },
 
   tools: {
-    readOnly: 'read-only',
-    destructive: 'destructive',
-    external: 'external',
+    readOnly: 'Only reads',
+    destructive: 'Changes things',
+    external: 'Reaches outside',
   },
 
   permissions: {
@@ -278,7 +285,7 @@ export const zh: typeof en = {
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
       models: {
         label: '模型',
-        description: '按提供模型的 API 分组；模型以 提供方/名称 的形式选择。保存时先由后端检查改动，再重启后端。',
+        description: '你有密钥的模型服务，以及它能用的每家的模型。',
       },
       redaction: {
         label: '脱敏',
@@ -353,18 +360,25 @@ export const zh: typeof en = {
       memory: '记忆',
     },
     details: {
-      calls: (n) => `${n} 个并发调用`,
-      thinkingOn: '思考开启',
-      thinkingOff: '思考关闭',
-      images: '支持图片',
-      limits: (context, output, input) => `上下文 ${context}${input ? ` · 输入 ${input}` : ''} · 输出 ${output}`,
+      calls: (n) => `同时 ${n} 个请求`,
+      thinkingOn: '先想再答',
+      thinkingOff: '不想直接答',
+      images: '能看图',
+      limits: (reads, writes) => `最多读 ${reads} token，写 ${writes}`,
     },
     provider: {
       editTitle: (name) => `编辑 ${name}`,
       addTitle: '添加提供方',
+      choose: '你的密钥来自哪家？',
+      chooseFirst: '先选一家。',
+      keyFirst: '先粘贴密钥。',
+      presets: { deepseek: 'DeepSeek', qwen: '通义千问', kimi: 'Kimi', zhipu: '智谱 GLM', openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Gemini', other: '其他…' },
+      apiKeyFrom: (service) => `在${service}的开放平台创建一个密钥，粘贴到这里。它只存在这台电脑上。`,
+      advanced: '高级：名称、接口和地址',
+      namePlaceholder: '例如 deepseek',
       name: '名称',
       required: '必填。',
-      noSlash: '模型以 提供方/名称 的形式选择，因此名称不能包含 /。',
+      noSlash: '名称里不能有 /。',
       blockedField: (field, problem) => `${field}：${problem}`,
       badLimits: (n) => `${n} 个勾选的模型上限不合法。`,
       noneChosen: '至少勾选一个模型。',
@@ -466,9 +480,9 @@ export const zh: typeof en = {
   },
 
   tools: {
-    readOnly: '只读',
-    destructive: '破坏性',
-    external: '外部',
+    readOnly: '只看不改',
+    destructive: '会改动东西',
+    external: '会接触外部',
   },
 
   permissions: {

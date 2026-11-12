@@ -3,7 +3,7 @@
 // not start with a skill it cannot load, so every change is checked with
 // its own rules first and then restarts the backend.
 
-import { Badge, Button, Callout, Dialog, EmptyState, Field, IconButton, Input, Loader, Textarea } from '@ollupi/ui'
+import { Badge, Button, Callout, ClampText, Details, Dialog, EmptyState, Field, IconButton, Input, Loader, Switch, Textarea } from '@ollupi/ui'
 import { FolderInput, FolderOpen, Pencil, Plus, RotateCw, Sparkles, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { NewSkill, Skill, SkillChange, SkillList } from '../../../../shared/ipc'
@@ -168,34 +168,42 @@ export function SkillsSection() {
   )
 }
 
+/** Skills are on: a switch to turn them off, and where they are kept,
+ * which opens into the folder's path. */
 function Folder({ dir, busy, onChange, onOff }: { dir: string; busy: boolean; onChange(): void; onOff(): void }) {
   const s = useT().skills.screen
   return (
-    <div className="flex items-center gap-3 rounded-3xl bg-surface px-5 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="text-ui font-medium text-fg">{s.folder}</div>
-        <div className="selectable mt-0.5 font-mono text-small break-all text-fg-muted">{dir}</div>
+    <div className="flex flex-col gap-2 rounded-3xl bg-surface px-5 py-3.5">
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="text-ui font-medium text-fg">{s.use}</div>
+          <div className="mt-0.5 text-small text-fg-muted">{s.turnOffHint}</div>
+        </div>
+        <Switch checked label={s.use} disabled={busy} onChange={(on) => !on && onOff()} />
       </div>
-      <IconButton label={s.openFolder} size="sm" onClick={() => void openPath(dir)}>
-        <FolderOpen size={14} />
-      </IconButton>
-      <Button size="sm" disabled={busy} onClick={onChange}>
-        {s.change}
-      </Button>
-      <Button size="sm" variant="ghost" disabled={busy} title={s.turnOffHint} onClick={onOff}>
-        {s.turnOff}
-      </Button>
+      <Details summary={<span className="text-small text-fg-subtle">{s.where}</span>}>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="selectable min-w-0 flex-1 font-mono text-small [overflow-wrap:anywhere] text-fg-muted">{dir}</span>
+          <IconButton label={s.openFolder} size="sm" onClick={() => void openPath(dir)}>
+            <FolderOpen size={14} />
+          </IconButton>
+          <Button size="sm" className="bg-canvas" disabled={busy} onClick={onChange}>
+            {s.change}
+          </Button>
+        </div>
+      </Details>
     </div>
   )
 }
 
 function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string; onEdit(): void; onRemove(): void }) {
+  const common = useT().common
   const m = useT().skills.skill
   const files = skill.resources ?? []
   return (
     <li className="group flex flex-col gap-1.5 px-4 py-3">
       <div className="flex items-center gap-2">
-        <span className="font-mono text-ui font-medium text-fg">{skill.name}</span>
+        <span className="text-ui font-medium text-fg">{skill.name}</span>
         {skill.version && <Badge>{m.version(skill.version)}</Badge>}
         <div className="flex-1" />
         <div className="flex opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100">
@@ -210,7 +218,7 @@ function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string;
           </IconButton>
         </div>
       </div>
-      <p className="selectable text-ui whitespace-pre-wrap text-fg-muted">{skill.description}</p>
+      <ClampText text={skill.description} lines={2} more={common.showAll} less={common.showLess} className="text-ui text-fg-muted" />
       {files.length > 0 && (
         <div className="flex flex-wrap items-center gap-1 text-small text-fg-subtle">
           <span className="mr-1">{m.files(files.length)}</span>

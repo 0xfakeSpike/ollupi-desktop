@@ -51,7 +51,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   useEscapeStops(threadId, !!running && waiting.count === 0)
 
   return (
-    <div className="flex h-full">
+    <div className="@container/screen relative flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Where you are first: the area's colour and name, then the title; on the
             right only what waits for you and the one Tools capsule. */}

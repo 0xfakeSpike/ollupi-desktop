@@ -4,9 +4,9 @@
 // global, or forgotten.
 
 import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
-import { Badge, Button, cn, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
-import { ArrowRightLeft, Brain, ChevronRight, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Badge, Button, ClampText, Details, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
+import { ArrowRightLeft, Brain, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
 import { shownResult, useSearch } from '../../domains/search'
@@ -83,7 +83,10 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   // memory/list returns every status; only active memories are used.
   const activeIn = (key: string) => data?.scopes.get(key)?.filter((e) => e.status === 'active') ?? []
   const active = searching ? (matches ?? []) : activeIn(scope)
-  const scopes = places.map((p) => ({ id: placeKey(p.place), label: p.label, detail: data && String(activeIn(placeKey(p.place)).length) }))
+  // A scope with nothing in it is left out, unless it is the one shown.
+  const scopes = places
+    .filter((p) => !data || placeKey(p.place) === scope || placeKey(p.place) === 'global' || activeIn(placeKey(p.place)).length > 0)
+    .map((p) => ({ id: placeKey(p.place), label: p.label, detail: data && String(activeIn(placeKey(p.place)).length) }))
   useFound(found?.id, !!data)
   const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
@@ -96,14 +99,16 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
           <RotateCw size={16} />
         </IconButton>
       </header>
-      <div className="flex min-h-0 flex-1">
+      {/* A column of scopes beside the list; in a narrow window, a row above it. */}
+      <div className="@container/page flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
         {/* Its labels start under the header's title. */}
-        <nav className="w-56 shrink-0 overflow-y-auto px-3 py-2">
-          <Tabs label={m.memory.screen.scope} orientation="vertical" tabs={scopes} value={scope} onChange={setScope} />
+        <nav className="shrink-0 overflow-x-auto px-3 py-2 [scrollbar-width:none] @3xl/page:w-56 @3xl/page:overflow-x-visible @3xl/page:overflow-y-auto">
+          <Tabs label={m.memory.screen.scope} orientation="auto" tabs={scopes} value={scope} onChange={setScope} />
         </nav>
         <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
-            <MemorySettings status={data?.status} />
+            {/* The switches are the app's, not a scope's: shown once, on Global. */}
+            {scope === 'global' && <MemorySettings status={data?.status} />}
             {data && <StatusLine status={data.status} />}
             <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
               <Search size={14} className="shrink-0 text-fg-subtle" />
@@ -113,7 +118,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
                 placeholder={m.memory.screen.search}
                 spellCheck={false}
                 onChange={(e) => setQuery(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-subtle"
+                className="min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-muted"
               />
             </label>
             {searching && matches?.length === 0 ? (
@@ -153,45 +158,21 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   )
 }
 
+/** How many memories there are, and, while learning is on, how it is
+ * going. The switches above already say whether learning and use are on;
+ * while learning is off nothing is retried, so its old failures and skips
+ * are not news and stay out of sight. */
 function StatusLine({ status }: { status: MemoryStatus }) {
   const m = useT()
+  const learning = status.generationEnabled
   return (
     <div className="flex flex-col gap-1.5 text-small text-fg-muted">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge>{status.useEnabled ? m.memory.status.used : m.memory.status.notUsed}</Badge>
-        <Badge>{status.generationEnabled ? m.memory.status.learningOn : m.memory.status.learningOff}</Badge>
-        <span>{m.memory.status.active(status.active)}</span>
-        {status.generationEnabled && status.pending > 0 && <span>· {m.memory.status.pending(status.pending)}</span>}
-      </div>
-      {status.lastFailure && (
-        <FailureLine failure={status.lastFailure} learning={status.generationEnabled} attempts={status.attempts ?? 0} nextAttempt={status.nextAttempt} />
-      )}
-      {status.skipped > 0 && <SkipLine skipped={status.skipped} skip={status.lastSkip} />}
-    </div>
-  )
-}
-
-/** A status line that opens into its details, with the chevron the flow's
- * rows use. */
-function Disclosure({ summary, className, children }: { summary: ReactNode; className?: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const id = useId()
-  return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen(!open)}
-        className={cn(
-          'group/line -mx-1.5 flex items-center gap-1 rounded-full px-1.5 text-left transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-          className,
-        )}
-      >
-        {summary}
-        <ChevronRight size={14} aria-hidden className={cn('shrink-0 text-fg-subtle transition duration-160 ease-standard', open && 'rotate-90')} />
-      </button>
-      {open && <div id={id}>{children}</div>}
+      <p>
+        {m.memory.status.active(status.active)}
+        {learning && status.pending > 0 && <span> · {m.memory.status.pending(status.pending)}</span>}
+      </p>
+      {learning && status.lastFailure && <FailureLine failure={status.lastFailure} attempts={status.attempts ?? 0} nextAttempt={status.nextAttempt} />}
+      {learning && status.skipped > 0 && <SkipLine skipped={status.skipped} skip={status.lastSkip} />}
     </div>
   )
 }
@@ -201,33 +182,21 @@ function Original({ text }: { text: string }) {
   return <pre className="selectable mt-1 max-h-40 overflow-auto rounded-2xl bg-canvas p-3 font-mono text-small whitespace-pre-wrap text-fg-muted">{text}</pre>
 }
 
-/** The failure ollupi is waiting to retry. A failure before any batch was
- * read leaves no retry time: ollupi tries again on its next poll. While
- * learning is off ollupi does not learn, so nothing retries until it is on. */
-function FailureLine({
-  failure,
-  learning,
-  attempts,
-  nextAttempt,
-}: {
-  failure: MemoryFailure
-  learning: boolean
-  attempts: number
-  nextAttempt?: string | null
-}) {
+/** The failure ollupi is waiting to retry, as a reminder rather than an
+ * alarm: it retries by itself. A failure before any batch was read leaves no
+ * retry time: ollupi tries again on its next poll. */
+function FailureLine({ failure, attempts, nextAttempt }: { failure: MemoryFailure; attempts: number; nextAttempt?: string | null }) {
   const s = useT().memory.status
   const locale = useLocale((l) => l.locale)
   const reason = s.failure[failure.code]
   const at = nextAttempt && attempts > 0 && Date.parse(nextAttempt) > Date.now() ? nextAttempt : undefined
-  const line = !learning
-    ? s.retryWhenOn(reason)
-    : at
-      ? s.retryAt(reason, new Date(at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false }), attempts)
-      : s.retrySoon(reason)
+  const line = at
+    ? s.retryAt(reason, new Date(at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false }), attempts)
+    : s.retrySoon(reason)
   return (
-    <Disclosure summary={line} className="text-danger">
+    <Details summary={line} className="text-warning">
       <Original text={failure.error} />
-    </Disclosure>
+    </Details>
   )
 }
 
@@ -240,8 +209,8 @@ function SkipLine({ skipped, skip }: { skipped: number; skip?: MemorySkip | null
   const thread = useThreadSummary(skip?.threadId)
   if (!skip) return <p>{s.skipped(skipped)}</p>
   return (
-    <Disclosure summary={s.skipped(skipped)}>
-      <div className="mt-1 flex flex-col gap-0.5 border-l border-line pl-3 text-fg-subtle">
+    <Details summary={s.skipped(skipped)}>
+      <div className="mt-1 flex flex-col gap-0.5 pl-3 text-fg-subtle">
         <span title={new Date(skip.at).toLocaleString(locale)}>{s.lastSkip(relativeTime(m, locale, skip.at), skip.entries)}</span>
         <span>
           {s.skipIn}{' '}
@@ -252,7 +221,7 @@ function SkipLine({ skipped, skip }: { skipped: number; skip?: MemorySkip | null
         <span>{s.skipReason(s.failure[skip.code])}</span>
         <Original text={skip.error} />
       </div>
-    </Disclosure>
+    </Details>
   )
 }
 
@@ -288,12 +257,12 @@ function Entry({
 
   return (
     <li data-found-id={entry.id} className="group flex flex-col gap-1.5 px-4 py-3">
-      <div className="flex items-center gap-2 text-small">
-        <span className="font-medium text-fg">{entry.topic}</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-small">
+        <span className="min-w-0 font-medium text-fg">{entry.topic}</span>
         <Badge>{kindLabel(m, entry.kind)}</Badge>
-        {entry.userEdited && <Badge tone="success">{m.memory.entry.editedByYou}</Badge>}
-        {origin !== undefined && <span className="text-fg-subtle">{m.memory.entry.from(origin)}</span>}
-        <span className="text-fg-subtle">{relativeTime(m, locale, entry.updatedAt)}</span>
+        {entry.userEdited && <Badge>{m.memory.entry.editedByYou}</Badge>}
+        {origin !== undefined && <span className="whitespace-nowrap text-fg-subtle">{m.memory.entry.from(origin)}</span>}
+        <span className="whitespace-nowrap text-fg-subtle">{relativeTime(m, locale, entry.updatedAt)}</span>
         <div className="flex-1" />
         {!editing && (
           <div className="flex opacity-0 transition group-hover:opacity-100">
@@ -339,8 +308,9 @@ function Entry({
           </div>
         </div>
       ) : (
-        <p className="selectable text-ui leading-6 whitespace-pre-wrap text-fg-muted">{entry.text}</p>
+        <ClampText text={entry.text} more={m.memory.entry.more} less={m.memory.entry.less} className="text-ui leading-6 text-fg-muted" />
       )}
     </li>
   )
 }
+

@@ -30,7 +30,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const agentPolicy = useAgentPolicy((s) => s.policy)
   const m = useT()
   return (
-    <div className="flex h-full">
+    <div className="@container/screen relative flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="drag @container flex h-16 shrink-0 items-center justify-end gap-2 pr-4">
           <PanelButtons workspace={!!workspace} thread={undefined} />

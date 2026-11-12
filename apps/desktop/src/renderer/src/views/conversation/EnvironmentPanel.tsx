@@ -1,13 +1,14 @@
-// Where the conversation works, beside it: the environment its commands run
-// in, the workspace's folder and the git branch it is on; then what differs
-// from the last commit there, each changed file with its line counts, and
-// its diff in the list's place. It reads again when a turn starts or ends,
+// What changed where the conversation works, beside it. It leads with how
+// many files changed since the last commit, in words, then each changed file
+// with its line counts, and its diff in the list's place; where it runs (the
+// environment, the folder, the git branch) is one line that opens into the
+// details (PRODUCT.md principle 0). It reads again when a turn starts or ends,
 // after each git action, and on reload. Files are staged with their
 // checkbox, discarded after asking, and what is staged is committed with a
 // message.
 
 import type { EnvironmentRow, WorkspaceRow } from '@ollupi/protocol'
-import { Button, IconButton, Loader, Textarea } from '@ollupi/ui'
+import { Button, Details, IconButton, Loader, Textarea } from '@ollupi/ui'
 import { ArrowLeft, Cloud, ExternalLink, Folder, GitBranch, GitCommitHorizontal, Laptop, RotateCw, Undo2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Changes, FileChange, FileDiff, Head } from '../../../../shared/ipc'
@@ -67,43 +68,46 @@ export function EnvironmentPanel({
     >
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {/* A diff is read at length: it takes the whole panel. */}
-        {!open && <Where environment={environment} root={root} head={changes?.repo ? changes.head : undefined} />}
         {!changes ? (
           <div className="flex justify-center py-8">
             <Loader label={t.loading} />
           </div>
-        ) : !changes.repo ? (
-          <p className="text-small text-fg-subtle">{t.notRepo}</p>
         ) : open ? (
           <Diff root={root} file={open} version={`${turn}:${version}`} onBack={() => setOpen(undefined)} />
-        ) : files.length === 0 ? (
-          <p className="text-small text-fg-subtle">{t.none}</p>
         ) : (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <p className="flex-1 text-small text-fg-muted">{t.summary(files.length)}</p>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => void act(() => (allStaged ? unstageFiles(root, files.map((f) => f.path)) : stageFiles(root, files.map((f) => f.path))))}
-              >
-                {allStaged ? t.unstageAll : t.stageAll}
-              </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-display text-fg">{!changes.repo ? t.noHistory : files.length === 0 ? t.none : t.headline(files.length)}</h3>
+              <p className="text-ui text-fg-muted">{!changes.repo ? t.notRepo : files.length === 0 ? t.noneHint : t.headlineHint}</p>
             </div>
-            <ul className="flex flex-col">
-              {files.map((f) => (
-                <li key={f.path}>
-                  <FileRow
-                    file={f}
-                    onOpen={() => setOpen(f)}
-                    onStage={(on) => void act(() => (on ? stageFiles(root, [f.path]) : unstageFiles(root, [f.path])))}
-                    onDiscard={() => {
-                      if (confirm(f.kind === 'untracked' || f.kind === 'added' ? t.discardNewConfirm(f.path) : t.discardConfirm(f.path))) void act(() => discardFile(root, f))
-                    }}
-                  />
-                </li>
-              ))}
-            </ul>
+            <Where environment={environment} root={root} head={changes.repo ? changes.head : undefined} />
+            {files.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void act(() => (allStaged ? unstageFiles(root, files.map((f) => f.path)) : stageFiles(root, files.map((f) => f.path))))}
+                  >
+                    {allStaged ? t.unstageAll : t.stageAll}
+                  </Button>
+                </div>
+                <ul className="flex flex-col">
+                  {files.map((f) => (
+                    <li key={f.path}>
+                      <FileRow
+                        file={f}
+                        onOpen={() => setOpen(f)}
+                        onStage={(on) => void act(() => (on ? stageFiles(root, [f.path]) : unstageFiles(root, [f.path])))}
+                        onDiscard={() => {
+                          if (confirm(f.kind === 'untracked' || f.kind === 'added' ? t.discardNewConfirm(f.path) : t.discardConfirm(f.path))) void act(() => discardFile(root, f))
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -112,37 +116,44 @@ export function EnvironmentPanel({
   )
 }
 
-/** The environment, the folder and, in a repository, where HEAD is. */
+/** Where it runs, as one line ("On this computer, in ollupi-desktop"), that
+ * opens into the environment, the full folder path and, in a repository,
+ * where HEAD is. */
 function Where({ environment, root, head }: { environment: EnvironmentRow | undefined; root: string; head: Head | undefined }) {
   const m = useT()
   const t = m.conversation.environment
   const cloud = environment?.kind === 'machine'
+  // The local environment is named by the app, in the person's language.
+  const place = cloud ? (environment?.name ?? '—') : t.here
+  const folder = root.slice(root.lastIndexOf('/') + 1) || root
   return (
-    <dl className="mb-4 flex flex-col gap-0.5 border-b border-line pb-3">
-      <Row icon={cloud ? Cloud : Laptop} label={t.environment}>
-        <span className="truncate">{environment?.name ?? '—'}</span>
-        {cloud && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.environments.machine}</span>}
-      </Row>
-      <Row icon={Folder} label={t.folder}>
-        <button
-          type="button"
-          title={t.openFolder}
-          onClick={() => void openPath(root)}
-          className="selectable min-w-0 truncate rounded-sm text-left font-mono text-small text-fg hover:underline focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
-        >
-          {root}
-        </button>
-      </Row>
-      {head && (
-        <Row icon={GitBranch} label={t.branch}>
-          {'branch' in head ? (
-            <span className="selectable truncate font-mono text-small">{head.branch}</span>
-          ) : (
-            <span className="truncate text-small text-fg-muted">{t.detached(head.detached)}</span>
-          )}
+    <Details summary={<span className="text-small text-fg-muted">{t.where(place, folder)}</span>}>
+      <dl className="mt-1.5 flex flex-col gap-0.5">
+        <Row icon={cloud ? Cloud : Laptop} label={t.environment}>
+          <span className="truncate">{place}</span>
+          {cloud && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.environments.machine}</span>}
         </Row>
-      )}
-    </dl>
+        <Row icon={Folder} label={t.folder}>
+          <button
+            type="button"
+            title={t.openFolder}
+            onClick={() => void openPath(root)}
+            className="selectable min-w-0 truncate rounded-sm text-left font-mono text-small text-fg hover:underline focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+          >
+            {root}
+          </button>
+        </Row>
+        {head && (
+          <Row icon={GitBranch} label={t.branch}>
+            {'branch' in head ? (
+              <span className="selectable truncate font-mono text-small">{head.branch}</span>
+            ) : (
+              <span className="truncate text-small text-fg-muted">{t.detached(head.detached)}</span>
+            )}
+          </Row>
+        )}
+      </dl>
+    </Details>
   )
 }
 
@@ -173,7 +184,7 @@ function CommitForm({ root, staged, onCommitted }: { root: string; staged: numbe
     onCommitted()
   }
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t border-line px-4 py-3">
+    <div className="mx-3 mb-3 flex shrink-0 flex-col gap-2 rounded-3xl bg-surface p-3">
       <Textarea
         rows={2}
         value={message}
@@ -183,7 +194,7 @@ function CommitForm({ root, staged, onCommitted }: { root: string; staged: numbe
         onKeyDown={(e) => {
           if (e.key === 'Enter' && e.metaKey && staged > 0 && message.trim() && !committing) void commit()
         }}
-        className="resize-none text-ui"
+        className="resize-none bg-canvas text-ui"
       />
       <Button variant="primary" icon={<GitCommitHorizontal size={14} />} disabled={staged === 0 || !message.trim()} loading={committing} onClick={() => void commit()}>
         {staged === 0 ? t.nothingStaged : t.commit(staged)}
@@ -206,7 +217,7 @@ function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChange; onOpe
           if (el) el.indeterminate = file.staged === 'part'
         }}
         onChange={(e) => onStage(file.staged === 'part' ? true : e.target.checked)}
-        className="size-3.5 shrink-0 accent-accent focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        className="size-3.5 shrink-0 accent-ink focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       />
       <button
         type="button"
