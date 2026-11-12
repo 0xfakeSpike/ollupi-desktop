@@ -93,7 +93,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
           <Switch label={m.memory.settings.use} checked={config.memory.use} disabled={saving} onChange={(on) => void apply([{ kind: 'set', path: ['memory', 'use'], value: on }])} />
         }
       />
-      <div className="flex items-center justify-end gap-3 border-t border-line pt-3">
+      <div className="flex items-center justify-end gap-3">
         <span className="text-small text-fg-subtle">{stale && !saving ? m.memory.settings.stale : m.memory.settings.restarts}</span>
         {stale && !saving && (
           <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>

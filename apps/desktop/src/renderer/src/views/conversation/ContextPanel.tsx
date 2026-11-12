@@ -1,8 +1,10 @@
 // The context window as the thread's model calls used it, from the stats
-// ollupi records on each call: how full the last prompt was and what filled
-// it (a part opens into its details where ollupi reports them, as for the
-// memory snapshot), where compaction starts, what that call cost, and how
-// the prompt grew call by call.
+// ollupi records on each call. The first layer answers "do I need to do
+// anything?" in a sentence and one bar: how full it is, and that it
+// summarizes the earlier part by itself when it fills (PRODUCT.md principle
+// 0). Behind Details: what filled the last prompt (a part opens into its
+// details where ollupi reports them, as for the memory snapshot), what that
+// call cost, and how the prompt grew call by call.
 
 import {
   contextUse,
@@ -16,10 +18,11 @@ import {
   type PromptMemory,
   type Timeline,
 } from '@ollupi/core'
-import { cn } from '@ollupi/ui'
+import { cn, Details } from '@ollupi/ui'
 import { ChevronRight } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useLocale, useT } from '../../i18n'
+import { modelName } from '../common/modelName'
 import { SidePanel } from './SidePanel'
 
 // Labels are the catalog's context.parts, by key, in the order ollupi builds
@@ -43,23 +46,50 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
   const latest = latestContextCall(calls)
   const memory = timeline && latest ? promptMemory(timeline, latest) : undefined
   const t = useT().conversation.context
-  const connection = (c: ModelCall) => timeline?.turns.find((t) => t.id === c.turnId)?.model.connection ?? c.stats.model ?? ''
+  const connection = (c: ModelCall) => modelName(timeline?.turns.find((t) => t.id === c.turnId)?.model.connection ?? c.stats.model ?? '')
 
   return (
     <SidePanel panel="context" title={t.title} closeLabel={t.close}>
       {!latest ? (
         <p className="text-small text-fg-subtle">{t.empty}</p>
       ) : (
-        <div className="flex flex-col gap-6">
-          <Overview
-            use={contextUse(latest.stats)}
-            details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
-          />
-          {latest.usage && <LastCall call={latest} />}
-          <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
+        <div className="flex flex-col gap-5">
+          <Summary use={contextUse(latest.stats)} memories={memory ? (memory.global?.ids.length ?? 0) + (memory.local?.ids.length ?? 0) : 0} />
+          <Details summary={<span className="text-ui text-fg-muted">{t.details}</span>}>
+            <div className="flex flex-col gap-6 pt-4">
+              <Overview
+                use={contextUse(latest.stats)}
+                details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
+              />
+              {latest.usage && <LastCall call={latest} />}
+              <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
+            </div>
+          </Details>
         </div>
       )}
     </SidePanel>
+  )
+}
+
+/** How full it is, in words: roomy, getting full (three quarters of the way
+ * to where it summarizes), or full; then what it will do about it, and the
+ * memories it carries about the person. */
+function Summary({ use, memories }: { use: ContextUse; memories: number }) {
+  const t = useT().conversation.context
+  const state = use.used >= use.compactAt ? 'full' : use.used >= use.compactAt * 0.75 ? 'near' : 'roomy'
+  const used = percent(use.used, use.budget)
+  return (
+    <section className="flex flex-col gap-2.5">
+      <h3 className="text-display text-fg">{t.state[state]}</h3>
+      <p className="text-ui text-fg-muted">{t.stateLine(used, percent(use.compactAt, use.budget))}</p>
+      <div className="relative">
+        <div className="h-2 overflow-hidden rounded-full bg-fg/10" role="img" aria-label={t.windowUsed(used)}>
+          <div className="h-full rounded-full bg-ink" style={{ width: `${Math.min(100, used)}%` }} />
+        </div>
+        <CompactMark at={use.compactAt} of={use.budget} className="-top-1 h-4" />
+      </div>
+      {memories > 0 && <p className="text-ui text-fg-muted">{t.remembers(memories)}</p>}
+    </section>
   )
 }
 

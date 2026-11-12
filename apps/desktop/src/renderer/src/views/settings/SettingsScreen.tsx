@@ -83,9 +83,13 @@ export function SettingsScreen() {
       <header className="drag flex h-16 shrink-0 items-center pl-6">
         <h1 className="text-title">{t.title}</h1>
       </header>
-      <div className="flex min-h-0 flex-1">
+      {/* A column of sections beside the page; in a narrow window, a row above it. */}
+      <div className="@container/page flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
         {/* Its labels start under the header's title. */}
-        <nav aria-label={t.title} className="flex w-56 shrink-0 flex-col gap-0.5 overflow-y-auto px-3 py-2">
+        <nav
+          aria-label={t.title}
+          className="flex shrink-0 gap-1 overflow-x-auto px-3 py-2 [scrollbar-width:none] @3xl/page:w-56 @3xl/page:flex-col @3xl/page:gap-0.5 @3xl/page:overflow-x-visible @3xl/page:overflow-y-auto"
+        >
           {sections.map((id) => (
             <button
               key={id}
@@ -93,7 +97,7 @@ export function SettingsScreen() {
               aria-current={id === current ? 'true' : undefined}
               onClick={() => jump(id)}
               className={cn(
-                'flex h-9 w-full items-center rounded-full px-3.5 text-left text-ui transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+                'flex h-8 shrink-0 items-center rounded-full px-3.5 text-left text-ui whitespace-nowrap transition @3xl/page:h-9 @3xl/page:w-full duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
                 id === current ? 'bg-surface font-semibold text-fg' : 'font-medium text-fg-muted hover:bg-hover hover:text-fg',
               )}
             >

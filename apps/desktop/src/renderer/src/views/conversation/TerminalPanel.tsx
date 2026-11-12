@@ -28,15 +28,29 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
   useEffect(() => {
     const el = host.current
     if (!el) return
-    const css = getComputedStyle(document.documentElement)
-    const color = (name: string) => css.getPropertyValue(name).trim()
+    const dark = matchMedia('(prefers-color-scheme: dark)')
+    const theme = () => {
+      const css = getComputedStyle(document.documentElement)
+      const color = (name: string) => css.getPropertyValue(name).trim()
+      return {
+        background: color('--color-canvas'),
+        foreground: color('--color-fg'),
+        cursor: color('--color-fg'),
+        selectionBackground: color('--color-selected'),
+        ...(dark.matches ? ansiDark : ansiLight),
+      }
+    }
     const term = new Terminal({
-      fontFamily: color('--font-mono'),
+      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim(),
       fontSize: 12,
       cursorBlink: true,
       scrollback: 5000,
-      theme: { background: color('--color-canvas'), foreground: color('--color-fg'), cursor: color('--color-fg'), selectionBackground: color('--color-selected') },
+      theme: theme(),
     })
+    // The page's colours follow the system as it changes; the terminal's
+    // were read once, so they are read again.
+    const recolor = () => (term.options.theme = theme())
+    dark.addEventListener('change', recolor)
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(el)
@@ -59,6 +73,7 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
     term.focus()
     return () => {
       live = false
+      dark.removeEventListener('change', recolor)
       observer.disconnect()
       input.dispose()
       resized.dispose()
@@ -90,4 +105,45 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
       <div ref={host} className="min-h-0 flex-1 bg-canvas px-2 py-1" />
     </SidePanel>
   )
+}
+
+// The 16 colours a shell prints in, one set per scheme: xterm's own are made
+// for a dark ground and wash out on paper. Each reads at 4.5:1 or more on its
+// scheme's canvas (#f8f7f4, #1d201f); red is the danger hue, so a prompt in
+// red still reads as the shell's colour, not as ochre's "needs you".
+const ansiLight = {
+  black: '#22252a',
+  red: '#a3264a',
+  green: '#35652d',
+  yellow: '#755600',
+  blue: '#2c5a87',
+  magenta: '#7a3f86',
+  cyan: '#1f6668',
+  white: '#4c5057',
+  brightBlack: '#5b5f66',
+  brightRed: '#a3264a',
+  brightGreen: '#35652d',
+  brightYellow: '#755600',
+  brightBlue: '#2c5a87',
+  brightMagenta: '#7a3f86',
+  brightCyan: '#1f6668',
+  brightWhite: '#22252a',
+}
+const ansiDark = {
+  black: '#5b605c',
+  red: '#f08aa6',
+  green: '#9fcf8f',
+  yellow: '#e3c27a',
+  blue: '#8fb4e0',
+  magenta: '#d3a2e0',
+  cyan: '#7fcfcf',
+  white: '#d5d8d2',
+  brightBlack: '#8e948c',
+  brightRed: '#f5a3b9',
+  brightGreen: '#b5dca8',
+  brightYellow: '#ecd197',
+  brightBlue: '#a9c5e8',
+  brightMagenta: '#ddb6e8',
+  brightCyan: '#9cdada',
+  brightWhite: '#ecedea',
 }

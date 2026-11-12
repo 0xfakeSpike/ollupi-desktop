@@ -134,6 +134,9 @@ export function SidePanel({
       style={given ? { width: given } : undefined}
       className={cn(
         'relative flex max-w-[calc(100%-22.5rem)] min-w-65 shrink-0 flex-col overflow-hidden border-l border-line bg-canvas',
+        // Beside the conversation it would squeeze it under 360px: on a narrow
+        // screen it lies over the conversation instead, as a sheet.
+        '@max-3xl/screen:absolute @max-3xl/screen:inset-y-0 @max-3xl/screen:right-0 @max-3xl/screen:z-20 @max-3xl/screen:max-w-[calc(100%-3rem)] @max-3xl/screen:rounded-l-3xl @max-3xl/screen:border-l-0 @max-3xl/screen:shadow-lg',
         !given && (width === 'half' ? 'w-1/2' : width === 'wide' ? 'w-112' : 'w-80'),
       )}
     >

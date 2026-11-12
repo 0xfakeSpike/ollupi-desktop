@@ -18,11 +18,7 @@ export const en = {
     noMatch: 'No memory here matches.',
   },
   status: {
-    used: 'used in conversations',
-    notUsed: 'not used in conversations',
-    learningOn: 'learning on',
-    learningOff: 'learning off',
-    active: (n: number) => `${n} active`,
+    active: (n: number) => (n === 1 ? '1 memory' : `${n} memories`),
     pending: (n: number) => (n === 1 ? '1 turn to learn from' : `${n} turns to learn from`),
     /** What went wrong while learning, by the code ollupi gives the failure;
      * said of no time, as both the current failure and a skip use it. */
@@ -32,10 +28,8 @@ export const en = {
       evidence: 'the conversation could not be read',
       storage: 'memories could not be saved',
     } satisfies Record<MemoryFailureCode, string>,
-    retryAt: (reason: string, time: string, n: number) => `Learning failed: ${reason}; retrying at ${time} (retry ${n})`,
-    retrySoon: (reason: string) => `Learning failed: ${reason}; retrying shortly`,
-    /** Learning is off, so nothing retries until it is turned on. */
-    retryWhenOn: (reason: string) => `Learning failed: ${reason}; it is retried once learning is on`,
+    retryAt: (reason: string, time: string, n: number) => `The last try did not work: ${reason}. It tries again at ${time} (try ${n}).`,
+    retrySoon: (reason: string) => `The last try did not work: ${reason}. It tries again shortly.`,
     skipped: (n: number) => (n === 1 ? '1 entry could not be learned from and was skipped' : `${n} entries could not be learned from and were skipped`),
     lastSkip: (when: string, n: number) => (n === 1 ? `Last skipped ${when}: 1 entry` : `Last skipped ${when}: ${n} entries`),
     skipIn: 'In',
@@ -45,7 +39,9 @@ export const en = {
   entry: {
     /** Display names of the kinds ollupi gives memories. */
     kinds: { preference: 'preference', decision: 'decision', procedure: 'procedure', fact: 'fact' },
-    editedByYou: 'edited by you',
+    editedByYou: 'Edited by you',
+    more: 'Show all',
+    less: 'Show less',
     toGlobal: 'Move to global',
     toGlobalHint: 'Every conversation will use it; you can move it back',
     backTo: (place: string) => `Move back to ${place}`,
@@ -65,7 +61,7 @@ export const en = {
     chooseModel: 'Choose a model',
     use: 'Use memories in conversations',
     useHint: 'Each conversation starts with the memories that fit in its context, and the agent can search the rest.',
-    restarts: 'Each change is saved right away and restarts the backend, which reads these at start.',
+    restarts: 'Changes take effect right away.',
     stale: 'config.yaml differs from what the backend is using.',
   },
 }
@@ -85,21 +81,16 @@ export const zh: typeof en = {
     noMatch: '这里没有匹配的记忆。',
   },
   status: {
-    used: '在会话中使用',
-    notUsed: '不在会话中使用',
-    learningOn: '学习已开启',
-    learningOff: '学习已关闭',
-    active: (n) => `${n} 条有效`,
+    active: (n) => `共 ${n} 条记忆`,
     pending: (n) => `${n} 轮待学习`,
     failure: {
       model_request: '请求模型失败',
-      invalid_response: '模型返回的内容不合规',
+      invalid_response: '模型的回复没法用',
       evidence: '读取对话内容出错',
       storage: '保存记忆出错',
     },
-    retryAt: (reason, time, n) => `上次整理时${reason}，将在 ${time} 重试（第 ${n} 次）`,
-    retrySoon: (reason) => `上次整理时${reason}，稍后重试`,
-    retryWhenOn: (reason) => `上次整理时${reason}，开启学习后会重试`,
+    retryAt: (reason, time, n) => `上次整理没成功：${reason}。${time} 会再试（第 ${n} 次）。`,
+    retrySoon: (reason) => `上次整理没成功：${reason}。稍后会再试。`,
     skipped: (n) => `有 ${n} 条内容未能整理成记忆，已跳过`,
     lastSkip: (when, n) => `最近一次跳过：${when}，共 ${n} 条`,
     skipIn: '来自对话',
@@ -108,7 +99,9 @@ export const zh: typeof en = {
   },
   entry: {
     kinds: { preference: '偏好', decision: '决定', procedure: '流程', fact: '事实' },
-    editedByYou: '已由你编辑',
+    editedByYou: '你改过',
+    more: '展开',
+    less: '收起',
     toGlobal: '移到全局',
     toGlobalHint: '所有会话都会用到这条记忆，之后可以移回来',
     backTo: (place) => `移回${place}`,
@@ -127,7 +120,7 @@ export const zh: typeof en = {
     chooseModel: '选择模型',
     use: '在会话中使用记忆',
     useHint: '每个会话开始时会带上其上下文能容纳的记忆，其余的由 agent 按需搜索。',
-    restarts: '每次改动都会立即保存并重启后端，后端在启动时读取这些设置。',
+    restarts: '改动马上生效。',
     stale: 'config.yaml 与后端正在使用的设置不一致。',
   },
 }

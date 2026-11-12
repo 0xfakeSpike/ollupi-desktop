@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useModels } from '../../domains/models'
 import { chooseModel, useNavigation } from '../../domains/navigation'
 import { useT } from '../../i18n'
+import { modelName } from '../common/modelName'
 import { chip } from './Composer'
 
 /** Past this many models the list gets a filter box. */
@@ -54,11 +55,4 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
       <ChevronDown size={12} className="shrink-0 opacity-60" aria-hidden />
     </Picker>
   )
-}
-
-/** The model's own name, without the provider in front: the provider is
- * the list's heading, one step further. */
-function modelName(connection: string): string {
-  const slash = connection.indexOf('/')
-  return slash < 0 ? connection : connection.slice(slash + 1)
 }
