@@ -91,7 +91,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="@container/page flex h-full flex-col">
       <header className="drag flex h-16 shrink-0 items-center gap-3 pr-4 pl-6">
         <h1 className="text-title">{m.memory.screen.title}</h1>
         <div className="flex-1" />
@@ -99,8 +99,9 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
           <RotateCw size={16} />
         </IconButton>
       </header>
-      {/* A column of scopes beside the list; in a narrow window, a row above it. */}
-      <div className="@container/page flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
+      {/* A column of scopes beside the list; in a narrow window, a row above it. The
+          screen's root is the container it reads: an element cannot query its own width. */}
+      <div className="flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
         {/* Its labels start under the header's title. */}
         <nav className="shrink-0 overflow-x-auto px-3 py-2 [scrollbar-width:none] @3xl/page:w-56 @3xl/page:overflow-x-visible @3xl/page:overflow-y-auto">
           <Tabs label={m.memory.screen.scope} orientation="auto" tabs={scopes} value={scope} onChange={setScope} />
