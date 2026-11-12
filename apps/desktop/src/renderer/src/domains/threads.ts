@@ -6,14 +6,15 @@
 // read when the sidebar shows it. Renaming, archiving and deleting a
 // thread are here too.
 
-import { compareThreads, removeThread, setThreadStatus, threadCursor, upsertThread } from '@ollupi/core'
+import { compareThreads, removeThread, setThreadStatus, threadCursor, unread, upsertThread } from '@ollupi/core'
+import type { OllupiClient } from '@ollupi/client'
 import type { ThreadRow, ThreadSummary } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { forgetDraft } from './drafts'
-import { go, openThreadId } from './navigation'
+import { go, openThreadId, useNavigation } from './navigation'
 import { activeWorkspaces, useWorkspaces } from './workspaces'
 import { desktop } from '../platform/desktop'
 
@@ -59,9 +60,36 @@ function changed(threadId: string, thread: ThreadRow | null): void {
   if (!thread && openThreadId() === threadId) go({ kind: 'draft', workspaceId: undefined })
 }
 
+/** Threads being marked read, so a burst of changes asks once. */
+const marking = new Set<string>()
+
+/** The thread on screen is read while the window is in front: opening it,
+ * a turn ending in it, or coming back to the window marks it read in
+ * ollupi, which tells every client. A failed mark leaves the dot, and the
+ * next of these tries again. */
+function markOpenRead(client: OllupiClient): void {
+  const id = openThreadId()
+  if (!id || marking.has(id) || document.hidden || !document.hasFocus()) return
+  const thread = useThreads.getState().list.find((t) => t.id === id)
+  if (!thread || !unread(thread)) return
+  marking.add(id)
+  void client
+    .call('thread/markRead', { threadId: id })
+    .then(({ thread }) => update((l) => upsertThread(l, thread)))
+    .catch(() => undefined)
+    .finally(() => marking.delete(id))
+}
+
 export const threadsDomain: Domain = {
   bind: (client) => {
+    const seen = () => markOpenRead(client)
+    window.addEventListener('focus', seen)
+    document.addEventListener('visibilitychange', seen)
     const offs = [
+      useThreads.subscribe(seen),
+      useNavigation.subscribe((now, before) => now.screen !== before.screen && seen()),
+      () => window.removeEventListener('focus', seen),
+      () => document.removeEventListener('visibilitychange', seen),
       client.on('thread/started', ({ thread }) => update((l) => upsertThread(l, thread))),
       client.on('thread/status/changed', ({ threadId, status }) => update((l) => setThreadStatus(l, threadId, status))),
       client.on('thread/changed', ({ threadId, thread }) => changed(threadId, thread)),

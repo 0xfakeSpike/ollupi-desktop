@@ -25,6 +25,7 @@ import {
   upsertItem,
   upsertThread,
   upsertTurn,
+  unread,
   waitingFor,
   waitsForAnswer,
   waitsForApproval,
@@ -196,6 +197,21 @@ describe('threads', () => {
       ['d', []],
       [undefined, ['loose2', 'loose1']],
     ])
+  })
+  it('is unread from the end of a turn until read, as the engine says', () => {
+    expect(unread(thread())).toBe(false)
+    expect(unread(thread({ repliedAt: '2026-01-01T00:00:01.5Z' }))).toBe(true)
+    expect(unread(thread({ repliedAt: '2026-01-01T00:00:01.5Z', readAt: '2026-01-01T00:00:01.25Z' }))).toBe(true)
+    expect(unread(thread({ repliedAt: '2026-01-01T00:00:01.25Z', readAt: '2026-01-01T00:00:01.5Z' }))).toBe(false)
+  })
+
+  it('orders workspaces by the work done in them last, not by when they were added', () => {
+    const ws = (id: string, updatedAt: string) => ({ id, name: id, rootPath: `/${id}`, settings: { permissions: {} }, createdAt: updatedAt, updatedAt })
+    const at = (id: string, workspaceId: string, updatedAt: string): ThreadSummary => ({ ...thread({ id, workspaceId, updatedAt }), status: 'idle' })
+    // workspace/list's order: the workspaces changed last first.
+    const workspaces = [ws('docs', '2026-01-08T00:00:00Z'), ws('app', '2026-01-07T00:00:00Z'), ws('fresh', '2026-01-09T12:00:00.5Z'), ws('old', '2026-01-01T00:00:00Z')]
+    const list = [at('s1', 'app', '2026-01-11T14:31:31.610699Z'), at('d1', 'docs', '2026-01-08T08:28:18.489406Z'), at('o1', 'old', '2026-01-09T12:00:00.25Z')]
+    expect(groupByWorkspace(workspaces, list).map((g) => g.workspace?.id)).toEqual(['app', 'fresh', 'old', 'docs', undefined])
   })
 })
 

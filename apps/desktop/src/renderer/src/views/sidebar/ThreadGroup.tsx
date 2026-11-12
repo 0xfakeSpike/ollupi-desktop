@@ -1,4 +1,4 @@
-import { isWorking, needsUser } from '@ollupi/core'
+import { isWorking, needsUser, unread } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
 import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Pencil, Plus, Settings2, Trash2 } from 'lucide-react'
@@ -106,6 +106,8 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
   const locale = useLocale((s) => s.locale)
   const title = threadTitle(m, thread)
   const s = m.shell.sidebar
+  // A turn ended after the person last read it: its title reads in full, with a dot.
+  const fresh = unread(thread)
   if (renaming) {
     return (
       <li className="flex h-7 items-center pr-1 pl-7">
@@ -122,15 +124,18 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
         className={cn(
           'flex h-7 w-full items-center gap-2 rounded-md pr-2 pl-8 text-left text-ui transition-colors duration-100 ease-standard',
           'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-          active ? 'bg-selected font-medium text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
+          active ? 'bg-selected font-medium text-fg' : fresh ? 'font-medium text-fg hover:bg-hover' : 'text-fg-muted hover:bg-hover hover:text-fg',
         )}
       >
         <span className="min-w-0 flex-1 truncate">{title}</span>
         <span className="flex shrink-0 items-center group-focus-within:invisible group-hover:invisible">
           {needsUser(thread.status) ? (
-            <span className="size-1.5 rounded-full bg-accent" title={s.waiting} />
+            // Waiting outranks unread: the same dot, with a halo.
+            <span className="size-1.5 rounded-full bg-accent ring-3 ring-accent/25" title={s.waiting} />
           ) : isWorking(thread.status) ? (
             <Spinner size={14} className="text-fg-subtle" />
+          ) : fresh ? (
+            <span className="size-1.5 rounded-full bg-accent" title={s.unread} />
           ) : (
             <span className="text-small font-normal text-fg-subtle tabular-nums">{relativeTime(m, locale, thread.updatedAt)}</span>
           )}

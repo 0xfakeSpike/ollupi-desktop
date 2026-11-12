@@ -7,8 +7,8 @@ cloud.google.com/go/auth/oauth2adapt v0.2.4 h1:0GWE/FUsXhf6C+jAkWgYm7X9tK8cuEIfy
 cloud.google.com/go/auth/oauth2adapt v0.2.4/go.mod h1:jC/jOpwFP6JBxhB3P5Rr0a9HLMC/Pe3eaL4NmdvqPtc=
 cloud.google.com/go/compute/metadata v0.5.0 h1:Zr0eK8JbFv6+Wi4ilXAR8FJ3wyNdpxHKJNPos6LTZOY=
 cloud.google.com/go/compute/metadata v0.5.0/go.mod h1:aHnloV2TPI38yx4s9+wAZhHykWvVCfu7hQbF+9CWoiY=
-github.com/0xfakeSpike/ollupi v0.12.2 h1:KamxRNH37I+Vv5hMtgYURiWVU8NTASitYNZgL2pQVu4=
-github.com/0xfakeSpike/ollupi v0.12.2/go.mod h1:o8jgws6GA7PEJ3lqxc6H7kE9IkDL3EdZ4Hcl11QNZwE=
+github.com/0xfakeSpike/ollupi v0.12.3 h1:6WQm53Ip0OiZhbck8DXrD7u36ZlhgnUeYz97h5RgtII=
+github.com/0xfakeSpike/ollupi v0.12.3/go.mod h1:o8jgws6GA7PEJ3lqxc6H7kE9IkDL3EdZ4Hcl11QNZwE=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/anthropics/anthropic-sdk-go v1.84.0 h1:mnAhggc5H5A98JYmhQELT+j4J89PYBFKnnSvUTNwNd8=
 github.com/anthropics/anthropic-sdk-go v1.84.0/go.mod h1:GThfYqPJoaQ/6pmibCI98Cr4y5su2FXMUHn3NrSSnIc=
