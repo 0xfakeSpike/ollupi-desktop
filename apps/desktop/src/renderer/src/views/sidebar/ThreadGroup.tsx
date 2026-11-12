@@ -1,12 +1,12 @@
 import { isWorking, needsUser, unread } from '@ollupi/core'
 import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Spinner } from '@ollupi/ui'
-import { Archive, ChevronRight, Folder, FolderOpen, Inbox, Pencil, Plus, Settings2, Trash2 } from 'lucide-react'
+import { Archive, ChevronRight, Ellipsis, Folder, FolderOpen, Inbox, Plus, Settings2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
 import { openPath } from '../../domains/files'
 import { go, useOpenThreadId } from '../../domains/navigation'
-import { archiveThread, deleteThread, loadMoreThreads, renameThread, useThreads } from '../../domains/threads'
+import { archiveThread, deleteThread, loadMoreThreads, renameThread, threadMenu, useThreads } from '../../domains/threads'
 import { setArchived } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
@@ -108,6 +108,15 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
   const s = m.shell.sidebar
   // A turn ended after the person last read it: its title reads in full, with a dot.
   const fresh = unread(thread)
+  // Two actions show on hover (DESIGN.md 3.6): archiving, which can be
+  // undone, and the menu; renaming and deleting are in the menu, which a
+  // right click on the row opens too.
+  const menu = async () => {
+    const picked = await threadMenu({ rename: s.renameThread, archive: s.archiveThread, delete: s.deleteThread })
+    if (picked === 'rename') setRenaming(true)
+    else if (picked === 'archive') void archiveThread(thread.id, true)
+    else if (picked === 'delete' && confirm(s.deleteThreadConfirm(title))) void deleteThread(thread.id)
+  }
   if (renaming) {
     return (
       <li className="flex h-7 items-center pr-1 pl-7">
@@ -121,6 +130,10 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
         type="button"
         onClick={() => void openThread(thread.id)}
         onDoubleClick={() => setRenaming(true)}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          void menu()
+        }}
         className={cn(
           'flex h-7 w-full items-center gap-2 rounded-md pr-2 pl-8 text-left text-ui transition-colors duration-100 ease-standard',
           'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
@@ -131,11 +144,11 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
         <span className="flex shrink-0 items-center group-focus-within:invisible group-hover:invisible">
           {needsUser(thread.status) ? (
             // Waiting outranks unread: the same dot, with a halo.
-            <span className="size-1.5 rounded-full bg-accent ring-3 ring-accent/25" title={s.waiting} />
+            <span role="img" aria-label={s.waiting} className="size-1.5 rounded-full bg-accent ring-3 ring-accent/25" />
           ) : isWorking(thread.status) ? (
             <Spinner size={14} className="text-fg-subtle" />
           ) : fresh ? (
-            <span className="size-1.5 rounded-full bg-accent" title={s.unread} />
+            <span role="img" aria-label={s.unread} className="size-1.5 rounded-full bg-accent" />
           ) : (
             <span className="text-small font-normal text-fg-subtle tabular-nums">{relativeTime(m, locale, thread.updatedAt)}</span>
           )}
@@ -143,20 +156,11 @@ function ThreadEntry({ thread }: { thread: ThreadSummary }) {
       </button>
       {/* Beside the row rather than in it: a button may not hold buttons. */}
       <div className="absolute inset-y-0 right-0.5 hidden items-center group-focus-within:flex group-hover:flex">
-        <IconButton label={s.renameThread} size="sm" onClick={() => setRenaming(true)}>
-          <Pencil size={13} />
-        </IconButton>
         <IconButton label={s.archiveThread} size="sm" onClick={() => void archiveThread(thread.id, true)}>
           <Archive size={13} />
         </IconButton>
-        <IconButton
-          label={s.deleteThread}
-          size="sm"
-          onClick={() => {
-            if (confirm(s.deleteThreadConfirm(title))) void deleteThread(thread.id)
-          }}
-        >
-          <Trash2 size={13} />
+        <IconButton label={s.threadMenu} size="sm" aria-haspopup="menu" onClick={() => void menu()}>
+          <Ellipsis size={13} />
         </IconButton>
       </div>
     </li>

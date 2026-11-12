@@ -15,9 +15,10 @@ import { createHighlighterCore, type HighlighterCore, type ShikiTransformer } fr
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
-import { Streamdown, useIsCodeFenceIncomplete, type Components } from 'streamdown'
+import { defaultRemarkPlugins, Streamdown, useIsCodeFenceIncomplete, type Components } from 'streamdown'
 import { run } from '../../gateway/run'
 import { useT } from '../../i18n'
+import { remarkCjkAutolink } from './cjkAutolink'
 import { ReplyPath } from './FileLink'
 import { MermaidBlock } from './Mermaid'
 import { useNearViewport } from './useNearViewport'
@@ -177,6 +178,8 @@ const components: Components = {
     ),
 }
 
+const remarkPlugins = [...Object.values(defaultRemarkPlugins), remarkCjkAutolink]
+
 export const Markdown = memo(function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
   const m = useT().conversation.markdown
   const remarkRehypeOptions = useMemo(() => ({ footnoteLabel: m.footnotes, footnoteBackLabel: m.footnoteBack }), [m])
@@ -187,6 +190,7 @@ export const Markdown = memo(function Markdown({ text, streaming = false }: { te
       components={components}
       controls={false}
       linkSafety={{ enabled: false }}
+      remarkPlugins={remarkPlugins}
       remarkRehypeOptions={remarkRehypeOptions}
     >
       {text}

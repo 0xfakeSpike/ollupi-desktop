@@ -44,13 +44,19 @@ export function App() {
   )
 }
 
-/** ⌘K opens search from anywhere, as in most Mac apps. */
+/** ⌘K opens search and ⌘N a new conversation from anywhere, as in most
+ * Mac apps. */
 function useSearchShortcut(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+      if (!e.metaKey || e.shiftKey || e.altKey || e.ctrlKey) return
+      const key = e.key.toLowerCase()
+      if (key === 'k') {
         e.preventDefault()
         go({ kind: 'search' })
+      } else if (key === 'n') {
+        e.preventDefault()
+        go({ kind: 'draft', workspaceId: undefined })
       }
     }
     window.addEventListener('keydown', onKey)

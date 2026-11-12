@@ -289,7 +289,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
   --ol-knob: #ffffff;
   --ol-fg: #17161f;
   --ol-fg-muted: #52515f;
-  --ol-fg-subtle: #737284;
+  --ol-fg-subtle: #666577;
   --ol-ink: #1b1838;
   --ol-ink-fg: #ffffff;
   --ol-accent: #4d4ac6;
@@ -378,7 +378,7 @@ Ollupi 的设计语言叫**格墨**。**格**是像素小狼的 20×20 网格，
 
 ### 2.1.1 配色与外观
 
-- **配色**：只有一套，格墨（第 0 节），浅色、深色各一份，都写在 `theme.css` 的 `:root` 上。正文、次要文字和强调色在画布上都达到 WCAG AA（`fg-subtle` 浅色 4.7:1、深色 5.2:1）。
+- **配色**：只有一套，格墨（第 0 节），浅色、深色各一份，都写在 `theme.css` 的 `:root` 上。正文、次要文字和强调色在画布上都达到 WCAG AA；`fg-subtle` 在侧栏的 `ground` 和选中行上也要达到（浅色画布 5.7:1、`ground` 5.2:1、选中行 4.6:1；深色画布 5.1:1、`ground` 5.6:1、选中行 4.5:1）。
 - **改颜色**：只改 `:root` 里的基础值（`ground`、`canvas`、`surface`、`raised`、`knob`、三档文字、`ink`、`accent`、`send`、状态色）和 `--ol-tint`。悬停、选中、线、遮罩、阴影都由 `--ol-tint` 调出来，不单独写。
 - **外观**：跟随系统、浅色、深色，在 Settings → General，存在本应用自己的存储里（`ollupi.colorScheme`），窗口加载时由 `startAppearance` 应用。渲染进程通过 `desktop.setColorScheme` 设 Electron 的 `nativeTheme.themeSource`，`prefers-color-scheme` 和原生窗口一起跟着变，所以 CSS 里只有媒体查询一种深色写法。窗口在渲染进程画出来之前显示的底色（`window.ts`）和 `--ol-ground` 保持一致。
 
@@ -588,9 +588,9 @@ L2  ╭────────────────────────�
 
 **审批块**
 - 结构：一行小字说谁要什么（`text-caption`，状态色："Ollupi needs your approval" / "Ollupi is asking"），下面是标题（`text-title`）；不放图标。需要审批的对象放进 L1 mono 块（可复制）；agent 给出的理由 `text-ui` `fg-muted`；按钮行右对齐。
-- 键盘：`↵` 执行主按钮，`Esc` 拒绝；在按钮上用 `text-caption` 标出快捷键。
-- 危险审批的默认焦点放在 `Deny`，不放在危险按钮上。
-- 已处理的审批收成 L0 行："Allowed once · `rm -rf build`" / "Denied · …"，不保留卡片。
+- 键盘：`↵` 执行主按钮，`Esc` 拒绝；在按钮上用 `text-caption` 标出快捷键。危险审批不绑 `↵`，允许完全访问必须点按钮。
+- 卡片出现时焦点移到它的默认按钮上：普通审批是 `Allow once`，危险审批是 `Deny`，不放在危险按钮上。用户正在输入框里打字（框里有字）时不抢焦点。
+- 已处理的审批收成 L0 行：调用那一行的行尾写 "Allowed once" / "Allowed for this thread" / "Always allowed"（盾牌图标 + `fg-subtle`），拒绝的写 "Denied"，不保留卡片。
 
 **提问块**
 - 一个问题：问题就是块的标题（`text-title`）→ 选项 → 自由输入；问多个时每个问题 `text-ui` `fg` `font-medium`。
@@ -602,7 +602,7 @@ L2  ╭────────────────────────�
 
 **流外的回响**
 - 侧栏该会话显示带光晕的 accent 圆点（`ring-3 ring-accent/25`，和未读的实心圆点区分开）；顶栏右侧、面板按钮前显示描边胶囊 "Waiting for you"（高 20、`rounded-full`、`border-accent/35`、`text-caption` `accent`，不铺底）。
-- 输入框上方的状态行：小狼换成看着你的脸，写 "Waiting for your approval above" 或 "Waiting for your answer above"（子 agent 的等待也算）；运行中没人被问时是左右张望的小狼和 "Working…"，对话流里不再另写；行动块滚出视野时，在输入框上方浮出胶囊按钮 "1 request waiting ↓"，点击滚到块。
+- 输入框上方的状态行：小狼换成看着你的脸，写 "Waiting for your approval above" 或 "Waiting for your answer above"（子 agent 的等待也算）；运行中没人被问时是左右张望的小狼和 "Working…"，对话流里不再另写；行动块滚出视野（露出不到四分之一且不到 120px）时，在输入框上方浮出胶囊按钮 "1 request waiting ↓"（`rounded-full border-accent/35 text-accent`，`raised` 底），取代"滚动到最新"；点击滚到块，并把焦点放到它的默认按钮。
 - 窗口不在前台时发系统通知。
 
 ### 3.3 状态的表达
@@ -677,14 +677,15 @@ Help text                      ← text-small fg-subtle，上方 4；出错时�
 | 浮层 | 何时用 | 规格 |
 |---|---|---|
 | **对话框** | 需要专注的多字段编辑：定时任务、会话权限、workspace 设置、MCP 服务器、模型提供方；破坏性动作的确认 | `max-w-dialog`（480）或 `max-w-dialog-wide`（640）；`bg-raised border border-line rounded-xl shadow-lg`；背后 `bg-scrim`；标题区 `px-5 pt-5`，`text-title` + 一句 `text-ui fg-muted` 说明；内容 `px-5 py-4`；底部 `px-5 pb-5` 右对齐按钮（lg），不画分隔线，内容滚动时才在底部出现 `border-t border-line` |
-| **菜单 / 选择浮层** | 从触发器展开的选择：模型选择、workspace 选择、行尾 "…" 菜单 | `bg-raised border border-line rounded-xl shadow-md p-1`；菜单项同 3.6；危险项放最后，前面加分隔线 |
+| **菜单 / 选择浮层** | 从触发器展开的选择：模型选择、审批策略、workspace 选择 | `@ollupi/ui` 的 `Picker`：`bg-raised border border-line rounded-xl shadow-md p-1`；菜单项同 3.6，可带一行 `text-small fg-muted` 说明，选中项 `selected` 底 + 对勾；来源不止一个时按来源分组（`text-small font-medium fg-subtle` 小标题）；长列表顶部有查找框；动作项放在分隔线下面。上方空间更大时向上展开（输入框在窗口底部）。`↑` `↓` 移动、`↵` 选择、`Esc` 关闭并回到触发器；点外面或窗口失焦时关闭。行尾 "…" 菜单用系统原生菜单（同右键菜单），危险项放最后 |
 | **Toast** | 用户没在原地等待的异步结果；后台动作的失败 | 右下角，宽 360，`bg-raised border border-line rounded-xl shadow-md p-3`；图标 + 一句话 + 可选的一个操作按钮；成功类 4 秒自动消失，错误类要手动关闭；最多同时 3 条 |
 | **提示** | 图标按钮的名字（`IconButton` 自带；自己画的图标按钮用 `useTooltip`），不用浏览器原生 `title` | 悬停 500ms 出现，刚关掉一个提示后 300ms 内移到下一个按钮立即出现；键盘聚焦时立即出现；按下、移开、滚动或 Escape 消失。在按钮下方 6px 居中，下方放不下时放上方，离窗口边至少 8px；`bg-ink text-ink-fg rounded-md shadow-md text-small`，最宽 288px；只有名字时 `px-2 py-1`，带 `hint` 时 `px-2.5 py-1.5`，名字 `font-medium`、hint 是 `ink-fg` 的 70%、`text-pretty`。名字和按钮的无障碍名称相同，只有 hint 作为描述读出 |
 | **气泡提示** | 图标按钮的名称和快捷键；截断文字的全文；绝对时间 | 延迟 500ms；`bg-raised border border-line rounded-md shadow-md px-2 py-1 text-small` |
 
 - **不叠对话框。** 对话框里的删除用对话框内的二次确认（按钮变成 "Click again to delete"）或者一个小确认浮层。
 - 原地已经能看到结果的动作不发 toast（保存设置后开关已经变了，就不要再 toast "Saved"）。
-- `Esc` 关闭任何浮层；有未保存修改的对话框关闭前确认。
+- `Esc` 关闭任何浮层；有未保存修改的对话框关闭前确认。没有浮层、也没有卡片在等时，`Esc` 停止正在跑的一轮（在输入框里也可以）。
+- 全局快捷键：`⌘N` 新会话、`⌘K` 搜索，写在侧栏对应项的行尾。
 
 ### 3.8 空状态、加载、错误
 
@@ -808,9 +809,9 @@ rg -n 'bg-accent' apps packages --glob '!**/node_modules/**'
 |---|---|
 | 侧边栏 | 3.6 列表与导航（新建会话、添加 workspace 为幽灵按钮；分组、悬停操作、已归档分组）、3.3 圆点、底部连接状态 |
 | 新会话页 | 问候旁的小狼（0.3）+ `text-display` 标题、和对话页同样的输入框 |
-| 对话页顶栏 | `text-ui font-semibold` 标题 + `text-ui fg-subtle` 的 workspace 名（不带图标）；右侧是等待胶囊（3.2）和各面板开关（md 图标按钮，开启时 `active`） |
+| 对话页顶栏 | `text-ui font-semibold` 标题 + `text-ui fg-subtle` 的 workspace 名（不带图标，最宽 192，先截断标题）；右侧是等待胶囊（3.2）和各面板开关（md 图标按钮，开启时 `active`：`selected` 底 + `aria-pressed`），按"工作的地方"（浏览器、文件、环境、终端）和"这个会话的"（任务、上下文）分两组，再加导出，组间用 1px × 16 的 `line` 竖线隔开。会话权限不在顶栏，从审批策略菜单进入 |
 | 对话流 | 3.1、3.2 |
-| 输入框 | `bg-canvas border-line-strong rounded-xl`，没有阴影，聚焦时不变（不用强调色）；`px-3.5 pt-3 pb-2.5`，正文 `text-body`；宽度与对话列相同（`max-w-thread px-6`），离窗口底 20。工具栏：附件按钮（sm 图标按钮），环境、workspace、模型、审批策略是描边小标签（高 24、`rounded-md border-line`、`text-small fg-muted`，不带图标和箭头）；审批策略显示生效的那一档（"审批：适中"），可改成这个会话自己的，或回到跟随工作区 / agent 默认；右端发送是 32px `rounded-lg` 的 `send` 方块，内放像素箭头。运行中右端是 Stop（32px `rounded-lg` 描边）、排队、插话（`rounded-lg`）。快捷键和插话、排队的含义放在按钮的提示里，输入框下面不再写一行说明。上方是状态行（3.2） |
+| 输入框 | `bg-canvas border-line-strong rounded-xl`，没有阴影，聚焦时不变（不用强调色）；`px-3.5 pt-3 pb-2.5`，正文 `text-body`；宽度与对话列相同（`max-w-thread px-6`），离窗口底 20。工具栏：附件按钮（sm 图标按钮），环境、workspace、模型、审批策略是描边小标签（高 24、`rounded-md border-line`、`text-small fg-muted`）；模型和审批策略是 3.7 的选择浮层，标签末尾带 12px 下箭头。模型按服务商分组，超过 8 个时顶部有查找框，默认模型标"默认"。审批策略前面是盾牌图标，显示生效的那一档（"审批：适中"）；"宽松"什么都不问，标签整个用 warning（盾牌换成带感叹号的）；菜单里每一档写一句它放行什么，可改成这个会话自己的，或回到跟随工作区 / agent 默认，最后一项是"此会话的权限规则…"，打开会话权限面板；右端发送是 32px `rounded-lg` 的 `send` 方块，内放像素箭头。运行中右端是 Stop（32px `rounded-lg` 描边）、排队、插话（`rounded-lg`）。快捷键和插话、排队的含义放在按钮的提示里，输入框下面不再写一行说明。上方是状态行（3.2） |
 | Context 面板 | 屏幕内、标题栏下方右侧的一张卡片：上、右、下各留 8px，`rounded-xl border border-line bg-canvas`（和列表卡片一样只靠描边分出来，不用 surface 底），不用左侧分隔线；卡片自带标题行，3.9 |
 | Memory 页 | 左侧范围列表（3.6 竖排子标签）；右侧顶部记忆开关（设置行）+ 状态；记忆条目为设置卡片行，悬停操作 Edit / Move to…，Forget 为危险入口 |
 | Settings 页 | 横排标签（3.6）；General 为设置卡片；Models、MCP、Tools 为卡片列表 + 编辑对话框 |

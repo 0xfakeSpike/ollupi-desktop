@@ -4,7 +4,7 @@
 import { waitsForAnswer, waitsForApproval, waitsForSubagent, formatValue, parseArguments } from '@ollupi/core'
 import type { ApprovalRequestParams, ItemRow } from '@ollupi/protocol'
 import { Badge, cn, ProcessRow, Spinner } from '@ollupi/ui'
-import { Ban, type LucideIcon } from 'lucide-react'
+import { Ban, ShieldCheck, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { usePendingRequest, type PendingRequest } from '../../../domains/requests'
 import { useT, type Messages } from '../../../i18n'
@@ -82,8 +82,16 @@ function CallMeta({ item, failure }: { item: ItemRow; failure: string | undefine
       )
       break
   }
+  // A call the person allowed keeps saying so once it has run (DESIGN.md 3.2).
+  const decision = item.approval?.decision
+  const allowed = decision && decision !== 'decline' && (
+    <span className="flex items-center gap-1">
+      <ShieldCheck size={14} /> {m.conversation.tool.allowed[decision]}
+    </span>
+  )
   return (
     <>
+      {allowed}
       {item.completedAt && duration(m, item.startedAt, item.completedAt)}
       {mark}
     </>

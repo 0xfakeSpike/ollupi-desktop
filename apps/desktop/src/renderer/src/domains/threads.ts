@@ -165,3 +165,13 @@ export function deleteThread(threadId: string): Promise<boolean> {
 export function useThreadSummary(id: string | undefined): ThreadSummary | undefined {
   return useThreads((s) => (id ? s.list.find((t) => t.id === id) : undefined))
 }
+
+export type ThreadAction = 'rename' | 'archive' | 'delete'
+
+/** A thread row's menu, the system's own: what can be done to it, deleting
+ * last. Resolves to the action picked, or undefined. */
+export async function threadMenu(labels: Record<ThreadAction, string>): Promise<ThreadAction | undefined> {
+  const actions: ThreadAction[] = ['rename', 'archive', 'delete']
+  const picked = await desktop.contextMenu(actions.map((id) => ({ id, label: labels[id] })))
+  return actions.find((a) => a === picked)
+}

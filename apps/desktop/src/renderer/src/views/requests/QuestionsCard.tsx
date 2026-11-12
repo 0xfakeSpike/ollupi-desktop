@@ -22,6 +22,7 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
   }
 
   return (
+    <div data-pending-request>
     <ActionCard
       tone="accent"
       kicker={m.requests.questions.kicker}
@@ -51,6 +52,7 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
         ))}
       </div>
     </ActionCard>
+    </div>
   )
 }
 

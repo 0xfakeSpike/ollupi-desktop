@@ -33,7 +33,13 @@ export function Process({ items, ended, answered, endedAt }: { items: ItemRow[];
   const s = summarizeProcess(items)
   return (
     <ProcessRow
-      title={summaryLine(m, s, endedAt)}
+      // Failures read as part of what was done (DESIGN.md 3.1), not apart at the row's end.
+      title={
+        <>
+          {summaryLine(m, s, endedAt)}
+          {failed > 0 && <span className="text-danger"> · {m.conversation.process.failed(failed)}</span>}
+        </>
+      }
       badge={
         s.linesAdded + s.linesRemoved > 0 && (
           <span className="shrink-0 font-mono text-small tabular-nums">
@@ -42,7 +48,6 @@ export function Process({ items, ended, answered, endedAt }: { items: ItemRow[];
           </span>
         )
       }
-      meta={failed > 0 && <span className="text-danger">{m.conversation.process.failed(failed)}</span>}
       open={focused || (chosen ?? !answered)}
       onOpenChange={setChosen}
     >

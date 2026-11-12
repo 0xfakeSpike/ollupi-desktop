@@ -17,7 +17,7 @@ import {
   type Timeline,
   type TimelineEvent,
 } from '@ollupi/core'
-import { ErrorCode, type ItemRow, type PermissionSettings, type UserInput } from '@ollupi/protocol'
+import { ErrorCode, type ItemRow, type PermissionSettings, type TurnRow, type UserInput } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { DRAFT_BROWSER } from '../../../shared/ipc'
 import { gateway } from '../gateway/connection'
@@ -217,6 +217,16 @@ export function editMessage(threadId: string, message: ItemRow): Promise<void | 
     const files = await Promise.all((message.attachments ?? []).map((a) => attachmentFile(threadId, a)))
     reopenDraft(threadId, message.text ?? '', files)
   })
+}
+
+/** Sends a failed turn's message again as a new turn: the same text and
+ * the files it went with. */
+export function retryTurn(turn: TurnRow): Promise<boolean> {
+  return run((e) => e.thread.send, async () => {
+    const files = await Promise.all((turn.attachments ?? []).map((a) => attachmentFile(turn.threadId, a)))
+    await withMessageInput(turn.input ?? '', files, (input) => startTurn(turn.threadId, input))
+    return true
+  }).then(Boolean)
 }
 
 export function updateThreadPermissions(threadId: string, settings: PermissionSettings): Promise<boolean> {

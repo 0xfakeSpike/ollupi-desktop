@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { cn } from './cn'
 import { Spinner } from './feedback'
 import { useTooltip } from './tooltip'
@@ -29,6 +29,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: ReactNode
   /** Shows a spinner and disables the button while an action runs. */
   loading?: boolean
+  ref?: Ref<HTMLButtonElement>
 }
 
 export function Button({ variant = 'secondary', size = 'md', icon, loading, className, children, disabled, type = 'button', ...rest }: ButtonProps) {
@@ -59,6 +60,7 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   /** A line in the tooltip under the label, on what the action does. */
   hint?: string
   size?: Exclude<Size, 'lg'>
+  /** A toggle that is on, such as the button of an open panel: drawn as selected and announced as pressed. */
   active?: boolean
 }
 
@@ -69,13 +71,14 @@ export function IconButton({ label, hint, size = 'md', active, className, childr
       <button
         type={type}
         aria-label={label}
+        aria-pressed={active}
         className={cn(
           'inline-flex shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg',
           'disabled:pointer-events-none disabled:opacity-50',
           motion,
           focus,
           size === 'sm' ? 'size-6' : 'size-7',
-          active && 'bg-hover text-fg',
+          active && 'bg-selected text-fg hover:bg-selected',
           className,
         )}
         {...rest}
