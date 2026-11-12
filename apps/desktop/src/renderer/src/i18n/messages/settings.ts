@@ -223,15 +223,15 @@ export const en = {
      * them, and ask rules still ask. */
     policies: {
       untrusted: {
-        label: 'Strict',
+        label: 'Always ask first',
         hint: 'Only reading files runs on its own. Editing files, running commands and going online all ask you first.',
       },
       onRequest: {
-        label: 'Balanced',
+        label: 'Ask on what matters',
         hint: 'Reading, editing project files and running commands within their limits run on their own. Fetching web pages, clicking or typing in the browser, external tools that change things, and commands that need full access ask you first.',
       },
       never: {
-        label: 'Relaxed',
+        label: 'Just do it',
         hint: 'Runs everything without asking, even commands that need full access. Your deny rules still hold: a command too complex to check against them is refused.',
       },
     },
@@ -476,9 +476,9 @@ export const zh: typeof en = {
     inheritHint: (from) => `使用${from}的策略。`,
     inherit: '继承',
     policies: {
-      untrusted: { label: '严格', hint: '只有读取文件会直接执行；改文件、运行命令、联网，都先问你。' },
-      onRequest: { label: '适中', hint: '读取文件、修改项目里的文件、在限制内运行命令，会直接执行；抓取网页、在浏览器里点击或输入、会改动东西的外部工具、需要完全访问的命令，先问你。' },
-      never: { label: '宽松', hint: '什么都不问，直接执行，包括需要完全访问的命令。你设的禁止规则仍然有效：复杂到无法对照规则检查的命令会被拒绝。' },
+      untrusted: { label: '什么都先问我', hint: '只有读取文件会直接执行；改文件、运行命令、联网，都先问你。' },
+      onRequest: { label: '要紧的先问我', hint: '读取文件、修改项目里的文件、在限制内运行命令，会直接执行；抓取网页、在浏览器里点击或输入、会改动东西的外部工具、需要完全访问的命令，先问你。' },
+      never: { label: '放手去做', hint: '什么都不问，直接执行，包括需要完全访问的命令。你设的禁止规则仍然有效：复杂到无法对照规则检查的命令会被拒绝。' },
     },
     exceptions: '例外（高级）',
     exceptionsCount: (n) => `${n} 条规则`,

@@ -15,7 +15,7 @@ const tones: Record<Tone, string> = {
 
 export function Badge({ tone = 'neutral', className, children }: { tone?: Tone; className?: string; children: ReactNode }) {
   return (
-    <span className={cn('inline-flex h-4.5 items-center gap-1 rounded-sm px-1.5 text-caption whitespace-nowrap', tones[tone], className)}>
+    <span className={cn('inline-flex h-5 items-center gap-1 rounded-full px-2 text-caption font-semibold whitespace-nowrap', tones[tone], className)}>
       {children}
     </span>
   )
@@ -26,7 +26,7 @@ export function Spinner({ size = 16, className }: { size?: number; className?: s
 }
 
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded-sm border border-line-strong px-1 font-sans text-caption text-fg-subtle">{children}</kbd>
+  return <kbd className="rounded-md bg-surface px-1.5 font-sans text-caption text-fg-subtle">{children}</kbd>
 }
 
 /** In place of the missing content: an icon (20px), what is empty, one line
@@ -55,7 +55,7 @@ const callouts: Record<Tone, { Icon: LucideIcon; color: string }> = {
 export function Callout({ tone = 'neutral', className, children }: { tone?: Tone; className?: string; children: ReactNode }) {
   const { Icon, color } = callouts[tone]
   return (
-    <div className={cn('flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-ui text-fg', className)}>
+    <div className={cn('flex items-start gap-2.5 rounded-2xl bg-surface px-4 py-3 text-ui text-fg', className)}>
       <Icon size={14} className={cn('mt-0.75 shrink-0', color)} aria-hidden />
       <div className="min-w-0 flex-1 break-words">{children}</div>
     </div>

@@ -193,8 +193,8 @@ function ProviderCard({
   const [open, setOpen] = useState(names.length <= UNFOLDED_MODELS)
   const listId = useId()
   return (
-    <div className="flex flex-col rounded-lg border border-line">
-      <div className="flex items-start gap-3 border-b border-line px-4 py-3">
+    <div className="flex flex-col rounded-3xl bg-surface">
+      <div className="flex items-start gap-3 border-b border-canvas px-5 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-ui font-medium text-fg">{p.provider}</span>
@@ -225,7 +225,7 @@ function ProviderCard({
         {c.models(names.length)}
       </button>
       {open && (
-        <ul id={listId} className="flex flex-col divide-y divide-line border-t border-line">
+        <ul id={listId} className="flex flex-col divide-y divide-canvas border-t border-canvas">
           {names.map((model, i) => {
             const id = modelId(p.provider, model.name)
             const isDefault = isFirst && i === 0
@@ -234,7 +234,7 @@ function ProviderCard({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="selectable font-mono text-small text-fg">{model.name}</span>
-                    {isDefault && <Badge tone="accent">{c.default}</Badge>}
+                    {isDefault && <Badge>{c.default}</Badge>}
                     {memoryModel === id && <Badge>{c.memory}</Badge>}
                   </div>
                   <ModelDetails model={model} />
@@ -255,7 +255,7 @@ function ProviderCard({
           })}
         </ul>
       )}
-      <div className="border-t border-line px-2 py-1.5">
+      <div className="border-t border-canvas px-2 py-1.5">
         <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={onAddModel}>
           {m.settings.models.addModel}
         </Button>
@@ -523,7 +523,7 @@ function ModelPicker({ title, models, picked, onPick }: { title: string; models:
         </Button>
       </div>
       {names.length > 8 && <Input value={filter} spellCheck={false} placeholder={t.filter} onChange={(e) => setFilter(e.target.value)} />}
-      <ul className="flex max-h-72 flex-col overflow-y-auto rounded-lg border border-line py-1">
+      <ul className="flex max-h-72 flex-col overflow-y-auto rounded-2xl bg-surface py-1">
         {shown.map((n) => {
           const limits = picked[n]
           const problem = limits && !limitsOf(limits) ? m.model.limitsError : undefined

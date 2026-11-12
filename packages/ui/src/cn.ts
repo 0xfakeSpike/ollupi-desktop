@@ -6,7 +6,7 @@ import { extendTailwindMerge } from 'tailwind-merge'
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: ['caption', 'small', 'ui', 'body', 'title', 'display'],
+      text: ['caption', 'small', 'ui', 'body', 'title', 'display', 'hero'],
       ease: ['standard'],
       animate: ['enter', 'dialog', 'fade'],
       container: ['thread', 'dialog', 'dialog-wide'],

@@ -32,7 +32,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, orientati
       role="tablist"
       aria-label={label}
       aria-orientation={orientation}
-      className={cn(vertical ? 'flex flex-col gap-0.5' : 'flex gap-4 self-stretch')}
+      className={cn(vertical ? 'flex flex-col gap-0.5' : 'flex gap-1 self-stretch')}
       onKeyDown={onKeyDown}
     >
       {tabs.map((t) => {
@@ -52,15 +52,11 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, orientati
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={cn(
-              'flex items-center gap-1.5 text-ui transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-              // A column reads like the sidebar. A row is text whose underline
-              // lies on the line under the tab bar, which its container draws.
+              'flex items-center gap-1.5 rounded-full text-ui transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+              // Capsules, a column or a row: the chosen one sits on stone.
               vertical
-                ? cn('h-7 w-full rounded-md px-2 text-left', selected ? 'bg-selected font-medium text-fg' : 'text-fg hover:bg-hover')
-                : cn(
-                    'relative min-h-8 font-medium',
-                    selected ? 'text-fg after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-fg' : 'text-fg-muted hover:text-fg',
-                  ),
+                ? cn('h-9 w-full px-3.5 text-left', selected ? 'bg-surface font-semibold text-fg' : 'font-medium text-fg-muted hover:bg-hover hover:text-fg')
+                : cn('h-8 px-3.5', selected ? 'bg-surface font-semibold text-fg' : 'font-medium text-fg-muted hover:bg-hover hover:text-fg'),
             )}
           >
             <span className={cn(vertical && 'min-w-0 flex-1 truncate')} title={vertical ? t.label : undefined}>

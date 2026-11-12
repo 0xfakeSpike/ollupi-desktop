@@ -32,7 +32,7 @@ export function TitleInput({ initial, label, className, onSave, onDone }: { init
         if (e.key === 'Enter') void finish(true)
         else if (e.key === 'Escape') void finish(false)
       }}
-      className={cn('min-w-0 rounded-md border border-accent bg-canvas px-1.5 text-fg ring-3 ring-focus outline-none', className)}
+      className={cn('min-w-0 rounded-full border-0 bg-surface px-3 text-fg ring-3 ring-focus outline-none', className)}
     />
   )
 }

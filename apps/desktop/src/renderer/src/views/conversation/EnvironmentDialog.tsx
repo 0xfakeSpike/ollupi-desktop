@@ -26,7 +26,7 @@ export function EnvironmentDialog({ onClose }: { onClose(): void }) {
   return (
     <Dialog title={t.title} description={t.description} closeLabel={m.common.close} onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
+        <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
           {list.map((environment) => (
             <Row key={environment.id} environment={environment} />
           ))}

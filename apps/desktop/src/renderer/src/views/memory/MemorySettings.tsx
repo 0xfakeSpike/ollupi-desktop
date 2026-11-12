@@ -66,7 +66,7 @@ export function MemorySettings({ status }: { status: MemoryStatus | undefined })
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-line px-4 py-4">
+    <div className="flex flex-col gap-4 rounded-3xl bg-surface px-5 py-4">
       <Row
         title={m.memory.settings.learn}
         hint={m.memory.settings.learnHint}

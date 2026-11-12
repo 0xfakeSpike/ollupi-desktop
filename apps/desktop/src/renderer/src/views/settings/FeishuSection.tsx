@@ -47,7 +47,7 @@ export function FeishuSection() {
   if (fields.workspace && !folders.some((f) => f.path === fields.workspace)) folders.push({ path: fields.workspace, name: fields.workspace })
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-line px-4 py-4">
+    <div className="flex flex-col gap-4 rounded-3xl bg-surface px-5 py-4">
       <Field label={t.appId}>
         <Input value={fields.appId} spellCheck={false} className="font-mono text-small" placeholder="cli_xxx" onChange={(e) => set({ appId: e.target.value })} />
       </Field>

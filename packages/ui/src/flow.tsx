@@ -105,7 +105,7 @@ export interface BlockProps {
 /** Content that stands on its own in the flow: code, output, a plan. */
 export function Block({ label, actions, children, className }: BlockProps) {
   return (
-    <div className={cn('flex min-w-0 flex-col gap-2 rounded-lg bg-surface p-3', className)}>
+    <div className={cn('flex min-w-0 flex-col gap-2 rounded-2xl bg-surface p-3.5', className)}>
       {(label || actions) && (
         <div className="-mt-1 -mr-1.5 flex h-6 items-center gap-2 text-small text-fg-subtle">
           <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -120,13 +120,13 @@ export function Block({ label, actions, children, className }: BlockProps) {
 /** accent asks, warning confirms a change, danger crosses a safety line. */
 export type ActionTone = 'accent' | 'warning' | 'danger'
 
-const outlines: Record<ActionTone, string> = { accent: 'border-accent/35', warning: 'border-warning/35', danger: 'border-danger/35' }
-const kickers: Record<ActionTone, string> = { accent: 'text-accent', warning: 'text-warning', danger: 'text-danger' }
+// Asking and confirming are both "this needs you": the signal's soft field.
+// Crossing a safety line is the danger's.
+const fields: Record<ActionTone, string> = { accent: 'bg-accent-soft', warning: 'bg-accent-soft', danger: 'bg-danger-soft' }
+const dots: Record<ActionTone, string> = { accent: 'bg-accent', warning: 'bg-accent', danger: 'bg-danger' }
 
 export interface ActionCardProps {
   tone: ActionTone
-  /** Who asks for what, small and in the tone's colour: "Ollupi is asking". */
-  kicker: ReactNode
   /** The question the user answers, e.g. "Allow this command?". */
   title: ReactNode
   children?: ReactNode
@@ -137,28 +137,26 @@ export interface ActionCardProps {
   className?: string
 }
 
-/** What waits on the user. The only thing in the flow that floats: raised,
- * shadowed, outlined in a tint of its tone. */
-export function ActionCard({ tone, kicker, title, children, actions, status, className }: ActionCardProps) {
+/** What waits on the user: the one coloured field in the flow (DESIGN.md
+ * §0, stone and moss), a large soft area in the signal's tint with the
+ * question in plain words and the answers as capsules. */
+export function ActionCard({ tone, title, children, actions, status, className }: ActionCardProps) {
   const titleId = useId()
   return (
     <section
       aria-labelledby={titleId}
-      className={cn(
-        'flex animate-enter flex-col gap-3 rounded-xl border bg-raised p-4 shadow-sm motion-reduce:animate-fade',
-        outlines[tone],
-        className,
-      )}
+      className={cn('@container flex animate-enter flex-col gap-3.5 rounded-4xl px-6 pt-5.5 pb-5 motion-reduce:animate-fade', fields[tone], className)}
     >
-      <div className="flex flex-col gap-0.5">
-        <span className={cn('text-caption', kickers[tone])}>{kicker}</span>
-        <h3 id={titleId} className="selectable text-title text-fg">
-          {title}
-        </h3>
-      </div>
+      {/* No label above the question: the tinted field, the header's pill and the
+          status line already say it needs you; the dot leads the question itself. */}
+      <h3 id={titleId} className="selectable flex items-baseline gap-2.5 text-display text-fg">
+        <span aria-hidden className={cn('size-2 shrink-0 -translate-y-0.5 self-center rounded-full', dots[tone])} />
+        <span>{title}</span>
+      </h3>
       {children}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {status && <span className="mr-auto text-small text-fg-subtle">{status}</span>}
+      <div className="flex flex-wrap items-center justify-end gap-2.5">
+        {/* In a narrow card the status takes its own line, so the answers stay together. */}
+        {status && <span className="mr-auto text-small text-fg-subtle @max-xl:basis-full">{status}</span>}
         {actions}
       </div>
     </section>

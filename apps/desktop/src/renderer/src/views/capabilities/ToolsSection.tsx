@@ -28,8 +28,8 @@ export function ToolsSection() {
   return (
     <div className="flex flex-col gap-3">
       {byProvider.map(([provider, list]) => (
-        <div key={provider} className="rounded-lg border border-line">
-          <div className="border-b border-line px-4 py-2 text-small font-medium text-fg-muted">{provider}</div>
+        <div key={provider} className="rounded-3xl bg-surface">
+          <div className="border-b border-canvas px-5 py-2 text-small font-medium text-fg-muted">{provider}</div>
           <ul className="divide-y divide-line">
             {list.map((t) => (
               <li key={t.name} className="px-4 py-2.5">

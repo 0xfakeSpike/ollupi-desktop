@@ -1,16 +1,16 @@
 import { activeTurn, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
-import { Badge, Button, IconButton, PixelLoader, Pup, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Download, Gauge, Globe, ListChecks } from 'lucide-react'
+import { Badge, Button, cn, IconButton, Loader, useTooltip } from '@ollupi/ui'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud } from 'lucide-react'
 import { useAgentPolicy } from '../../domains/backendConfig'
 import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
-import { exportThread, type ExportFormat } from '../../domains/export'
-import { openPanel, togglePanel, useNavigation } from '../../domains/navigation'
+import { openPanel, useNavigation } from '../../domains/navigation'
 import { archiveThread, renameThread, useThreadSummary } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useEffect, useState } from 'react'
 import { useT } from '../../i18n'
 import { threadTitle } from '../../i18n/format'
+import { areaClass } from '../common/areas'
 import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { ApprovalPicker } from './ApprovalPicker'
@@ -22,7 +22,8 @@ import { PermissionsPanel } from './PermissionsPanel'
 import { TasksPanel } from './TasksPanel'
 import { TimelineView } from './TimelineView'
 import { useWaitingOutOfView } from './useWaitingOutOfView'
-import { WorkspacePanel, WorkspacePanelButtons } from './WorkspacePanels'
+import { ToolsMenu } from './ToolsMenu'
+import { WorkspacePanel } from './WorkspacePanels'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
   const timeline = useTimeline(threadId)
@@ -52,17 +53,31 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="drag flex h-10 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">
+        {/* Where you are first: the area's colour and name, then the title; on the
+            right only what waits for you and the one Tools capsule. */}
+        <header className="drag flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
           {parent && (
-            <IconButton label={m.conversation.screen.back} size="sm" className="-ml-1" onClick={() => void openThread(parent)}>
+            <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
               <ArrowLeft size={14} />
             </IconButton>
+          )}
+          {workspace && (
+            <>
+              <span
+                className={cn('flex h-7 max-w-48 shrink-0 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-small font-semibold text-fg', areaClass(workspace.id))}
+                {...rootTip.trigger}
+              >
+                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ink" />
+                <span className="truncate">{workspace.name}</span>
+              </span>
+              {rootTip.tooltip}
+            </>
           )}
           {renaming && thread ? (
             <TitleInput
               initial={thread.title}
               label={m.conversation.screen.rename}
-              className="h-7 w-80 text-ui font-semibold"
+              className="h-8 w-80 rounded-full px-3 text-title"
               onSave={(title) => renameThread(threadId, title)}
               onDone={() => setRenaming(false)}
             />
@@ -72,7 +87,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               <button
                 type="button"
                 onClick={() => setRenaming(true)}
-                className="-mx-1 min-w-0 truncate rounded-md px-1 text-ui font-semibold text-fg hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+                className="min-w-0 truncate rounded-full px-1.5 text-title text-fg hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
                 {...renameTip.trigger}
               >
                 {threadTitle(m, thread)}
@@ -80,18 +95,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               {renameTip.tooltip}
             </>
           ) : (
-            <h1 className="min-w-0 truncate text-ui font-semibold text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
+            <h1 className="min-w-0 truncate px-1.5 text-title text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
           )}
           {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
-          {/* The title gives way first: where the agent works stays readable. */}
-          {workspace && (
-            <>
-              <span className="max-w-48 shrink-0 truncate text-ui text-fg-subtle" {...rootTip.trigger}>
-                {workspace.name}
-              </span>
-              {rootTip.tooltip}
-            </>
-          )}
           {environment && environment.kind !== 'local' && (
             <>
               <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" {...machineTip.trigger}>
@@ -103,35 +109,20 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           )}
           <div className="flex-1" />
           {needsUser(summary?.status) && (
-            <span className="flex h-5 shrink-0 items-center rounded-full border border-accent/35 px-2 text-caption text-accent">{m.conversation.screen.waiting}</span>
+            <span className="flex h-8 shrink-0 items-center rounded-full bg-accent-soft px-3.5 text-ui font-semibold text-accent">
+              {waiting.count > 0 ? m.conversation.screen.waitingCount(waiting.count) : m.conversation.screen.waiting}
+            </span>
           )}
-          <IconButton label={m.conversation.screen.browser} active={panel === 'browser'} onClick={() => togglePanel('browser')}>
-            <Globe size={16} />
-          </IconButton>
-          {workspace && <WorkspacePanelButtons />}
-          {/* The panels in two groups: where the work happens, then the conversation's own. */}
-          <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
-          <IconButton label={m.conversation.screen.tasks} active={panel === 'tasks'} onClick={() => togglePanel('tasks')}>
-            <ListChecks size={16} />
-          </IconButton>
-          <IconButton label={m.conversation.screen.context} active={panel === 'context'} onClick={() => togglePanel('context')}>
-            <Gauge size={16} />
-          </IconButton>
-          {thread && (
-            <>
-              <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
-              <ExportButton threadId={threadId} />
-            </>
-          )}
+          <ToolsMenu workspace={!!workspace} thread={thread ? threadId : undefined} />
         </header>
 
         <div className="relative min-h-0 flex-1">
-          <div ref={ref} className="scroll-centered h-full overflow-y-auto">
+          <div ref={ref} className="scroll-centered fade-edges h-full overflow-y-auto">
             {timeline ? (
               <TimelineView timeline={timeline} />
             ) : (
               <div className="flex h-full items-center justify-center">
-                <PixelLoader label={m.conversation.screen.loading} />
+                <Loader label={m.conversation.screen.loading} />
               </div>
             )}
           </div>
@@ -150,7 +141,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
                 type="button"
                 aria-label={m.conversation.screen.scrollToLatest}
                 onClick={() => scrollToBottom(true)}
-                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
+                className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 animate-enter items-center justify-center rounded-full bg-raised text-fg-muted shadow-md transition-colors duration-100 ease-standard hover:text-fg motion-reduce:animate-fade"
                 {...latestTip.trigger}
               >
                 <ArrowDown size={16} />
@@ -230,42 +221,17 @@ function useEscapeStops(threadId: string, enabled: boolean): void {
   }, [threadId, enabled])
 }
 
-/** A menu of formats, as a native select under an icon: picking one saves
- * the thread in it. */
-function ExportButton({ threadId }: { threadId: string }) {
-  const t = useT().conversation.export
-  const tip = useTooltip({ label: t.label })
-  return (
-    <label className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-hover hover:text-fg" {...tip.trigger}>
-      <Download size={16} />
-      <select
-        aria-label={t.label}
-        value=""
-        className="absolute inset-0 cursor-pointer opacity-0"
-        onChange={(e) => void exportThread(threadId, e.target.value as ExportFormat)}
-      >
-        <option value="" disabled>
-          {t.label}
-        </option>
-        <option value="markdown">{t.markdown}</option>
-        <option value="json">{t.json}</option>
-      </select>
-      {tip.tooltip}
-    </label>
-  )
-}
-
-/** Above the message box while a turn runs: the pup thinks while it works,
- * and looks at you when an approval or an answer waits above. It is the
- * screen's one pup (DESIGN.md 0.3). */
+/** Above the message box while a turn runs, in one plain sentence: a
+ * breathing dot while it works, the signal's dot when an approval or an
+ * answer waits above. */
 function StatusLine({ timeline }: { timeline: Timeline }) {
   const status = useThreadSummary(timeline.thread.id)?.status
   const m = useT()
   if (!activeTurn(timeline)) return null
   const waiting = waitingFor(timeline, status)
   return (
-    <div className="mx-auto flex w-full max-w-thread items-center gap-2 px-7 pb-2 text-ui text-fg-muted" role="status">
-      {waiting ? <Pup face="oh" /> : <Pup motion="think" />}
+    <div className="mx-auto flex w-full max-w-thread items-center gap-2 px-8 pb-2.5 text-ui text-fg-muted" role="status">
+      <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', waiting ? 'bg-accent' : 'breathe bg-ink')} />
       {waiting === 'approval' ? m.conversation.screen.waitingApproval : waiting === 'answer' ? m.conversation.screen.waitingAnswer : m.conversation.screen.working}
     </div>
   )

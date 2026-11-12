@@ -3,7 +3,7 @@
 // not start with a skill it cannot load, so every change is checked with
 // its own rules first and then restarts the backend.
 
-import { Badge, Button, Callout, Dialog, EmptyState, Field, IconButton, Input, PixelLoader, Textarea } from '@ollupi/ui'
+import { Badge, Button, Callout, Dialog, EmptyState, Field, IconButton, Input, Loader, Textarea } from '@ollupi/ui'
 import { FolderInput, FolderOpen, Pencil, Plus, RotateCw, Sparkles, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { NewSkill, Skill, SkillChange, SkillList } from '../../../../shared/ipc'
@@ -63,7 +63,7 @@ export function SkillsSection() {
     <>
       {!list ? (
         <div className="flex justify-center py-12">
-          <PixelLoader label={m.skills.screen.loading} />
+          <Loader label={m.skills.screen.loading} />
         </div>
       ) : !list.dir ? (
         list.ok ? (
@@ -106,7 +106,7 @@ export function SkillsSection() {
               {s.emptyHint}
             </EmptyState>
           ) : (
-            <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
+            <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
               {skills.map((x) => (
                 <SkillRow
                   key={x.name}
@@ -171,7 +171,7 @@ export function SkillsSection() {
 function Folder({ dir, busy, onChange, onOff }: { dir: string; busy: boolean; onChange(): void; onOff(): void }) {
   const s = useT().skills.screen
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-line px-4 py-3">
+    <div className="flex items-center gap-3 rounded-3xl bg-surface px-5 py-3">
       <div className="min-w-0 flex-1">
         <div className="text-ui font-medium text-fg">{s.folder}</div>
         <div className="selectable mt-0.5 font-mono text-small break-all text-fg-muted">{dir}</div>
@@ -335,7 +335,7 @@ function EditSkillDialog({ name, onClose, onSave }: { name: string; onClose(): v
       <div className="flex flex-col gap-4">
         {text === undefined ? (
           <div className="flex justify-center py-12">
-            <PixelLoader label={t.loading} />
+            <Loader label={t.loading} />
           </div>
         ) : (
           <Field label={t.file} hint={t.fileHint}>

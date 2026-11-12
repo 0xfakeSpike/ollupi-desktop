@@ -7,7 +7,7 @@
 // message.
 
 import type { EnvironmentRow, WorkspaceRow } from '@ollupi/protocol'
-import { Button, IconButton, PixelLoader, Textarea } from '@ollupi/ui'
+import { Button, IconButton, Loader, Textarea } from '@ollupi/ui'
 import { ArrowLeft, Cloud, ExternalLink, Folder, GitBranch, GitCommitHorizontal, Laptop, RotateCw, Undo2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Changes, FileChange, FileDiff, Head } from '../../../../shared/ipc'
@@ -70,7 +70,7 @@ export function EnvironmentPanel({
         {!open && <Where environment={environment} root={root} head={changes?.repo ? changes.head : undefined} />}
         {!changes ? (
           <div className="flex justify-center py-8">
-            <PixelLoader label={t.loading} />
+            <Loader label={t.loading} />
           </div>
         ) : !changes.repo ? (
           <p className="text-small text-fg-subtle">{t.notRepo}</p>
@@ -196,7 +196,7 @@ function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChange; onOpe
   const t = useT().conversation.changes
   const slash = file.path.lastIndexOf('/')
   return (
-    <div className="group flex h-8 items-center gap-1 rounded-md pl-2 transition-colors duration-100 ease-standard hover:bg-hover">
+    <div className="group flex h-8 items-center gap-1 rounded-full pl-3 transition-colors duration-100 ease-standard hover:bg-hover">
       <input
         type="checkbox"
         aria-label={t.stage(file.path)}
@@ -212,7 +212,7 @@ function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChange; onOpe
         type="button"
         title={file.path}
         onClick={onOpen}
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left text-ui focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full px-1 text-left text-ui focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       >
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
           <span className={file.kind === 'deleted' ? 'shrink-0 text-fg-subtle line-through' : 'shrink-0 text-fg'}>{file.path.slice(slash + 1)}</span>
@@ -261,7 +261,7 @@ function Diff({ root, file, version, onBack }: { root: string; file: FileChange;
       </div>
       {!diff ? (
         <div className="flex justify-center py-8">
-          <PixelLoader label={t.loadingDiff} />
+          <Loader label={t.loadingDiff} />
         </div>
       ) : (
         <>

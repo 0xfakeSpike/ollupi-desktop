@@ -72,7 +72,7 @@ function ArchivedThread({ thread }: { thread: ThreadRow }) {
         onClick={() => void openThread(thread.id)}
         title={workspace?.name ?? s.noWorkspace}
         className={cn(
-          'flex h-7 w-full items-center rounded-md pr-14 pl-8 text-left text-ui transition-colors duration-100 ease-standard',
+          'flex h-9 w-full items-center rounded-full pr-14 pl-3.5 text-left text-ui transition-colors duration-100 ease-standard',
           'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
           active ? 'bg-selected font-medium text-fg' : 'text-fg-subtle hover:bg-hover hover:text-fg-muted',
         )}

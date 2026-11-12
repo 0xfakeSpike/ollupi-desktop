@@ -117,12 +117,18 @@ code,
 .markdown li > input[type='checkbox'] {
   margin: 0 0.45em 0 -1.25em;
   vertical-align: -0.1em;
-  accent-color: var(--color-accent);
+  accent-color: var(--color-ink);
 }
+/* Links act, so they are in the action's moss; the ochre signal is only for
+   what needs the person. */
 .markdown a {
-  color: var(--color-accent);
+  color: var(--color-ink);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: var(--color-line-strong);
+  text-underline-offset: 3px;
+}
+.markdown a:hover {
+  text-decoration-color: currentColor;
 }
 .markdown blockquote {
   border-left: 3px solid var(--color-line-strong);
@@ -281,3 +287,14 @@ code,
   }
 }
 
+
+/* Selected text in the palette's own colour, not the system's blue. */
+::selection {
+  background: color-mix(in srgb, var(--color-ink) 22%, transparent);
+}
+
+/* A list that scrolls fades at the edge it scrolls under, so no line is
+   cut through its letters. */
+.fade-edges {
+  mask-image: linear-gradient(to bottom, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+}

@@ -17,6 +17,9 @@ export const file: ToolView<File> = {
   Call: FileCall,
   approval: {
     title: (m, call) => (createsFile(call.change) ? m.requests.approval.createFile : m.requests.approval.editFile),
+    subject: (call) => call.change.path,
+    // The frozen diff is exactly what is written, to this one file.
+    consequence: (m, call) => (createsFile(call.change) ? m.requests.approval.createsOnly : m.requests.approval.editsOnly),
     Body: ({ call }) => <FileDiff change={call.change} />,
     showsContent: true,
   },

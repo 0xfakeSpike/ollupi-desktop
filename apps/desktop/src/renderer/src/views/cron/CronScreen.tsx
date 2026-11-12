@@ -5,7 +5,7 @@
 
 import { cronSpec, isTopLevel, onceAt, scheduleOf } from '@ollupi/core'
 import type { CronJobView, WorkspaceRow } from '@ollupi/protocol'
-import { Badge, Button, EmptyState, Field, IconButton, Input, Select, PixelLoader, Switch, Tabs, Textarea } from '@ollupi/ui'
+import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Loader, Switch, Tabs, Textarea } from '@ollupi/ui'
 import { CalendarClock, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
@@ -41,18 +41,18 @@ export function CronScreen({ found }: { found?: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
-        <h1 className="text-ui font-semibold">{m.cron.title}</h1>
+      <header className="drag flex h-16 shrink-0 items-center gap-3 pr-4 pl-6">
+        <h1 className="text-title">{m.cron.title}</h1>
       </header>
       <div className="flex min-h-0 flex-1">
-        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-2">
+        <nav className="w-56 shrink-0 overflow-y-auto px-3 py-2">
           <Tabs label={m.cron.scope} orientation="vertical" tabs={places} value={place} onChange={setPlace} />
         </nav>
         <div role="tabpanel" id={`panel-${place}`} aria-labelledby={`tab-${place}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-5 px-6 py-6">
             {!jobs ? (
               <div className="flex justify-center py-12">
-                <PixelLoader label={m.cron.loading} />
+                <Loader label={m.cron.loading} />
               </div>
             ) : shown.length === 0 ? (
               jobs.length > 0 ? (
@@ -65,7 +65,7 @@ export function CronScreen({ found }: { found?: string }) {
                 </EmptyState>
               )
             ) : (
-              <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
+              <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
                 {shown.map((j) => (
                   <Job key={j.id} job={j} workspace={workspaces.find((w) => w.id === j.workspaceId)} showWorkspace={place === ALL} />
                 ))}
@@ -186,8 +186,9 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong p-4">
-      <div className="text-small font-medium text-fg-muted">{m.cron.newTask}</div>
+    // A form on the sheet itself, under its own heading: no box around it.
+    <section className="flex flex-col gap-3 pt-2">
+      <h2 className="text-display text-fg">{m.cron.newTask}</h2>
       {spaces.length === 0 ? (
         <p className="text-small text-fg-subtle">{m.cron.noThreads}</p>
       ) : (
@@ -231,6 +232,6 @@ function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow
           </div>
         </>
       )}
-    </div>
+    </section>
   )
 }

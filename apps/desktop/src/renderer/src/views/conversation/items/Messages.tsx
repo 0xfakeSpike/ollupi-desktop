@@ -32,7 +32,7 @@ export function UserMessage({ item, editable }: { item: ItemRow; editable?: bool
       {item.text ? (
         <div className="flex max-w-full items-end gap-1">
           {actions}
-          <div className="selectable max-w-140 min-w-0 rounded-xl bg-surface px-3.5 py-2.5 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>
+          <div className="selectable max-w-130 min-w-0 rounded-3xl rounded-br-md bg-surface px-4.5 py-3 text-body break-words whitespace-pre-wrap text-fg">{item.text}</div>
         </div>
       ) : (
         edit && actions

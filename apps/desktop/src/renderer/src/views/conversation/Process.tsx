@@ -37,16 +37,8 @@ export function Process({ items, ended, answered, endedAt }: { items: ItemRow[];
       title={
         <>
           {summaryLine(m, s, endedAt)}
-          {failed > 0 && <span className="text-danger"> · {m.conversation.process.failed(failed)}</span>}
+          {failed > 0 && <span className="text-danger">{m.conversation.process.separator}{m.conversation.process.failed(failed)}</span>}
         </>
-      }
-      badge={
-        s.linesAdded + s.linesRemoved > 0 && (
-          <span className="shrink-0 font-mono text-small tabular-nums">
-            {s.linesAdded > 0 && <span className="text-success">+{s.linesAdded}</span>}
-            {s.linesRemoved > 0 && <span className="ml-1 text-danger">−{s.linesRemoved}</span>}
-          </span>
-        )
       }
       open={focused || (chosen ?? !answered)}
       onOpenChange={setChosen}
@@ -74,21 +66,20 @@ function Steps({ items }: { items: ItemRow[] }) {
   )
 }
 
-/** "Worked for 25s · 6 commands · read 3 files": what was done, by kind;
- * the lines changed follow it in their colours. */
+/** "Looked at 9 files, changed 1 file": what was done, in the person's
+ * words, the kinds they care about first. Times, line counts and models are
+ * one step further, on the turn's hover line and in the steps themselves. */
 function summaryLine(m: Messages, s: ProcessSummary, endedAt: string | undefined): string {
   const p = m.conversation.process
-  return [
-    p.worked(duration(m, s.startedAt, s.completedAt ?? endedAt)),
-    s.commands > 0 && p.commands(s.commands),
+  const done = [
     s.reads > 0 && p.reads(s.reads),
     s.searches > 0 && p.searches(s.searches),
     s.filesChanged > 0 && p.filesChanged(s.filesChanged),
-    s.subagents > 0 && p.subagents(s.subagents),
+    s.commands > 0 && p.commands(s.commands),
     s.tools > 0 && p.tools(s.tools),
-  ]
-    .filter(Boolean)
-    .join(' · ')
+    s.subagents > 0 && p.subagents(s.subagents),
+  ].filter(Boolean)
+  return done.length ? done.join(p.separator) : p.worked(duration(m, s.startedAt, s.completedAt ?? endedAt))
 }
 
 /** The steps that failed, as their own rows say: a call by its view's

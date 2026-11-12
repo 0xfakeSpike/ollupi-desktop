@@ -15,12 +15,12 @@ export function CapabilitiesScreen({ tab }: { tab: CapabilityTab }) {
   const tabs = tabIds.map((id) => ({ id, label: t.tabs[id].label }))
   return (
     <div className="flex h-full flex-col">
-      <header className="drag flex h-10 shrink-0 items-center border-b border-line pl-4">
-        <h1 className="text-ui font-semibold">{t.title}</h1>
+      <header className="drag flex h-16 shrink-0 items-center pl-6">
+        <h1 className="text-title">{t.title}</h1>
       </header>
       <div className="flex min-h-0 flex-1">
         {/* Its labels start under the header's title. */}
-        <nav className="w-56 shrink-0 overflow-y-auto border-r border-line p-2">
+        <nav className="w-56 shrink-0 overflow-y-auto px-3 py-2">
           <Tabs<CapabilityTab> label={t.title} orientation="vertical" tabs={tabs} value={tab} onChange={(id) => go({ kind: 'capabilities', tab: id })} />
         </nav>
         <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="scroll-centered flex-1 overflow-y-auto">

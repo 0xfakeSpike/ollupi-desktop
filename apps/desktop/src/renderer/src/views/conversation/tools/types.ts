@@ -17,6 +17,11 @@ export interface ToolView<C extends ToolCall> {
   /** What an approval card asks and shows of the call before it runs. */
   approval: {
     title(m: Messages, call: C, params: ApprovalRequestParams): string
+    /** The call in one line, shown up front; with one, Body is the detail
+     * the card folds away (PRODUCT.md, principle 0). */
+    subject?(call: C): string
+    /** What will and will not happen, in a sentence, when that is certain. */
+    consequence?(m: Messages, call: C): string
     Body: ComponentType<{ call: C; params: ApprovalRequestParams }>
     /** The body already shows what ollupi says the call does (the
      * request's content), so the card does not say it again. */

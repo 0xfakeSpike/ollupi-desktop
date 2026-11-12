@@ -261,7 +261,7 @@ function Tab({ tab, active, thread }: { tab: BrowserTab; active: boolean; thread
   return (
     <div
       className={cn(
-        'group flex h-7 max-w-44 min-w-24 shrink-0 items-center gap-1 rounded-md pr-0.5 pl-2.5 text-small transition-colors duration-100 ease-standard',
+        'group flex h-8 max-w-44 min-w-24 shrink-0 items-center gap-1 rounded-full pr-1 pl-3 text-small transition-colors duration-100 ease-standard',
         active ? 'bg-hover text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
       )}
     >
@@ -320,7 +320,7 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
   return (
     <div
       ref={box}
-      className="absolute top-full right-2 z-20 mt-1 flex max-h-[70vh] w-96 animate-enter flex-col overflow-hidden rounded-lg border border-line bg-raised shadow-lg motion-reduce:animate-fade"
+      className="absolute top-full right-2 z-20 mt-1 flex max-h-[70vh] w-96 animate-enter flex-col overflow-hidden rounded-2xl bg-raised shadow-lg dark:ring-1 dark:ring-line motion-reduce:animate-fade"
     >
       <div className="border-b border-line p-2">
         <Input autoFocus aria-label={t.filterBookmarks} placeholder={t.filterBookmarks} value={filter} onChange={(e) => setFilter(e.target.value)} />
@@ -369,7 +369,7 @@ function Offered({ id, items, pick, onPick, onOpen }: { id: string; items: Sugge
       id={id}
       role="listbox"
       aria-label={t.offered}
-      className="absolute top-full right-2 left-2 z-20 mt-1 animate-enter overflow-hidden rounded-lg border border-line bg-raised py-1 shadow-lg motion-reduce:animate-fade"
+      className="absolute top-full right-2 left-2 z-20 mt-1 animate-enter overflow-hidden rounded-2xl bg-raised p-1 shadow-lg dark:ring-1 dark:ring-line motion-reduce:animate-fade"
     >
       {items.map((page, i) => (
         <li
@@ -408,7 +408,7 @@ function Row({ bookmark, folder, onOpen, onRemove }: { bookmark: Bookmark; folde
         type="button"
         title={bookmark.url}
         onClick={() => onOpen(bookmark.url)}
-        className="flex min-w-0 flex-1 flex-col rounded-md px-2 py-1 text-left hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        className="flex min-w-0 flex-1 flex-col rounded-xl px-2.5 py-1.5 text-left hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       >
         <span className="truncate text-small text-fg">{bookmark.title}</span>
         <span className="truncate text-small text-fg-subtle">{folder ? `${folder} · ${host(bookmark.url)}` : host(bookmark.url)}</span>

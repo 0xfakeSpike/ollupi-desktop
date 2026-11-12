@@ -5,7 +5,12 @@ import type { ReactNode } from 'react'
 
 export const en = {
   sidebar: {
-    newThread: 'New thread',
+    newThread: 'New task',
+    things: (n: number) => `· ${n}`,
+    working: 'Working',
+    yours: 'Waiting',
+    areaWaiting: (n: number) => `${n} waiting`,
+    workspaceMenu: 'More',
     search: 'Search',
     addWorkspace: 'Add workspace',
     memory: 'Memory',
@@ -20,7 +25,7 @@ export const en = {
     unread: 'New since you last read it',
     revealFolder: 'Reveal folder',
     workspaceSettings: 'Workspace settings',
-    archive: (name: string) => `Archive ${name}`,
+    archiveWorkspace: 'Archive workspace',
     newThreadIn: (name: string) => `New thread in ${name}`,
     archived: (n: number) => `Archived · ${n}`,
     restore: (name: string) => `Restore ${name}`,
@@ -83,7 +88,12 @@ export const en = {
 
 export const zh: typeof en = {
   sidebar: {
-    newThread: '新会话',
+    newThread: '新的事',
+    things: (n) => `· ${n} 件`,
+    working: '在做',
+    yours: '等你',
+    areaWaiting: (n) => `${n} 件等你`,
+    workspaceMenu: '更多',
     search: '搜索',
     addWorkspace: '添加工作区',
     memory: '记忆',
@@ -98,7 +108,7 @@ export const zh: typeof en = {
     unread: '有你还没看的新回复',
     revealFolder: '打开文件夹',
     workspaceSettings: '工作区设置',
-    archive: (name) => `归档 ${name}`,
+    archiveWorkspace: '归档工作区',
     newThreadIn: (name) => `在 ${name} 中新建会话`,
     archived: (n) => `已归档 · ${n}`,
     restore: (name) => `恢复 ${name}`,

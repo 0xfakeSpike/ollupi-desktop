@@ -11,24 +11,6 @@ import { EnvironmentPanel } from './EnvironmentPanel'
 import { FilesPanel } from './FilesPanel'
 import { TerminalPanel } from './TerminalPanel'
 
-export function WorkspacePanelButtons() {
-  const panel = useNavigation((s) => s.panel)
-  const t = useT().conversation.screen
-  return (
-    <>
-      <IconButton label={t.files} active={panel === 'files'} onClick={() => togglePanel('files')}>
-        <FolderTree size={16} />
-      </IconButton>
-      <IconButton label={t.environment} active={panel === 'environment'} onClick={() => togglePanel('environment')}>
-        <GitBranch size={16} />
-      </IconButton>
-      <IconButton label={t.terminal} active={panel === 'terminal'} onClick={() => togglePanel('terminal')}>
-        <SquareTerminal size={16} />
-      </IconButton>
-    </>
-  )
-}
-
 /** The workspace panel showing, if one is. */
 export function WorkspacePanel({
   workspace,

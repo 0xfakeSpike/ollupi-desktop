@@ -25,7 +25,6 @@ export function QuestionsCard({ request }: { request: Extract<PendingRequest, { 
     <div data-pending-request>
     <ActionCard
       tone="accent"
-      kicker={m.requests.questions.kicker}
       // One question is the card's own; several are listed under a count.
       title={single ? questions[0]!.question : m.requests.questions.many(questions.length)}
       status={!single && m.requests.questions.progress(answered, questions.length)}
@@ -87,7 +86,7 @@ function Question({ question, asked, value, onChange }: QuestionProps) {
               aria-checked={value === o.label}
               onClick={() => onChange(o.label)}
               className={cn(
-                'flex min-h-8 items-start gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors duration-100 ease-standard hover:bg-hover',
+                'flex min-h-9 items-start gap-2.5 rounded-2xl px-3 py-2 text-left transition-colors duration-100 ease-standard hover:bg-hover',
                 'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
                 value === o.label && 'bg-selected hover:bg-selected',
               )}
@@ -118,11 +117,11 @@ function Radio({ checked, className }: { checked: boolean; className?: string })
       aria-hidden
       className={cn(
         'flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors duration-100 ease-standard',
-        checked ? 'border-accent bg-accent' : 'border-line-strong',
+        checked ? 'border-ink bg-ink' : 'border-line-strong',
         className,
       )}
     >
-      {checked && <span className="size-1.5 rounded-full bg-accent-fg" />}
+      {checked && <span className="size-1.5 rounded-full bg-ink-fg" />}
     </span>
   )
 }

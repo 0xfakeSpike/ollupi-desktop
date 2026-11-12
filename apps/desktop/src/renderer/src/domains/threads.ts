@@ -175,3 +175,12 @@ export async function threadMenu(labels: Record<ThreadAction, string>): Promise<
   const picked = await desktop.contextMenu(actions.map((id) => ({ id, label: labels[id] })))
   return actions.find((a) => a === picked)
 }
+
+export type WorkspaceAction = 'reveal' | 'settings' | 'archive'
+
+/** A workspace's menu, the system's own; archiving last. */
+export async function workspaceMenu(labels: Record<WorkspaceAction, string>): Promise<WorkspaceAction | undefined> {
+  const actions: WorkspaceAction[] = ['reveal', 'settings', 'archive']
+  const picked = await desktop.contextMenu(actions.map((id) => ({ id, label: labels[id] })))
+  return actions.find((a) => a === picked)
+}

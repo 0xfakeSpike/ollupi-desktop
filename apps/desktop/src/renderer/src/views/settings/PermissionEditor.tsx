@@ -82,7 +82,7 @@ export function PermissionEditor({
           aria-expanded={exceptions}
           aria-controls={exceptionsId}
           onClick={() => setExceptions(!exceptions)}
-          className="-mx-1 flex items-center gap-1 self-start rounded-md px-1 text-left text-ui font-medium text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+          className="-mx-1.5 flex items-center gap-1 self-start rounded-full px-1.5 text-left text-ui font-medium text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
         >
           <ChevronRight size={14} aria-hidden className={cn('shrink-0 text-fg-subtle transition duration-160 ease-standard', exceptions && 'rotate-90')} />
           {m.settings.permissions.exceptions}

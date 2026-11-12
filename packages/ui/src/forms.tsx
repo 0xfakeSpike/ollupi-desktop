@@ -1,16 +1,18 @@
 import type { InputHTMLAttributes, ReactNode, Ref, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { cn } from './cn'
 
-// Transparent, so a field takes the surface it sits on (canvas on a page,
-// raised in a dialog). Inside an invalid Field the border turns danger.
+// A field is a soft well with no outline (DESIGN.md §0, stone and moss),
+// tinted from the ink so it reads on the sheet and on a stone card alike;
+// focus rings it in moss. Inside an invalid Field the ring is the
+// danger's.
 const field =
-  'w-full rounded-md border border-line-strong bg-transparent px-2.5 text-ui text-fg placeholder:text-fg-subtle ' +
-  'focus:border-accent focus:ring-3 focus:ring-focus focus:outline-none disabled:opacity-50 ' +
-  'group-data-invalid/field:border-danger'
+  'w-full rounded-xl border-0 bg-selected px-3.5 text-ui text-fg placeholder:text-fg-muted transition-shadow duration-100 ease-standard ' +
+  'focus:ring-3 focus:ring-focus focus:outline-none disabled:opacity-50 ' +
+  'group-data-invalid/field:ring-2 group-data-invalid/field:ring-danger'
 
 /** md beside other controls; lg in dialogs, matching their lg buttons. */
 type FieldSize = 'md' | 'lg'
-const heights: Record<FieldSize, string> = { md: 'h-7', lg: 'h-8' }
+const heights: Record<FieldSize, string> = { md: 'h-8', lg: 'h-10' }
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   size?: FieldSize
@@ -27,14 +29,14 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
 
 export function Select({ size = 'md', className, children, ...rest }: SelectProps) {
   return (
-    <select className={cn(field, heights[size], 'pr-7', className)} {...rest}>
+    <select className={cn(field, heights[size], 'pr-8', className)} {...rest}>
       {children}
     </select>
   )
 }
 
 export function Textarea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={cn(field, 'py-1.5', className)} {...rest} />
+  return <textarea className={cn(field, 'rounded-2xl py-2.5', className)} {...rest} />
 }
 
 export interface AutoTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -98,7 +100,8 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
       className={cn(
         'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition duration-160 ease-standard disabled:opacity-50',
         'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-        checked ? 'bg-accent' : 'bg-line-strong',
+        // On is moss, the action's colour; the ochre signal is only for what needs the person.
+        checked ? 'bg-ink' : 'bg-line-strong',
       )}
     >
       <span className={cn('size-4 rounded-full bg-knob shadow-sm transition duration-160 ease-standard', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
@@ -124,7 +127,7 @@ export function Checkbox({ checked, onChange, children, disabled, className }: C
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="size-3.5 shrink-0 accent-accent focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        className="size-3.5 shrink-0 accent-ink focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       />
       {children}
     </label>

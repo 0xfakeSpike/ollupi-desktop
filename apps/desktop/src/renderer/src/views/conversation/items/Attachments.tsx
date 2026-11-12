@@ -3,7 +3,7 @@
 // is read from the gateway when first shown.
 
 import type { Attachment } from '@ollupi/protocol'
-import { cn, Dialog, PixelLoader, Spinner } from '@ollupi/ui'
+import { cn, Dialog, Loader, Spinner } from '@ollupi/ui'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useAttachmentURL } from '../../../domains/attachments'
@@ -35,13 +35,13 @@ function ImageAttachment({ threadId, attachment }: { threadId: string; attachmen
         type="button"
         title={attachment.name}
         onClick={() => setOpen(true)}
-        className="flex size-28 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        className="flex size-28 items-center justify-center overflow-hidden rounded-2xl bg-surface focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       >
         {url ? <img src={url} alt={attachment.name} className="size-full object-cover" /> : <Spinner size={14} />}
       </button>
       {open && url && (
         <Dialog title={attachment.name} wide closeLabel={m.common.close} onClose={() => setOpen(false)}>
-          <img src={url} alt={attachment.name} className="mx-auto max-h-[70vh] rounded-md" />
+          <img src={url} alt={attachment.name} className="mx-auto max-h-[70vh] rounded-2xl" />
         </Dialog>
       )}
     </>
@@ -57,7 +57,7 @@ function FileAttachment({ threadId, attachment }: { threadId: string; attachment
         type="button"
         title={attachment.name}
         onClick={() => setOpen(true)}
-        className="flex h-12 items-center gap-2 rounded-lg border border-line bg-surface pr-3 pl-2 text-left focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        className="flex h-12 items-center gap-2 rounded-2xl bg-surface pr-3.5 pl-2.5 text-left focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       >
         <FileText size={18} className="shrink-0 text-fg-subtle" />
         <span className="flex max-w-48 min-w-0 flex-col">
@@ -76,7 +76,7 @@ function TextContent({ threadId, attachment, onClose }: { threadId: string; atta
   const m = useT()
   return (
     <Dialog title={attachment.name} wide closeLabel={m.common.close} onClose={onClose}>
-      {url ? <CodeBlock code={decodeText(url)} label={attachment.mimeType} /> : <PixelLoader label={m.common.reading} />}
+      {url ? <CodeBlock code={decodeText(url)} label={attachment.mimeType} /> : <Loader label={m.common.reading} />}
     </Dialog>
   )
 }

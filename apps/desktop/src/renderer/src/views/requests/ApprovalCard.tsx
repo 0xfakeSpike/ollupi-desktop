@@ -10,8 +10,9 @@
 
 import { approvalCallOf } from '@ollupi/core'
 import type { Decision, ThreadRow } from '@ollupi/protocol'
-import { ActionCard, Button, type ButtonProps } from '@ollupi/ui'
-import { useEffect, useMemo, useRef, type KeyboardEvent } from 'react'
+import { ActionCard, Button, cn, type ButtonProps } from '@ollupi/ui'
+import { ChevronDown } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTimeline } from '../../domains/conversation'
 import type { PendingRequest } from '../../domains/requests'
 import { useWorkspace } from '../../domains/workspaces'
@@ -40,8 +41,17 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
   const key = (d: Decision) => (d === 'decline' ? 'Esc' : d === 'accept' && !fullAccess ? '↵' : undefined)
   const first: Decision | undefined = fullAccess ? 'decline' : decisions.includes('accept') ? 'accept' : decisions[0]
   const focused = useRef<HTMLButtonElement>(null)
+  const card = useRef<HTMLDivElement>(null)
+  // The call in one line up front; how it runs, the agent's reasons and
+  // the rule "always" would save are one step further (PRODUCT.md, 0).
+  const subject = approval.subject?.(call)
+  const consequence = fullAccess ? m.requests.approval.fullAccessConsequence : approval.consequence?.(m, call)
+  const always = decisions.includes('acceptAlways')
+  const folded = !!subject || always || !!exec?.justification
+  const [details, setDetails] = useState(false)
   useEffect(() => {
     if (!typing()) focused.current?.focus({ preventScroll: true })
+    reveal(card.current)
   }, [])
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.nativeEvent.isComposing) return
@@ -54,38 +64,83 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
       request.respond('accept')
     }
   }
-  return (
-    <div data-pending-request onKeyDown={onKeyDown}>
-    <ActionCard
-      tone={fullAccess ? 'danger' : 'warning'}
-      kicker={m.requests.approval.kicker}
-      title={approval.title(m, call, p)}
-      actions={decisions.map((d) => (
-        <Button key={d} ref={d === first ? focused : undefined} data-default={d === first || undefined} variant={variant(d)} onClick={() => request.respond(d)}>
-          {label(d)}
-          {key(d) && <kbd className="ml-1.5 font-sans text-caption opacity-60">{key(d)}</kbd>}
-        </Button>
-      ))}
+  const answer = (d: Decision) => (
+    <Button
+      key={d}
+      ref={d === first ? focused : undefined}
+      data-default={d === first || undefined}
+      size="lg"
+      variant={variant(d)}
+      // On the signal's field the quieter answers sit on the sheet's colour.
+      className={variant(d) === 'secondary' ? 'bg-canvas hover:bg-raised' : undefined}
+      onClick={() => request.respond(d)}
     >
-      {fullAccess && <p className="text-ui text-fg">{m.requests.approval.fullAccessConsequence}</p>}
-      {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
-      {/* What the call does, in its tool's words (web_fetch's URL), unless its view shows it already (a command, a diff). */}
-      {p.content && !approval.showsContent && <p className="selectable text-ui break-all text-fg">{p.content}</p>}
-      <approval.Body call={call} params={p} />
-      {exec?.justification && <p className="selectable text-ui text-fg-muted">“{exec.justification}”</p>}
-      {decisions.includes('acceptAlways') && rules.length > 0 && (
-        <p className="flex flex-wrap items-center gap-1 text-small text-fg-muted">
-          <span className="mr-1">{m.requests.approval.alwaysAdds}</span>
-          {rules.map((r) => (
-            <code key={r} className="selectable rounded-sm bg-hover px-1.5 py-0.5 font-mono text-small">
-              {r}
-            </code>
-          ))}
-        </p>
-      )}
-    </ActionCard>
+      {label(d)}
+      {key(d) && <kbd className="ml-1.5 font-sans text-caption opacity-60">{key(d)}</kbd>}
+    </Button>
+  )
+  return (
+    <div ref={card} data-pending-request onKeyDown={onKeyDown}>
+      <ActionCard
+        tone={fullAccess ? 'danger' : 'warning'}
+        title={approval.title(m, call, p)}
+        status={
+          folded && (
+            <button
+              type="button"
+              aria-expanded={details}
+              onClick={() => setDetails(!details)}
+              className="flex items-center gap-1 rounded-full text-ui font-medium text-fg-muted hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+            >
+              {details ? m.requests.approval.hideDetails : m.requests.approval.details}
+              <ChevronDown size={14} aria-hidden className={cn('transition duration-160 ease-standard', details && 'rotate-180')} />
+            </button>
+          )
+        }
+        actions={decisions.filter((d) => d !== 'acceptAlways').map(answer)}
+      >
+        {subject && <p className="selectable truncate rounded-2xl bg-canvas px-4 py-2.5 font-mono text-ui text-fg">{subject}</p>}
+        {consequence && <p className="text-ui text-fg">{consequence}</p>}
+        {p.reason && <p className="selectable text-ui text-fg-muted">{p.reason}</p>}
+        {/* What the call does, in its tool's words (web_fetch's URL), unless its view shows it already (a command, a diff). */}
+        {p.content && !approval.showsContent && <p className="selectable text-ui break-all text-fg">{p.content}</p>}
+        {!subject && <approval.Body call={call} params={p} />}
+        {details && (
+          <div className="flex flex-col gap-3">
+            {subject && <approval.Body call={call} params={p} />}
+            {exec?.justification && <p className="selectable text-ui text-fg-muted">“{exec.justification}”</p>}
+            {always && (
+              <div className="flex flex-wrap items-center gap-2">
+                {answer('acceptAlways')}
+                {rules.length > 0 && (
+                  <span className="flex flex-wrap items-center gap-1 text-small text-fg-muted">
+                    <span className="mr-1">{m.requests.approval.alwaysAdds}</span>
+                    {rules.map((r) => (
+                      <code key={r} className="selectable rounded-sm bg-canvas px-1.5 py-0.5 font-mono text-small">
+                        {r}
+                      </code>
+                    ))}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </ActionCard>
     </div>
   )
+}
+
+/** Brings a card that just arrived into view from its top: a card taller
+ * than the conversation's view would otherwise show its buttons and hide
+ * its question. */
+function reveal(el: HTMLElement | null): void {
+  const scroller = el?.closest<HTMLElement>('.overflow-y-auto')
+  if (!el || !scroller) return
+  const box = el.getBoundingClientRect()
+  const view = scroller.getBoundingClientRect()
+  if (box.top < view.top || box.height > view.height - 32) scroller.scrollTop += box.top - view.top - 16
+  else if (box.bottom > view.bottom) scroller.scrollTop += box.bottom - view.bottom + 16
 }
 
 /** Whether the person is writing somewhere, which a card arriving must not
