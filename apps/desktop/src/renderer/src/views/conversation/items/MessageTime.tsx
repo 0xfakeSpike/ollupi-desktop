@@ -1,8 +1,8 @@
 // When a message was written: small and quiet, as meta (DESIGN.md 1.2), the
 // full date and time in its tooltip. A minute is enough to say; it does not
-// tick.
+// tick. It keeps to one line, however narrow the row beside it.
 
-import { useTooltip } from '@ollupi/ui'
+import { cn, useTooltip } from '@ollupi/ui'
 import { useLocale, useT } from '../../../i18n'
 import { clockTime, fullTime } from '../../../i18n/format'
 
@@ -16,7 +16,7 @@ export function MessageTime({ at, className }: { at: string | null | undefined; 
   if (!shown) return null
   return (
     <>
-      <time dateTime={at} className={className ?? 'text-small text-fg-subtle tabular-nums'} {...trigger}>
+      <time dateTime={at} className={cn('shrink-0 whitespace-nowrap', className ?? 'text-small text-fg-subtle tabular-nums')} {...trigger}>
         {shown}
       </time>
       {tooltip}

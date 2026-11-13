@@ -24,6 +24,7 @@ import { TimelineView } from './TimelineView'
 import { useWaitingOutOfView } from './useWaitingOutOfView'
 import { PanelButtons } from './PanelButtons'
 import { WorkspacePanel } from './WorkspacePanels'
+import { ToastHost } from '../common/Toasts'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
   const timeline = useTimeline(threadId)
@@ -52,7 +53,10 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
 
   return (
     <div className="@container/screen relative flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* The screen's column: a region (@ollupi/ui region.ts) whose menus,
+          tooltips and notices stay out of the panels beside it. */}
+      <div data-region className="relative flex min-w-0 flex-1 flex-col">
+        <ToastHost />
         {/* Where you are first: the area's colour and name, then the title; on the
             right only what waits for you and the one Tools capsule. */}
         <header className="drag @container flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">

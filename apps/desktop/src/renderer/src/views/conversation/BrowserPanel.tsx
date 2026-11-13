@@ -1,15 +1,18 @@
 // The conversation's tabs of the app's browser: the pages its agent works
 // in, which the person can watch and use; the agent acts in the tab shown.
 // The page itself is a view the main process lays over this panel's area, so
-// the panel reports where that area is whenever it moves or resizes, and
-// hides the view when it closes or something of the panel's lies over it.
+// the panel reports where that area is whenever it moves or resizes. The
+// view is drawn above the whole interface, so nothing else may lie over its
+// area: the tabs and address bar are a region of their own whose menus and
+// tooltips stay out of it, and the view steps aside only for what is meant
+// to lie over the page: the panel's own lists, a dialog, a dragged edge.
 // A star keeps the page shown among the person's bookmarks, which open from
 // a list beside Chrome's. Typing an address offers the pages visited and
 // bookmarked that match it, and completes the best one's address in place.
 // A page's download is saved where the person chooses in the save dialog, and
 // the panel then says where it went, with a way to show it in Finder.
 
-import { Button, cn, IconButton, Input } from '@ollupi/ui'
+import { Button, cn, IconButton, Input, useDialogOpen } from '@ollupi/ui'
 import { ArrowLeft, ArrowRight, BookMarked, CircleAlert, Download, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Bookmark, BookmarkList, BrowserDownload, BrowserState, BrowserTab, Suggestions } from '../../../../shared/ipc'
@@ -78,11 +81,12 @@ export function BrowserPanel({ thread }: { thread: string }) {
 
   // Shown only once a page is open; until then the panel says what it is for.
   // Hidden while the panel's edge is dragged, as it would take the pointer,
-  // and while the bookmarks list or what the address bar offers is open, as
-  // it would cover them.
+  // and while the bookmarks list or what the address bar offers is open, or
+  // a dialog lies over the window, as it would cover them.
   const open = !!state?.url
   const resizing = usePanelWidths((s) => s.resizing)
-  const covered = listing || offered.length > 0
+  const dialog = useDialogOpen()
+  const covered = listing || offered.length > 0 || dialog
   useLayoutEffect(() => {
     const el = area.current
     if (!el || !open || resizing || covered) return
@@ -115,98 +119,108 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const kept = !!state?.url && own.some((b) => b.url === state.url)
 
   return (
-    <SidePanel panel="browser" width="half" bare title={state?.title || t.title} closeLabel={t.close}>
-      <div role="tablist" aria-label={t.tabs} className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-line px-2 py-1">
-        {state?.tabs.map((tab) => (
-          <Tab key={tab.id} tab={tab} active={tab.id === state.active} thread={thread} />
-        ))}
-        <IconButton
-          label={t.newTab}
-          size="sm"
-          onClick={async () => {
-            await desktop.browser.newTab(thread)
-            input.current?.focus()
-          }}
-        >
-          <Plus size={14} />
-        </IconButton>
-      </div>
-      <form
-        className="relative flex shrink-0 items-center gap-1 border-b border-line px-2 py-1.5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          go(pick >= 0 ? offered[pick]?.url : completion ? inline?.url : address)
-        }}
-      >
-        <IconButton label={t.back} size="sm" disabled={!state?.canGoBack} onClick={() => void desktop.browser.back(thread)}>
-          <ArrowLeft size={14} />
-        </IconButton>
-        <IconButton label={t.forward} size="sm" disabled={!state?.canGoForward} onClick={() => void desktop.browser.forward(thread)}>
-          <ArrowRight size={14} />
-        </IconButton>
-        <IconButton label={t.reload} size="sm" disabled={!open} onClick={() => void desktop.browser.reload(thread)}>
-          <RotateCw size={14} className={cn(state?.loading && 'animate-spin')} />
-        </IconButton>
-        {/* Shows where the page is, unless the person is typing another address. */}
-        <Input
-          ref={input}
-          aria-label={t.address}
-          role="combobox"
-          aria-autocomplete="both"
-          aria-expanded={offered.length > 0}
-          aria-controls={`${thread}-offered`}
-          aria-activedescendant={pick >= 0 ? `${thread}-offered-${pick}` : undefined}
-          spellCheck={false}
-          className="ml-1 flex-1 font-mono text-small"
-          placeholder={t.addressPlaceholder}
-          value={address === undefined ? (state?.url ?? '') : address + completion}
-          onChange={(e) => typing(e.target.value, (e.nativeEvent as InputEvent).inputType?.startsWith('delete') ?? false)}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-              if (!offered.length) return
+    <SidePanel
+      panel="browser"
+      width="half"
+      bare
+      title={state?.title || t.title}
+      closeLabel={t.close}
+      chrome={
+        <>
+          <div role="tablist" aria-label={t.tabs} className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-line px-2 py-1">
+            {state?.tabs.map((tab) => (
+              <Tab key={tab.id} tab={tab} active={tab.id === state.active} thread={thread} />
+            ))}
+            <IconButton
+              label={t.newTab}
+              size="sm"
+              onClick={async () => {
+                await desktop.browser.newTab(thread)
+                input.current?.focus()
+              }}
+            >
+              <Plus size={14} />
+            </IconButton>
+          </div>
+          <form
+            className="relative flex shrink-0 items-center gap-1 border-b border-line px-2 py-1.5"
+            onSubmit={(e) => {
               e.preventDefault()
-              setPick((p) => (e.key === 'ArrowDown' ? Math.min(p + 1, offered.length - 1) : Math.max(p - 1, -1)))
-            } else if (e.key === 'Escape') {
-              // First what is offered goes, then what was typed.
-              e.preventDefault()
-              if (offered.length || completion) {
-                setOffer(undefined)
-                setCompleting(false)
-                setPick(-1)
-              } else stopTyping()
-            }
-          }}
-          onFocus={(e) => e.target.select()}
-          onBlur={stopTyping}
-        />
-        <IconButton
-          label={kept ? t.unbookmark : t.bookmark}
-          size="sm"
-          disabled={!open}
-          active={kept}
-          onClick={async () => {
-            if (!state?.url) return
-            const next = await (kept ? removeBookmark(state.url) : addBookmark(state.url, state.title))
-            if (next) setOwn(next)
-          }}
-        >
-          <Star size={14} fill={kept ? 'currentColor' : 'none'} />
-        </IconButton>
-        <IconButton label={t.bookmarks} size="sm" active={listing} data-bookmarks-toggle onClick={() => setListing((l) => !l)}>
-          <BookMarked size={14} />
-        </IconButton>
-        {offered.length > 0 && <Offered id={`${thread}-offered`} items={offered} pick={pick} onPick={setPick} onOpen={go} />}
-        {listing && (
-          <Bookmarks
-            onOpen={(url) => {
-              setListing(false)
-              void openPage(thread, url)
+              go(pick >= 0 ? offered[pick]?.url : completion ? inline?.url : address)
             }}
-            onClose={() => setListing(false)}
-            onChanged={setOwn}
-          />
-        )}
-      </form>
+          >
+            <IconButton label={t.back} size="sm" disabled={!state?.canGoBack} onClick={() => void desktop.browser.back(thread)}>
+              <ArrowLeft size={14} />
+            </IconButton>
+            <IconButton label={t.forward} size="sm" disabled={!state?.canGoForward} onClick={() => void desktop.browser.forward(thread)}>
+              <ArrowRight size={14} />
+            </IconButton>
+            <IconButton label={t.reload} size="sm" disabled={!open} onClick={() => void desktop.browser.reload(thread)}>
+              <RotateCw size={14} className={cn(state?.loading && 'animate-spin')} />
+            </IconButton>
+            {/* Shows where the page is, unless the person is typing another address. */}
+            <Input
+              ref={input}
+              aria-label={t.address}
+              role="combobox"
+              aria-autocomplete="both"
+              aria-expanded={offered.length > 0}
+              aria-controls={`${thread}-offered`}
+              aria-activedescendant={pick >= 0 ? `${thread}-offered-${pick}` : undefined}
+              spellCheck={false}
+              className="ml-1 flex-1 font-mono text-small"
+              placeholder={t.addressPlaceholder}
+              value={address === undefined ? (state?.url ?? '') : address + completion}
+              onChange={(e) => typing(e.target.value, (e.nativeEvent as InputEvent).inputType?.startsWith('delete') ?? false)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  if (!offered.length) return
+                  e.preventDefault()
+                  setPick((p) => (e.key === 'ArrowDown' ? Math.min(p + 1, offered.length - 1) : Math.max(p - 1, -1)))
+                } else if (e.key === 'Escape') {
+                  // First what is offered goes, then what was typed.
+                  e.preventDefault()
+                  if (offered.length || completion) {
+                    setOffer(undefined)
+                    setCompleting(false)
+                    setPick(-1)
+                  } else stopTyping()
+                }
+              }}
+              onFocus={(e) => e.target.select()}
+              onBlur={stopTyping}
+            />
+            <IconButton
+              label={kept ? t.unbookmark : t.bookmark}
+              size="sm"
+              disabled={!open}
+              active={kept}
+              onClick={async () => {
+                if (!state?.url) return
+                const next = await (kept ? removeBookmark(state.url) : addBookmark(state.url, state.title))
+                if (next) setOwn(next)
+              }}
+            >
+              <Star size={14} fill={kept ? 'currentColor' : 'none'} />
+            </IconButton>
+            <IconButton label={t.bookmarks} size="sm" active={listing} data-bookmarks-toggle onClick={() => setListing((l) => !l)}>
+              <BookMarked size={14} />
+            </IconButton>
+            {offered.length > 0 && <Offered id={`${thread}-offered`} items={offered} pick={pick} onPick={setPick} onOpen={go} />}
+            {listing && (
+              <Bookmarks
+                onOpen={(url) => {
+                  setListing(false)
+                  void openPage(thread, url)
+                }}
+                onClose={() => setListing(false)}
+                onChanged={setOwn}
+              />
+            )}
+          </form>
+        </>
+      }
+    >
       {/* Above the page's view, which covers the area below. */}
       {saved && <DownloadNotice download={saved} onDismiss={() => setSaved(undefined)} />}
       <div ref={area} className={cn('relative min-h-0 flex-1', CLEAR_OF_EDGE)}>

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { IconButton } from './buttons'
 import { cn } from './cn'
 
@@ -16,11 +16,35 @@ export interface DialogProps {
   closeLabel: string
 }
 
-/** A modal; render it only while open. Escape and the backdrop close it. */
+// How many dialogs are open. A dialog lies over the whole window, and
+// the browser's page, drawn by the system above the interface, steps aside
+// while one is open (useDialogOpen).
+let openDialogs = 0
+const listeners = new Set<() => void>()
+const subscribe = (listener: () => void) => {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+const opened = (by: number) => {
+  openDialogs += by
+  for (const l of listeners) l()
+}
+
+/** Whether a dialog is open anywhere in the window. */
+export function useDialogOpen(): boolean {
+  return useSyncExternalStore(subscribe, () => openDialogs > 0)
+}
+
+/** A modal; render it only while open. Escape and the backdrop close it. It
+ * is a region of its own (region.ts): its menus and tooltips stay in it. */
 export function Dialog({ title, description, onClose, children, footer, wide, closeLabel }: DialogProps) {
   const body = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const scrolls = useScrolls(body, content)
+  useLayoutEffect(() => {
+    opened(1)
+    return () => opened(-1)
+  }, [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -30,6 +54,7 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
     <div className="fixed inset-0 z-50 flex animate-fade items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
       <div
         role="dialog"
+        data-region
         aria-modal
         aria-label={title}
         className={cn(
