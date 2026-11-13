@@ -1,11 +1,6 @@
 // A thread's screen, its timeline and items, the composer, the context
 // panel, and the draft screen of a new thread.
 
-import { createElement, Fragment, type ReactNode } from 'react'
-
-/** Words around React elements (a key, a path), kept in order. */
-const join = (...parts: ReactNode[]): ReactNode => createElement(Fragment, null, ...parts)
-
 export const en = {
   screen: {
     resizePanel: 'Resize the panel; double-click for its own width',
@@ -126,8 +121,24 @@ export const en = {
   },
   draft: {
     title: 'What can I take off your hands?',
-    commandsRunIn: (path: ReactNode) => join('Commands run in ', path),
-    noFolder: 'Not tied to a project folder. Pick a workspace to work on your code.',
+    commandsRunIn: (folder: string) => `Commands run in the “${folder}” folder`,
+    noFolder: 'No folder chosen. To work on the files in one, pick a workspace below.',
+    suggest: {
+      label: 'Things to start with',
+      try: 'Try',
+      folderSource: 'This folder',
+      folder: (name: string) => `See what changed in “${name}” lately`,
+      skillSource: (name: string) => `Skill · ${name}`,
+      skillStart: (name: string) => `Use the “${name}” skill: `,
+      cronSource: 'Scheduled task',
+      cron: 'Every morning at 9, sort out what I have on today',
+      browserSource: 'Browser',
+      browser: 'Open a web page and tell me what matters in it',
+      browserStart: 'Open this page and tell me what matters in it: ',
+      memorySource: 'Memory',
+      memory: 'Remember how I like things done',
+      memoryStart: 'Remember: ',
+    },
     placeholder: 'Describe a task or ask a question',
     environment: 'Environment',
     /** Shown under the title when the draft would run in a cloud sandbox. */
@@ -447,8 +458,24 @@ export const zh: typeof en = {
   },
   draft: {
     title: '有什么可以交给我？',
-    commandsRunIn: (path) => join('命令在 ', path, ' 中运行'),
-    noFolder: '未关联项目文件夹。选择一个工作区来处理你的代码。',
+    commandsRunIn: (folder) => `命令会在「${folder}」文件夹里运行`,
+    noFolder: '没有选文件夹。要处理某个文件夹里的东西，在下面选一个工作区。',
+    suggest: {
+      label: '可以从这些开始',
+      try: '试试',
+      folderSource: '这个文件夹',
+      folder: (name) => `看看「${name}」里最近改了什么`,
+      skillSource: (name) => `技能 · ${name}`,
+      skillStart: (name) => `用「${name}」技能：`,
+      cronSource: '定时任务',
+      cron: '每天早上 9 点，帮我整理今天要做的事',
+      browserSource: '浏览器',
+      browser: '打开一个网页，告诉我重点是什么',
+      browserStart: '打开这个网页，告诉我重点是什么：',
+      memorySource: '记忆',
+      memory: '记住我做事的习惯',
+      memoryStart: '记住：',
+    },
     placeholder: '描述一个任务，或提个问题',
     environment: '环境',
     machineHint: '这一版只在这台电脑上跑命令：在云端沙箱里开始的会话，命令会被拒绝。',

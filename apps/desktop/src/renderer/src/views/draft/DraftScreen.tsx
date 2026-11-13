@@ -18,6 +18,7 @@ import { ApprovalPicker } from '../conversation/ApprovalPicker'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { PanelButtons } from '../conversation/PanelButtons'
 import { WorkspacePanel } from '../conversation/WorkspacePanels'
+import { Suggestions } from './Suggestions'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
@@ -38,11 +39,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
           <h1 className="text-hero text-fg">{m.conversation.draft.title}</h1>
           <p className="text-ui text-fg-muted">
-            {workspace ? (
-              m.conversation.draft.commandsRunIn(<span className="font-mono text-small">{workspace.rootPath}</span>)
-            ) : (
-              m.conversation.draft.noFolder
-            )}
+            {workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}
           </p>
           {
             // A cloud sandbox is where the conversation would run, and this
@@ -51,6 +48,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
               <p className="max-w-md text-center text-small text-fg-subtle">{m.conversation.draft.machineHint}</p>
             )
           }
+          <Suggestions workspace={workspace} />
         </div>
         <Composer
           draft={NEW_CONVERSATION}
@@ -113,9 +111,12 @@ function EnvironmentPicker({ onManage }: { onManage(): void }) {
   const chosen = useNavigation((s) => s.environment)
   const current = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
   const m = useT()
+  // This computer is named by the app, in the person's language; a cloud
+  // sandbox keeps the name it was given.
+  const nameOf = (e: { kind: string; name: string }) => (e.kind === 'machine' ? e.name : m.conversation.environment.here)
   return (
     <label className={chip}>
-      <span className="truncate">{current?.name ?? m.conversation.draft.environment}</span>
+      <span className="truncate">{current ? nameOf(current) : m.conversation.draft.environment}</span>
       <select
         aria-label={m.conversation.draft.environment}
         className="absolute inset-0 cursor-pointer opacity-0"
@@ -124,7 +125,7 @@ function EnvironmentPicker({ onManage }: { onManage(): void }) {
       >
         {environments.map((e) => (
           <option key={e.id} value={e.id}>
-            {e.name}
+            {nameOf(e)}
           </option>
         ))}
         <option value={MANAGE}>{m.conversation.environments.manage}</option>
