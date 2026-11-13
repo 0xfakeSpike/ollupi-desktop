@@ -3,13 +3,15 @@
 // sources, with a description under an option that needs one, a filter
 // box for a long list, and actions below a separator. It opens above the
 // trigger when there is more room there (a message box sits at the bottom
-// of the window), and is driven by keys as well as the pointer: ↑ ↓ move,
-// ↵ picks, Esc closes back to the trigger.
+// of the window), within the region its trigger is in (region.ts), and is
+// driven by keys as well as the pointer: ↑ ↓ move, ↵ picks, Esc closes back
+// to the trigger.
 
 import { Check, Search } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from './cn'
+import { regionOf } from './region'
 
 export interface PickerOption<V extends string> {
   value: V
@@ -56,7 +58,7 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [place, setPlace] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number; minWidth: number }>()
+  const [place, setPlace] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number; minWidth: number; maxWidth: number }>()
   const trigger = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -85,18 +87,22 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
     else row.action.onSelect()
   }
 
-  // Placed against the trigger: above it when there is more room above.
+  // Placed against the trigger, inside the trigger's region: above it when
+  // there is more room above, and moved left as far as its width needs.
   useLayoutEffect(() => {
     if (!open || !trigger.current) return
     const r = trigger.current.getBoundingClientRect()
-    const above = r.top - margin - gap
-    const below = window.innerHeight - r.bottom - margin - gap
+    const region = regionOf(trigger.current)
+    const above = r.top - region.top - margin - gap
+    const below = region.bottom - r.bottom - margin - gap
     const up = above > below
-    const left = Math.max(margin, Math.min(r.left, window.innerWidth - margin - width))
+    const maxWidth = Math.min(width, region.right - region.left - 2 * margin)
+    const left = Math.max(region.left + margin, Math.min(r.left, region.right - margin - maxWidth))
+    const minWidth = Math.min(r.width, maxWidth)
     setPlace(
       up
-        ? { left, bottom: window.innerHeight - r.top + gap, maxHeight: Math.min(420, above), minWidth: r.width }
-        : { left, top: r.bottom + gap, maxHeight: Math.min(420, below), minWidth: r.width },
+        ? { left, bottom: window.innerHeight - r.top + gap, maxHeight: Math.min(420, above), minWidth, maxWidth }
+        : { left, top: r.bottom + gap, maxHeight: Math.min(420, below), minWidth, maxWidth },
     )
   }, [open, width])
 
@@ -183,7 +189,7 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
             ref={panel}
             data-overlay
             onKeyDown={onKeyDown}
-            style={{ left: place.left, top: place.top, bottom: place.bottom, maxHeight: place.maxHeight, minWidth: place.minWidth, maxWidth: width }}
+            style={{ left: place.left, top: place.top, bottom: place.bottom, maxHeight: place.maxHeight, minWidth: place.minWidth, maxWidth: place.maxWidth }}
             className="fixed z-50 flex animate-enter flex-col overflow-hidden rounded-2xl bg-raised shadow-md dark:ring-1 dark:ring-line motion-reduce:animate-fade"
           >
             {filter && (

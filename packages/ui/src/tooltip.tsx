@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from './cn'
+import { regionOf } from './region'
 
 // The wait before a tooltip shows, and how soon after one hides the next
 // shows at once: moving along a row of buttons reads each without waiting.
@@ -8,7 +9,7 @@ const delay = 500
 const warm = 300
 let lastHidden = 0
 
-// The gap to the trigger, and the room kept from the window's edges.
+// The gap to the trigger, and the room kept from its region's edges.
 const gap = 6
 const margin = 8
 
@@ -21,7 +22,7 @@ export interface TooltipProps {
 
 /** A tooltip for an icon-only control: shown on hover after a moment, or
  * at once on keyboard focus, below the trigger (above when there is no
- * room) and kept inside the window. Spread `trigger` on the control and
+ * room) and kept inside the trigger's region (region.ts). Spread `trigger` on the control and
  * render `tooltip` anywhere. The label repeats the control's name, so only
  * the hint is announced as its description. */
 export function useTooltip({ label, hint }: TooltipProps): {
@@ -105,10 +106,11 @@ function Bubble({ anchor, label, hint }: { anchor: HTMLElement; label: string; h
   const [at, setAt] = useState<{ top: number; left: number }>()
   useLayoutEffect(() => {
     const a = anchor.getBoundingClientRect()
+    const region = regionOf(anchor)
     const { width, height } = el.current!.getBoundingClientRect()
     const below = a.bottom + gap
-    const top = below + height + margin <= window.innerHeight ? below : a.top - gap - height
-    const left = Math.min(Math.max(a.left + a.width / 2 - width / 2, margin), window.innerWidth - margin - width)
+    const top = below + height + margin <= region.bottom ? below : a.top - gap - height
+    const left = Math.max(region.left + margin, Math.min(a.left + a.width / 2 - width / 2, region.right - margin - width))
     setAt({ top, left })
   }, [anchor, label, hint])
   return createPortal(

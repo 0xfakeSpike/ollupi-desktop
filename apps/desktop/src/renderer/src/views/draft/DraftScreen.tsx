@@ -21,6 +21,7 @@ import { WorkspacePanel } from '../conversation/WorkspacePanels'
 import { Suggestions } from './Suggestions'
 import { Emblem } from '../common/Wolf'
 import { useThreads } from '../../domains/threads'
+import { ToastHost } from '../common/Toasts'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
@@ -36,7 +37,10 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const firstUse = useThreads((s) => Object.keys(s.more).length > 0 && s.list.length === 0)
   return (
     <div className="@container/screen relative flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* The screen's column: a region (@ollupi/ui region.ts) whose menus,
+          tooltips and notices stay out of the panels beside it. */}
+      <div data-region className="relative flex min-w-0 flex-1 flex-col">
+        <ToastHost />
         <header className="drag @container flex h-16 shrink-0 items-center justify-end gap-2 pr-4">
           <PanelButtons workspace={!!workspace} thread={undefined} />
         </header>

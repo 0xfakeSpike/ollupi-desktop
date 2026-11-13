@@ -2,7 +2,8 @@
 // right, the full height of the screen, set off by a line rather than laid
 // over the conversation. Its title row lines up with the conversation's
 // header and moves the window like it; under it a body that scrolls on its
-// own. Its left edge drags to resize it;
+// own. It is a region of its own (@ollupi/ui region.ts): its menus and
+// tooltips open inside it. Its left edge drags to resize it;
 // each panel keeps the width it was given, and a double click on the edge
 // gives back its own.
 
@@ -61,11 +62,17 @@ export function SidePanel({
   actions,
   width = 'normal',
   bare,
+  chrome,
   children,
 }: {
   panel: Panel
   title: string
   closeLabel: string
+  /** Controls under the title row that belong with it, such as the
+   * browser's tabs and address bar: one region with the title row, so their
+   * menus and tooltips stay out of the body below it, where the browser's
+   * page is drawn above the interface. */
+  chrome?: ReactNode
   /** Buttons beside the close button. */
   actions?: ReactNode
   /** The width it starts at: wide for content read at length, such as a
@@ -131,6 +138,7 @@ export function SidePanel({
   return (
     <aside
       ref={aside}
+      data-region
       style={given ? { width: given } : undefined}
       className={cn(
         'relative flex max-w-[calc(100%-22.5rem)] min-w-65 shrink-0 flex-col overflow-hidden border-l border-line bg-canvas',
@@ -153,12 +161,15 @@ export function SidePanel({
         }}
         className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize [-webkit-app-region:no-drag] transition-colors duration-100 ease-standard hover:bg-line-strong focus-visible:bg-ink focus-visible:outline-none"
       />
-      <div className="drag flex h-16 shrink-0 items-center gap-1 pr-4 pl-5">
-        <h2 className="flex-1 truncate text-ui font-semibold">{title}</h2>
-        {actions}
-        <IconButton label={closeLabel} size="sm" onClick={() => togglePanel(panel)}>
-          <X size={14} />
-        </IconButton>
+      <div data-region={chrome ? '' : undefined} className="flex shrink-0 flex-col">
+        <div className="drag flex h-16 shrink-0 items-center gap-1 pr-4 pl-5">
+          <h2 className="flex-1 truncate text-ui font-semibold">{title}</h2>
+          {actions}
+          <IconButton label={closeLabel} size="sm" onClick={() => togglePanel(panel)}>
+            <X size={14} />
+          </IconButton>
+        </div>
+        {chrome}
       </div>
       {bare ? <div className="flex min-h-0 flex-1 flex-col">{children}</div> : <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>}
     </aside>
