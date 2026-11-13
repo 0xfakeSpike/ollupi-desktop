@@ -48,7 +48,7 @@ export const en = {
     reconnecting: 'Reconnecting…',
   },
   backend: {
-    starting: 'Starting the ollupi backend…',
+    starting: 'Starting the Ollupi backend…',
     stopped: 'The backend is stopped.',
     reconnecting: 'Reconnecting…',
     connecting: 'Connecting…',
@@ -83,7 +83,7 @@ export const en = {
     notes: 'What’s new',
   },
   contractBanner: (server: string, ui: string) =>
-    `The backend and the app were built from different ollupi protocol versions (backend ${server}, app ${ui}). Rebuild the backend or regenerate the protocol.`,
+    `The backend and the app were built from different Ollupi protocol versions (backend ${server}, app ${ui}). Rebuild the backend or regenerate the protocol.`,
 }
 
 export const zh: typeof en = {
@@ -130,7 +130,7 @@ export const zh: typeof en = {
     reconnecting: '正在重新连接…',
   },
   backend: {
-    starting: '正在启动 ollupi 后端…',
+    starting: '正在启动 Ollupi 后端…',
     stopped: '后端已停止。',
     reconnecting: '正在重新连接…',
     connecting: '正在连接…',
@@ -164,5 +164,5 @@ export const zh: typeof en = {
     later: '稍后',
     notes: '更新内容',
   },
-  contractBanner: (server, ui) => `后端和应用基于不同版本的 ollupi 协议构建（后端 ${server}，应用 ${ui}）。请重新构建后端或重新生成协议。`,
+  contractBanner: (server, ui) => `后端和应用基于不同版本的 Ollupi 协议构建（后端 ${server}，应用 ${ui}）。请重新构建后端或重新生成协议。`,
 }

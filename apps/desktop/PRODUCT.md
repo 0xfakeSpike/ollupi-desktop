@@ -45,13 +45,21 @@ Ollupi 是一个**一直在干活的个人助手**：跑在你自己的 Mac 上�
 - 界面中文、英文**同等重要**，两种语言都要做到一样好（字体、排版、文案长度都要兼顾）。
 - 技术：Electron + React + Tailwind v4，token 在 `packages/ui/src/theme.css`；引擎是独立的 Go 项目，界面只通过协议和它说话。
 - 只在 macOS 上发布；有浅色、深色两套主题。
-- 未定：英文和中文的品牌字体；是否保留现在的像素小狼。
 
 ## Brand Commitments
 
-- 名字是 Ollupi。
+- **名字是 Ollupi**，保留不改（2026-11-13 审查过：没有已有的产品或商标在用，ollupi.com / .ai 都未注册；短处是名字本身不说明它是什么，由定义句补上）。
+  - **读法**：英文 /oʊˈluːpi/（oh-LOO-pee，重音在第二个音节）；中文第一次出现时注"读作'欧噜比'"。
+  - **中文也写 Ollupi**，不另起中文名、不音译（同 Notion、Claude、Figma 在中文里的用法）。界面和文案里首字母大写 Ollupi；全小写 ollupi 只用于字标、代码、命令和路径。
+  - **含义**（一段，可以原样用在官网和"关于"里）：
+    - 名字里的 lupi，是意大利语的"狼"。狼在夜里也醒着，记得同伴，守着自己的地方。Ollupi 也是这样：你走开，它还在干活；它记得你；碰你的东西之前，先问你。
+    - The lupi in its name is Italian for wolves — awake at night, loyal to its own, keeping its ground. Ollupi works the same way: it keeps going when you walk away, it remembers you, and it asks before it touches anything of yours.
+  - 中文文案里不直接说"狼"做形容（"狼性"在中文职场是贬义的过劳文化），含义段之外讲的是"守着、醒着、记得你"。
+- **定义句**：Ollupi 是一直在干活的个人助手。/ Ollupi is a personal assistant that keeps working.
+- **标语**：交给它，你走开。/ Hand it over. Walk away.
 - 现在的"格墨"视觉方向（夜蓝墨色、像素小狼、Bricolage Grotesque）**不是约束**：用户明确说不满意、不必保留任何部分，新方向可以整体替换。
 - 用户选定的设计理念（2026-11-12）：动物园导览图式的"一眼看清自己在哪、事情在哪"，大块可辨的区域代替密密麻麻的列表；但配色和细节要成熟、克制、高级，面向成年上班族，不能有儿童感。
+- 标识（2026-11-13 定）：一只坐在月亮前的小狼（画法参考黑背胡狼：大耳朵、背鞍），App 图标是夜紫底。用户要的是完整的、可亲的小狼，不是冷峻的狼头。品牌时刻用夜紫，界面仍是石与苔。细节见 DESIGN.md 0.4。
 
 ## Evidence on Hand
 

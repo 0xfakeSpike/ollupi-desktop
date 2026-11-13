@@ -120,6 +120,14 @@ export function reopenDraft(key: string, text: string, files: readonly File[]): 
   useDrafts.setState({ reopened: { ...reopened, [key]: (reopened[key] ?? 0) + 1 } })
 }
 
+/** A suggested start written into an empty box, which is then focused with
+ * the cursor at its end, ready to be finished or changed before sending. */
+export function suggestDraft(key: string, text: string): void {
+  update(key, (d) => ({ ...d, text }))
+  const { reopened } = useDrafts.getState()
+  useDrafts.setState({ reopened: { ...reopened, [key]: (reopened[key] ?? 0) + 1 } })
+}
+
 /** Drops a box's draft and its previews: the conversation it was for is
  * gone. An archived conversation keeps its draft, for its return. */
 export function forgetDraft(key: string): void {
