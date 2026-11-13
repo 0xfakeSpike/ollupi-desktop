@@ -10,13 +10,14 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
-from figure import BODY, TAIL, EYE, NIGHT, MOON, TAN, color_figure, mono_figure
+from figure import GROUND, color_figure, emblem_body, ground, mono_figure, moon
 from poses import POSES, pose_svg
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INK = '#22252a'      # the wordmark on light grounds (theme fg)
 PAPER = '#ecedea'    # the wordmark on dark grounds (theme dark fg)
 WEIGHT, TRACKING = 750, -0.03  # tracking in em
+SMALL_COAT = '#a8733f'  # the coat at 64px and under, one colour, deeper than TAN
 
 
 def wordmark_path(font_file, text='ollupi'):
@@ -43,22 +44,18 @@ def svg(w, h, body, view=None):
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view or f"0 0 {w} {h}"}" width="{w}" height="{h}">{body}</svg>\n'
 
 
-def emblem_body():
-    return (f'<circle cx="50" cy="50" r="50" fill="{NIGHT}"/><circle cx="54" cy="44" r="31" fill="{MOON}"/>'
-            f'<g transform="translate(14 12) scale(.8)">{color_figure()}</g>')
-
-
 def app_icon(small=False):
-    # macOS grid: a 1024 canvas, the 824 rounded square inset 100. Small sizes
-    # drop the shadow and draw the wolf larger, in one colour.
-    shadow = '' if small else ('<defs><filter id="s" x="-10%" y="-10%" width="120%" height="125%">'
-                               '<feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".28"/></filter></defs>')
-    figure = (f'<g transform="translate(8 6) scale(.9)">{mono_figure(TAN, NIGHT)}</g>' if small
+    # macOS grid: a 1024 canvas, the 824 rounded square inset 100, its oat
+    # ground lit from above. Small sizes drop the shadow and draw the wolf
+    # larger, in one colour, a deeper coat so it holds against the ground.
+    shadow = '' if small else ('<filter id="s" x="-10%" y="-10%" width="120%" height="125%">'
+                               '<feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".28"/></filter>')
+    figure = (f'<g transform="translate(8 6) scale(.9)">{mono_figure(SMALL_COAT, GROUND)}</g>' if small
               else f'<g transform="translate(14 12) scale(.8)">{color_figure()}</g>')
     filt = '' if small else ' filter="url(#s)"'
-    return svg(1024, 1024, shadow +
-               f'<rect x="100" y="100" width="824" height="824" rx="185" fill="{NIGHT}"{filt}/>'
-               f'<g transform="translate(100 100) scale(8.24)"><circle cx="54" cy="44" r="31" fill="{MOON}"/>{figure}</g>')
+    return svg(1024, 1024, f'<defs>{ground("g")}{shadow}</defs>'
+               f'<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#g)"{filt}/>'
+               f'<g transform="translate(100 100) scale(8.24)">{moon()}{figure}</g>')
 
 
 def main(font_file):
@@ -66,7 +63,7 @@ def main(font_file):
     files = {
         'mark.svg': svg(100, 100, emblem_body()),
         'favicon.svg': svg(32, 32, emblem_body(), '0 0 100 100'),
-        'mark-mono.svg': svg(100, 100, mono_figure(NIGHT, '#fff').replace('fill="#fff"', 'fill="#fff" fill-opacity="0"').replace('stroke="#fff"', 'stroke="#fff" stroke-opacity="0"')),
+        'mark-mono.svg': svg(100, 100, mono_figure(INK, '#fff').replace('fill="#fff"', 'fill="#fff" fill-opacity="0"').replace('stroke="#fff"', 'stroke="#fff" stroke-opacity="0"')),
         'app-icon.svg': app_icon(),
         'app-icon-small.svg': app_icon(small=True),
         'app-icon-16.svg': app_icon(small=True).replace('width="1024" height="1024"', 'width="16" height="16"'),

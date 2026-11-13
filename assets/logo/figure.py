@@ -19,13 +19,19 @@ TAIL = ('M21 80 C8 84 8 99 24 99.5 C36 100 46 99 54 96.8 C57 96 57 92.5 54 92.5 
 TIP = 'M45 94.6 C49 94.4 51.5 93.8 54 92.5 C57 92.5 57 96 54 96.8 C51 97.6 48 98.2 45 98.5 C43.5 97 43.5 95.6 45 94.6 Z'
 EYE = (70.5, 31, 2.3)
 
-NIGHT = '#2b2541'   # the night: the icon's ground
-MOON = '#efe6d2'    # the moon, and the pale of ears and throat
-TAN = '#c89a69'     # the coat
-SADDLE_C = '#3b3350'  # the saddle and tail tip: the night's colour, one step lighter
+# The ground is oat, lit from above: a light icon that stands out in the Dock
+# and belongs with the interface's stone and moss. Moon, coat and the dark of
+# saddle and eye sit on it.
+GROUND_TOP = '#f4ecda'
+GROUND = '#e3d5b6'    # the ground's lower, deeper oat; also what shows between tail and body
+MOON = '#fffaf0'      # the moon: paler than the ground
+MOON_EDGE = '#e6d8bb' # a hairline round the moon, so it does not melt into the ground
+TAN = '#c08a55'       # the coat
+DARK = '#2b2541'      # the eye
+SADDLE_C = '#3b3350'  # the saddle and tail tip
 PALE = '#ead2ab'      # inner ears and throat: the coat, lighter (not the moon, or it reads as a hole)
 
-def color_figure(edge=NIGHT):
+def color_figure(edge=GROUND):
     """The wolf in colour; edge is what shows between tail and body."""
     return (f'<clipPath id="ollupi-body"><path d="{BODY}"/></clipPath>'
             f'<path d="{BODY}" fill="{TAN}"/>'
@@ -34,7 +40,7 @@ def color_figure(edge=NIGHT):
             f'<path d="{EARS}" fill="{PALE}"/>'
             f'<path d="{TAIL}" fill="{TAN}" stroke="{edge}" stroke-width="1.6" paint-order="stroke"/>'
             f'<path d="{TIP}" fill="{SADDLE_C}"/>'
-            f'<circle cx="{EYE[0]}" cy="{EYE[1]}" r="{EYE[2]}" fill="{NIGHT}"/>')
+            f'<circle cx="{EYE[0]}" cy="{EYE[1]}" r="{EYE[2]}" fill="{DARK}"/>')
 
 def mono_figure(fill, ground):
     """One colour, for small sizes and beside the wordmark."""
@@ -42,17 +48,19 @@ def mono_figure(fill, ground):
             f'<path d="{TAIL}" fill="{fill}" stroke="{ground}" stroke-width="2" paint-order="stroke"/>'
             f'<circle cx="{EYE[0]}" cy="{EYE[1]}" r="{EYE[2]}" fill="{ground}"/>')
 
-def emblem(size=100):
-    """The night disc with the moon and the wolf: avatars, README, the about page."""
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="{size}" height="{size}">'
-            f'<circle cx="50" cy="50" r="50" fill="{NIGHT}"/><circle cx="54" cy="44" r="31" fill="{MOON}"/>'
-            f'<g transform="translate(14 12) scale(.8)">{color_figure()}</g></svg>')
+def ground(id_):
+    """The oat ground's gradient, lit from above."""
+    return (f'<linearGradient id="{id_}" x1="0" y1="0" x2="0" y2="1">'
+            f'<stop offset="0" stop-color="{GROUND_TOP}"/><stop offset="1" stop-color="{GROUND}"/></linearGradient>')
 
-def app_icon():
-    """macOS icon: 1024 canvas, an 824 rounded square inset 100, as Apple's grid has it."""
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">'
-            '<defs><filter id="s" x="-10%" y="-10%" width="120%" height="125%">'
-            '<feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".28"/></filter></defs>'
-            f'<rect x="100" y="100" width="824" height="824" rx="185" fill="{NIGHT}" filter="url(#s)"/>'
-            f'<g transform="translate(100 100) scale(8.24)"><circle cx="54" cy="44" r="31" fill="{MOON}"/>'
-            f'<g transform="translate(14 12) scale(.8)">{color_figure()}</g></g></svg>')
+def moon(r=31):
+    return f'<circle cx="54" cy="44" r="{r}" fill="{MOON}" stroke="{MOON_EDGE}" stroke-width="1"/>'
+
+def emblem_body():
+    """The oat disc with the moon and the wolf, in a 100 box: avatars, README,
+    the about page."""
+    return (f'<defs>{ground("ollupi-ground")}</defs><circle cx="50" cy="50" r="50" fill="url(#ollupi-ground)"/>{moon()}'
+            f'<g transform="translate(14 12) scale(.8)">{color_figure()}</g>')
+
+def emblem(size=100):
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="{size}" height="{size}">{emblem_body()}</svg>'
