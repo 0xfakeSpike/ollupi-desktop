@@ -7,6 +7,7 @@ import { useT } from '../../../i18n'
 import { duration } from '../../../i18n/format'
 import { CopyButton, Markdown } from '../../common/Markdown'
 import { Attachments } from './Attachments'
+import { MessageTime } from './MessageTime'
 
 /** editable: the thread's latest message, which can be taken back to the
  * box to edit (editMessage). */
@@ -37,6 +38,8 @@ export function UserMessage({ item, editable }: { item: ItemRow; editable?: bool
       ) : (
         edit && actions
       )}
+      {/* When it was sent, under it; shown always, as quiet meta. */}
+      <MessageTime at={item.startedAt} className="-mt-1 pr-1 text-small text-fg-subtle tabular-nums" />
     </div>
   )
 }
