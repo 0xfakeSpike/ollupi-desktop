@@ -6,7 +6,7 @@
 import { cronSpec, isTopLevel, onceAt, scheduleOf } from '@ollupi/core'
 import type { CronJobView, WorkspaceRow } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Loader, Switch, Tabs, Textarea } from '@ollupi/ui'
-import { CalendarClock, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { createJob, deleteJob, setPaused, useCron } from '../../domains/cron'
@@ -16,6 +16,7 @@ import { useLocale, useT } from '../../i18n'
 import { clock, describeSchedule, monthDay, relativeTime, threadTitle } from '../../i18n/format'
 import { useFound } from '../common/found'
 import { defaultChoice, onceTime, SchedulePicker, type Choice } from './SchedulePicker'
+import { Wolf } from '../common/Wolf'
 
 /** The list shown: every task, those outside any workspace, or one
  * workspace's. */
@@ -56,11 +57,11 @@ export function CronScreen({ found }: { found?: string }) {
               </div>
             ) : shown.length === 0 ? (
               jobs.length > 0 ? (
-                <EmptyState icon={<CalendarClock size={20} />} title={m.cron.emptyHere}>
+                <EmptyState icon={<Wolf pose="sit" className="size-16" />} title={m.cron.emptyHere}>
                   {m.cron.emptyHereHint}
                 </EmptyState>
               ) : (
-                <EmptyState icon={<CalendarClock size={20} />} title={m.cron.empty}>
+                <EmptyState icon={<Wolf pose="rest" className="size-16" />} title={m.cron.empty}>
                   {m.cron.emptyHint}
                 </EmptyState>
               )

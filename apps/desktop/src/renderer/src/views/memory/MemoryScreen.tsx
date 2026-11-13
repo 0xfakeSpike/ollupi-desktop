@@ -5,7 +5,7 @@
 
 import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
 import { Badge, Button, ClampText, Details, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
-import { ArrowRightLeft, Brain, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
+import { ArrowRightLeft, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
@@ -17,6 +17,7 @@ import { useLocale, useT, type Messages } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
 import { useFound } from '../common/found'
 import { MemorySettings } from './MemorySettings'
+import { Wolf } from '../common/Wolf'
 
 /** The places a memory can be in, as the list names them. */
 function placesOf(m: Messages, workspaces: { id: string; name: string }[]): { place: MemoryPlace; label: string }[] {
@@ -130,11 +131,11 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
               </div>
             ) : active.length === 0 ? (
               elsewhere ? (
-                <EmptyState icon={<Brain size={20} />} title={m.memory.screen.emptyHere}>
+                <EmptyState icon={<Wolf pose="sit" className="size-16" />} title={m.memory.screen.emptyHere}>
                   {m.memory.screen.emptyHereHint}
                 </EmptyState>
               ) : (
-                <EmptyState icon={<Brain size={20} />} title={m.memory.screen.emptyYet}>
+                <EmptyState icon={<Wolf pose="listen" className="size-16" />} title={m.memory.screen.emptyYet}>
                   {m.memory.screen.emptyYetHint}
                 </EmptyState>
               )
