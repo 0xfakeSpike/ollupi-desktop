@@ -34,6 +34,7 @@ export const en = {
   },
 
   general: {
+    about: 'A personal assistant that keeps working. Hand it over. Walk away.',
     version: 'Version',
     log: 'App log',
     dataFolder: 'Data folder',
@@ -300,6 +301,7 @@ export const zh: typeof en = {
   },
 
   general: {
+    about: '一直在干活的个人助手。交给它，你走开。',
     version: '版本',
     log: '应用日志',
     dataFolder: '数据文件夹',

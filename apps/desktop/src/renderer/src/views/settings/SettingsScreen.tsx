@@ -14,6 +14,7 @@ import { desktop } from '../../platform/desktop'
 import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
+import { Emblem } from '../common/Wolf'
 
 /** Most used first: models are where keys, providers and balances live;
  * general, beside them, holds the version and the backend they run on;
@@ -146,6 +147,15 @@ function General() {
       </Button>
     )
   return (
+    <>
+    {/* About Ollupi: the one place in the settings the brand speaks. */}
+    <div className="flex items-center gap-4 rounded-3xl bg-surface px-5 py-4">
+      <Emblem className="size-14 shrink-0" />
+      <div className="min-w-0">
+        <div className="text-title text-fg">Ollupi</div>
+        <div className="text-small text-fg-muted">{t.about}</div>
+      </div>
+    </div>
     <dl className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
       <Row label={t.version} value={<span className="font-mono">{info?.version ?? '—'}</span>} note={<UpdateNote />} action={<UpdateAction />}>
         <UpdateProgress />
@@ -189,6 +199,7 @@ function General() {
         }
       />
     </dl>
+    </>
   )
 }
 

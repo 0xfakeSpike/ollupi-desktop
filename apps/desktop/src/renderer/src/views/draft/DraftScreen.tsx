@@ -19,6 +19,8 @@ import { ModelPicker } from '../conversation/ModelPicker'
 import { PanelButtons } from '../conversation/PanelButtons'
 import { WorkspacePanel } from '../conversation/WorkspacePanels'
 import { Suggestions } from './Suggestions'
+import { Emblem } from '../common/Wolf'
+import { useThreads } from '../../domains/threads'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
@@ -30,6 +32,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const approval = useNavigation((s) => s.approval)
   const agentPolicy = useAgentPolicy((s) => s.policy)
   const m = useT()
+  // Known once the thread list has been read (more has a key per scope).
+  const firstUse = useThreads((s) => Object.keys(s.more).length > 0 && s.list.length === 0)
   return (
     <div className="@container/screen relative flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -37,6 +41,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           <PanelButtons workspace={!!workspace} thread={undefined} />
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
+          {/* Before the first conversation ever, the little wolf says hello once. */}
+          {firstUse && <Emblem className="mb-3 size-16" />}
           <h1 className="text-hero text-fg">{m.conversation.draft.title}</h1>
           <p className="text-ui text-fg-muted">
             {workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}

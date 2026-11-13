@@ -5,7 +5,7 @@
 import { groupByTurn, layoutTurn, queuedTurns, summarizeProcess, turnActive, type Timeline, type TurnGroup, type TurnPart } from '@ollupi/core'
 import type { TurnRow } from '@ollupi/protocol'
 import { Button, Callout, EmptyState } from '@ollupi/ui'
-import { CalendarClock, Clock, MessageSquare, RotateCcw, Square } from 'lucide-react'
+import { CalendarClock, Clock, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { loadOlder, retryTurn } from '../../domains/conversation'
 import { useCron } from '../../domains/cron'
@@ -19,6 +19,7 @@ import { ItemView } from './items/ItemView'
 import { ThreadWorkspace } from '../common/FileLink'
 import { Process } from './Process'
 import { ResultFiles } from './ResultFiles'
+import { Wolf } from '../common/Wolf'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
@@ -35,7 +36,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
       <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-8 pb-10">
         {timeline.hasMore && <LoadOlder threadId={threadId} />}
         {groups.length === 0 && queued.length === 0 && (
-          <EmptyState icon={<MessageSquare size={20} />} title={m.conversation.timeline.empty}>
+          <EmptyState icon={<Wolf pose="sit" className="size-16" />} title={m.conversation.timeline.empty}>
             {m.conversation.timeline.emptyHint}
           </EmptyState>
         )}

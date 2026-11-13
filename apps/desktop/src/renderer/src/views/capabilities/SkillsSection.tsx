@@ -4,7 +4,7 @@
 // its own rules first and then restarts the backend.
 
 import { Badge, Button, Callout, ClampText, Details, Dialog, EmptyState, Field, IconButton, Input, Loader, Switch, Textarea } from '@ollupi/ui'
-import { FolderInput, FolderOpen, Pencil, Plus, RotateCw, Sparkles, Trash2 } from 'lucide-react'
+import { FolderInput, FolderOpen, Pencil, Plus, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { NewSkill, Skill, SkillChange, SkillList } from '../../../../shared/ipc'
 import {
@@ -24,6 +24,7 @@ import { openPath } from '../../domains/files'
 import { useConnection } from '../../gateway/connection'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
+import { Wolf } from '../common/Wolf'
 
 /** Resource files a skill shows before the rest are counted. */
 const shownFiles = 8
@@ -68,7 +69,7 @@ export function SkillsSection() {
       ) : !list.dir ? (
         list.ok ? (
           <EmptyState
-            icon={<Sparkles size={20} />}
+            icon={<Wolf pose="sleep" className="size-16" />}
             title={s.off}
             action={
               <Button variant="primary" loading={busy} onClick={() => void act(turnOn)}>
@@ -102,7 +103,7 @@ export function SkillsSection() {
               <pre className="selectable mt-1 font-mono text-small whitespace-pre-wrap text-fg-muted">{list.error}</pre>
             </Callout>
           ) : skills.length === 0 ? (
-            <EmptyState icon={<Sparkles size={20} />} title={s.empty}>
+            <EmptyState icon={<Wolf pose="trot" className="size-16" />} title={s.empty}>
               {s.emptyHint}
             </EmptyState>
           ) : (

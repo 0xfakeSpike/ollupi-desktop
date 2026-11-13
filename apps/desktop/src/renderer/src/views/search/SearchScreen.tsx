@@ -14,6 +14,7 @@ import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT, type Messages } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
 import { Highlight } from './Highlight'
+import { Wolf } from '../common/Wolf'
 
 export function SearchScreen() {
   const m = useT()
@@ -63,7 +64,7 @@ export function SearchScreen() {
           {!terms.length ? (
             <p className="text-small text-fg-subtle">{t.hint}</p>
           ) : result && total === 0 && state.status === 'found' ? (
-            <EmptyState icon={<Search size={20} />} title={t.none(query.trim())} />
+            <EmptyState icon={<Wolf pose="sniff" className="size-16" />} title={t.none(query.trim())} />
           ) : (
             result && (
               <>

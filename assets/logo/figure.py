@@ -27,9 +27,9 @@ PALE = '#ead2ab'      # inner ears and throat: the coat, lighter (not the moon, 
 
 def color_figure(edge=NIGHT):
     """The wolf in colour; edge is what shows between tail and body."""
-    return (f'<clipPath id="body"><path d="{BODY}"/></clipPath>'
+    return (f'<clipPath id="ollupi-body"><path d="{BODY}"/></clipPath>'
             f'<path d="{BODY}" fill="{TAN}"/>'
-            f'<g clip-path="url(#body)"><path d="{THROAT}" fill="{PALE}"/>'
+            f'<g clip-path="url(#ollupi-body)"><path d="{THROAT}" fill="{PALE}"/>'
             f'<path d="{SADDLE}" fill="{SADDLE_C}"/></g>'
             f'<path d="{EARS}" fill="{PALE}"/>'
             f'<path d="{TAIL}" fill="{TAN}" stroke="{edge}" stroke-width="1.6" paint-order="stroke"/>'
