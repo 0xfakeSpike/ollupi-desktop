@@ -20,6 +20,27 @@ export function relativeTime(m: Messages, locale: Locale, iso: string, now = Dat
   }
 }
 
+/** When a message was written, as a clock reads it: the time alone today,
+ * "Yesterday" and the time, the day and the time this year, the full date
+ * before. */
+export function clockTime(m: Messages, locale: Locale, iso: string, now = new Date()): string {
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return ''
+  const time = at.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false })
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const days = Math.round((day(now) - day(at)) / 86_400_000)
+  if (days === 0) return time
+  if (days === 1) return m.common.time.yesterday(time)
+  const date = at.toLocaleDateString(locale, at.getFullYear() === now.getFullYear() ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' })
+  return `${date} ${time}`
+}
+
+/** The same moment in full, for a tooltip: weekday, date and time. */
+export function fullTime(locale: Locale, iso: string): string {
+  const at = new Date(iso)
+  return Number.isNaN(at.getTime()) ? '' : at.toLocaleString(locale, { dateStyle: 'full', timeStyle: 'short' })
+}
+
 export function duration(m: Messages, startIso: string, endIso: string | null | undefined, now = Date.now()): string {
   const d = span(startIso, endIso, now)
   if (!d) return ''

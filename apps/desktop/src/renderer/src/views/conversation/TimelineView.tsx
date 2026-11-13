@@ -20,6 +20,7 @@ import { ThreadWorkspace } from '../common/FileLink'
 import { Process } from './Process'
 import { ResultFiles } from './ResultFiles'
 import { Wolf } from '../common/Wolf'
+import { MessageTime } from './items/MessageTime'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
@@ -151,11 +152,16 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
   const m = useT()
   // The 24px button keeps to the line's height and its icon to the column's edge.
   const lead = copy && <span className="-my-1 -ml-1.5 flex">{copy}</span>
+  // When the turn ended leads its line, shown always; the rest waits for a pointer.
+  const at = <MessageTime at={turn.completedAt} />
   switch (turn.status) {
     case 'failed':
       return (
         <>
-          {lead && <div className="flex text-small">{lead}</div>}
+          <div className="flex items-center gap-1.5 text-small">
+            {at}
+            {lead}
+          </div>
           <Callout tone="danger">
             <div className="flex items-start gap-3">
               <span className="selectable min-w-0 flex-1">{turn.error || m.conversation.timeline.failed}</span>
@@ -167,6 +173,8 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
     case 'interrupted':
       return (
         <div className="flex items-center gap-1.5 text-small text-fg-subtle">
+          {at}
+          {at && <span aria-hidden>·</span>}
           {lead}
           <Square size={10} fill="currentColor" aria-hidden /> {m.conversation.timeline.stopped(turn.error)}
         </div>
@@ -177,9 +185,12 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
       // Which model, how long, how much: one step further, shown while the
       // turn is pointed at or focused (PRODUCT.md, principle 0).
       return (
-        <div className="flex items-center gap-1.5 text-small text-fg-subtle tabular-nums opacity-0 transition-opacity duration-160 ease-standard group-focus-within/turn:opacity-100 group-hover/turn:opacity-100">
-          {lead}
-          {facts.join(' · ')}
+        <div className="flex items-center gap-1.5 text-small text-fg-subtle tabular-nums">
+          {at}
+          <span className="flex items-center gap-1.5 opacity-0 transition-opacity duration-160 ease-standard group-focus-within/turn:opacity-100 group-hover/turn:opacity-100">
+            {lead}
+            {facts.length > 0 && <span>{facts.join(' · ')}</span>}
+          </span>
         </div>
       )
     }
