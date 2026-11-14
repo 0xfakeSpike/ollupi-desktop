@@ -5,7 +5,8 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, colorSchemes, IpcChannel, type ApiType, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { setAppIcon } from './appIcon'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
@@ -133,6 +134,10 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SetColorScheme, (_event, scheme: unknown) => {
     if (!colorSchemes.includes(scheme as ColorScheme)) throw new Error('expected system, light or dark')
     nativeTheme.themeSource = scheme as ColorScheme
+  })
+  ipcMain.handle(IpcChannel.SetAppIcon, (_event, theme: unknown) => {
+    if (!appThemes.includes(theme as AppTheme)) throw new Error('expected stone or dusk')
+    setAppIcon(theme as AppTheme)
   })
 
   const send = (channel: string, ...args: unknown[]) => {

@@ -16,6 +16,10 @@ extraResources:
   # The sidecar built for the arch being packaged (pnpm sidecar:release).
   - from: resources/bin/${arch}
     to: bin
+  # The Dock's icon for each theme (src/main/appIcon.ts), from the brand.
+  - from: ../../assets/brand/png
+    to: brand
+    filter: [app-icon-1024.png, app-icon-dusk-1024.png]
 mac:
   category: public.app-category.developer-tools
   # The brand keeps the icon with everything else it draws (assets/brand/make.py).

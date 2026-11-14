@@ -12,6 +12,7 @@ import { ArchivedThreads } from './ArchivedThreads'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { ThreadGroup } from './ThreadGroup'
 import { Wordmark } from '../common/Wordmark'
+import { Dragonfly } from '../common/Wolf'
 
 /** The app's navigation. A screen with categories of its own (memory,
  * capabilities, settings…) lists them beside this, inside the screen. */
@@ -27,8 +28,10 @@ export function Sidebar() {
   return (
     <aside className="flex w-70 shrink-0 flex-col">
       {/* Level with the screen's 40px header; the traffic lights sit here, and
-          the wordmark at its far end, so the app is named on every screen. */}
+          the wordmark at its far end, so the app is named on every screen.
+          Under dusk a dragonfly rests in the space between. */}
       <div className="drag flex h-10 shrink-0 items-center justify-end pr-5.5">
+        <Dragonfly className="pointer-events-none mr-auto ml-38 h-7 w-auto -rotate-6" />
         <Wordmark className="h-5 w-auto text-fg-muted" />
       </div>
       {/* A new thing is the one action; searching and the schedule sit beside it as capsules. */}

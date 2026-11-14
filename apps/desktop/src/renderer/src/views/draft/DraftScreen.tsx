@@ -19,7 +19,7 @@ import { ModelPicker } from '../conversation/ModelPicker'
 import { PanelButtons } from '../conversation/PanelButtons'
 import { WorkspacePanel } from '../conversation/WorkspacePanels'
 import { Suggestions } from './Suggestions'
-import { Emblem } from '../common/Wolf'
+import { Emblem, Horizon } from '../common/Wolf'
 import { useThreads } from '../../domains/threads'
 import { ToastHost } from '../common/Toasts'
 
@@ -46,7 +46,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
           {/* Before the first conversation ever, the little wolf says hello once. */}
-          {firstUse && <Emblem className="mb-3 size-16" />}
+          {/* The emblem the first time; under dusk, a small savanna horizon after. */}
+          {firstUse ? <Emblem className="mb-3 size-16" /> : <Horizon className="pointer-events-none mb-4 h-auto w-80" />}
           <h1 className="text-hero text-fg">{m.conversation.draft.title}</h1>
           <p className="text-ui text-fg-muted">
             {workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}

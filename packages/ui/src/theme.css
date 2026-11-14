@@ -1,7 +1,8 @@
 /* Design tokens for @ollupi/ui. Components use only these semantic names
    (bg-canvas, text-fg-muted, border-line, text-ui, rounded-lg, ...), so a
    theme is a set of variable values and dark mode needs no per-component
-   classes. The resets below remove Tailwind's defaults: a class outside
+   classes. Stone and moss is the default theme; others set their values
+   under [data-theme], on the root or on any element (a preview). The resets below remove Tailwind's defaults: a class outside
    these scales produces no style. See packages/ui/DESIGN.md. */
 
 /* Manrope for the interface and prose, JetBrains Mono for code, both
@@ -169,8 +170,13 @@
    Everything translucent (hover, lines, selection, shadows) is mixed from
    --ol-tint, the ink in the light and the paper in the dark. Text that
    sits on an area field uses fg or fg-muted, which pass on every area. */
-:root {
+:root,
+[data-theme='stone'] {
   color-scheme: light dark;
+  /* What a theme lays over the window's ground (ground-wash), and the grain
+     over the whole window (grain); stone has neither. */
+  --ol-ground-wash: none;
+  --ol-grain: none;
   --ol-tint: #22252a;
   --ol-ground: #eeede8;
   --ol-canvas: #f8f7f4;
@@ -223,7 +229,8 @@
 /* In the dark the sheet sits a step above the ground, the areas turn to
    deep muted fields, and moss and ochre turn light. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root,
+  [data-theme='stone'] {
     --ol-tint: #ecedea;
     --ol-ground: #151716;
     --ol-canvas: #1d201f;
@@ -271,6 +278,140 @@
     --ol-chart-3: #199e70;
     --ol-chart-4: #c98500;
   }
+}
+
+/* Dusk (packages/ui/DESIGN.md §2.1): evening light seeping into paper. The
+   window's ground is warm paper with lavender, peach and mist-blue light at
+   its corners; one grain lies over the whole window, sheet and ground alike,
+   meant to be seen as on printed paper, and the sheet stays the brighter,
+   calmer paper to read on. Actions are deep twilight indigo, workspaces
+   pastel fields taken from the same light, and the one signal, a sunset red, still says
+   only "this needs you". In the dark it is after nightfall: indigo ground,
+   the same light dimmed to embers, lavender actions. */
+[data-theme='dusk'] {
+  color-scheme: light dark;
+  --ol-tint: #26222f;
+  --ol-ground: #f1ece8;
+  --ol-ground-wash:
+    radial-gradient(60% 55% at 0% 100%, rgb(196 178 236 / 0.75), transparent 70%),
+    radial-gradient(55% 50% at 100% 0%, rgb(247 205 186 / 0.7), transparent 70%),
+    radial-gradient(45% 45% at 100% 100%, rgb(190 208 238 / 0.65), transparent 70%);
+  /* One grain over the whole window, sheet and ground alike: one paper. */
+  --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .16 0 0 0 0 .28 0 0 0 .62 -.24'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --ol-canvas: #fbf9f6;
+  --ol-surface: #f1edef;
+  --ol-raised: #ffffff;
+  --ol-knob: #ffffff;
+  --ol-fg: #26222f;
+  --ol-fg-muted: #514b5c;
+  --ol-fg-subtle: #696373;
+  --ol-ink: #3d3768;
+  --ol-ink-fg: #f6f3fb;
+  --ol-accent: #a13c25;
+  --ol-accent-fg: #ffffff;
+  --ol-send: #3d3768;
+  --ol-send-fg: #f6f3fb;
+
+  --ol-area-1: #dcd2ee;
+  --ol-area-2: #f2d8c9;
+  --ol-area-3: #cfd9ec;
+  --ol-area-4: #efd5df;
+  --ol-area-5: #d9d4e5;
+  --ol-area-6: #ebdfcc;
+
+  --ol-hover: color-mix(in srgb, var(--ol-tint) 5%, transparent);
+  --ol-selected: color-mix(in srgb, var(--ol-tint) 7%, transparent);
+  --ol-line: color-mix(in srgb, var(--ol-tint) 8%, transparent);
+  --ol-line-strong: color-mix(in srgb, var(--ol-tint) 15%, transparent);
+  --ol-scrim: color-mix(in srgb, var(--ol-tint) 30%, transparent);
+  --ol-accent-soft: #f8e0d6;
+  --ol-focus: color-mix(in srgb, var(--ol-ink) 35%, transparent);
+  --ol-shadow-sm: 0 1px 2px color-mix(in srgb, var(--ol-tint) 6%, transparent), 0 4px 12px -4px color-mix(in srgb, var(--ol-ink) 10%, transparent);
+  --ol-shadow-md: 0 2px 6px color-mix(in srgb, var(--ol-tint) 5%, transparent), 0 12px 28px -8px color-mix(in srgb, var(--ol-ink) 18%, transparent);
+  --ol-shadow-lg: 0 4px 12px color-mix(in srgb, var(--ol-tint) 6%, transparent), 0 24px 56px -12px color-mix(in srgb, var(--ol-ink) 26%, transparent);
+
+  --ol-success: #2f6e46;
+  --ol-success-soft: rgb(47 110 70 / 0.1);
+  --ol-warning: #8f5a0a;
+  --ol-warning-soft: rgb(196 128 20 / 0.14);
+  --ol-danger: #a3264a;
+  --ol-danger-fg: #ffffff;
+  --ol-danger-soft: rgb(163 38 74 / 0.08);
+
+  --ol-chart-1: #5b62d6;
+  --ol-chart-2: #e0714a;
+  --ol-chart-3: #1f9e86;
+  --ol-chart-4: #d99a1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme='dusk'] {
+    --ol-tint: #ece8f4;
+    --ol-ground: #14121c;
+    --ol-ground-wash:
+      radial-gradient(60% 55% at 0% 100%, rgb(92 72 160 / 0.55), transparent 70%),
+      radial-gradient(55% 50% at 100% 0%, rgb(140 70 70 / 0.4), transparent 70%),
+      radial-gradient(45% 45% at 100% 100%, rgb(48 72 140 / 0.45), transparent 70%);
+    --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .88 0 0 0 0 1 0 0 0 .5 -.23'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    --ol-canvas: #1b1925;
+    --ol-surface: #24212f;
+    --ol-raised: #282535;
+    --ol-knob: #ece8f4;
+    --ol-fg: #ece8f4;
+    --ol-fg-muted: #b6b0c4;
+    --ol-fg-subtle: #948ca4;
+    --ol-ink: #d6ccf6;
+    --ol-ink-fg: #1d1830;
+    --ol-accent: #f0947b;
+    --ol-accent-fg: #1d120f;
+    --ol-send: #d6ccf6;
+    --ol-send-fg: #1d1830;
+
+    --ol-area-1: #2e2843;
+    --ol-area-2: #3b2b2d;
+    --ol-area-3: #232c41;
+    --ol-area-4: #37273b;
+    --ol-area-5: #2b2938;
+    --ol-area-6: #332e27;
+
+    --ol-hover: color-mix(in srgb, var(--ol-tint) 5.5%, transparent);
+    --ol-selected: color-mix(in srgb, var(--ol-tint) 9%, transparent);
+    --ol-line: color-mix(in srgb, var(--ol-tint) 7.5%, transparent);
+    --ol-line-strong: color-mix(in srgb, var(--ol-tint) 14%, transparent);
+    --ol-scrim: rgb(0 0 0 / 0.55);
+    --ol-accent-soft: rgb(240 148 123 / 0.16);
+    --ol-focus: color-mix(in srgb, var(--ol-ink) 40%, transparent);
+    --ol-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -4px rgb(0 0 0 / 0.4);
+    --ol-shadow-md: 0 2px 6px rgb(0 0 0 / 0.3), 0 12px 28px -8px rgb(0 0 0 / 0.5);
+    --ol-shadow-lg: 0 4px 12px rgb(0 0 0 / 0.35), 0 24px 56px -12px rgb(0 0 0 / 0.65);
+
+    --ol-success: #7fc79a;
+    --ol-success-soft: rgb(127 199 154 / 0.14);
+    --ol-warning: #e2a746;
+    --ol-warning-soft: rgb(226 167 70 / 0.15);
+    --ol-danger: #f08aa6;
+    --ol-danger-fg: #1d1410;
+    --ol-danger-soft: rgb(240 138 166 / 0.13);
+
+    --ol-chart-1: #7d84f0;
+    --ol-chart-2: #e6835f;
+    --ol-chart-3: #3bb89e;
+    --ol-chart-4: #d9a43a;
+  }
+}
+
+/* The window's ground carries its theme's wash: light laid over the ground
+   colour. */
+@utility ground-wash {
+  background-image: var(--ol-ground-wash);
+}
+
+/* The theme's grain. One layer of it lies over the whole window (App), above
+   every surface and floating layer, so sheet and ground are one paper and
+   the grain never stops at an edge; it takes no pointer. */
+@utility grain {
+  background-image: var(--ol-grain);
+  background-size: 180px 180px;
 }
 
 /* Loader (loader.tsx): hidden for its first 300ms, then three dots

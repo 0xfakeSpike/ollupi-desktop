@@ -126,6 +126,7 @@ const api: DesktopApi = {
   revealFile: (path) => ipcRenderer.invoke(IpcChannel.RevealFile, path),
   contextMenu: (items) => ipcRenderer.invoke(IpcChannel.ContextMenu, items),
   setColorScheme: (scheme) => ipcRenderer.invoke(IpcChannel.SetColorScheme, scheme),
+  setAppIcon: (theme) => ipcRenderer.invoke(IpcChannel.SetAppIcon, theme),
 }
 
 contextBridge.exposeInMainWorld('desktop', api)
