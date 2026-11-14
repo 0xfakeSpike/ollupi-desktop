@@ -341,13 +341,12 @@ function ThemeChoice() {
 }
 
 /** A theme in miniature, drawn with its own tokens (data-theme on the
- * preview): its ground, wash and grain, a sidebar of workspace areas under the new
+ * preview): its ground with its grain and light, a sidebar of workspace areas under the new
  * capsule, and the sheet with a message, two lines of answer and the send
  * button. */
 function ThemePreview({ theme }: { theme: Theme }) {
   return (
-    <span data-theme={theme} aria-hidden className="ground-wash relative flex h-28 gap-1.5 overflow-hidden rounded-2xl bg-ground p-1.5">
-      <span className="grain pointer-events-none absolute inset-0" />
+    <span data-theme={theme} aria-hidden className="ground-wash flex h-28 gap-1.5 overflow-hidden rounded-2xl bg-ground p-1.5">
       <span className="flex w-1/3 flex-col gap-1 pt-2.5 pl-0.5">
         <span className="mb-0.5 h-3 w-3/4 rounded-full bg-ink" />
         <span className="h-5.5 rounded-lg bg-area-1" />

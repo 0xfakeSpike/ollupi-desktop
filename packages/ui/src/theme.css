@@ -173,8 +173,8 @@
 :root,
 [data-theme='stone'] {
   color-scheme: light dark;
-  /* What a theme lays over the window's ground (ground-wash), and the grain
-     over the whole window (grain); stone has neither. */
+  /* What a theme lays over the window's ground (ground-wash): its grain and
+     its light; stone has neither. */
   --ol-ground-wash: none;
   --ol-grain: none;
   --ol-tint: #22252a;
@@ -282,9 +282,9 @@
 
 /* Dusk (packages/ui/DESIGN.md §2.1): evening light seeping into paper. The
    window's ground is warm paper with lavender, peach and mist-blue light at
-   its corners; one grain lies over the whole window, sheet and ground alike,
-   meant to be seen as on printed paper, and the sheet stays the brighter,
-   calmer paper to read on. Actions are deep twilight indigo, workspaces
+   its corners and a grain meant to be seen, as on printed paper. The grain
+   reaches a little way into the working sheet and fades out, so the two
+   papers meet without a seam and the sheet stays clean where it is read. Actions are deep twilight indigo, workspaces
    pastel fields taken from the same light, and the one signal, a sunset red, still says
    only "this needs you". In the dark it is after nightfall: indigo ground,
    the same light dimmed to embers, lavender actions. */
@@ -296,8 +296,8 @@
     radial-gradient(60% 55% at 0% 100%, rgb(196 178 236 / 0.75), transparent 70%),
     radial-gradient(55% 50% at 100% 0%, rgb(247 205 186 / 0.7), transparent 70%),
     radial-gradient(45% 45% at 100% 100%, rgb(190 208 238 / 0.65), transparent 70%);
-  /* One grain over the whole window, sheet and ground alike: one paper. */
-  --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .16 0 0 0 0 .28 0 0 0 .62 -.24'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  /* The ground's grain; it reaches into the sheet's edges and fades out. */
+  --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .16 0 0 0 0 .28 0 0 0 1.1 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   --ol-canvas: #fbf9f6;
   --ol-surface: #f1edef;
   --ol-raised: #ffffff;
@@ -352,7 +352,7 @@
       radial-gradient(60% 55% at 0% 100%, rgb(92 72 160 / 0.55), transparent 70%),
       radial-gradient(55% 50% at 100% 0%, rgb(140 70 70 / 0.4), transparent 70%),
       radial-gradient(45% 45% at 100% 100%, rgb(48 72 140 / 0.45), transparent 70%);
-    --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .88 0 0 0 0 1 0 0 0 .5 -.23'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .88 0 0 0 0 1 0 0 0 .8 -.32'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
     --ol-canvas: #1b1925;
     --ol-surface: #24212f;
     --ol-raised: #282535;
@@ -400,18 +400,22 @@
   }
 }
 
-/* The window's ground carries its theme's wash: light laid over the ground
-   colour. */
+/* The window's ground carries its theme's grain and light. */
 @utility ground-wash {
-  background-image: var(--ol-ground-wash);
+  background-image: var(--ol-grain), var(--ol-ground-wash);
+  background-size: 180px 180px, 100% 100%, 100% 100%, 100% 100%;
 }
 
-/* The theme's grain. One layer of it lies over the whole window (App), above
-   every surface and floating layer, so sheet and ground are one paper and
-   the grain never stops at an edge; it takes no pointer. */
-@utility grain {
+/* The ground's grain where it meets the working sheet: as strong as the
+   ground's at the sheet's edges, gone 32px in, so the sheet's middle, where
+   it is read, stays clean. Laid under the sheet's content (App). */
+@utility sheet-grain {
   background-image: var(--ol-grain);
   background-size: 180px 180px;
+  mask-image:
+    linear-gradient(to right, #000, transparent 32px, transparent calc(100% - 32px), #000),
+    linear-gradient(to bottom, #000, transparent 32px, transparent calc(100% - 32px), #000);
+  mask-composite: add;
 }
 
 /* Loader (loader.tsx): hidden for its first 300ms, then three dots
