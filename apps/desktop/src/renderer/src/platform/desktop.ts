@@ -66,6 +66,7 @@ function browserShim(): DesktopApi | undefined {
     contextMenu: async () => undefined,
     // A browser follows its own scheme.
     setColorScheme: async () => {},
+    setAppIcon: async () => {},
   }
 }
 
@@ -114,4 +115,5 @@ export const desktop: DesktopApi = window.desktop ??
     revealFile: unavailable,
     contextMenu: unavailable,
     setColorScheme: unavailable,
+    setAppIcon: unavailable,
   }

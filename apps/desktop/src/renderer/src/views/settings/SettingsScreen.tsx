@@ -1,8 +1,8 @@
 import { Badge, Button, cn, Field, Select, Switch } from '@ollupi/ui'
-import { FileCog, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Check, FileCog, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
-import { setColorScheme, useAppearance } from '../../domains/appearance'
+import { setColorScheme, setTheme, themes, useAppearance, type Theme } from '../../domains/appearance'
 import { clearHistory } from '../../domains/browser'
 import { openPath } from '../../domains/files'
 import { noticeKinds, setNotification, useNotificationPrefs } from '../../domains/notifications'
@@ -276,14 +276,93 @@ function Appearance() {
   const { scheme } = useAppearance()
   const t = useT().common.appearance
   return (
-    <Field label={t.scheme}>
-      <Select className="max-w-60" value={scheme} onChange={(e) => setColorScheme(e.target.value as ColorScheme)}>
-        {colorSchemes.map((s) => (
-          <option key={s} value={s}>
-            {t.schemes[s]}
-          </option>
+    <div className="flex flex-col gap-5">
+      <ThemeChoice />
+      <Field label={t.scheme}>
+        <Select className="max-w-60" value={scheme} onChange={(e) => setColorScheme(e.target.value as ColorScheme)}>
+          {colorSchemes.map((s) => (
+            <option key={s} value={s}>
+              {t.schemes[s]}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    </div>
+  )
+}
+
+/** The themes side by side, each shown as itself in miniature. Arrow keys
+ * move between them, as in any radio group. */
+function ThemeChoice() {
+  const { theme } = useAppearance()
+  const t = useT().common.appearance
+  const label = useId()
+  const group = useRef<HTMLDivElement>(null)
+  const onKeyDown = (e: KeyboardEvent) => {
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
+    if (!step) return
+    e.preventDefault()
+    const next = (themes.indexOf(theme) + step + themes.length) % themes.length
+    setTheme(themes[next]!)
+    group.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus()
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id={label} className="text-ui font-medium text-fg">
+        {t.theme}
+      </span>
+      <div ref={group} role="radiogroup" aria-labelledby={label} onKeyDown={onKeyDown} className="grid max-w-xl grid-cols-2 gap-3">
+        {themes.map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={theme === k}
+            tabIndex={theme === k ? 0 : -1}
+            onClick={() => setTheme(k)}
+            className={cn(
+              'flex flex-col gap-2.5 rounded-3xl p-1.5 text-left transition-colors duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+              theme === k ? 'bg-selected' : 'hover:bg-hover',
+            )}
+          >
+            <ThemePreview theme={k} />
+            <span className="flex flex-col gap-0.5 px-2 pb-1.5">
+              <span className="flex items-center gap-1.5 text-ui font-medium text-fg">
+                {t.themes[k].name}
+                {theme === k && <Check size={14} className="text-ink" aria-hidden />}
+              </span>
+              <span className="text-small text-fg-muted">{t.themes[k].description}</span>
+            </span>
+          </button>
         ))}
-      </Select>
-    </Field>
+      </div>
+    </div>
+  )
+}
+
+/** A theme in miniature, drawn with its own tokens (data-theme on the
+ * preview): its ground, wash and grain, a sidebar of workspace areas under the new
+ * capsule, and the sheet with a message, two lines of answer and the send
+ * button. */
+function ThemePreview({ theme }: { theme: Theme }) {
+  return (
+    <span data-theme={theme} aria-hidden className="ground-wash relative flex h-28 gap-1.5 overflow-hidden rounded-2xl bg-ground p-1.5">
+      <span className="grain pointer-events-none absolute inset-0" />
+      <span className="flex w-1/3 flex-col gap-1 pt-2.5 pl-0.5">
+        <span className="mb-0.5 h-3 w-3/4 rounded-full bg-ink" />
+        <span className="h-5.5 rounded-lg bg-area-1" />
+        <span className="h-5.5 rounded-lg bg-area-2" />
+        <span className="h-5.5 rounded-lg bg-area-3" />
+      </span>
+      <span className="flex flex-1 flex-col gap-1.5 rounded-xl bg-canvas p-2 shadow-sm">
+        <span className="ml-auto h-3 w-1/2 rounded-full bg-surface" />
+        <span className="h-1.5 w-5/6 rounded-full bg-fg-subtle/40" />
+        <span className="h-1.5 w-2/3 rounded-full bg-fg-subtle/40" />
+        <span className="mt-auto flex items-center justify-between">
+          <span className="h-3 w-10 rounded-full bg-accent-soft" />
+          <span className="size-4 rounded-full bg-send" />
+        </span>
+      </span>
+    </span>
   )
 }

@@ -19,6 +19,7 @@ import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { AppUpdater, bundleOf } from './update'
 import { createMainWindow, showMainWindow } from './window'
+import { setAppIcon } from './appIcon'
 
 registerAppScheme()
 
@@ -57,8 +58,9 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     // A packaged app takes its icon from the bundle; in development the Dock
-    // would show Electron's, so it takes the brand's (assets/brand) instead.
-    if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), '..', '..', 'assets', 'brand', 'png', 'app-icon-1024.png'))
+    // would show Electron's until the interface sets its theme's, so it takes
+    // the brand's from the start.
+    if (!app.isPackaged) setAppIcon('stone')
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, home, backendLog)

@@ -223,6 +223,11 @@ export type UpdateFailure = { kind: 'location'; path: string } | { kind: 'error'
 export type ColorScheme = 'system' | 'light' | 'dark'
 export const colorSchemes: readonly ColorScheme[] = ['system', 'light', 'dark']
 
+/** The interface's themes (packages/ui/src/theme.css): stone and moss, the
+ * default, and dusk. */
+export type AppTheme = 'stone' | 'dusk'
+export const appThemes: readonly AppTheme[] = ['stone', 'dusk']
+
 /** A system notification about a thread; clicking it opens the thread. */
 export interface ThreadNotice {
   threadId: string
@@ -383,6 +388,8 @@ export interface DesktopApi {
   /** Sets the window's scheme, which the renderer's prefers-color-scheme
    * and the native window chrome both follow. */
   setColorScheme(scheme: ColorScheme): Promise<void>
+  /** Shows the theme's icon in the Dock while the app runs. */
+  setAppIcon(theme: AppTheme): Promise<void>
 }
 
 /** One entry of a context menu, named by the renderer in its language. */
@@ -458,6 +465,7 @@ export const IpcChannel = {
   RevealFile: 'shell:revealFile',
   ContextMenu: 'menu:context',
   SetColorScheme: 'theme:setColorScheme',
+  SetAppIcon: 'theme:setAppIcon',
 } as const
 
 /** Packaged builds serve the renderer from app://ollupi; the backend is told

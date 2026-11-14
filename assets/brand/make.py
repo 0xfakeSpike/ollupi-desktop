@@ -1,5 +1,6 @@
 """Ollupi's brand, all of it in this folder and generated from one drawing
-(figure.py, poses.py) and the Manrope outlines: the marks and wordmark as SVG,
+(figure.py, poses.py; the dusk theme's rendering of it, dusk.py) and the
+Manrope outlines: the marks and wordmark as SVG,
 the poses, the PNGs at every size, the macOS icon (Ollupi.icns, which the app
 is packaged with), the overview (preview.png), and the app's own copy of the
 poses and emblem (views/common/wolfArt.ts). The engine's README and figures and
@@ -18,6 +19,7 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 from figure import GROUND, GROUND_TOP, MOON, MOON_EDGE, TAN, SADDLE_C, color_figure, emblem_body, ground, mono_figure, moon
 from poses import POSES, pose_svg
+import dusk
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INK = '#22252a'      # the wordmark on light grounds (theme fg)
@@ -74,6 +76,9 @@ def main(font_file):
         'app-icon.svg': app_icon(),
         'app-icon-small.svg': app_icon(small=True),
         'app-icon-16.svg': app_icon(small=True).replace('width="1024" height="1024"', 'width="16" height="16"'),
+        # The dusk theme's: the wolf in a dusk sky with the savanna (dusk.py).
+        'app-icon-dusk.svg': dusk.app_icon(),
+        'mark-dusk.svg': svg(100, 100, dusk.emblem_body()),
     }
     for name, fill in (('wordmark.svg', INK), ('wordmark-dark.svg', PAPER)):
         files[name] = svg(round(width / upm * 100), round(height / upm * 100), f'<path d="{d}" fill="{fill}"/>', f'0 0 {width:.0f} {height:.0f}')
@@ -100,7 +105,13 @@ def main(font_file):
              '// cut out with var(--cut); the emblem carries its own colours.', '',
              'export const POSES = {']
     lines += [f'  {k}: {v!r},'.replace("'", '`', 1)[::-1].replace("'", '`', 1)[::-1] for k, v in POSES.items()]
-    lines += ['} as const', '', f'export const EMBLEM = `{emblem_body()}`', '']
+    lines += ['} as const', '', f'export const EMBLEM = `{emblem_body()}`', '',
+              '// The dusk theme (dusk.py): its emblem, a small horizon for an empty page',
+              '// (0 0 420 120), a dragonfly (-40 -30 80 70) and grass laid over a pose.',
+              f'export const EMBLEM_DUSK = `{dusk.emblem_body()}`',
+              f'export const HORIZON = `{dusk.horizon()}`',
+              f'export const DRAGONFLY = `{dusk.dragonfly()}`',
+              f'export const POSE_GRASS = `{dusk.pose_grass()}`', '']
     open(app, 'w').write('\n'.join(lines))
     print('wrote', ', '.join(sorted(files)))
     render(font_file)
@@ -132,6 +143,9 @@ def render(font_file):
     for px in (16, 32):
         shoot(picture('favicon.svg', px, px), px, px, f'{png}/favicon-{px}.png')
     shoot(picture('mark.svg', 1024, 1024), 1024, 1024, f'{png}/mark-1024.png')
+    # The dusk theme's: the Dock shows this while the theme is dusk.
+    shoot(picture('app-icon-dusk.svg', 1024, 1024), 1024, 1024, f'{png}/app-icon-dusk-1024.png')
+    shoot(picture('mark-dusk.svg', 1024, 1024), 1024, 1024, f'{png}/mark-dusk-1024.png')
     for name in ('logo', 'logo-dark'):
         shoot(picture(f'{name}.svg', 1864, 780), 1864, 780, f'{png}/{name}.png')
     # The macOS icon, from the same PNGs: each size and its @2x.

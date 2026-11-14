@@ -27,7 +27,7 @@ export function App() {
       {synced && !failed ? (
         // The sidebar sits on the window's ground; the screen is one large
         // rounded sheet laid on it (DESIGN.md §0, stone and moss).
-        <div className="flex h-full flex-col bg-ground">
+        <div className="ground-wash flex h-full flex-col bg-ground">
           <ContractBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />
@@ -40,6 +40,10 @@ export function App() {
         <BackendScreen />
       )}
       <Toasts />
+      {/* The theme's grain (dusk has one): one layer over the whole window,
+          above every surface and floating layer, so the sheet and the ground
+          are one paper. It takes no pointer and says nothing. */}
+      <div aria-hidden className="grain pointer-events-none fixed inset-0 z-100" />
     </>
   )
 }

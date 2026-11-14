@@ -47,6 +47,11 @@ export const en = {
     names: { en: 'English', 'zh-CN': '简体中文' },
   },
   appearance: {
+    theme: 'Theme',
+    themes: {
+      stone: { name: 'Stone and moss', description: 'Quiet stone and moss green, for long working hours.' },
+      dusk: { name: 'Dusk', description: 'Evening light seeping into paper, with a little grain.' },
+    },
     scheme: 'Light or dark',
     schemes: { system: 'System', light: 'Light', dark: 'Dark' },
   },
@@ -97,6 +102,11 @@ export const zh: typeof en = {
     names: { en: 'English', 'zh-CN': '简体中文' },
   },
   appearance: {
+    theme: '主题',
+    themes: {
+      stone: { name: '石与苔', description: '安静的石色和苔绿，适合长时间干活。' },
+      dusk: { name: '暮色', description: '纸色上渗进黄昏的光，带一点颗粒。' },
+    },
     scheme: '明暗',
     schemes: { system: '跟随系统', light: '浅色', dark: '深色' },
   },
