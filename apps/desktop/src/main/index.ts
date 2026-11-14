@@ -56,8 +56,9 @@ if (!app.requestSingleInstanceLock()) {
   const keepOnClose = () => process.platform === 'darwin' && !stopping
 
   void app.whenReady().then(() => {
-    // A packaged app takes its icon from the bundle; in development the Dock shows Electron's.
-    if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build', 'icon.png'))
+    // A packaged app takes its icon from the bundle; in development the Dock
+    // would show Electron's, so it takes the brand's (assets/brand) instead.
+    if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), '..', '..', 'assets', 'brand', 'png', 'app-icon-1024.png'))
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, home, backendLog)

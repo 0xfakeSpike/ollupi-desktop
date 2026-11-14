@@ -18,6 +18,8 @@ extraResources:
     to: bin
 mac:
   category: public.app-category.developer-tools
+  # The brand keeps the icon with everything else it draws (assets/brand/make.py).
+  icon: ../../assets/brand/Ollupi.icns
   minimumSystemVersion: '12.0'
   # The dmg is for a first install; the app updates itself from the zip,
   # which latest-mac.yml lists with its sha512 (src/main/update.ts).
