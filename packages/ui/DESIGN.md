@@ -188,7 +188,7 @@ token 全部写在 `packages/ui/src/theme.css`，组件只用语义名（`bg-can
 
 - 一屏里相邻两档至少差 1.25 倍；页面里的分节标题用 `display`，不和 13px 正文挤在同一档附近。
 - 字重只用 400、500、600；`caption`、`title`、`display`、`hero` 自带字重。
-- Markdown 由 Streamdown 解析，元素画成普通标签，只用 `.markdown` 里基于 token 的样式；代码用 Shiki（浅色 `github-light`、深色 `github-dark`），代码块底色 `surface`；`diff` 代码块的增删行铺 `success-soft` / `danger-soft`。表格是 `line` 外框、宽度随内容，单元格只在必要时断词。中文里的裸链接到第一个中文字符或全角标点为止（`cjkAutolink.ts`）。行内代码换行时每段各自圆角（`box-decoration-break: clone`）。mermaid 图的颜色取 token（连线 `fg-muted`、强调 `ink`）。
+- Markdown 由 Streamdown 解析，元素画成普通标签，只用 `.markdown` 里基于 token 的样式；代码用 Shiki（浅色 `github-light`、深色 `github-dark`），代码块底色 `surface`；`diff` 代码块的增删行铺 `success-soft` / `danger-soft`。表格是 `line` 外框、宽度随内容，单元格只在必要时断词。中文里的裸链接到第一个中文字符或全角标点为止（`cjkAutolink.ts`）。行内代码换行时每段各自圆角（`box-decoration-break: clone`）。图片不超过正文宽度，圆角 `lg`；工作区里的 Markdown 文件，相对路径的图片按文件所在文件夹从工作区读出。mermaid 图的颜色取 token（连线 `fg-muted`、强调 `ink`）。
 - **字体**：Manrope（`@fontsource-variable/manrope`）+ 苹方，代码 JetBrains Mono，都打包进应用（OFL）。中文界面时字体栈最前面是 `CJK Punctuation`，引号、破折号、省略号用苹方的字形。
 - **中英混排**：不加字距、不用全大写、中文不用斜体；中英文之间不手打空格。
 - **等宽**：命令、路径、文件名、代码用 `font-mono`；模型在第一层只写模型名，不写"服务商/模型"。

@@ -2,17 +2,19 @@
 // reads each folder when it opens, and a file's preview in its place. The
 // preview's path leads back: each folder in it lists its files to jump to,
 // and a double-click returns to that folder in the tree. The agent changes
-// files as it works, so reloading reads every open folder again.
+// files as it works, so reloading reads every open folder again. A
+// Markdown file shows its images, and its links to other files open them.
 
 import type { WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Loader } from '@ollupi/ui'
 import { ChevronRight, Code, Eye, File, Folder, FolderOpen, RotateCw } from 'lucide-react'
-import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
 import { fileMenu, readFolder, readPreview, revealPath } from '../../domains/files'
 import { showFile, useNavigation } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
+import { ThreadWorkspace } from '../common/FileLink'
 import { CodeBlock, CopyButton, Markdown } from '../common/Markdown'
 import { SidePanel, usePanelWidths } from './SidePanel'
 
@@ -66,17 +68,20 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
           onRevealed={() => setRevealed(undefined)}
         />
       ) : (
-        <Preview
-          key={file}
-          root={root}
-          name={workspace.name}
-          path={file}
-          version={version}
-          source={source}
-          onSource={setSource}
-          onOpen={setFile}
-          onReveal={reveal}
-        />
+        // A link in a Markdown file opens the file it names here.
+        <ThreadWorkspace.Provider value={workspace.id}>
+          <Preview
+            key={file}
+            root={root}
+            name={workspace.name}
+            path={file}
+            version={version}
+            source={source}
+            onSource={setSource}
+            onOpen={setFile}
+            onReveal={reveal}
+          />
+        </ThreadWorkspace.Provider>
       )}
     </SidePanel>
   )
@@ -227,6 +232,7 @@ function Preview({
   }, [root, path, version])
   const markdown = isMarkdown(path)
   const rendered = markdown && !source
+  const inFile = useMemo(() => ({ root, path, version }), [root, path, version])
 
   return (
     <div className="flex min-h-full flex-col gap-3">
@@ -248,7 +254,7 @@ function Preview({
         </div>
       ) : file.kind === 'text' ? (
         <>
-          {rendered ? <Markdown text={file.text} /> : <CodeBlock code={file.text} label={languageOf(path)} />}
+          {rendered ? <Markdown text={file.text} file={inFile} /> : <CodeBlock code={file.text} label={languageOf(path)} />}
           {file.truncated && <p className="text-small text-fg-subtle">{t.truncated(fileSize(locale, file.size))}</p>}
         </>
       ) : file.kind === 'image' ? (

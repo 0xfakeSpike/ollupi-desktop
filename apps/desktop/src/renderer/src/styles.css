@@ -197,6 +197,12 @@ code,
   display: block;
   margin-inline: auto;
 }
+/* An image is no wider than the text it sits in. */
+.markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+}
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--color-line);
