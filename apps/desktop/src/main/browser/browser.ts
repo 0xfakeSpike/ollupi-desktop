@@ -10,26 +10,30 @@
 //
 // The sidecar's browser provider asks for two things, by thread: what an
 // action would do (its description and the tab's host, which permissions
-// go by) and to do it, answered with the page as text.
+// go by) and to do it, answered with the page as text. Playwright does the
+// agent's actions and reads the page (./playwright).
 
 import { errorMessage } from '@ollupi/client'
 import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
 import { join } from 'node:path'
+import type { Locator, Page } from 'playwright-core'
 import type { BrowserDownload, BrowserState, BrowserTab } from '../../shared/ipc'
 import { isWebPage, normalize } from './address'
-import { clickScript, describeScript, focusScript, locateScript, scrollScript, snapshotScript, WORLD } from './page'
+import { Pages, playwright, type Size } from './playwright'
 
 const PARTITION = 'persist:browser'
-/** About 10k tokens of page. */
-const SNAPSHOT_LIMIT = 40_000
+/** About 10k tokens of page: a snapshot longer than this is read by pages. */
+const SNAPSHOT_PAGE = 40_000
 const LOAD_TIMEOUT = 15_000
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+/** The size a tab off screen is laid out at when no panel has been shown. */
+const PANEL_SIZE: Size = { width: 1280, height: 800 }
 
 /** An action that cannot be done, worded for the agent: a stale ref, no
  * page open. */
-export class Refusal extends Error {}
+export class Refusal extends Error {
+  override name = 'Refusal'
+}
 
 /** What an action does, as permissions and approvals see it. */
 export interface Description {
@@ -56,6 +60,12 @@ export class AgentBrowser extends EventEmitter {
   private shown: { thread: string; bounds: Rectangle } | undefined
   /** Whether the tabs' session's downloads are watched. */
   private watching = false
+  /** The panel's size when last shown: a tab off screen is laid out at it
+   * while the agent acts there, as the person would see it. */
+  private panel: Size = PANEL_SIZE
+  private readonly pages = new Pages()
+  /** Each tab's latest snapshot, in the pages it is read by. */
+  private readonly snapshots = new WeakMap<Electron.WebContents, string[]>()
 
   state(thread: string): BrowserState {
     const strip = this.strips.get(thread)
@@ -80,8 +90,11 @@ export class AgentBrowser extends EventEmitter {
   /** Shows a thread's active tab over its panel's area, in the window's
    * content, and hides every other; undefined hides it. */
   place(thread: string, bounds: Rectangle | undefined): void {
-    if (bounds && bounds.width > 0 && bounds.height > 0) this.shown = { thread, bounds: inWindow(bounds) }
-    else if (this.shown?.thread === thread) this.shown = undefined
+    if (bounds && bounds.width > 0 && bounds.height > 0) {
+      const placed = inWindow(bounds)
+      this.shown = { thread, bounds: placed }
+      this.panel = { width: placed.width, height: placed.height }
+    } else if (this.shown?.thread === thread) this.shown = undefined
     this.layAll()
   }
 
@@ -178,15 +191,15 @@ export class AgentBrowser extends EventEmitter {
       const url = address(text(args, 'url'))
       return { host: new URL(url).host, text: `Open ${url}` }
     }
-    const wc = this.page(thread)
+    const wc = this.tab(thread)
     const host = new URL(wc.getURL()).host
     switch (action) {
       case 'click':
-        return { host, text: `Click ${await element(wc, text(args, 'ref'))} on ${host}` }
+        return { host, text: `Click ${this.element(wc, ref(args))} on ${host}` }
       case 'type': {
         const typed = typeof args.text === 'string' ? args.text : ''
         const enter = args.submit === true ? ' and press Enter' : ''
-        return { host, text: `Type "${typed}" into ${await element(wc, text(args, 'ref'))}${enter} on ${host}` }
+        return { host, text: `Type "${typed}" into ${this.element(wc, ref(args))}${enter} on ${host}` }
       }
       case 'press_key':
         return { host, text: `Press ${text(args, 'key')} on ${host}` }
@@ -207,52 +220,119 @@ export class AgentBrowser extends EventEmitter {
         await this.open(thread, text(args, 'url'))
         break
       case 'snapshot':
-        break
-      case 'click':
-        await this.click(thread, text(args, 'ref'))
-        break
-      case 'type': {
-        const wc = this.page(thread)
-        if (typeof args.text !== 'string') throw new Refusal('text is required')
-        await act(wc, focusScript(ref(text(args, 'ref'))))
-        wc.insertText(args.text)
-        if (args.submit === true) key(wc, 'Enter')
+        return this.read(thread, pageNumber(args))
+      case 'click': {
+        const r = ref(args)
+        await this.act(thread, async (page) => (await located(page, r)).click())
         break
       }
-      case 'press_key':
-        key(this.page(thread), text(args, 'key'))
+      case 'type': {
+        const r = ref(args)
+        const typed = args.text
+        if (typeof typed !== 'string') throw new Refusal('text is required')
+        await this.act(thread, async (page) => {
+          const field = await located(page, r)
+          await field.fill(typed)
+          if (args.submit === true) await field.press('Enter')
+        })
         break
+      }
+      case 'press_key': {
+        const key = text(args, 'key')
+        await this.act(thread, (page) => page.keyboard.press(key))
+        break
+      }
       case 'scroll':
-        await run(this.page(thread), scrollScript(args.direction !== 'up'))
+        await this.act(thread, (page) => scroll(page, args.direction === 'up'))
         break
       case 'back':
-        this.page(thread).navigationHistory.goBack()
+        // The page that comes back is waited for as any page is, by read.
+        await this.act(thread, (page) => page.goBack({ waitUntil: 'commit' }))
         break
       default:
         throw new Refusal(`no action named ${action}`)
     }
-    return read(this.page(thread))
+    return this.read(thread)
   }
 
-  private async click(thread: string, r: string): Promise<void> {
-    const wc = this.page(thread)
-    if (this.shown?.thread !== thread) {
-      // A tab not on screen takes no input events.
-      return act(wc, clickScript(ref(r)))
+  /** Does an action in the thread's active tab. What goes wrong on the
+   * page, such as a stale ref or an element that never becomes ready, is
+   * the agent's to read. */
+  private async act(thread: string, action: (page: Page) => Promise<unknown>): Promise<void> {
+    await this.pages.act(this.tab(thread), this.offscreen(thread), (page) =>
+      action(page).catch((err: unknown) => {
+        if (err instanceof Refusal) throw err
+        throw new Refusal(told(errorMessage(err)), { cause: err })
+      }),
+    )
+  }
+
+  /** The thread's active tab as text: a new snapshot, or a page of the
+   * latest one by its number. Every page of a snapshot gives refs that work
+   * until the next one. */
+  private async read(thread: string, n?: number): Promise<string> {
+    if (n !== undefined) {
+      const wc = this.tab(thread)
+      const pages = this.snapshots.get(wc)
+      if (!pages) throw new Refusal('there is no snapshot of this page yet; take one without page')
+      if (n > pages.length) throw new Refusal(`the snapshot has ${pages.length} page${pages.length === 1 ? '' : 's'}`)
+      return shown(wc, pages, n)
     }
-    const at = await run<{ x: number; y: number } | { error: string }>(wc, locateScript(ref(r)))
-    if ('error' in at) throw new Refusal(at.error)
-    // Real input, so the page sees a person's click.
-    wc.sendInputEvent({ type: 'mouseMove', x: at.x, y: at.y })
-    wc.sendInputEvent({ type: 'mouseDown', x: at.x, y: at.y, button: 'left', clickCount: 1 })
-    wc.sendInputEvent({ type: 'mouseUp', x: at.x, y: at.y, button: 'left', clickCount: 1 })
+    await this.opening(thread)
+    const wc = this.tab(thread)
+    const { errors } = await playwright()
+    const snapshot = await this.pages.act(wc, this.offscreen(thread), async (page) => {
+      try {
+        await page.waitForLoadState('load', { timeout: LOAD_TIMEOUT })
+      } catch (err) {
+        // A page still loading is read as far as it has come.
+        if (!(err instanceof errors.TimeoutError)) throw err
+      }
+      return page.ariaSnapshot({ mode: 'ai' })
+    })
+    const pages = paged(snapshot, SNAPSHOT_PAGE)
+    this.snapshots.set(wc, pages)
+    return shown(wc, pages, 1)
+  }
+
+  /** An element as the latest snapshot names it, as the agent saw it:
+   * its role and name. Asking the page instead would take a snapshot of
+   * the element, and a snapshot gives the page new refs. */
+  private element(wc: Electron.WebContents, r: string): string {
+    const line = this.snapshots
+      .get(wc)
+      ?.flatMap((page) => page.split('\n'))
+      .find((l) => l.includes(`[ref=${r}]`))
+    if (!line) throw new Refusal(`no element ${r} in the latest snapshot; take a new snapshot`)
+    // A snapshot's line: - role "name" [attributes]: text
+    const [, role = 'element', name] = /^\s*- ([\w-]+)(?: "((?:[^"\\]|\\.)*)")?/.exec(line) ?? []
+    return name ? `${role} "${name}"` : role
+  }
+
+  /** Waits for the thread's active tab to have its first page, when a
+   * link has just opened it: the tab is there before its page is. */
+  private async opening(thread: string): Promise<void> {
+    const wc = this.strips.get(thread)?.active?.webContents
+    if (!wc || wc.isDestroyed() || wc.getURL() || !wc.isLoading()) return
+    try {
+      await once(wc, 'did-stop-loading', { signal: AbortSignal.timeout(LOAD_TIMEOUT) })
+    } catch (err) {
+      // Still opening: tab() says there is no page yet.
+      if (!(err instanceof Error && err.name === 'AbortError')) throw err
+    }
   }
 
   /** The thread's active tab with a page open in it. */
-  private page(thread: string): Electron.WebContents {
+  private tab(thread: string): Electron.WebContents {
     const wc = this.strips.get(thread)?.active?.webContents
     if (!wc || wc.isDestroyed() || !wc.getURL()) throw new Refusal('no page is open in this conversation; use navigate first')
     return wc
+  }
+
+  /** The size the thread's tab is laid out at while the agent acts in it,
+   * when it is not the one on screen. */
+  private offscreen(thread: string): Size | undefined {
+    return this.shown?.thread === thread ? undefined : this.panel
   }
 
   private changed(thread: string): void {
@@ -387,35 +467,55 @@ function named(wc: Electron.WebContents): string {
   return title === wc.getURL() ? '' : title
 }
 
-/** The page once it has settled: its title, address and snapshot. */
-async function read(wc: Electron.WebContents): Promise<string> {
-  await sleep(200)
-  if (wc.isLoading()) await Promise.race([once(wc, 'did-stop-loading'), sleep(LOAD_TIMEOUT)])
-  const snapshot = await run<string>(wc, snapshotScript(SNAPSHOT_LIMIT))
-  return `${wc.getTitle()}\n${wc.getURL()}\n\n${snapshot || '(the page shows nothing)'}`
+/** A snapshot cut into pages of at most size characters, at line ends
+ * where it can be. */
+export function paged(snapshot: string, size: number): string[] {
+  const pages: string[] = []
+  let page = ''
+  for (const line of snapshot.split('\n')) {
+    for (let at = 0; at < Math.max(line.length, 1); at += size) {
+      const piece = line.slice(at, at + size)
+      if (page && page.length + 1 + piece.length > size) {
+        pages.push(page)
+        page = ''
+      }
+      page = page ? `${page}\n${piece}` : piece
+    }
+  }
+  pages.push(page)
+  return pages
 }
 
-/** An element as a person would name it: its role and name. */
-async function element(wc: Electron.WebContents, r: string): Promise<string> {
-  const el = await run<{ role: string; name: string } | { error: string }>(wc, describeScript(ref(r)))
-  if ('error' in el) throw new Refusal(el.error)
-  return el.name ? `${el.role} "${el.name}"` : el.role
+/** A page of a tab's snapshot, under the tab's title and address. */
+function shown(wc: Electron.WebContents, pages: string[], n: number): string {
+  const body = pages[n - 1] || '(the page shows nothing)'
+  const more = n < pages.length ? `; snapshot with page ${n + 1} reads on` : ''
+  const of = pages.length > 1 ? `\n\n[page ${n} of ${pages.length} of this snapshot${more}]` : ''
+  return `${wc.getTitle()}\n${wc.getURL()}\n\n${body}${of}`
 }
 
-function run<T>(wc: Electron.WebContents, code: string): Promise<T> {
-  return wc.executeJavaScriptInIsolatedWorld(WORLD, [{ code }]) as Promise<T>
+/** The element a ref names, if the page has it: a ref of an earlier
+ * snapshot names nothing, and Playwright would wait its whole timeout for
+ * it to appear. */
+async function located(page: Page, r: string): Promise<Locator> {
+  const element = page.getByRef(r)
+  if ((await element.count()) === 0) throw new Refusal(`no element ${r} on the page now; take a new snapshot`)
+  return element
 }
 
-/** Runs a page script that answers {} or why it could not act. */
-async function act(wc: Electron.WebContents, code: string): Promise<void> {
-  const done = await run<{ error?: string }>(wc, code)
-  if (done.error) throw new Refusal(done.error)
+/** What went wrong in an action, for the agent: Playwright's message and
+ * the start of its call log, which says what it waited for. */
+function told(message: string): string {
+  const lines = message.split('\n')
+  return lines.length > 12 ? [...lines.slice(0, 12), '…'].join('\n') : message
 }
 
-function key(wc: Electron.WebContents, keyCode: string): void {
-  wc.sendInputEvent({ type: 'keyDown', keyCode })
-  if ([...keyCode].length === 1) wc.sendInputEvent({ type: 'char', keyCode })
-  wc.sendInputEvent({ type: 'keyUp', keyCode })
+/** Scrolls what is under the middle of the page by most of a screen, as a
+ * wheel does: a list that scrolls on its own scrolls, not only the page. */
+async function scroll(page: Page, up: boolean): Promise<void> {
+  const [width, height] = (await page.evaluate('[innerWidth, innerHeight]')) as [number, number]
+  await page.mouse.move(width / 2, height / 2)
+  await page.mouse.wheel(0, Math.round(height * 0.8) * (up ? -1 : 1))
 }
 
 async function load(view: WebContentsView, url: string): Promise<void> {
@@ -432,14 +532,22 @@ function address(url: string): string {
   }
 }
 
+/** The page of the latest snapshot asked for, if one is. */
+function pageNumber(args: Record<string, unknown>): number | undefined {
+  if (args.page === undefined) return undefined
+  if (!Number.isInteger(args.page) || (args.page as number) < 1) throw new Refusal('page is a number from 1')
+  return args.page as number
+}
+
 function text(args: Record<string, unknown>, key: string): string {
   const v = args[key]
   if (typeof v !== 'string' || !v) throw new Refusal(`${key} is required`)
   return v
 }
 
-/** Refs are the snapshot's own, e1, e2 and so on. */
-function ref(r: string): string {
-  if (!/^e\d+$/.test(r)) throw new Refusal(`${r} is not a ref from a snapshot`)
+/** Refs are the snapshot's own: e1, e2 and so on, f1e3 in a frame. */
+function ref(args: Record<string, unknown>): string {
+  const r = text(args, 'ref')
+  if (!/^(f\d+)?e\d+$/.test(r)) throw new Refusal(`${r} is not a ref from a snapshot`)
   return r
 }

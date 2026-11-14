@@ -57,7 +57,7 @@ type tool struct {
 	described bool
 }
 
-var ref = map[string]any{"type": "string", "description": "The ref of an element in the latest snapshot, such as e12."}
+var ref = map[string]any{"type": "string", "description": "The ref of an element in the latest snapshot, such as e12, or f1e3 inside a frame."}
 
 func object(properties map[string]any, required ...string) map[string]any {
 	if required == nil {
@@ -69,20 +69,22 @@ func object(properties map[string]any, required ...string) map[string]any {
 var catalog = []tool{
 	{
 		action:      "navigate",
-		description: "Open a web page in this conversation's tab of the app's built-in browser, the one the user sees beside the conversation; a link that opens a new tab moves you to it. Answers with the page as text; each element you can act on has a ref such as e3.",
+		description: "Open a web page in this conversation's tab of the app's built-in browser, the one the user sees beside the conversation; a link that opens a new tab moves you to it. Answers with the page as text, an accessibility snapshot in which each element you can act on has a ref such as e3. A long page comes in pages: the answer ends saying how many, and browser_snapshot with page reads the others.",
 		schema:      object(map[string]any{"url": map[string]any{"type": "string", "description": "The address; https:// is added when it has no scheme (http:// for localhost)."}}, "url"),
 		annotations: tools.Annotations{Title: "Open page", ReadOnlyHint: true, OpenWorldHint: tools.Hint(true)},
 		described:   true,
 	},
 	{
 		action:      "snapshot",
-		description: "Read the page open in this conversation's tab again, with fresh refs. Use it after the page changes on its own, or when a ref is stale.",
-		schema:      object(map[string]any{}),
+		description: "Read the page open in this conversation's tab. Without page, takes a new snapshot, with fresh refs: use it after the page changes on its own, or when a ref is stale. With page, reads that page of the latest snapshot, whose refs all work until the next snapshot.",
+		schema: object(map[string]any{
+			"page": map[string]any{"type": "integer", "minimum": 1, "description": "A page of the latest snapshot, when it has more than one."},
+		}),
 		annotations: tools.Annotations{Title: "Read page", ReadOnlyHint: true, OpenWorldHint: tools.Hint(false)},
 	},
 	{
 		action:      "click",
-		description: "Click an element of the page by its ref, as a person would.",
+		description: "Click an element of the page by its ref, as a person would, once it is visible, enabled and not covered.",
 		schema:      object(map[string]any{"ref": ref}, "ref"),
 		annotations: tools.Annotations{Title: "Click", DestructiveHint: tools.Hint(true), OpenWorldHint: tools.Hint(true)},
 		described:   true,
@@ -100,14 +102,14 @@ var catalog = []tool{
 	},
 	{
 		action:      "press_key",
-		description: "Press a key on the focused element: Enter, Tab, Escape, Backspace, Delete, Up, Down, Left, Right, PageUp, PageDown, Home, End, or one character.",
+		description: "Press a key on the focused element: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, PageUp, PageDown, Home, End, or one character; a combination such as Control+A.",
 		schema:      object(map[string]any{"key": map[string]any{"type": "string"}}, "key"),
 		annotations: tools.Annotations{Title: "Press key", DestructiveHint: tools.Hint(true), OpenWorldHint: tools.Hint(true)},
 		described:   true,
 	},
 	{
 		action:      "scroll",
-		description: "Scroll the page by most of a screen, to read what a long page did not show.",
+		description: "Scroll by most of a screen what is under the middle of the page, as a mouse wheel does, so a list that scrolls on its own scrolls too. Use it for what a page loads as you scroll; what is already on the page is in the snapshot's pages.",
 		schema:      object(map[string]any{"direction": map[string]any{"type": "string", "enum": []string{"down", "up"}}}, "direction"),
 		annotations: tools.Annotations{Title: "Scroll", ReadOnlyHint: true, OpenWorldHint: tools.Hint(false)},
 	},
