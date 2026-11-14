@@ -43,7 +43,12 @@ export class TabsOverCDP {
   /** The transport a client connects over. */
   transport(): ConnectOverCDPTransport {
     const transport: ConnectOverCDPTransport = {
-      send: (message) => void this.receive(message as Message),
+      // A command goes on in a task of its own, as over a socket. Playwright
+      // answers some events the moment it hears them: told of a service
+      // worker, it detaches from it at once. Sent from inside the event, the
+      // command reaches Chromium while it is still attaching that worker,
+      // which then finds its session gone and crashes the app.
+      send: (message) => setImmediate(() => void this.receive(message as Message)),
       close: () => {
         if (this.client !== transport) return
         this.client = undefined

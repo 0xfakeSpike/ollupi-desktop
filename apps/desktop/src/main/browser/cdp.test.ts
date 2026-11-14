@@ -31,7 +31,7 @@ function connected(tabs: TabsOverCDP) {
   const send = async (method: string, params?: unknown, sessionId?: string) => {
     const at = ++id
     transport.send({ id: at, method, params, sessionId })
-    await new Promise((r) => setTimeout(r, 0))
+    for (let turn = 0; turn < 10 && !heard.some((m) => m.id === at); turn++) await new Promise((r) => setImmediate(r))
     return heard.find((m) => m.id === at)
   }
   return { heard, send, transport }
@@ -73,6 +73,23 @@ describe('TabsOverCDP', () => {
     a.debugger.emit('message', {}, 'Runtime.executionContextCreated', { context: {} }, 'frame-9')
     expect(heard.at(-1)).toEqual({ sessionId: 'frame-9', method: 'Runtime.executionContextCreated', params: { context: {} } })
     expect((await send('Runtime.enable', {}, 'nobody'))!.error).toEqual({ code: -32000, message: 'no session nobody' })
+  })
+
+  it('sends a command the client answers an event with only once the event has returned', async () => {
+    const tabs = new TabsOverCDP()
+    const a = tab('A')
+    await tabs.add(a.tab)
+    const { transport } = connected(tabs)
+    // As Playwright does when told of a service worker: Chromium is still
+    // attaching it while the event is being heard.
+    transport.onmessage = (m) => {
+      const { method, params } = m as { method?: string; params?: { sessionId: string } }
+      if (method === 'Target.attachedToTarget') transport.send({ id: 1, method: 'Target.detachFromTarget', params: { sessionId: params!.sessionId }, sessionId: 'tab-1' })
+    }
+    a.debugger.emit('message', {}, 'Target.attachedToTarget', { sessionId: 'sw-1', targetInfo: { targetId: 'W', type: 'service_worker' } }, undefined)
+    expect(a.debugger.sent).toEqual([])
+    await new Promise((r) => setImmediate(r))
+    expect(a.debugger.sent).toEqual([{ method: 'Target.detachFromTarget', params: { sessionId: 'sw-1' }, sessionId: undefined }])
   })
 
   it('lets frames that open later start running, not paused for a debugger', async () => {
