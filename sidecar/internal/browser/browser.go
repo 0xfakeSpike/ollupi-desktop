@@ -136,8 +136,8 @@ func (p *Provider) ToolList(context.Context) ([]*tools.Spec, error) {
 		}
 		if t.described {
 			action := t.action
-			spec.PermissionContent = func(ctx context.Context, arguments map[string]any) (tools.Content, error) {
-				return p.describe(ctx, action, arguments)
+			spec.PermissionContent = func(ctx context.Context, caller tools.Caller, arguments map[string]any) (tools.Content, error) {
+				return p.describe(ctx, caller, action, arguments)
 			}
 		}
 		specs = append(specs, spec)
@@ -145,7 +145,7 @@ func (p *Provider) ToolList(context.Context) ([]*tools.Spec, error) {
 	return specs, nil
 }
 
-func (p *Provider) Invoke(ctx context.Context, tool string, arguments map[string]any) (tools.Result, error) {
+func (p *Provider) Invoke(ctx context.Context, caller tools.Caller, tool string, arguments map[string]any) (tools.Result, error) {
 	action, ok := strings.CutPrefix(tool, Name+"_")
 	if !ok {
 		err := fmt.Errorf("browser: unknown tool %q", tool)
@@ -154,7 +154,7 @@ func (p *Provider) Invoke(ctx context.Context, tool string, arguments map[string
 	var out struct {
 		Text string `json:"text"`
 	}
-	if err := p.post(ctx, "/call", action, arguments, &out); err != nil {
+	if err := p.post(ctx, caller, "/call", action, arguments, &out); err != nil {
 		// What went wrong on the page is the agent's to read, as a tool error.
 		var refused *refusal
 		if errors.As(err, &refused) {
@@ -165,12 +165,12 @@ func (p *Provider) Invoke(ctx context.Context, tool string, arguments map[string
 	return tools.Result{Output: out.Text}, nil
 }
 
-func (p *Provider) describe(ctx context.Context, action string, arguments map[string]any) (tools.Content, error) {
+func (p *Provider) describe(ctx context.Context, caller tools.Caller, action string, arguments map[string]any) (tools.Content, error) {
 	var out struct {
 		Host string `json:"host"`
 		Text string `json:"text"`
 	}
-	if err := p.post(ctx, "/describe", action, arguments, &out); err != nil {
+	if err := p.post(ctx, caller, "/describe", action, arguments, &out); err != nil {
 		return tools.Content{}, err
 	}
 	return tools.Content{Text: out.Text, Match: out.Host}, nil
@@ -182,8 +182,8 @@ type refusal struct{ message string }
 
 func (r *refusal) Error() string { return r.message }
 
-func (p *Provider) post(ctx context.Context, path, action string, arguments map[string]any, out any) error {
-	thread := tools.CallerOf(ctx).ThreadID
+func (p *Provider) post(ctx context.Context, caller tools.Caller, path, action string, arguments map[string]any, out any) error {
+	thread := caller.ThreadID
 	if thread == "" {
 		return errors.New("browser: the call names no thread")
 	}

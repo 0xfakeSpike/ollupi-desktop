@@ -8,8 +8,8 @@
 //
 //	ollupid --check-config FILE   whether FILE would start
 //	ollupid --config-schema       the JSON Schema of --check-config's output
-//	ollupid --list-skills         the skills in config.yaml's skills_dir
-//	ollupid --check-skills DIR    the skills in DIR, as the agent would load them
+//	ollupid --list-skills         each role's skills in config.yaml's skills_dir
+//	ollupid --check-skills DIR    each role's skills in DIR, as the agent would load them
 //	ollupid --skills-schema       the JSON Schema of the skills modes' output
 package main
 
@@ -33,7 +33,8 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
-	"github.com/0xfakeSpike/ollupi/agent/skills"
+	"github.com/0xfakeSpike/ollupi/agent/role"
+	"github.com/0xfakeSpike/ollupi/repo/skills"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -155,14 +156,22 @@ func check(path, home string) int {
 	return 0
 }
 
-// skillsResult is the skills modes' output: the folder and the skills the
-// agent loads from it, or why the agent would refuse to start with it. Dir
-// is empty when config.yaml sets no skills_dir, which turns skills off.
+// skillsResult is the skills modes' output: the folder and the skills each
+// role of agent loads from it, or why the agent would refuse to start with
+// it. Dir is empty when config.yaml sets no skills_dir, which turns skills
+// off.
 type skillsResult struct {
-	OK     bool           `json:"ok"`
-	Dir    string         `json:"dir"`
-	Skills []skills.Skill `json:"skills,omitempty"`
-	Error  string         `json:"error,omitempty"`
+	OK    bool         `json:"ok"`
+	Dir   string       `json:"dir"`
+	Roles []roleSkills `json:"roles,omitempty"`
+	Error string       `json:"error,omitempty"`
+}
+
+// roleSkills are the skills of one role, in the directory of its name; a
+// role without one has none.
+type roleSkills struct {
+	Role   string         `json:"role"`
+	Skills []skills.Skill `json:"skills"`
 }
 
 func configuredSkills(home string) skillsResult {
@@ -176,14 +185,25 @@ func configuredSkills(home string) skillsResult {
 	return skillsIn(cfg.SkillsDir)
 }
 
-// skillsIn reads dir with the catalog the agent builds at start, so a
-// folder it lists is one the agent starts with.
+// skillsIn checks dir as the agent does at start, so a folder it lists is
+// one the agent starts with, and reads each role's skills as a run does.
 func skillsIn(dir string) skillsResult {
-	catalog, err := skills.New(dir)
-	if err != nil {
+	names := make([]string, len(role.NameValues))
+	for i, r := range role.NameValues {
+		names[i] = string(r)
+	}
+	if err := skills.Check(dir, names); err != nil {
 		return skillsResult{Dir: dir, Error: err.Error()}
 	}
-	return skillsResult{OK: true, Dir: dir, Skills: catalog.All()}
+	out := skillsResult{OK: true, Dir: dir, Roles: make([]roleSkills, 0, len(names))}
+	for _, name := range names {
+		list, err := skills.Load(dir, name)
+		if err != nil {
+			return skillsResult{Dir: dir, Error: err.Error()}
+		}
+		out.Roles = append(out.Roles, roleSkills{Role: name, Skills: list})
+	}
+	return out
 }
 
 func printSkills(out skillsResult) int {

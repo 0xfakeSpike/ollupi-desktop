@@ -1,22 +1,23 @@
 // Agent Skills: folders in the folder config.yaml's skills_dir names, each with
-// a SKILL.md the agent can activate. The main process owns the folder and
-// checks every change with the agent's own catalog; the agent loads skills
-// only at start, so a change restarts the backend.
+// a SKILL.md an agent can activate. Each agent has skills of its own.
+// The main process owns the folder and checks every change with the agent's
+// own rules; the agent reads skills on each run, so a change takes effect
+// from the next one without a restart. Turning skills on or off, or moving
+// the folder, is a change to config.yaml, which does restart.
 
-import type { NewSkill, SkillChange, SkillList } from '../../../shared/ipc'
+import type { NewSkill, SkillAgent, SkillChange, SkillList } from '../../../shared/ipc'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
-import { applyConfig, confirmRestart } from './backendConfig'
+import { applyConfig } from './backendConfig'
 import { notify } from './notices'
-import { useTools } from './tools'
 
 export function readSkills(): Promise<SkillList | undefined> {
   return run((e) => e.skills.load, () => desktop.skills.list())
 }
 
-export function readSkillFile(name: string): Promise<string | undefined> {
-  return run((e) => e.skills.read, () => desktop.skills.read(name))
+export function readSkillFile(agent: SkillAgent, name: string): Promise<string | undefined> {
+  return run((e) => e.skills.read, () => desktop.skills.read(agent, name))
 }
 
 /** The agent's rule for a skill name, which is also its folder's name. */
@@ -26,32 +27,40 @@ export function nameError(name: string, taken: string[]): 'format' | 'taken' | u
   return undefined
 }
 
-/** Resolves to the refusal, or undefined when nothing was asked of the
- * backend; the dialog shows a refusal where the skill is written. */
-export async function createSkill(skill: NewSkill): Promise<SkillChange | undefined> {
-  if (!confirmRestart()) return undefined
-  return run((e) => e.skills.save, () => desktop.skills.create(skill))
+/** Resolves to the refusal, or undefined when the backend could not be
+ * asked; the dialog shows a refusal where the skill is written. */
+export function createSkill(agent: SkillAgent, skill: NewSkill): Promise<SkillChange | undefined> {
+  return run((e) => e.skills.save, () => desktop.skills.create(agent, skill))
 }
 
-export async function saveSkill(name: string, text: string): Promise<SkillChange | undefined> {
-  if (!confirmRestart()) return undefined
-  return run((e) => e.skills.save, () => desktop.skills.save(name, text))
+export function saveSkill(agent: SkillAgent, name: string, text: string): Promise<SkillChange | undefined> {
+  return run((e) => e.skills.save, () => desktop.skills.save(agent, name, text))
 }
 
 /** Resolves to whether a folder was copied in. */
-export async function importSkill(): Promise<boolean> {
-  if (!confirmRestart()) return false
-  const result = await run((e) => e.skills.save, () => desktop.skills.import())
-  if (result && !result.ok) notify(t().errors.skillsUnchanged(result.error))
-  return !!result?.ok
+export async function importSkill(agent: SkillAgent): Promise<boolean> {
+  return settled(await run((e) => e.skills.save, () => desktop.skills.import(agent)))
 }
 
-export async function removeSkill(name: string): Promise<boolean> {
-  if (!confirmRestart()) return false
-  return run((e) => e.skills.remove, async () => {
-    await desktop.skills.remove(name)
-    return true
-  }).then(Boolean)
+/** Resolves to whether the other agent got its copy. */
+export async function copySkill(agent: SkillAgent, name: string, to: SkillAgent): Promise<boolean> {
+  return settled(await run((e) => e.skills.save, () => desktop.skills.copy(agent, name, to)))
+}
+
+export function removeSkill(agent: SkillAgent, name: string): Promise<boolean> {
+  return run(
+    (e) => e.skills.remove,
+    async () => {
+      await desktop.skills.remove(agent, name)
+      return true
+    },
+  ).then(Boolean)
+}
+
+/** A change with no dialog to show its refusal in says it in a notice. */
+function settled(result: SkillChange | undefined): boolean {
+  if (result && !result.ok) notify(t().errors.skillsUnchanged(result.error))
+  return !!result?.ok
 }
 
 /** Points skills_dir at a folder in the backend's data folder, making it. */
@@ -68,12 +77,4 @@ export async function chooseFolder(): Promise<boolean> {
 /** Leaves the folder as it is. */
 export async function turnOff(): Promise<boolean> {
   return !!(await applyConfig([{ kind: 'delete', path: ['skills_dir'] }]))
-}
-
-/** The skills the running agent loaded, as its activate_skill tool offers
- * them; undefined when it started with skills off. */
-export function useLoadedSkills(): string[] | undefined {
-  const tool = useTools((s) => s.list.find((t) => t.provider === 'skills' && t.name === 'activate_skill'))
-  if (!tool) return undefined
-  return (tool.input_schema.properties as { name?: { enum?: string[] } } | undefined)?.name?.enum ?? []
 }

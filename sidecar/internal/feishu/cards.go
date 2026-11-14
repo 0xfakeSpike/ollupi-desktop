@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/0xfakeSpike/ollupi/repo"
+	"github.com/0xfakeSpike/ollupi/repo/db"
 	"github.com/0xfakeSpike/ollupi/tools/userinput"
 )
 
@@ -78,7 +78,7 @@ func turnCard(t *turn) card {
 	if len(t.lines) == 0 && t.running() {
 		parts = append(parts, grey("思考中…"))
 	}
-	if t.status == repo.TurnFailed && t.err != "" {
+	if t.status == db.TurnFailed && t.err != "" {
 		parts = append(parts, "**出错了**："+t.err)
 	}
 	elements := []any{markdown(tail(strings.Join(parts, "\n\n")))}
@@ -87,25 +87,25 @@ func turnCard(t *turn) card {
 	}
 	s := turnStates[t.status]
 	if t.running() {
-		s = turnStates[repo.TurnInProgress]
+		s = turnStates[db.TurnInProgress]
 	}
 	return newCard(t.title, s.template, &tag{s.text, s.color}, elements...)
 }
 
-var turnStates = map[repo.TurnStatus]struct{ text, color, template string }{
-	repo.TurnInProgress:  {"进行中", "blue", "blue"},
-	repo.TurnCompleted:   {"完成", "green", "green"},
-	repo.TurnInterrupted: {"已停止", "neutral", "grey"},
-	repo.TurnFailed:      {"失败", "red", "red"},
+var turnStates = map[db.TurnStatus]struct{ text, color, template string }{
+	db.TurnInProgress:  {"进行中", "blue", "blue"},
+	db.TurnCompleted:   {"完成", "green", "green"},
+	db.TurnInterrupted: {"已停止", "neutral", "grey"},
+	db.TurnFailed:      {"失败", "red", "red"},
 }
 
 // approvalCard asks for an approval with the decisions it offers, but
 // "always allow": the rule it writes is better chosen on the desktop.
-func approvalCard(threadID string, it repo.ItemRow) card {
+func approvalCard(threadID string, it db.ItemRow) card {
 	var buttons []map[string]any
 	for _, d := range it.Approval.AvailableDecisions() {
 		label, kind := decisionLabel(d)
-		if d == repo.DecisionAcceptAlways {
+		if d == db.DecisionAcceptAlways {
 			continue
 		}
 		buttons = append(buttons, button(label, kind, map[string]any{"action": actionApprove, "thread": threadID, "approval": it.Approval.ID, "decision": string(d)}))
@@ -115,7 +115,7 @@ func approvalCard(threadID string, it repo.ItemRow) card {
 
 // settledApprovalCard replaces an approval's buttons with how it was
 // decided and where.
-func settledApprovalCard(it repo.ItemRow) card {
+func settledApprovalCard(it db.ItemRow) card {
 	a := it.Approval
 	if a.Decision == "" {
 		return newCard("审批已取消", "grey", nil, markdown(callDetails(it)))
@@ -126,19 +126,19 @@ func settledApprovalCard(it repo.ItemRow) card {
 		where = "在飞书"
 	}
 	template := "green"
-	if a.Decision == repo.DecisionDecline {
+	if a.Decision == db.DecisionDecline {
 		template = "grey"
 	}
 	return newCard(label, template, &tag{where, "neutral"}, markdown(callDetails(it)))
 }
 
-func decisionLabel(d repo.Decision) (label, kind string) {
+func decisionLabel(d db.Decision) (label, kind string) {
 	switch d {
-	case repo.DecisionAccept:
+	case db.DecisionAccept:
 		return "允许一次", "primary"
-	case repo.DecisionAcceptForSession:
+	case db.DecisionAcceptForSession:
 		return "在此会话中允许", "default"
-	case repo.DecisionAcceptAlways:
+	case db.DecisionAcceptAlways:
 		return "总是允许", "default"
 	}
 	return "拒绝", "danger"
@@ -146,7 +146,7 @@ func decisionLabel(d repo.Decision) (label, kind string) {
 
 // callDetails is what an approval is for: the tool, then what it would
 // run or change as frozen for the approval, or its arguments.
-func callDetails(it repo.ItemRow) string {
+func callDetails(it db.ItemRow) string {
 	var b strings.Builder
 	name := it.Tool
 	if it.Server != "" {
@@ -189,7 +189,7 @@ func callDetails(it repo.ItemRow) string {
 // questionCard asks a request_user_input's questions in one form: each a
 // pick of its options, if it has any, and a box for an answer in the
 // person's own words, which wins over the pick.
-func questionCard(threadID string, it repo.ItemRow, req userinput.Request) card {
+func questionCard(threadID string, it db.ItemRow, req userinput.Request) card {
 	ids := make([]any, len(req.Questions))
 	var fields []any
 	for i, q := range req.Questions {
@@ -235,15 +235,15 @@ func pickField(questionID string) string { return "pick_" + questionID }
 func textField(questionID string) string { return "text_" + questionID }
 
 // callLine is a tool call as one line of a turn's card.
-func callLine(it repo.ItemRow) string {
+func callLine(it db.ItemRow) string {
 	line := "`" + it.Tool + "`"
 	if s := callSummary(it); s != "" {
 		line += " " + strings.ReplaceAll(s, "`", "'")
 	}
 	switch it.Status {
-	case repo.ItemFailed:
+	case db.ItemFailed:
 		line += "（失败）"
-	case repo.ItemDeclined:
+	case db.ItemDeclined:
 		line += "（被拒绝）"
 	}
 	return grey(line)
@@ -251,7 +251,7 @@ func callLine(it repo.ItemRow) string {
 
 // callSummary is the gist of a call: the command it ran, the files it
 // changed, or the argument that says what it is about.
-func callSummary(it repo.ItemRow) string {
+func callSummary(it db.ItemRow) string {
 	if p := it.PreparedExecution; p != nil {
 		if p.Program != "" {
 			return cut(commandLine(p.Program, p.Args), 120)

@@ -66,6 +66,9 @@ http
         'Done. Here is what I found:\n\n| Item | Value |\n|---|---|\n| status | ok |\n| tool output | received |\n\n```bash\necho done\n```\n\nAnything else?',
       )
       send({}, 'stop')
+    } else if (/^echo in the background/i.test(userText)) {
+      await stream('content', 'Starting it in the background.')
+      await call('run_command', { program: 'echo', args: ['done in the background'], run_in_background: true })
     } else if (/^run/i.test(userText)) {
       await stream('reasoning_content', 'The user wants a command run outside the sandbox.')
       await stream('content', 'Running it.')
@@ -95,7 +98,7 @@ http
       await call('create_scheduled_job', { name: 'morning-brief', spec: '0 9 * * *', prompt: 'Give me the morning brief.' })
     } else if (/delegate/i.test(userText)) {
       await stream('content', 'Handing this to a subagent.')
-      await call('Agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })
+      await call('general-sub-agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })
     } else if (/^write notes/i.test(userText)) {
       await stream('content', 'Writing the notes.')
       await call('write_file', { path: 'notes.md', content: '# Notes\n\n- first\n- second\n' })

@@ -82,7 +82,7 @@ describe('tool validators', () => {
   })
 
   it('count a string by its characters, as the contract does', () => {
-    const task = (description: string) => isToolPart('Agent', 'arguments', { description, prompt: 'p' })
+    const task = (description: string) => isToolPart('general-sub-agent', 'arguments', { description, prompt: 'p' })
     expect(task('🙂'.repeat(80))).toBe(true)
     expect(task('a'.repeat(81))).toBe(false)
     expect(task('')).toBe(false)

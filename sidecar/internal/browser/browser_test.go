@@ -58,13 +58,13 @@ func TestCallsGoToTheCallersTab(t *testing.T) {
 	srv := desktop(t)
 	defer srv.Close()
 	p := New(Endpoint{URL: srv.URL, Token: "secret"})
-	ctx := tools.WithCaller(context.Background(), tools.Caller{ThreadID: "th1"})
+	ctx, caller := context.Background(), tools.Caller{ThreadID: "th1"}
 
-	res, err := p.Invoke(ctx, "browser_snapshot", map[string]any{})
+	res, err := p.Invoke(ctx, caller, "browser_snapshot", map[string]any{})
 	if err != nil || res.Output != "page of th1" {
 		t.Fatalf("res = %+v, err = %v", res, err)
 	}
-	content, err := spec(t, p, "browser_click").PermissionContent(ctx, map[string]any{"ref": "e1"})
+	content, err := spec(t, p, "browser_click").PermissionContent(ctx, caller, map[string]any{"ref": "e1"})
 	if err != nil || content.Text != "th1: click e1" || content.Match != "example.com" || content.Parts != nil || content.Opaque {
 		t.Fatalf("content = %+v, err = %v", content, err)
 	}
@@ -74,16 +74,16 @@ func TestWhatCannotBeDoneIsTheAgentsToRead(t *testing.T) {
 	srv := desktop(t)
 	defer srv.Close()
 	p := New(Endpoint{URL: srv.URL, Token: "secret"})
-	ctx := tools.WithCaller(context.Background(), tools.Caller{ThreadID: "th1"})
-	res, err := p.Invoke(ctx, "browser_click", map[string]any{"ref": "e9"})
+	ctx, caller := context.Background(), tools.Caller{ThreadID: "th1"}
+	res, err := p.Invoke(ctx, caller, "browser_click", map[string]any{"ref": "e9"})
 	if err != nil || res.Err == nil || res.Output != "no element e9 on the page now; take a new snapshot" {
 		t.Fatalf("res = %+v, err = %v", res, err)
 	}
-	if _, err := spec(t, p, "browser_click").PermissionContent(ctx, map[string]any{"ref": "e9"}); err == nil {
+	if _, err := spec(t, p, "browser_click").PermissionContent(ctx, caller, map[string]any{"ref": "e9"}); err == nil {
 		t.Fatal("a call that cannot be described has no content")
 	}
 	bad := New(Endpoint{URL: srv.URL, Token: "wrong"})
-	if _, err := bad.Invoke(ctx, "browser_snapshot", nil); err == nil {
+	if _, err := bad.Invoke(ctx, caller, "browser_snapshot", nil); err == nil {
 		t.Fatal("a refused token is an error")
 	}
 }
@@ -95,8 +95,8 @@ func TestAnUnreadableRefusalIsAnError(t *testing.T) {
 	}))
 	defer srv.Close()
 	p := New(Endpoint{URL: srv.URL, Token: "secret"})
-	ctx := tools.WithCaller(context.Background(), tools.Caller{ThreadID: "th1"})
-	if _, err := p.Invoke(ctx, "browser_snapshot", nil); err == nil {
+	ctx, caller := context.Background(), tools.Caller{ThreadID: "th1"}
+	if _, err := p.Invoke(ctx, caller, "browser_snapshot", nil); err == nil {
 		t.Fatal("a refusal the app did not write is an error, not an empty reason")
 	}
 }

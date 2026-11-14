@@ -7,6 +7,7 @@
 import {
   isToolPart,
   type ApprovalRequestParams,
+  type AwaitBy,
   type BuiltinToolName,
   type CommandOutput,
   type FileChange,
@@ -33,7 +34,7 @@ export function waitsForApproval(item: ItemRow): boolean {
 
 /** repo.ItemRow.Awaits: a call that ran and is answered by someone else
  * stays inProgress until the answer arrives. */
-function awaits(item: ItemRow, by: 'user' | 'agent'): boolean {
+function awaits(item: ItemRow, by: AwaitBy): boolean {
   return item.type === 'toolCall' && item.status === 'inProgress' && item.await?.by === by
 }
 
@@ -45,6 +46,21 @@ export function waitsForAnswer(item: ItemRow): boolean {
 /** Waiting for the subagent it started to report. */
 export function waitsForSubagent(item: ItemRow): boolean {
   return awaits(item, 'agent')
+}
+
+/** Waiting for background calls to end (wait_for_background). */
+export function waitsForBackground(item: ItemRow): boolean {
+  return awaits(item, 'background')
+}
+
+/** A call the model asked to run in the background, with run_in_background,
+ * which only a tool that may run there takes (ToolDescriptor.background):
+ * the call returns at once, and its result comes back to the conversation
+ * as a backgroundResult item when it ends. */
+export function startsInBackground(item: ItemRow, background: boolean): boolean {
+  if (!background || item.type !== 'toolCall') return false
+  const args = parseArguments(item)
+  return typeof args === 'object' && args !== null && (args as Record<string, unknown>).run_in_background === true
 }
 
 /** The model's arguments as JSON, or undefined when they do not parse. */
@@ -67,7 +83,8 @@ interface CallFacts {
   arguments: unknown
   prepared: Prepared | null | undefined
   output: unknown
-  /** The thread a call that waits on another agent waits on. */
+  /** The thread a call that launched a subagent waits on: the handle of
+   * its await by an agent. */
   threadId: string | undefined
   /** The MCP server's own title for the tool. */
   title: string | undefined
@@ -97,7 +114,7 @@ export function callOf(item: ItemRow): ToolCall {
     arguments: parseArguments(item),
     prepared: item.preparedExecution,
     output: item.result?.output,
-    threadId: item.await?.threadId,
+    threadId: item.await?.by === 'agent' ? item.await.handle : undefined,
     title: item.annotations?.title,
   })
 }
@@ -168,8 +185,9 @@ function classify(c: CallFacts): ToolCall {
       const answers = isToolPart('request_user_input', 'output', c.output) ? c.output : undefined
       return { kind: 'question', questions: c.arguments.questions.map((q) => ({ ...q, answers: answers?.[q.id]?.answers })) }
     }
-    case 'Agent':
-      if (isToolPart('Agent', 'arguments', c.arguments)) return { kind: 'subagent', task: { ...c.arguments, threadId: c.threadId } }
+    case 'general-sub-agent':
+    case 'browser-sub-agent':
+      if (isToolPart(builtin, 'arguments', c.arguments)) return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: c.threadId } }
       break
   }
   return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
@@ -238,7 +256,11 @@ export function commandFailed(output: CommandOutput): boolean {
   return output.exit_code !== 0 || !!output.signal
 }
 
+/** The tools that launch a subagent, each named after the role it runs as. */
+export type SubagentRole = Extract<BuiltinToolName, 'general-sub-agent' | 'browser-sub-agent'>
+
 export interface SubagentTask extends SubagentCall {
+  role: SubagentRole
   /** The thread the subagent runs in, once ollupi started it. */
   threadId: string | undefined
 }

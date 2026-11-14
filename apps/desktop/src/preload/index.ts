@@ -21,11 +21,12 @@ const api: DesktopApi = {
   },
   skills: {
     list: () => ipcRenderer.invoke(IpcChannel.SkillsList),
-    read: (name) => ipcRenderer.invoke(IpcChannel.SkillsRead, name),
-    create: (skill) => ipcRenderer.invoke(IpcChannel.SkillsCreate, skill),
-    save: (name, text) => ipcRenderer.invoke(IpcChannel.SkillsSave, name, text),
-    import: () => ipcRenderer.invoke(IpcChannel.SkillsImport),
-    remove: (name) => ipcRenderer.invoke(IpcChannel.SkillsRemove, name),
+    read: (agent, name) => ipcRenderer.invoke(IpcChannel.SkillsRead, agent, name),
+    create: (agent, skill) => ipcRenderer.invoke(IpcChannel.SkillsCreate, agent, skill),
+    save: (agent, name, text) => ipcRenderer.invoke(IpcChannel.SkillsSave, agent, name, text),
+    import: (agent) => ipcRenderer.invoke(IpcChannel.SkillsImport, agent),
+    copy: (agent, name, to) => ipcRenderer.invoke(IpcChannel.SkillsCopy, agent, name, to),
+    remove: (agent, name) => ipcRenderer.invoke(IpcChannel.SkillsRemove, agent, name),
     defaultFolder: () => ipcRenderer.invoke(IpcChannel.SkillsDefaultFolder),
   },
   attachments: {

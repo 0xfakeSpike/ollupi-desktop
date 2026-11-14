@@ -17,8 +17,9 @@ import (
 	"strings"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
+	"github.com/0xfakeSpike/ollupi/agent/role"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
-	"github.com/0xfakeSpike/ollupi/repo"
+	"github.com/0xfakeSpike/ollupi/repo/db"
 	"github.com/0xfakeSpike/ollupi/tools/workspace"
 	"gopkg.in/yaml.v3"
 )
@@ -145,10 +146,10 @@ type Permissions struct {
 	Deny     []string `json:"deny,omitempty"`
 }
 
-func (p Permissions) Settings() repo.PermissionSettings {
-	return repo.PermissionSettings{
+func (p Permissions) Settings() db.PermissionSettings {
+	return db.PermissionSettings{
 		ApprovalPolicy: p.Approval,
-		Rules:          repo.PermissionRules{Allow: p.Allow, Ask: p.Ask, Deny: p.Deny},
+		Rules:          db.PermissionRules{Allow: p.Allow, Ask: p.Ask, Deny: p.Deny},
 	}
 }
 
@@ -227,7 +228,8 @@ func (s MCPServer) Redacted() MCPServer {
 }
 
 // Load reads <home>/config.yaml, writing the starter template and skills
-// first when there is none.
+// first when there is none, and moves skills_dir's skills to the layout
+// ollupi reads (moveFlatSkills).
 func Load(home string) (Config, error) {
 	path := filepath.Join(home, FileName)
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
@@ -239,16 +241,39 @@ func Load(home string) (Config, error) {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
 	}
-	return LoadFile(path, home)
+	cfg, err := LoadFile(path, home)
+	if err != nil || cfg.SkillsDir == "" {
+		return cfg, err
+	}
+	if err := moveFlatSkills(cfg.SkillsDir); err != nil {
+		return Config{}, fmt.Errorf("move skills to the main agent: %w", err)
+	}
+	return cfg, nil
 }
 
-// writeStarterSkills copies each skill the desktop ships into dir, leaving
-// a folder already there of the same name as it is.
+// starterRoles have the skills the desktop ships: the main agent, which is
+// both of its roles, so that a conversation that moves to a model of
+// another size keeps them (ollupi installs a role's skills in the
+// directory of its name).
+var starterRoles = []role.Name{role.FullMain, role.CompactMain}
+
+// writeStarterSkills copies each skill the desktop ships into the
+// directory of each starter role under dir, leaving a folder already there
+// of the same name as it is.
 func writeStarterSkills(dir string) error {
 	entries, err := fs.ReadDir(skills.FS, ".")
 	if err != nil {
 		return err
 	}
+	for _, r := range starterRoles {
+		if err := writeSkills(filepath.Join(dir, string(r)), entries); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeSkills(dir string, entries []fs.DirEntry) error {
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue

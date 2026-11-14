@@ -26,9 +26,11 @@ import (
 	"time"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
-	"github.com/0xfakeSpike/ollupi/agent"
+	"github.com/0xfakeSpike/ollupi/agent/event"
+	"github.com/0xfakeSpike/ollupi/agent/orchestrator"
 	"github.com/0xfakeSpike/ollupi/agent/permission"
-	"github.com/0xfakeSpike/ollupi/repo"
+	"github.com/0xfakeSpike/ollupi/agent/service"
+	"github.com/0xfakeSpike/ollupi/repo/db"
 	"github.com/0xfakeSpike/ollupi/tools/userinput"
 )
 
@@ -39,21 +41,21 @@ const Decider = "feishu"
 // updates a second, and a phone needs fewer.
 const flushEvery = time.Second
 
-// Engine is what the bridge does to sessions; *agent.Agent is one. The bridge
-// acts as repo.DefaultUser, the user the gateway's token is, so the desktop's
+// Engine is what the bridge does to sessions; *service.Service is one. The bridge
+// acts as db.DefaultUser, the user the gateway's token is, so the desktop's
 // sessions and the bot's are the same ones.
 type Engine interface {
-	StartThread(user, workspaceID, environmentID, title string, settings permission.Settings) (repo.ThreadRow, error)
-	StartTurn(user, threadID string, in agent.Input) (repo.TurnRow, error)
+	StartThread(user, workspaceID, environmentID, title string, settings permission.Settings) (db.ThreadRow, error)
+	StartTurn(ctx context.Context, user, threadID string, in service.Input) (db.TurnRow, error)
 	InterruptTurn(user, threadID, expectedTurnID string) error
-	ResolveApproval(user, threadID, approvalID string, decision repo.Decision, decidedBy string) error
+	ResolveApproval(user, threadID, approvalID string, decision db.Decision, decidedBy string) error
 	AnswerUserInput(user, threadID, itemID string, answers userinput.Answers) error
 }
 
-// Store is what the bridge reads of the database; *repo.DB is one.
+// Store is what the bridge reads of the database; *db.DB is one.
 type Store interface {
-	ThreadRow(id string) (repo.ThreadRow, error)
-	Workspaces(user string) ([]repo.WorkspaceRow, error)
+	ThreadRow(id string) (db.ThreadRow, error)
+	Workspaces(user string) ([]db.WorkspaceRow, error)
 }
 
 // chat is Feishu as the bridge talks to it.
@@ -91,7 +93,7 @@ type turn struct {
 	input, cronJobID    string
 	fromFeishu          bool
 	lines               []string
-	status              repo.TurnStatus
+	status              db.TurnStatus
 	err                 string
 	// message is the card's, once sent.
 	message string
@@ -101,7 +103,7 @@ type turn struct {
 }
 
 func (t *turn) running() bool {
-	return t.status != repo.TurnCompleted && t.status != repo.TurnInterrupted && t.status != repo.TurnFailed
+	return t.status != db.TurnCompleted && t.status != db.TurnInterrupted && t.status != db.TurnFailed
 }
 
 // request is an approval's or a question's card.
@@ -127,7 +129,7 @@ func newBridge(cfg config.Feishu, engine Engine, store Store, chat chat, topicsP
 
 // Deliver hands the bridge an agent event. It never blocks: the agent emits
 // from its own loop, which the bridge's calls into the agent wait on.
-func (b *Bridge) Deliver(e agent.Event) {
+func (b *Bridge) Deliver(e event.Event) {
 	b.queue.push(func() { b.event(e) })
 }
 
@@ -175,7 +177,7 @@ func (b *Bridge) message(m incoming) {
 		return
 	}
 	if strings.TrimSpace(text) == "/stop" {
-		if err := b.engine.InterruptTurn(repo.DefaultUser, threadID, ""); err != nil {
+		if err := b.engine.InterruptTurn(db.DefaultUser, threadID, ""); err != nil {
 			b.replyText(m.id, "没能停止："+errorText(err))
 		}
 		return
@@ -189,7 +191,7 @@ func (b *Bridge) startSession(messageID, text string) {
 		b.replyText(messageID, errorText(err))
 		return
 	}
-	t, err := b.engine.StartThread(repo.DefaultUser, workspaceID, "", titleFromMessage(text), permission.Settings{})
+	t, err := b.engine.StartThread(db.DefaultUser, workspaceID, "", titleFromMessage(text), permission.Settings{})
 	if err != nil {
 		b.replyText(messageID, "没能开始会话："+errorText(err))
 		return
@@ -202,13 +204,13 @@ func (b *Bridge) startSession(messageID, text string) {
 }
 
 func (b *Bridge) send(messageID, threadID, text string) {
-	t, err := b.engine.StartTurn(repo.DefaultUser, threadID, agent.Input{Text: text})
+	t, err := b.engine.StartTurn(b.ctx, db.DefaultUser, threadID, service.Input{Text: text})
 	if err != nil {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
 	}
 	b.ours[t.ID] = true
-	if t.Status == repo.TurnQueued {
+	if t.Status == db.TurnQueued {
 		b.replyText(messageID, "已排队，当前这轮结束后开始。")
 	}
 }
@@ -219,7 +221,7 @@ func (b *Bridge) workspace() (string, error) {
 	if b.cfg.Workspace == "" {
 		return "", nil
 	}
-	list, err := b.store.Workspaces(repo.DefaultUser)
+	list, err := b.store.Workspaces(db.DefaultUser)
 	if err != nil {
 		return "", err
 	}
@@ -231,16 +233,16 @@ func (b *Bridge) workspace() (string, error) {
 	return "", fmt.Errorf("没有在 %s 的工作区：先在桌面端添加它，或改 config.yaml 的 feishu.workspace", b.cfg.Workspace)
 }
 
-func (b *Bridge) event(e agent.Event) {
-	if e.Kind == agent.EventThreadDeleted {
+func (b *Bridge) event(e event.Event) {
+	if e.Kind == event.ThreadDeleted {
 		if err := b.topics.forget(e.Thread.ID); err != nil {
 			slog.Error("feishu: topic not forgotten", "thread", e.Thread.ID, "err", err)
 		}
 		return
 	}
 	// A request settles whichever thread it is in.
-	if it := e.Item; it != nil && (e.Kind == agent.EventItemUpdated || e.Kind == agent.EventItemCompleted) {
-		b.settle(*it, e.Kind == agent.EventItemCompleted)
+	if it := e.Item; it != nil && (e.Kind == event.ItemUpdated || e.Kind == event.ItemCompleted) {
+		b.settle(*it, e.Kind == event.ItemCompleted)
 	}
 	root, ok := b.rootOf(e.Thread)
 	if !ok {
@@ -257,27 +259,27 @@ func (b *Bridge) event(e agent.Event) {
 		}
 	}
 	switch e.Kind {
-	case agent.EventApprovalRequested, agent.EventUserInputRequested:
+	case event.ApprovalRequested, event.UserInputRequested:
 		b.ask(topic, e.Thread.ID, *e.Item)
-	case agent.EventTurnStarted:
+	case event.TurnStarted:
 		if !sub {
 			b.turnStarted(topic, e.Thread, e.Turn)
 		}
-	case agent.EventItemCompleted:
+	case event.ItemCompleted:
 		if t := b.turns[e.Turn.ID]; t != nil && !sub {
 			if line := itemLine(*e.Item); line != "" {
 				t.lines = append(t.lines, line)
 				b.changed(t)
 			}
 		}
-	case agent.EventTurnCompleted:
+	case event.TurnCompleted:
 		if t := b.turns[e.Turn.ID]; t != nil && !sub {
 			t.status, t.err = e.Turn.Status, e.Turn.Error
 			b.flush(t)
 			delete(b.turns, t.id)
 			delete(b.ours, t.id)
 		}
-	case agent.EventError:
+	case event.Error:
 		if !sub {
 			b.replyText(topic, "出错了："+e.Error)
 		}
@@ -286,11 +288,11 @@ func (b *Bridge) event(e agent.Event) {
 
 // rootOf is the session a thread belongs to: itself, or the session whose
 // subagent it is.
-func (b *Bridge) rootOf(t repo.ThreadRow) (repo.ThreadRow, bool) {
+func (b *Bridge) rootOf(t db.ThreadRow) (db.ThreadRow, bool) {
 	for t.ParentThreadID != "" {
 		parent, err := b.store.ThreadRow(string(t.ParentThreadID))
 		if err != nil {
-			return repo.ThreadRow{}, false
+			return db.ThreadRow{}, false
 		}
 		t = parent
 	}
@@ -298,11 +300,11 @@ func (b *Bridge) rootOf(t repo.ThreadRow) (repo.ThreadRow, bool) {
 }
 
 // shows reports whether an event puts something in its session's topic.
-func shows(kind agent.EventKind, sub bool) bool {
+func shows(kind event.Kind, sub bool) bool {
 	switch kind {
-	case agent.EventApprovalRequested, agent.EventUserInputRequested:
+	case event.ApprovalRequested, event.UserInputRequested:
 		return true
-	case agent.EventTurnStarted, agent.EventError:
+	case event.TurnStarted, event.Error:
 		return !sub
 	}
 	return false
@@ -310,7 +312,7 @@ func shows(kind agent.EventKind, sub bool) bool {
 
 // openTopic starts the topic of a session begun elsewhere, under a message
 // the bot sends the first user naming the session and its workspace.
-func (b *Bridge) openTopic(t repo.ThreadRow) (string, bool) {
+func (b *Bridge) openTopic(t db.ThreadRow) (string, bool) {
 	if len(b.cfg.Users) == 0 {
 		return "", false
 	}
@@ -337,7 +339,7 @@ func (b *Bridge) workspaceName(id string) string {
 	if id == "" {
 		return ""
 	}
-	list, err := b.store.Workspaces(repo.DefaultUser)
+	list, err := b.store.Workspaces(db.DefaultUser)
 	if err != nil {
 		return ""
 	}
@@ -352,19 +354,19 @@ func (b *Bridge) workspaceName(id string) string {
 // itemLine is an item as a line of its turn's card: the agent's messages,
 // and its tool calls once they end. Approvals and questions have cards of
 // their own.
-func itemLine(it repo.ItemRow) string {
+func itemLine(it db.ItemRow) string {
 	switch it.Type {
-	case repo.ItemAgentMessage:
+	case db.ItemAgentMessage:
 		return strings.TrimSpace(it.Text)
-	case repo.ItemToolCall:
+	case db.ItemToolCall:
 		return callLine(it)
-	case repo.ItemError:
+	case db.ItemError:
 		return "**出错了**：" + it.Text
 	}
 	return ""
 }
 
-func (b *Bridge) turnStarted(topic string, thread repo.ThreadRow, tr repo.TurnRow) {
+func (b *Bridge) turnStarted(topic string, thread db.ThreadRow, tr db.TurnRow) {
 	t := &turn{
 		id: tr.ID, threadID: thread.ID, title: thread.Title, input: tr.Input, cronJobID: tr.CronJobID,
 		fromFeishu: b.ours[tr.ID], status: tr.Status,
@@ -409,7 +411,7 @@ func (b *Bridge) flush(t *turn) {
 
 // ask sends an approval's or a question's card, once: the agent reports a
 // request again when it resumes one.
-func (b *Bridge) ask(topic, threadID string, it repo.ItemRow) {
+func (b *Bridge) ask(topic, threadID string, it db.ItemRow) {
 	if _, ok := b.requests[it.ID]; ok {
 		return
 	}
@@ -438,7 +440,7 @@ func (b *Bridge) ask(topic, threadID string, it repo.ItemRow) {
 
 // settle shows on a request's card that it was answered, here or on the
 // desktop, or that its turn ended first.
-func (b *Bridge) settle(it repo.ItemRow, completed bool) {
+func (b *Bridge) settle(it db.ItemRow, completed bool) {
 	r := b.requests[it.ID]
 	if r == nil || it.WaitsOnUser() {
 		return
@@ -448,7 +450,7 @@ func (b *Bridge) settle(it repo.ItemRow, completed bool) {
 		if !completed {
 			return
 		}
-		c = settledQuestionCard(*r.question, it.Status == repo.ItemCompleted)
+		c = settledQuestionCard(*r.question, it.Status == db.ItemCompleted)
 	} else {
 		if it.Approval == nil {
 			return
@@ -473,17 +475,17 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 	var err error
 	switch str("action") {
 	case actionStop:
-		err = b.engine.InterruptTurn(repo.DefaultUser, str("thread"), str("turn"))
+		err = b.engine.InterruptTurn(db.DefaultUser, str("thread"), str("turn"))
 		toast = "已停止"
 	case actionApprove:
-		err = b.engine.ResolveApproval(repo.DefaultUser, str("thread"), str("approval"), repo.Decision(str("decision")), Decider)
+		err = b.engine.ResolveApproval(db.DefaultUser, str("thread"), str("approval"), db.Decision(str("decision")), Decider)
 		toast = "已提交"
 	case actionAnswer:
 		answers, missing := formAnswers(value["questions"], form)
 		if missing {
 			return "还有问题没回答", false
 		}
-		err = b.engine.AnswerUserInput(repo.DefaultUser, str("thread"), str("item"), answers)
+		err = b.engine.AnswerUserInput(db.DefaultUser, str("thread"), str("item"), answers)
 		toast = "已提交"
 	default:
 		return "这个按钮已失效", false
@@ -576,9 +578,9 @@ func strangerText(openID string, noneListed bool) string {
 
 func errorText(err error) string {
 	switch {
-	case errors.Is(err, agent.ErrNoActiveTurn):
+	case errors.Is(err, orchestrator.ErrNoActiveTurn):
 		return "现在没有在跑的一轮"
-	case errors.Is(err, agent.ErrThreadArchived):
+	case errors.Is(err, service.ErrThreadArchived):
 		return "会话已归档，先在桌面端恢复"
 	}
 	return err.Error()

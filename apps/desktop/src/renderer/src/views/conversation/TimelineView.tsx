@@ -200,6 +200,7 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
     case 'waitingOnApproval':
     case 'waitingOnUserInput':
     case 'waitingOnAgent':
+    case 'waitingOnBackground':
       return null
   }
 }

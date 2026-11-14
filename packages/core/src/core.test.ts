@@ -15,6 +15,7 @@ import {
   groupByWorkspace,
   groupReads,
   readText,
+  startsInBackground,
   promptMemory,
   prependPage,
   refreshFromPage,
@@ -52,6 +53,7 @@ const turn = (id: string, seq: number, status: TurnRow['status'] = 'completed'):
   seq,
   status,
   model: { name: 'm', connection: 'm' },
+  agent: 'full-main-agent',
   usage: { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 },
   createdAt: '2026-01-01T00:00:00Z',
   startedAt: '2026-01-01T00:00:00Z',
@@ -95,7 +97,7 @@ describe('timeline', () => {
   })
 
   it('counts a turn out of its slot as under way, but not a queued one', () => {
-    for (const status of ['ready', 'waitingOnApproval', 'waitingOnUserInput', 'waitingOnAgent'] as const) {
+    for (const status of ['ready', 'waitingOnApproval', 'waitingOnUserInput', 'waitingOnAgent', 'waitingOnBackground'] as const) {
       expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, status)])))?.id).toBe('u1')
     }
     expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, 'queued')])))).toBeUndefined()
@@ -275,10 +277,21 @@ describe('calls', () => {
     expect(callOf(c)).toEqual({ kind: 'plan', plan: { plan: [{ step: 'a', status: 'in_progress' }] } })
   })
 
-  it('reads a subagent task and the thread it runs in', () => {
-    const c = call({ tool: 'Agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), await: { by: 'agent', threadId: 'child', request: {} } })
-    expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', threadId: 'child' } })
+  it('tells a call started in the background by its tool and its arguments', () => {
+    const c = call({ tool: 'run_command', arguments: JSON.stringify({ command: 'make', run_in_background: true }) })
+    expect(startsInBackground(c, true)).toBe(true)
+    // A tool that may not run there keeps an argument of that name as its own.
+    expect(startsInBackground(c, false)).toBe(false)
+    expect(startsInBackground(call({ tool: 'run_command', arguments: JSON.stringify({ command: 'make' }) }), true)).toBe(false)
   })
+
+  it('reads a subagent task, the role it runs as and the thread it runs in', () => {
+    const c = call({ tool: 'general-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), await: { by: 'agent', handle: 'child', request: {} } })
+    expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'general-sub-agent', threadId: 'child' } })
+    const b = call({ tool: 'browser-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(b)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'browser-sub-agent', threadId: undefined } })
+  })
+
 
   it('reads read_file, glob and grep with their outputs', () => {
     const output = { path: 'a.go', text: '3\tfunc A() {}\n4\t}\n', startLine: 3, endLine: 4, totalLines: 4, size: 30 }

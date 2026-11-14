@@ -1,11 +1,12 @@
-// Agent: the task a subagent was given and a way into its thread. Its
+// general-sub-agent and browser-sub-agent: the task a subagent was given,
+// the role it runs as, and a way into its thread. Its
 // thread's requests are answered here, since this thread reports the
 // subagent's wait as its own status.
 
 import type { ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { Button } from '@ollupi/ui'
-import { ArrowUpRight, Bot } from 'lucide-react'
+import { ArrowUpRight, Bot, Globe } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRequests } from '../../../domains/requests'
 import { useT } from '../../../i18n'
@@ -28,8 +29,9 @@ function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
   return (
     <CallRow
       item={item}
-      icon={Bot}
+      icon={task.role === 'browser-sub-agent' ? Globe : Bot}
       title={subagent.title(m, call)}
+      badge={task.role === 'browser-sub-agent' && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.browserSubagent}</span>}
       failure={subagent.failure(m, call, item)}
       after={childRequests.map((r) => (
         <RequestCard key={r.params.itemId} request={r} />

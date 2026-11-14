@@ -4,20 +4,25 @@
 export interface SkillsCheck {
   ok: boolean;
   dir: string;
-  skills?:
+  roles?:
     | null
     | {
-        name: string;
-        description: string;
-        source_file: string;
-        version: string;
-        resources:
+        role: string;
+        skills:
           | null
           | {
-              path: string;
+              name: string;
+              description: string;
+              source_file: string;
+              version: string;
+              resources:
+                | null
+                | {
+                    path: string;
+                    byte_size: number;
+                  }[];
               byte_size: number;
             }[];
-        byte_size: number;
       }[];
   error?: string;
 }

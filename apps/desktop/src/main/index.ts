@@ -42,7 +42,7 @@ if (!app.requestSingleInstanceLock()) {
   const backendLog = join(app.getPath('logs'), 'backend.log')
   const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env, logFile: backendLog })
   const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
-  const skills = new BackendSkills({ binary: backendBinary(), home, restart: () => backend.restart(), trash: (path) => shell.trashItem(path) })
+  const skills = new BackendSkills({ binary: backendBinary(), home, trash: (path) => shell.trashItem(path) })
   const updater = new AppUpdater({
     fetch: net.fetch,
     version: app.getVersion(),

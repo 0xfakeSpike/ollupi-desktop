@@ -1,14 +1,17 @@
 // The capabilities screen's skills: the folder config.yaml's skills_dir
-// names, and the skills in it as the agent loads them. The agent reads the folder only at start and will
-// not start with a skill it cannot load, so every change is checked with
-// its own rules first and then restarts the backend.
+// names, and in it each agent's skills as ollupi loads them. A skill belongs
+// to an agent: each has its own, so the screen is one section per agent,
+// and what is done to a skill is done to that agent's. The agent reads them
+// on each run but will not start with a skill it cannot load, so every
+// change is checked with its own rules first.
 
 import { Badge, Button, Callout, ClampText, Details, Dialog, EmptyState, Field, IconButton, Input, Loader, Switch, Textarea } from '@ollupi/ui'
-import { FolderInput, FolderOpen, Pencil, Plus, RotateCw, Trash2 } from 'lucide-react'
+import { Copy, FolderInput, FolderOpen, Pencil, Plus, RotateCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import type { NewSkill, Skill, SkillChange, SkillList } from '../../../../shared/ipc'
+import type { AgentSkills, NewSkill, Skill, SkillAgent, SkillChange, SkillList } from '../../../../shared/ipc'
 import {
   chooseFolder,
+  copySkill,
   createSkill,
   importSkill,
   nameError,
@@ -18,7 +21,6 @@ import {
   saveSkill,
   turnOff,
   turnOn,
-  useLoadedSkills,
 } from '../../domains/skills'
 import { openPath } from '../../domains/files'
 import { useConnection } from '../../gateway/connection'
@@ -29,15 +31,18 @@ import { Wolf } from '../common/Wolf'
 /** Resource files a skill shows before the rest are counted. */
 const shownFiles = 8
 
+/** A dialog open on one agent's skills: a new one, or one it has. */
+type Editing = { agent: SkillAgent; skill?: Skill }
+
 export function SkillsSection() {
   const m = useT()
   const s = m.skills.screen
   const [list, setList] = useState<SkillList>()
-  const [editing, setEditing] = useState<{ name?: string }>()
+  const [editing, setEditing] = useState<Editing>()
   const [busy, setBusy] = useState(false)
-  const loaded = useLoadedSkills()
 
-  // A change restarts the backend: read again once the new one is connected.
+  // Turning skills on or off restarts the backend: read again once the new
+  // one is connected.
   const connected = useConnection((c) => c.gateway === 'connected')
   const reload = useCallback(async () => {
     const read = await readSkills()
@@ -53,12 +58,15 @@ export function SkillsSection() {
     setBusy(false)
   }
 
-  const skills = list?.ok ? list.skills : []
-  const names = skills.map((x) => x.name)
-  // The folder and the running agent disagree, e.g. after a change made in
-  // the folder itself.
-  const stale =
-    connected && list?.ok && loaded !== undefined && list.dir !== '' && [...loaded].sort().join('\n') !== [...names].sort().join('\n')
+  const agents = list?.ok ? list.agents : []
+  const close = () => setEditing(undefined)
+  const saved = async (result: SkillChange | undefined) => {
+    if (result?.ok) {
+      close()
+      await reload()
+    }
+    return result
+  }
 
   return (
     <>
@@ -87,83 +95,49 @@ export function SkillsSection() {
       ) : (
         <>
           <Folder dir={list.dir} busy={busy} onChange={() => void act(chooseFolder)} onOff={() => void act(turnOff)} />
-          {stale && (
-            <Callout tone="warning">
-              <div className="flex items-center gap-3">
-                <span className="flex-1">{s.stale}</span>
-                <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
-                  {m.common.restartBackend}
-                </Button>
-              </div>
-            </Callout>
-          )}
           {!list.ok ? (
             <Callout tone="danger">
               <p>{s.broken}</p>
               <pre className="selectable mt-1 font-mono text-small whitespace-pre-wrap text-fg-muted">{list.error}</pre>
             </Callout>
-          ) : skills.length === 0 ? (
-            <EmptyState icon={<Wolf pose="trot" className="size-16" />} title={s.empty}>
-              {s.emptyHint}
-            </EmptyState>
           ) : (
-            <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
-              {skills.map((x) => (
-                <SkillRow
-                  key={x.name}
-                  skill={x}
+            <>
+              {agents.map((group) => (
+                <AgentSection
+                  key={group.agent}
+                  group={group}
+                  all={agents}
                   dir={list.dir}
-                  onEdit={() => setEditing({ name: x.name })}
-                  onRemove={() => {
-                    if (confirm(m.skills.skill.confirmRemove(x.name))) void act(() => removeSkill(x.name))
+                  busy={busy}
+                  onNew={() => setEditing({ agent: group.agent })}
+                  onImport={() => void act(() => importSkill(group.agent))}
+                  onEdit={(skill) => setEditing({ agent: group.agent, skill })}
+                  onCopy={(skill, to) => void act(() => copySkill(group.agent, skill.name, to))}
+                  onRemove={(skill) => {
+                    if (confirm(m.skills.skill.confirmRemove(skill.name, m.skills.agents[group.agent].name))) void act(() => removeSkill(group.agent, skill.name))
                   }}
                 />
               ))}
-            </ul>
-          )}
-          {list.ok && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button icon={<Plus size={14} />} onClick={() => setEditing({})}>
-                {s.newSkill}
-              </Button>
-              <Button icon={<FolderInput size={14} />} loading={busy} onClick={() => void act(importSkill)}>
-                {s.import}
-              </Button>
-              <Button variant="ghost" icon={<RotateCw size={14} />} onClick={() => void reload()}>
-                {s.reload}
-              </Button>
-              <span className="text-small text-fg-subtle">{s.importHint}</span>
-            </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="ghost" icon={<RotateCw size={14} />} onClick={() => void reload()}>
+                  {s.reload}
+                </Button>
+                <span className="text-small text-fg-subtle">{s.importHint}</span>
+              </div>
+            </>
           )}
         </>
       )}
       {editing &&
-        (editing.name === undefined ? (
+        (editing.skill === undefined ? (
           <NewSkillDialog
-            taken={names}
-            onClose={() => setEditing(undefined)}
-            onSave={async (skill) => {
-              const result = await createSkill(skill)
-              if (result?.ok) {
-                setEditing(undefined)
-                await reload()
-              }
-              return result
-            }}
+            agent={editing.agent}
+            taken={agents.find((a) => a.agent === editing.agent)?.skills.map((x) => x.name) ?? []}
+            onClose={close}
+            onSave={async (skill) => saved(await createSkill(editing.agent, skill))}
           />
         ) : (
-          <EditSkillDialog
-            name={editing.name}
-            onClose={() => setEditing(undefined)}
-            onSave={async (text) => {
-              const result = await saveSkill(editing.name!, text)
-              if (result?.ok) {
-                setEditing(undefined)
-                await reload()
-              }
-              return result
-            }}
-          />
+          <EditSkillDialog agent={editing.agent} name={editing.skill.name} onClose={close} onSave={async (text) => saved(await saveSkill(editing.agent, editing.skill!.name, text))} />
         ))}
     </>
   )
@@ -197,10 +171,83 @@ function Folder({ dir, busy, onChange, onOff }: { dir: string; busy: boolean; on
   )
 }
 
-function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string; onEdit(): void; onRemove(): void }) {
+/** One agent's skills: what the agent is, its skills, and making or
+ * importing one of its own. */
+function AgentSection({
+  group,
+  all,
+  dir,
+  busy,
+  onNew,
+  onImport,
+  onEdit,
+  onCopy,
+  onRemove,
+}: {
+  group: AgentSkills
+  all: AgentSkills[]
+  dir: string
+  busy: boolean
+  onNew(): void
+  onImport(): void
+  onEdit(skill: Skill): void
+  onCopy(skill: Skill, to: SkillAgent): void
+  onRemove(skill: Skill): void
+}) {
+  const m = useT().skills
+  const agent = m.agents[group.agent]
+  // The agents a skill can be copied to: those without one of its name.
+  const others = (skill: Skill) => all.filter((a) => a.agent !== group.agent && !a.skills.some((x) => x.name === skill.name)).map((a) => a.agent)
+  return (
+    <section aria-label={agent.name} className="flex flex-col gap-2">
+      <div className="flex items-end gap-3 px-1">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-ui font-medium text-fg">{agent.name}</h3>
+          <p className="text-small text-fg-muted">{agent.about}</p>
+        </div>
+        <Button size="sm" icon={<Plus size={14} />} onClick={onNew}>
+          {m.screen.newSkill}
+        </Button>
+        <Button size="sm" variant="ghost" icon={<FolderInput size={14} />} disabled={busy} onClick={onImport}>
+          {m.screen.import}
+        </Button>
+      </div>
+      {group.skills.length === 0 ? (
+        <div className="rounded-3xl bg-surface px-5 py-3.5 text-small text-fg-subtle">{m.screen.empty}</div>
+      ) : (
+        <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+          {group.skills.map((x) => (
+            <SkillRow key={x.name} skill={x} dir={dir} copyTo={others(x)} onEdit={() => onEdit(x)} onCopy={(to) => onCopy(x, to)} onRemove={() => onRemove(x)} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function SkillRow({
+  skill,
+  dir,
+  copyTo,
+  onEdit,
+  onCopy,
+  onRemove,
+}: {
+  skill: Skill
+  dir: string
+  copyTo: SkillAgent[]
+  onEdit(): void
+  onCopy(to: SkillAgent): void
+  onRemove(): void
+}) {
   const common = useT().common
+  const agents = useT().skills.agents
   const m = useT().skills.skill
   const files = skill.resources ?? []
+  const copy = async () => {
+    const to = await desktop.contextMenu(copyTo.map((a) => ({ id: a, label: m.copyTo(agents[a].name) })))
+    if (to) onCopy(to as SkillAgent)
+  }
   return (
     <li className="group flex flex-col gap-1.5 px-4 py-3">
       <div className="flex items-center gap-2">
@@ -211,7 +258,12 @@ function SkillRow({ skill, dir, onEdit, onRemove }: { skill: Skill; dir: string;
           <IconButton label={m.edit(skill.name)} size="sm" onClick={onEdit}>
             <Pencil size={14} />
           </IconButton>
-          <IconButton label={m.reveal(skill.name)} size="sm" onClick={() => void openPath(`${dir}/${skill.name}`)}>
+          {copyTo.length > 0 && (
+            <IconButton label={m.copy(skill.name)} size="sm" onClick={() => void copy()}>
+              <Copy size={14} />
+            </IconButton>
+          )}
+          <IconButton label={m.reveal(skill.name)} size="sm" onClick={() => void openPath(`${dir}/${skill.source_file.replace(/\/SKILL\.md$/, '')}`)}>
             <FolderOpen size={14} />
           </IconButton>
           <IconButton label={m.remove(skill.name)} size="sm" onClick={onRemove}>
@@ -246,10 +298,12 @@ function Refusal({ result }: { result: SkillChange | undefined }) {
 }
 
 function NewSkillDialog({
+  agent,
   taken,
   onClose,
   onSave,
 }: {
+  agent: SkillAgent
   taken: string[]
   onClose(): void
   onSave(skill: NewSkill): Promise<SkillChange | undefined>
@@ -274,8 +328,8 @@ function NewSkillDialog({
 
   return (
     <Dialog
-      title={t.newTitle}
-      description={m.skills.screen.restarts}
+      title={t.newTitle(m.skills.agents[agent].name)}
+      description={m.skills.screen.checks}
       closeLabel={m.common.close}
       onClose={onClose}
       wide
@@ -285,7 +339,7 @@ function NewSkillDialog({
             {m.common.cancel}
           </Button>
           <Button size="lg" variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
-            {t.saveAndRestart}
+            {t.save}
           </Button>
         </>
       }
@@ -306,7 +360,17 @@ function NewSkillDialog({
   )
 }
 
-function EditSkillDialog({ name, onClose, onSave }: { name: string; onClose(): void; onSave(text: string): Promise<SkillChange | undefined> }) {
+function EditSkillDialog({
+  agent,
+  name,
+  onClose,
+  onSave,
+}: {
+  agent: SkillAgent
+  name: string
+  onClose(): void
+  onSave(text: string): Promise<SkillChange | undefined>
+}) {
   const m = useT()
   const t = m.skills.dialog
   const [text, setText] = useState<string>()
@@ -314,8 +378,8 @@ function EditSkillDialog({ name, onClose, onSave }: { name: string; onClose(): v
   const [result, setResult] = useState<SkillChange>()
   // Read once per skill: the parent's onClose changes on every render.
   useEffect(() => {
-    void readSkillFile(name).then((file) => (file === undefined ? onClose() : setText(file)))
-  }, [name])
+    void readSkillFile(agent, name).then((file) => (file === undefined ? onClose() : setText(file)))
+  }, [agent, name])
 
   const save = async () => {
     setSaving(true)
@@ -325,8 +389,8 @@ function EditSkillDialog({ name, onClose, onSave }: { name: string; onClose(): v
 
   return (
     <Dialog
-      title={t.editTitle(name)}
-      description={m.skills.screen.restarts}
+      title={t.editTitle(name, m.skills.agents[agent].name)}
+      description={m.skills.screen.checks}
       closeLabel={m.common.close}
       onClose={onClose}
       wide
@@ -336,7 +400,7 @@ function EditSkillDialog({ name, onClose, onSave }: { name: string; onClose(): v
             {m.common.cancel}
           </Button>
           <Button size="lg" variant="primary" disabled={!text?.trim()} loading={saving} onClick={() => void save()}>
-            {t.saveAndRestart}
+            {t.save}
           </Button>
         </>
       }

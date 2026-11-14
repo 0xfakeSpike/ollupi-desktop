@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
@@ -44,17 +44,19 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
   ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
   ipcMain.handle(IpcChannel.SkillsList, () => skills.list())
-  ipcMain.handle(IpcChannel.SkillsRead, (_event, name: unknown) => skills.read(text(name)))
-  ipcMain.handle(IpcChannel.SkillsCreate, (_event, skill: unknown) => {
+  ipcMain.handle(IpcChannel.SkillsRead, (_event, agent: unknown, name: unknown) => skills.read(skillAgent(agent), text(name)))
+  ipcMain.handle(IpcChannel.SkillsCreate, (_event, agent: unknown, skill: unknown) => {
     const s = skill as Record<string, unknown> | null
-    return skills.create({ name: text(s?.name), description: text(s?.description), instructions: text(s?.instructions) })
+    return skills.create(skillAgent(agent), { name: text(s?.name), description: text(s?.description), instructions: text(s?.instructions) })
   })
-  ipcMain.handle(IpcChannel.SkillsSave, (_event, name: unknown, content: unknown) => skills.save(text(name), text(content)))
-  ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
+  ipcMain.handle(IpcChannel.SkillsSave, (_event, agent: unknown, name: unknown, content: unknown) => skills.save(skillAgent(agent), text(name), text(content)))
+  ipcMain.handle(IpcChannel.SkillsImport, async (event, agent: unknown) => {
+    const to = skillAgent(agent)
     const source = await pickDirectory(event.sender, false)
-    return source === undefined ? undefined : skills.import(source)
+    return source === undefined ? undefined : skills.import(to, source)
   })
-  ipcMain.handle(IpcChannel.SkillsRemove, (_event, name: unknown) => skills.remove(text(name)))
+  ipcMain.handle(IpcChannel.SkillsCopy, (_event, agent: unknown, name: unknown, to: unknown) => skills.copy(skillAgent(agent), text(name), skillAgent(to)))
+  ipcMain.handle(IpcChannel.SkillsRemove, (_event, agent: unknown, name: unknown) => skills.remove(skillAgent(agent), text(name)))
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   ipcMain.handle(IpcChannel.FilesList, (_event, root: unknown, path: unknown) => listFolder(text(root), text(path)))
   ipcMain.handle(IpcChannel.FilesRead, (_event, root: unknown, path: unknown) => readFile(text(root), text(path)))
@@ -192,6 +194,13 @@ function size(value: unknown): number {
 function tabId(value: unknown): number {
   if (!Number.isInteger(value)) throw new Error('expected a tab id')
   return value as number
+}
+
+/** An agent a skill belongs to, one the app offers. */
+function skillAgent(value: unknown): SkillAgent {
+  const agent = text(value)
+  if (!(skillAgents as readonly string[]).includes(agent)) throw new Error('expected an agent a skill belongs to')
+  return agent as SkillAgent
 }
 
 function texts(value: unknown): string[] {

@@ -1,7 +1,7 @@
 // run_command: the frozen command, what it printed and how it exited.
 
 import { commandFailed, commandLine, type ToolCall } from '@ollupi/core'
-import type { ItemRow } from '@ollupi/protocol'
+import type { CommandOutput, ItemRow } from '@ollupi/protocol'
 import { Badge, Block, cn } from '@ollupi/ui'
 import { Terminal } from 'lucide-react'
 import { useT } from '../../../i18n'
@@ -48,11 +48,21 @@ function CommandCall({ item, call }: { item: ItemRow; call: Command }) {
 }
 
 function CommandDetails({ item, call: { command: cmd, output: out } }: { item: ItemRow; call: Command }) {
-  const m = useT()
   return (
     <>
       <CodeBlock code={commandLine(cmd)} label={`sh · ${cmd.cwd}`} />
-      {out && (out.stdout || out.stderr) && (
+      {out && <CommandOutputView output={out} />}
+      {item.error && <ErrorText text={item.error} />}
+    </>
+  )
+}
+
+/** What a command printed and how it exited. */
+export function CommandOutputView({ output: out }: { output: CommandOutput }) {
+  const m = useT()
+  return (
+    <>
+      {(out.stdout || out.stderr) && (
         <Block>
           <pre className="selectable max-h-80 overflow-auto font-mono text-ui whitespace-pre-wrap">
             {out.stdout}
@@ -60,29 +70,26 @@ function CommandDetails({ item, call: { command: cmd, output: out } }: { item: I
           </pre>
         </Block>
       )}
-      {out && (
-        <div className="flex flex-wrap gap-x-1.5 text-small text-fg-subtle">
-          {[
-            <span key="exit" className={cn(out.exit_code !== 0 && 'text-danger')}>
-              {m.conversation.tool.exit(out.exit_code)}
-            </span>,
-            out.signal && (
-              <span key="signal" className="text-danger">
-                {out.signal}
-              </span>
-            ),
-            out.truncated && <span key="truncated">{m.conversation.tool.truncated}</span>,
-            ...(out.sandbox_denials ?? []).map((d) => (
-              <span key={d} className="text-warning">
-                {m.conversation.tool.sandboxDenial(d)}
-              </span>
-            )),
-          ]
-            .filter(Boolean)
-            .flatMap((fact, i) => (i === 0 ? [fact] : [<span key={`dot${i}`}>·</span>, fact]))}
-        </div>
-      )}
-      {item.error && <ErrorText text={item.error} />}
+      <div className="flex flex-wrap gap-x-1.5 text-small text-fg-subtle">
+        {[
+          <span key="exit" className={cn(out.exit_code !== 0 && 'text-danger')}>
+            {m.conversation.tool.exit(out.exit_code)}
+          </span>,
+          out.signal && (
+            <span key="signal" className="text-danger">
+              {out.signal}
+            </span>
+          ),
+          out.truncated && <span key="truncated">{m.conversation.tool.truncated}</span>,
+          ...(out.sandbox_denials ?? []).map((d) => (
+            <span key={d} className="text-warning">
+              {m.conversation.tool.sandboxDenial(d)}
+            </span>
+          )),
+        ]
+          .filter(Boolean)
+          .flatMap((fact, i) => (i === 0 ? [fact] : [<span key={`dot${i}`}>·</span>, fact]))}
+      </div>
     </>
   )
 }

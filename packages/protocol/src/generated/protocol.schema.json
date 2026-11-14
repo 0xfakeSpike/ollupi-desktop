@@ -1,6 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "AgentRole": {
+      "type": "string",
+      "enum": [
+        "full-main-agent",
+        "compact-main-agent",
+        "general-sub-agent",
+        "browser-sub-agent"
+      ]
+    },
     "Annotations": {
       "type": "object",
       "properties": {
@@ -250,7 +259,7 @@
           "$ref": "#/$defs/AwaitBy"
         },
         "request": true,
-        "threadId": {
+        "handle": {
           "type": "string"
         }
       },
@@ -264,7 +273,8 @@
       "type": "string",
       "enum": [
         "user",
-        "agent"
+        "agent",
+        "background"
       ]
     },
     "ClientInfo": {
@@ -1213,6 +1223,9 @@
             "$ref": "#/$defs/Attachment"
           }
         },
+        "backgroundId": {
+          "type": "string"
+        },
         "text": {
           "type": "string"
         },
@@ -1269,7 +1282,8 @@
         "toolCall",
         "contextCompaction",
         "memoryContext",
-        "error"
+        "error",
+        "backgroundResult"
       ]
     },
     "MCPServerListResult": {
@@ -1950,6 +1964,9 @@
         "totalLines": {
           "type": "integer"
         },
+        "totalLinesAtLeast": {
+          "type": "boolean"
+        },
         "binary": {
           "type": "boolean"
         },
@@ -2557,6 +2574,9 @@
         "input_schema": {
           "type": "object",
           "additionalProperties": true
+        },
+        "background": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2665,6 +2685,9 @@
         "model": {
           "$ref": "#/$defs/Model"
         },
+        "agent": {
+          "$ref": "#/$defs/AgentRole"
+        },
         "usage": {
           "$ref": "#/$defs/Usage"
         },
@@ -2708,6 +2731,7 @@
         "seq",
         "status",
         "model",
+        "agent",
         "usage",
         "createdAt",
         "startedAt"
@@ -2748,6 +2772,7 @@
         "waitingOnApproval",
         "waitingOnUserInput",
         "waitingOnAgent",
+        "waitingOnBackground",
         "completed",
         "interrupted",
         "failed"
@@ -3537,8 +3562,52 @@
     "-32603": "internalError",
     "-32700": "parseError"
   },
+  "closes": {
+    "1001": {
+      "name": "goingAway",
+      "reconnect": "soon"
+    },
+    "1006": {
+      "name": "abnormal",
+      "reconnect": "backoff"
+    },
+    "1008": {
+      "name": "policyViolation",
+      "reconnect": "backoff"
+    },
+    "1009": {
+      "name": "messageTooBig",
+      "reconnect": "backoff"
+    },
+    "1011": {
+      "name": "internalError",
+      "reconnect": "backoff"
+    },
+    "4000": {
+      "name": "replaced",
+      "reconnect": "never"
+    }
+  },
+  "handshakes": {
+    "401": {
+      "name": "unauthorized",
+      "reconnect": "never"
+    },
+    "403": {
+      "name": "forbidden",
+      "reconnect": "never"
+    },
+    "500": {
+      "name": "internalError",
+      "reconnect": "backoff"
+    },
+    "503": {
+      "name": "unavailable",
+      "reconnect": "retryAfter"
+    }
+  },
   "builtinTools": {
-    "Agent": {
+    "browser-sub-agent": {
       "arguments": {
         "$ref": "#/$defs/SubagentCall"
       }
@@ -3546,6 +3615,11 @@
     "edit_file": {
       "output": {
         "$ref": "#/$defs/FileOutput"
+      }
+    },
+    "general-sub-agent": {
+      "arguments": {
+        "$ref": "#/$defs/SubagentCall"
       }
     },
     "glob": {

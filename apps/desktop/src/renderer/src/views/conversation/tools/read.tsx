@@ -53,7 +53,7 @@ function ReadCall({ item, call }: { item: ItemRow; call: Read }) {
   const o = call.output
   const badge =
     o?.binary ? m.conversation.tool.binaryFile(o.mimeType ?? '', fileSize(locale, o.size))
-    : o?.startLine ? m.conversation.tool.lines(o.startLine, o.endLine ?? o.startLine, o.totalLines)
+    : o?.startLine ? m.conversation.tool.lines(o.startLine, o.endLine ?? o.startLine, o.totalLines, !!o.totalLinesAtLeast)
     : undefined
   return (
     <CallRow

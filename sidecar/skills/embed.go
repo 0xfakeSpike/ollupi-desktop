@@ -1,6 +1,6 @@
 // Package skills holds the skills the desktop installs on first start, one
-// folder each; config.Load copies them into <home>/skills. Adding a folder
-// here ships it.
+// folder each; config.Load copies them into the main agent's directories
+// under <home>/skills. Adding a folder here ships it.
 package skills
 
 import "embed"

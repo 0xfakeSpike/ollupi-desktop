@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { NEW_CONVERSATION, suggestDraft, useDraft } from '../../domains/drafts'
-import { readSkills, useLoadedSkills } from '../../domains/skills'
+import { readSkills } from '../../domains/skills'
 import { useT } from '../../i18n'
 import { cn } from '@ollupi/ui'
 import { areaClass } from '../common/areas'
@@ -30,21 +30,20 @@ const firstSentence = (s: string) => s.split(/(?<=[。.!！?？])\s*|\n/)[0]?.tr
 export function Suggestions({ workspace }: { workspace: { id: string; name: string } | undefined }) {
   const t = useT().conversation.draft.suggest
   const draft = useDraft(NEW_CONVERSATION)
-  const loaded = useLoadedSkills()
   const [skill, setSkill] = useState<{ name: string; description: string }>()
-  // One installed skill, chosen once for this visit.
+  // One skill the main agent has, which a new conversation runs as, chosen
+  // once for this visit.
   useEffect(() => {
-    if (!loaded?.length) return
     let live = true
     void readSkills().then((list) => {
       if (!live || !list?.ok) return
-      const usable = list.skills.filter((s) => loaded.includes(s.name))
+      const usable = list.agents.find((a) => a.agent === 'main')?.skills ?? []
       if (usable.length) setSkill(usable[Math.floor(Math.random() * usable.length)])
     })
     return () => {
       live = false
     }
-  }, [loaded?.join('\n')])
+  }, [])
 
   if (draft.text.trim() || draft.attachments.length) return null
   const cards: Suggestion[] = [

@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
-	"github.com/0xfakeSpike/ollupi/agent"
+	"github.com/0xfakeSpike/ollupi/agent/event"
 	"github.com/0xfakeSpike/ollupi/agent/permission"
-	"github.com/0xfakeSpike/ollupi/repo"
+	"github.com/0xfakeSpike/ollupi/agent/service"
+	"github.com/0xfakeSpike/ollupi/repo/db"
 	"github.com/0xfakeSpike/ollupi/tools"
 	"github.com/0xfakeSpike/ollupi/tools/userinput"
 )
@@ -27,45 +28,45 @@ type fakeEngine struct {
 	queued     bool
 }
 
-func (f *fakeEngine) StartThread(user, workspaceID, environmentID, title string, _ permission.Settings) (repo.ThreadRow, error) {
-	if user != repo.DefaultUser {
-		return repo.ThreadRow{}, repo.ErrNotFound
+func (f *fakeEngine) StartThread(user, workspaceID, environmentID, title string, _ permission.Settings) (db.ThreadRow, error) {
+	if user != db.DefaultUser {
+		return db.ThreadRow{}, db.ErrNotFound
 	}
 	f.threads = append(f.threads, workspaceID+" "+title)
-	return repo.ThreadRow{ID: fmt.Sprintf("thread-%d", len(f.threads)), Title: title}, nil
+	return db.ThreadRow{ID: fmt.Sprintf("thread-%d", len(f.threads)), Title: title}, nil
 }
 
-func (f *fakeEngine) StartTurn(user, threadID string, in agent.Input) (repo.TurnRow, error) {
-	if user != repo.DefaultUser {
-		return repo.TurnRow{}, repo.ErrNotFound
+func (f *fakeEngine) StartTurn(_ context.Context, user, threadID string, in service.Input) (db.TurnRow, error) {
+	if user != db.DefaultUser {
+		return db.TurnRow{}, db.ErrNotFound
 	}
 	f.turns = append(f.turns, threadID+" "+in.Text)
-	status := repo.TurnInProgress
+	status := db.TurnInProgress
 	if f.queued {
-		status = repo.TurnQueued
+		status = db.TurnQueued
 	}
-	return repo.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Input: in.Text, Status: status}, nil
+	return db.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Input: in.Text, Status: status}, nil
 }
 
 func (f *fakeEngine) InterruptTurn(user, threadID, turnID string) error {
-	if user != repo.DefaultUser {
-		return repo.ErrNotFound
+	if user != db.DefaultUser {
+		return db.ErrNotFound
 	}
 	f.interrupts = append(f.interrupts, threadID+" "+turnID)
 	return nil
 }
 
-func (f *fakeEngine) ResolveApproval(user, threadID, approvalID string, d repo.Decision, by string) error {
-	if user != repo.DefaultUser {
-		return repo.ErrNotFound
+func (f *fakeEngine) ResolveApproval(user, threadID, approvalID string, d db.Decision, by string) error {
+	if user != db.DefaultUser {
+		return db.ErrNotFound
 	}
 	f.decisions = append(f.decisions, strings.Join([]string{threadID, approvalID, string(d), by}, " "))
 	return nil
 }
 
 func (f *fakeEngine) AnswerUserInput(user, threadID, itemID string, answers userinput.Answers) error {
-	if user != repo.DefaultUser {
-		return repo.ErrNotFound
+	if user != db.DefaultUser {
+		return db.ErrNotFound
 	}
 	if f.answers == nil {
 		f.answers = map[string]userinput.Answers{}
@@ -74,20 +75,20 @@ func (f *fakeEngine) AnswerUserInput(user, threadID, itemID string, answers user
 	return nil
 }
 
-type fakeStore struct{ threads map[string]repo.ThreadRow }
+type fakeStore struct{ threads map[string]db.ThreadRow }
 
-func (s fakeStore) ThreadRow(id string) (repo.ThreadRow, error) {
+func (s fakeStore) ThreadRow(id string) (db.ThreadRow, error) {
 	if t, ok := s.threads[id]; ok {
 		return t, nil
 	}
-	return repo.ThreadRow{}, repo.ErrNotFound
+	return db.ThreadRow{}, db.ErrNotFound
 }
 
-func (fakeStore) Workspaces(user string) ([]repo.WorkspaceRow, error) {
-	if user != repo.DefaultUser {
+func (fakeStore) Workspaces(user string) ([]db.WorkspaceRow, error) {
+	if user != db.DefaultUser {
 		return nil, nil
 	}
-	return []repo.WorkspaceRow{{ID: "ws-1", Name: "app", RootPath: "/code/app"}}, nil
+	return []db.WorkspaceRow{{ID: "ws-1", Name: "app", RootPath: "/code/app"}}, nil
 }
 
 // sent is a message the bot sent or a card it updated.
@@ -120,7 +121,7 @@ func newTest(t *testing.T) (*Bridge, *fakeEngine, *fakeChat, string) {
 	t.Helper()
 	engine, chat := &fakeEngine{}, &fakeChat{}
 	path := filepath.Join(t.TempDir(), "feishu.json")
-	store := fakeStore{threads: map[string]repo.ThreadRow{
+	store := fakeStore{threads: map[string]db.ThreadRow{
 		"thread-1": {ID: "thread-1"},
 		"sub-1":    {ID: "sub-1", ParentThreadID: "thread-1"},
 	}}
@@ -207,9 +208,9 @@ func TestQueuedMessageSaysSo(t *testing.T) {
 func TestTurnIsOneCard(t *testing.T) {
 	b, _, chat, _ := newTest(t)
 	b.message(text("m1", "", "fix it"))
-	thread := repo.ThreadRow{ID: "thread-1", Title: "fix it"}
-	tr := repo.TurnRow{ID: "turn-1", ThreadID: "thread-1", Input: "fix it", Status: repo.TurnInProgress}
-	b.Deliver(agent.Event{Kind: agent.EventTurnStarted, Thread: thread, Turn: tr})
+	thread := db.ThreadRow{ID: "thread-1", Title: "fix it"}
+	tr := db.TurnRow{ID: "turn-1", ThreadID: "thread-1", Input: "fix it", Status: db.TurnInProgress}
+	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: thread, Turn: tr})
 	run(b)
 	if len(chat.replies) != 1 || chat.replies[0].to != "m1" || !strings.Contains(chat.replies[0].content, `"action":"stop"`) {
 		t.Fatalf("replies = %+v", chat.replies)
@@ -217,16 +218,16 @@ func TestTurnIsOneCard(t *testing.T) {
 	if strings.Contains(chat.replies[0].content, "桌面端发来") {
 		t.Fatal("a turn sent from Feishu is labelled as the desktop's")
 	}
-	items := []repo.ItemRow{
-		{ID: "i1", Type: repo.ItemReasoning, Text: "hmm"},
-		{ID: "i2", Type: repo.ItemToolCall, Tool: "run_command", Status: repo.ItemCompleted, PreparedExecution: &tools.Prepared{Program: "git", Args: []string{"commit", "-m", "a b"}}},
-		{ID: "i3", Type: repo.ItemAgentMessage, Text: "Done."},
+	items := []db.ItemRow{
+		{ID: "i1", Type: db.ItemReasoning, Text: "hmm"},
+		{ID: "i2", Type: db.ItemToolCall, Tool: "run_command", Status: db.ItemCompleted, PreparedExecution: &tools.Prepared{Program: "git", Args: []string{"commit", "-m", "a b"}}},
+		{ID: "i3", Type: db.ItemAgentMessage, Text: "Done."},
 	}
 	for i := range items {
-		b.Deliver(agent.Event{Kind: agent.EventItemCompleted, Thread: thread, Turn: tr, Item: &items[i]})
+		b.Deliver(event.Event{Kind: event.ItemCompleted, Thread: thread, Turn: tr, Item: &items[i]})
 	}
-	tr.Status = repo.TurnCompleted
-	b.Deliver(agent.Event{Kind: agent.EventTurnCompleted, Thread: thread, Turn: tr})
+	tr.Status = db.TurnCompleted
+	b.Deliver(event.Event{Kind: event.TurnCompleted, Thread: thread, Turn: tr})
 	run(b)
 	last := chat.updates[len(chat.updates)-1]
 	if last.to != "bot-1" {
@@ -245,7 +246,7 @@ func TestTurnIsOneCard(t *testing.T) {
 func TestDesktopTurnIsLabelled(t *testing.T) {
 	b, _, chat, _ := newTest(t)
 	b.message(text("m1", "", "fix it"))
-	b.Deliver(agent.Event{Kind: agent.EventTurnStarted, Thread: repo.ThreadRow{ID: "thread-1"}, Turn: repo.TurnRow{ID: "turn-9", Input: "and the tests", Status: repo.TurnInProgress}})
+	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-9", Input: "and the tests", Status: db.TurnInProgress}})
 	run(b)
 	if len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, "桌面端发来：and the tests") {
 		t.Fatalf("replies = %+v", chat.replies)
@@ -254,18 +255,18 @@ func TestDesktopTurnIsLabelled(t *testing.T) {
 
 func TestDesktopSessionOpensItsTopic(t *testing.T) {
 	b, engine, chat, path := newTest(t)
-	thread := repo.ThreadRow{ID: "desk-1", WorkspaceID: "ws-1", Title: "fix the login"}
+	thread := db.ThreadRow{ID: "desk-1", WorkspaceID: "ws-1", Title: "fix the login"}
 	// Nothing to show yet: no topic.
-	b.Deliver(agent.Event{Kind: agent.EventItemCompleted, Thread: thread, Turn: repo.TurnRow{ID: "turn-0"}, Item: &repo.ItemRow{ID: "i0", Type: repo.ItemAgentMessage, Text: "x"}})
+	b.Deliver(event.Event{Kind: event.ItemCompleted, Thread: thread, Turn: db.TurnRow{ID: "turn-0"}, Item: &db.ItemRow{ID: "i0", Type: db.ItemAgentMessage, Text: "x"}})
 	run(b)
 	if len(chat.sends) != 0 {
 		t.Fatalf("sends = %+v", chat.sends)
 	}
 
-	tr := repo.TurnRow{ID: "turn-1", ThreadID: "desk-1", Input: "fix the login", Status: repo.TurnInProgress}
-	b.Deliver(agent.Event{Kind: agent.EventTurnStarted, Thread: thread, Turn: tr})
+	tr := db.TurnRow{ID: "turn-1", ThreadID: "desk-1", Input: "fix the login", Status: db.TurnInProgress}
+	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: thread, Turn: tr})
 	tr.ID = "turn-2"
-	b.Deliver(agent.Event{Kind: agent.EventTurnStarted, Thread: thread, Turn: tr})
+	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: thread, Turn: tr})
 	run(b)
 	if len(chat.sends) != 1 || chat.sends[0].to != me || !strings.Contains(chat.sends[0].content, "app · fix the login") {
 		t.Fatalf("sends = %+v", chat.sends)
@@ -287,8 +288,8 @@ func TestDesktopSessionOpensItsTopic(t *testing.T) {
 
 func TestSubagentRequestOpensItsSessionsTopic(t *testing.T) {
 	b, _, chat, _ := newTest(t)
-	it := repo.ItemRow{ID: "call-1", Type: repo.ItemToolCall, Status: repo.ItemPending, Tool: "run_command", Approval: &repo.Approval{ID: "ap-1"}}
-	b.Deliver(agent.Event{Kind: agent.EventApprovalRequested, Thread: repo.ThreadRow{ID: "sub-1", ParentThreadID: "thread-1"}, Item: &it})
+	it := db.ItemRow{ID: "call-1", Type: db.ItemToolCall, Status: db.ItemPending, Tool: "run_command", Approval: &db.Approval{ID: "ap-1"}}
+	b.Deliver(event.Event{Kind: event.ApprovalRequested, Thread: db.ThreadRow{ID: "sub-1", ParentThreadID: "thread-1"}, Item: &it})
 	run(b)
 	if len(chat.sends) != 1 || !strings.Contains(chat.sends[0].content, "新会话") || len(chat.replies) != 1 || chat.replies[0].to != "root-1" {
 		t.Fatalf("sends %+v, replies %+v", chat.sends, chat.replies)
@@ -298,14 +299,14 @@ func TestSubagentRequestOpensItsSessionsTopic(t *testing.T) {
 func TestSubagentApproval(t *testing.T) {
 	b, engine, chat, _ := newTest(t)
 	b.message(text("m1", "", "fix it"))
-	it := repo.ItemRow{
-		ID: "call-1", Type: repo.ItemToolCall, Status: repo.ItemPending, Tool: "run_command",
+	it := db.ItemRow{
+		ID: "call-1", Type: db.ItemToolCall, Status: db.ItemPending, Tool: "run_command",
 		PreparedExecution: &tools.Prepared{Program: "rm", Args: []string{"-rf", "build"}},
-		Approval:          &repo.Approval{ID: "ap-1", Suggested: []string{"run_command(rm:*)"}},
+		Approval:          &db.Approval{ID: "ap-1", Suggested: []string{"run_command(rm:*)"}},
 	}
-	sub := repo.ThreadRow{ID: "sub-1", ParentThreadID: "thread-1"}
-	b.Deliver(agent.Event{Kind: agent.EventApprovalRequested, Thread: sub, Item: &it})
-	b.Deliver(agent.Event{Kind: agent.EventApprovalRequested, Thread: sub, Item: &it}) // reported again
+	sub := db.ThreadRow{ID: "sub-1", ParentThreadID: "thread-1"}
+	b.Deliver(event.Event{Kind: event.ApprovalRequested, Thread: sub, Item: &it})
+	b.Deliver(event.Event{Kind: event.ApprovalRequested, Thread: sub, Item: &it}) // reported again
 	run(b)
 	if len(chat.replies) != 1 || chat.replies[0].to != "m1" {
 		t.Fatalf("replies = %+v", chat.replies)
@@ -330,8 +331,8 @@ func TestSubagentApproval(t *testing.T) {
 		t.Fatalf("decisions = %v", engine.decisions)
 	}
 
-	it.Status, it.Approval.Decision, it.Approval.DecidedBy = repo.ItemInProgress, repo.DecisionAccept, Decider
-	b.Deliver(agent.Event{Kind: agent.EventItemUpdated, Thread: sub, Item: &it})
+	it.Status, it.Approval.Decision, it.Approval.DecidedBy = db.ItemInProgress, db.DecisionAccept, Decider
+	b.Deliver(event.Event{Kind: event.ItemUpdated, Thread: sub, Item: &it})
 	run(b)
 	if len(chat.updates) != 1 || chat.updates[0].to != "bot-1" || !strings.Contains(chat.updates[0].content, "允许一次") || !strings.Contains(chat.updates[0].content, "在飞书") {
 		t.Fatalf("updates = %+v", chat.updates)
@@ -345,9 +346,9 @@ func TestQuestionForm(t *testing.T) {
 		{ID: "db", Question: "Which database?", Options: []userinput.Option{{Label: "SQLite"}, {Label: "Postgres"}}},
 		{ID: "name", Question: "Table name?"},
 	}})
-	it := repo.ItemRow{ID: "ask-1", Type: repo.ItemToolCall, Status: repo.ItemInProgress, Await: &tools.Await{By: tools.AwaitUser, Request: req}}
-	thread := repo.ThreadRow{ID: "thread-1"}
-	b.Deliver(agent.Event{Kind: agent.EventUserInputRequested, Thread: thread, Item: &it})
+	it := db.ItemRow{ID: "ask-1", Type: db.ItemToolCall, Status: db.ItemInProgress, Await: &tools.Await{By: tools.AwaitUser, Request: req}}
+	thread := db.ThreadRow{ID: "thread-1"}
+	b.Deliver(event.Event{Kind: event.UserInputRequested, Thread: thread, Item: &it})
 	run(b)
 	if len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, `"pick_db"`) || !strings.Contains(chat.replies[0].content, `"text_name"`) {
 		t.Fatalf("replies = %+v", chat.replies)
@@ -365,8 +366,8 @@ func TestQuestionForm(t *testing.T) {
 		t.Fatalf("answers = %+v", got)
 	}
 
-	it.Status = repo.ItemCompleted
-	b.Deliver(agent.Event{Kind: agent.EventItemCompleted, Thread: thread, Item: &it})
+	it.Status = db.ItemCompleted
+	b.Deliver(event.Event{Kind: event.ItemCompleted, Thread: thread, Item: &it})
 	run(b)
 	if len(chat.updates) != 1 || !strings.Contains(chat.updates[0].content, "已回答") {
 		t.Fatalf("updates = %+v", chat.updates)
@@ -376,7 +377,7 @@ func TestQuestionForm(t *testing.T) {
 func TestDeletedSessionForgetsItsTopic(t *testing.T) {
 	b, _, _, path := newTest(t)
 	b.message(text("m1", "", "fix it"))
-	b.Deliver(agent.Event{Kind: agent.EventThreadDeleted, Thread: repo.ThreadRow{ID: "thread-1"}})
+	b.Deliver(event.Event{Kind: event.ThreadDeleted, Thread: db.ThreadRow{ID: "thread-1"}})
 	run(b)
 	saved, _ := loadTopics(path)
 	if _, ok := saved.thread("m1"); ok {

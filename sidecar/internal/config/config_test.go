@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/0xfakeSpike/ollupi/agent/skills"
+	"github.com/0xfakeSpike/ollupi/agent/role"
+	"github.com/0xfakeSpike/ollupi/repo/skills"
 )
 
 func TestTemplateParses(t *testing.T) {
@@ -26,7 +27,7 @@ func TestTemplateParses(t *testing.T) {
 
 func TestFirstLoadWritesStarterSkills(t *testing.T) {
 	home := t.TempDir()
-	kept := filepath.Join(home, "skills", "zhou-shenghua-woodcut-style", "SKILL.md")
+	kept := filepath.Join(home, "skills", string(role.FullMain), "zhou-shenghua-woodcut-style", "SKILL.md")
 	cfg, err := Load(home)
 	if err != nil {
 		t.Fatal(err)
@@ -34,12 +35,15 @@ func TestFirstLoadWritesStarterSkills(t *testing.T) {
 	if cfg.SkillsDir != filepath.Join(home, "skills") {
 		t.Fatalf("skills_dir = %s", cfg.SkillsDir)
 	}
-	catalog, err := skills.New(cfg.SkillsDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if names := skillNames(catalog.All()); !slices.Contains(names, "zhou-shenghua-woodcut-style") {
-		t.Fatalf("starter skills = %v", names)
+	// The main agent has them on a model of either size.
+	for _, r := range []role.Name{role.FullMain, role.CompactMain} {
+		list, err := skills.Load(cfg.SkillsDir, string(r))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if names := skillNames(list); !slices.Contains(names, "zhou-shenghua-woodcut-style") {
+			t.Fatalf("%s's starter skills = %v", r, names)
+		}
 	}
 
 	// Later starts leave the folder to the user.
@@ -133,5 +137,53 @@ func TestBrowserNameIsTaken(t *testing.T) {
 	raw := "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\nmcp: [{name: browser, url: 'https://example.test/mcp'}]\n"
 	if _, err := Parse([]byte(raw)); err == nil || !strings.Contains(err.Error(), "built-in browser") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestLoadMovesFlatSkillsToTheMainAgent(t *testing.T) {
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, FileName), []byte(Template), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(home, "skills")
+	write := func(path, text string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	skill := func(name string) string { return "---\nname: " + name + "\ndescription: Says hello.\n---\n\nDo it.\n" }
+	write(filepath.Join(dir, "say-hello", "SKILL.md"), skill("say-hello"))
+	write(filepath.Join(dir, "say-hello", "references", "a.md"), "detail")
+	// One the main agent has already stays where it is, for ollupi to refuse.
+	write(filepath.Join(dir, "taken", "SKILL.md"), skill("taken"))
+	write(filepath.Join(dir, string(role.FullMain), "taken", "SKILL.md"), skill("taken"))
+
+	if _, err := Load(home); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range []role.Name{role.FullMain, role.CompactMain} {
+		list, err := skills.Load(dir, string(r))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if names := skillNames(list); !slices.Contains(names, "say-hello") {
+			t.Fatalf("%s's skills = %v", r, names)
+		}
+		if b, _ := os.ReadFile(filepath.Join(dir, string(r), "say-hello", "references", "a.md")); string(b) != "detail" {
+			t.Fatalf("%s's copy lost its files", r)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "say-hello")); !os.IsNotExist(err) {
+		t.Fatal("the flat skill is still there")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "taken", "SKILL.md")); err != nil {
+		t.Fatal("a skill the main agent had was moved over it")
+	}
+	if entries, _ := os.ReadDir(filepath.Join(dir, string(role.CompactMain))); len(entries) != 1 {
+		t.Fatalf("compact-main-agent holds %v", entries)
 	}
 }

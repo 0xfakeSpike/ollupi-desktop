@@ -5,7 +5,8 @@
 // question, a plan, a scheduled task created by the model, a subagent, an
 // MCP tool call (mock-mcp.mjs, beside a server that cannot start), the
 // memory snapshot and a memory_search call, a file attached by path,
-// read_file alone and with glob and grep in one answer, queued turns, the
+// read_file alone and with glob and grep in one answer, a command run in
+// the background and its result coming back, queued turns, the
 // cron, workspace, memory, settings, MCP and permission methods,
 // and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
@@ -125,9 +126,14 @@ function answer(m) {
   send({ jsonrpc: '2.0', id: m.id, result: { answers } })
 }
 
+// Every turn that has completed, for a wait that may begin after it did.
+const ended = new Set()
+listeners.add((m) => m.method === 'turn/completed' && ended.add(m.params.turn.id))
+
 /** Resolves when the turn completes (turn/completed for it). */
 const completed = (turnId) =>
   new Promise((resolve) => {
+    if (ended.has(turnId)) return resolve()
     const l = (m) => {
       if (m.method === 'turn/completed' && m.params.turn.id === turnId) {
         listeners.delete(l)
@@ -170,6 +176,20 @@ await turn(thread.id, 'use the mcp echo tool')
 await turn(thread.id, 'search memory for my indentation style')
 await turn(thread.id, 'read readme')
 await turn(thread.id, 'look around the project')
+// A call in the background returns at once; its result comes back to the
+// conversation as an item of its own, in the turn under way or in one it
+// starts, which goes on to read it.
+const backgroundResult = new Promise((resolve) => {
+  const l = (m) => {
+    if (m.method === 'item/completed' && m.params.item.type === 'backgroundResult') {
+      listeners.delete(l)
+      resolve(m.params)
+    }
+  }
+  listeners.add(l)
+})
+await turn(thread.id, 'echo in the background please')
+await completed((await backgroundResult).turnId)
 
 // Two messages at once: the second waits as a queued turn.
 const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of two' }] })

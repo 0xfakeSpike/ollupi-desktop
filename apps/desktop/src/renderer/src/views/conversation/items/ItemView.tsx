@@ -5,6 +5,7 @@ import { memo } from 'react'
 import { AgentMessage, Reasoning, UserMessage } from './Messages'
 import { CompactionMarker, ErrorItem, MemoryContext } from './SystemItems'
 import { ToolCallView } from '../tools'
+import { BackgroundResult } from '../tools/background'
 
 /** editable: the thread's latest message, which can be taken back to edit. */
 export const ItemView = memo(function ItemView({ item, editable }: { item: ItemRow; editable?: boolean }) {
@@ -23,5 +24,7 @@ export const ItemView = memo(function ItemView({ item, editable }: { item: ItemR
       return <MemoryContext item={item} />
     case 'error':
       return <ErrorItem item={item} />
+    case 'backgroundResult':
+      return <BackgroundResult item={item} />
   }
 })

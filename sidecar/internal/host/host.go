@@ -25,13 +25,14 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
-	"github.com/0xfakeSpike/ollupi/agent"
+	"github.com/0xfakeSpike/ollupi/agent/event"
 	"github.com/0xfakeSpike/ollupi/agent/memory"
 	"github.com/0xfakeSpike/ollupi/agent/permission"
+	"github.com/0xfakeSpike/ollupi/agent/service"
 	"github.com/0xfakeSpike/ollupi/gateway"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
-	"github.com/0xfakeSpike/ollupi/repo"
+	"github.com/0xfakeSpike/ollupi/repo/db"
 	"github.com/0xfakeSpike/ollupi/tools"
 	"github.com/0xfakeSpike/ollupi/tools/cron"
 	"github.com/0xfakeSpike/ollupi/tools/mcp"
@@ -61,12 +62,12 @@ type Options struct {
 // bot: it is handed every event the gateway is, and runs until the backend
 // stops. Deliver must not block: the agent emits from its own loop.
 type Client interface {
-	Deliver(agent.Event)
+	Deliver(event.Event)
 	Run(ctx context.Context)
 }
 
 type Host struct {
-	agent    *agent.Agent
+	agent    *service.Service
 	gateway  *gateway.Server
 	clients  []Client
 	memory   *memory.Manager
@@ -88,11 +89,11 @@ func New(opts Options) (_ *Host, err error) {
 	if dataHome == "" {
 		dataHome = opts.Home
 	}
-	db, err := repo.Open(dataHome)
+	store, err := db.Open(dataHome)
 	if err != nil {
 		return nil, err
 	}
-	h.closers = append(h.closers, db.Close)
+	h.closers = append(h.closers, store.Close)
 
 	models, connections, err := modelClients(cfg.Models)
 	if err != nil {
@@ -103,7 +104,7 @@ func New(opts Options) (_ *Host, err error) {
 	// and the timer that sends due tasks; the gateway exposes it as cron/*
 	// and reports each change to a task as cron/changed.
 	var cronChanged func(id, threadID string)
-	h.jobs = cron.New(db, time.Local, func(id, threadID string) { cronChanged(id, threadID) })
+	h.jobs = cron.New(store, time.Local, func(id, threadID string) { cronChanged(id, threadID) })
 	providers := []tools.Provider{h.jobs}
 	if cfg.Workspace.Enabled {
 		ws, err := workspace.New(workspace.Options{
@@ -119,12 +120,12 @@ func New(opts Options) (_ *Host, err error) {
 				if c.EnvironmentID == "" {
 					return nil, nil
 				}
-				env, err := db.EnvironmentOf(c.UserID, c.EnvironmentID)
+				env, err := store.EnvironmentOf(c.UserID, c.EnvironmentID)
 				if err != nil {
 					return nil, err
 				}
-				if env.Kind != repo.EnvironmentLocal {
-					return nil, fmt.Errorf("%s is a cloud sandbox, and this build has no machine for it; start the conversation in %s", env.Name, repo.LocalEnvironmentName)
+				if env.Kind != db.EnvironmentLocal {
+					return nil, fmt.Errorf("%s is a cloud sandbox, and this build has no machine for it; start the conversation in %s", env.Name, db.LocalEnvironmentName)
 				}
 				return nil, nil
 			},
@@ -158,15 +159,15 @@ func New(opts Options) (_ *Host, err error) {
 	// turn, which would hold up the agent's loop; one that cannot is skipped,
 	// and the gateway reports why (mcpServer/list). One that drops later
 	// starts again the next time it is needed.
-	if _, err := connected.For(repo.DefaultUser); err != nil {
+	if _, err := connected.For(db.DefaultUser); err != nil {
 		return nil, err
 	}
 
-	if h.memory, err = memoryManager(db, models, connections, cfg.Memory); err != nil {
+	if h.memory, err = memoryManager(store, models, connections, cfg.Memory); err != nil {
 		return nil, err
 	}
 
-	h.agent = agent.New(agent.Config{
+	h.agent = service.New(service.Config{
 		Name:        cfg.Name,
 		Prompt:      cfg.Prompt,
 		Models:      models,
@@ -182,10 +183,10 @@ func New(opts Options) (_ *Host, err error) {
 		// Images and files sent with messages live beside the database.
 		AttachmentsDir: filepath.Join(dataHome, "attachments"),
 		Memory:         h.memory,
-		DB:             db,
+		DB:             store,
 		// The gateway and clients are set before Start, so the agent never
 		// emits into nil ones.
-		OnEvent: func(e agent.Event) {
+		OnEvent: func(e event.Event) {
 			h.gateway.Deliver(e)
 			for _, c := range h.clients {
 				c.Deliver(e)
@@ -193,7 +194,7 @@ func New(opts Options) (_ *Host, err error) {
 		},
 	})
 	h.gateway, err = gateway.NewServer(h.agent, gateway.Options{
-		DB:             db,
+		DB:             store,
 		Token:          opts.Token,
 		AllowedOrigins: opts.AllowedOrigins,
 		Memory:         h.memory,
@@ -203,7 +204,7 @@ func New(opts Options) (_ *Host, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if h.clients, err = clients(cfg, h.agent, db, dataHome); err != nil {
+	if h.clients, err = clients(cfg, h.agent, store, dataHome); err != nil {
 		return nil, err
 	}
 	// Set before Start, so the cron timer never reports into a nil gateway.
@@ -230,11 +231,11 @@ func (h *Host) Start(ctx context.Context) error {
 }
 
 // clients are the front ends cfg configures beside the gateway.
-func clients(cfg config.Config, a *agent.Agent, db *repo.DB, dataHome string) ([]Client, error) {
+func clients(cfg config.Config, a *service.Service, store *db.DB, dataHome string) ([]Client, error) {
 	var out []Client
 	if cfg.Feishu != nil {
 		// Which topic holds which session is kept beside the database.
-		b, err := feishu.New(*cfg.Feishu, a, db, filepath.Join(dataHome, "data", "feishu.json"))
+		b, err := feishu.New(*cfg.Feishu, a, store, filepath.Join(dataHome, "data", "feishu.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -276,7 +277,7 @@ func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 		cancel()
 		return err
 	}
-	_, err = h.agent.StartThread(repo.DefaultUser, "", "", "", permission.Settings{})
+	_, err = h.agent.StartThread(db.DefaultUser, "", "", "", permission.Settings{})
 	cancel()
 	h.agent.Wait()
 	return err
@@ -375,14 +376,14 @@ func mcpServers(list []config.MCPServer) ([]mcp.Server, error) {
 
 // memoryManager extracts with the model memory.model names, through that
 // model's client, so extraction shares its calls with the model's turns.
-func memoryManager(db *repo.DB, models []llm.Model, clients map[string]llm.Client, m config.Memory) (*memory.Manager, error) {
+func memoryManager(store *db.DB, models []llm.Model, clients map[string]llm.Client, m config.Memory) (*memory.Manager, error) {
 	opts := memory.Options{Use: m.Use, Generate: m.Generate}
 	var client llm.Client
 	if m.Model != "" {
 		i := slices.IndexFunc(models, func(x llm.Model) bool { return x.Connection == m.Model })
 		opts.Model, client = models[i], clients[m.Model]
 	}
-	mgr, err := memory.New(db, client, opts)
+	mgr, err := memory.New(store, client, opts)
 	if err != nil {
 		return nil, fmt.Errorf("memory: %w", err)
 	}

@@ -4,6 +4,7 @@
 
 import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 import type { SkillsCheck } from './generated/backend-skills'
+import type { AgentRole } from '@ollupi/protocol'
 
 /** config.yaml as the backend decodes it. */
 export type BackendConfig = NonNullable<CheckOutput['config']>
@@ -61,11 +62,27 @@ export interface ListedModel {
 export type ModelList = { ok: true; models: ListedModel[] } | { ok: false; error: string }
 
 /** One skill as the agent loads it from its SKILL.md. */
-export type Skill = NonNullable<SkillsCheck['skills']>[number]
-/** The skills folder and its skills as the agent would load them, or why
- * the agent would not start with the folder. dir is empty while config.yaml
+export type Skill = NonNullable<NonNullable<NonNullable<SkillsCheck['roles']>[number]['skills']>[number]>
+/** An agent a skill belongs to, as the app offers it: the main agent, which
+ * ollupi runs as one of two roles by the size of the model (its skill is in
+ * both roles' folders, so a conversation that changes model keeps it), or
+ * one kind of subagent. */
+export type SkillAgent = 'main' | 'general-sub-agent' | 'browser-sub-agent'
+export const skillAgents: readonly SkillAgent[] = ['main', 'general-sub-agent', 'browser-sub-agent']
+/** The roles whose directories hold an agent's skills (skills_dir/<role>/<skill>). */
+export function rolesOf(agent: SkillAgent): AgentRole[] {
+  return agent === 'main' ? ['full-main-agent', 'compact-main-agent'] : [agent]
+}
+/** One agent's skills. Each agent has its own: a skill of the same name
+ * another agent has is another copy. */
+export interface AgentSkills {
+  agent: SkillAgent
+  skills: Skill[]
+}
+/** The skills folder and each agent's skills as ollupi would load them, or
+ * why it would not start with the folder. dir is empty while config.yaml
  * sets no skills_dir, which turns skills off. */
-export type SkillList = { ok: true; dir: string; skills: Skill[] } | { ok: false; dir: string; error: string }
+export type SkillList = { ok: true; dir: string; agents: AgentSkills[] } | { ok: false; dir: string; error: string }
 /** A change to the skills folder, or why the agent's rules refused it. */
 export type SkillChange = { ok: true } | { ok: false; error: string }
 /** What a new skill's SKILL.md is written from. */
@@ -248,19 +265,22 @@ export interface DesktopApi {
      * and restarts the backend, since ollupi reads its config only at start. */
     apply(changes: ConfigChange[]): Promise<ConfigCheck>
   }
-  /** The folder config.yaml's skills_dir names. A change is checked with
-   * the agent's own catalog before it reaches the folder; one that passes
-   * restarts the backend, which loads skills only at start. */
+  /** The folder config.yaml's skills_dir names, where each agent has its
+   * own skills. A change is checked with the agent's own rules before it
+   * reaches the folder; skills are read on each run, so it takes effect
+   * from the next. */
   skills: {
     list(): Promise<SkillList>
-    read(name: string): Promise<string>
-    create(skill: NewSkill): Promise<SkillChange>
-    save(name: string, text: string): Promise<SkillChange>
-    /** Asks for a skill folder and copies it in; undefined when none was
-     * chosen. */
-    import(): Promise<SkillChange | undefined>
-    /** Moves the skill's folder to the Trash. */
-    remove(name: string): Promise<void>
+    read(agent: SkillAgent, name: string): Promise<string>
+    create(agent: SkillAgent, skill: NewSkill): Promise<SkillChange>
+    save(agent: SkillAgent, name: string, text: string): Promise<SkillChange>
+    /** Asks for a skill folder and copies it in for the agent; undefined
+     * when none was chosen. */
+    import(agent: SkillAgent): Promise<SkillChange | undefined>
+    /** Gives another agent a copy of the skill, its own from then on. */
+    copy(agent: SkillAgent, name: string, to: SkillAgent): Promise<SkillChange>
+    /** Moves the agent's copy of the skill to the Trash. */
+    remove(agent: SkillAgent, name: string): Promise<void>
     /** Creates the skills folder in the backend's home and gives the
      * skills_dir value that names it. */
     defaultFolder(): Promise<string>
@@ -410,6 +430,7 @@ export const IpcChannel = {
   SkillsCreate: 'skills:create',
   SkillsSave: 'skills:save',
   SkillsImport: 'skills:import',
+  SkillsCopy: 'skills:copy',
   SkillsRemove: 'skills:remove',
   SkillsDefaultFolder: 'skills:defaultFolder',
   AttachmentsWrite: 'attachments:write',
