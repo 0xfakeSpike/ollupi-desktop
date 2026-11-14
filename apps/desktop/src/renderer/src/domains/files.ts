@@ -27,6 +27,16 @@ export function readPreview(root: string, path: string): Promise<FilePreview | u
   return run((e) => e.files.read, () => desktop.files.read(root, path))
 }
 
+/** An image a Markdown file in the workspace shows, as a data URL, read
+ * quietly: one that is missing, too large or not an image is no failure,
+ * as a page with a broken image is no error of the app. */
+export function readImage(root: string, path: string): Promise<string | undefined> {
+  return desktop.files.read(root, path).then(
+    (f) => (f.kind === 'image' ? f.dataUrl : undefined),
+    () => undefined,
+  )
+}
+
 const kinds = new Map<string, Promise<FileEntry['kind'] | undefined>>()
 
 /** Whether a path a reply names is a file or a folder, asked quietly: a

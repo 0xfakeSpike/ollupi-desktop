@@ -6,16 +6,19 @@
 // highlighted by Shiki in a light and a dark theme, picked by the scheme,
 // with its JavaScript regex engine: the page's CSP allows no WebAssembly,
 // which the default engine compiles. A diff's added and removed lines are
-// marked, for .markdown to shade.
+// marked, for .markdown to shade. A workspace file's links and images
+// are relative to its folder, and its images are read from the workspace.
 
 import { Block, IconButton } from '@ollupi/ui'
 import { Check, Copy } from 'lucide-react'
-import { createElement, memo, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { createContext, createElement, memo, useContext, useEffect, useMemo, useState, type ComponentProps, type MouseEvent, type ReactNode } from 'react'
 import { createHighlighterCore, type HighlighterCore, type ShikiTransformer } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { bundledLanguages } from 'shiki/langs'
 import { bundledThemes } from 'shiki/themes'
-import { defaultRemarkPlugins, Streamdown, useIsCodeFenceIncomplete, type Components } from 'streamdown'
+import { defaultRehypePlugins, defaultRemarkPlugins, Streamdown, useIsCodeFenceIncomplete, type Components, type ExtraProps } from 'streamdown'
+import { linkedPath } from '../../domains/filePaths'
+import { readImage } from '../../domains/files'
 import { run } from '../../gateway/run'
 import { useT } from '../../i18n'
 import { remarkCjkAutolink } from './cjkAutolink'
@@ -138,7 +141,7 @@ function inMessage(event: MouseEvent<HTMLAnchorElement>, id: string) {
   event.currentTarget.closest('.markdown')?.querySelector(`[id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-const tags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'strong', 'em', 'del', 'sub', 'sup', 'img', 'section']
+const tags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'strong', 'em', 'del', 'sub', 'sup', 'section']
 const tableTags = ['thead', 'tbody', 'tr', 'th', 'td']
 
 const components: Components = {
@@ -157,44 +160,90 @@ const components: Components = {
       <code>{children}</code>
     </ReplyPath>
   ),
-  // Footnote links keep their ids and labels, which screen readers follow.
-  a: ({ href, children, node: _node, className: _className, ...props }) =>
-    href?.startsWith('#') ? (
+  a: Link,
+  img: Image,
+}
+
+/** The workspace file a text is, when it is one: root is the workspace's,
+ * path the file's within it. version is bumped to read its images again. */
+export type MarkdownFile = { root: string; path: string; version?: number }
+
+const InFile = createContext<{ root: string; folder: string; version: number } | undefined>(undefined)
+
+/** Footnote links keep their ids and labels, which screen readers follow. */
+function Link({ href, children, node: _node, className: _className, ...props }: ComponentProps<'a'> & ExtraProps) {
+  const file = useContext(InFile)
+  if (href?.startsWith('#')) {
+    return (
       <a {...props} href={href} target={undefined} rel={undefined} onClick={(e) => inMessage(e, decodeURIComponent(href.slice(1)))}>
         {children}
       </a>
-    ) : (
-      // A link to a workspace file opens it; any other, in the browser.
-      <ReplyPath
-        text={href && !/^[a-z][\w+.-]*:/i.test(href) ? safeDecode(href) : undefined}
-        fallback={
-          <a href={href} target="_blank" rel="noreferrer">
-            {children}
-          </a>
-        }
-      >
-        {children}
-      </ReplyPath>
-    ),
+    )
+  }
+  // A link to a workspace file opens it; any other, in the browser.
+  const path = !href ? undefined : file ? linkedPath(href, file.folder, file.root) : /^[a-z][\w+.-]*:/i.test(href) ? undefined : safeDecode(href)
+  return (
+    <ReplyPath
+      text={path}
+      fallback={
+        <a href={href} target="_blank" rel="noreferrer">
+          {children}
+        </a>
+      }
+    >
+      {children}
+    </ReplyPath>
+  )
+}
+
+/** An image a workspace file shows from the workspace is read from it; a
+ * missing one leaves its description. Any other loads as it is. */
+function Image({ src, alt, node: _node, className: _className, ...props }: ComponentProps<'img'> & ExtraProps) {
+  const file = useContext(InFile)
+  const path = file && typeof src === 'string' ? linkedPath(src, file.folder, file.root) : undefined
+  const [read, setRead] = useState<{ path: string; url: string | undefined }>()
+  useEffect(() => {
+    if (!file || !path) return
+    let live = true
+    void readImage(file.root, path).then((url) => live && setRead({ path, url }))
+    return () => {
+      live = false
+    }
+  }, [file?.root, file?.version, path])
+  if (!path) return <img {...props} src={src} alt={alt} />
+  if (read?.path !== path) return null
+  return read.url ? <img {...props} src={read.url} alt={alt} /> : <span className="text-fg-subtle">{alt || path}</span>
 }
 
 const remarkPlugins = [...Object.values(defaultRemarkPlugins), remarkCjkAutolink]
+/** A file's own links and images are relative to its folder, which harden
+ * rewrites against the page (./a.png to /a.png) or blocks (a.png); sanitize
+ * still keeps out what is unsafe. */
+const { harden: _harden, ...fileRehype } = defaultRehypePlugins
+const fileRehypePlugins = Object.values(fileRehype)
 
-export const Markdown = memo(function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
+export const Markdown = memo(function Markdown({ text, streaming = false, file }: { text: string; streaming?: boolean; file?: MarkdownFile }) {
   const m = useT().conversation.markdown
   const remarkRehypeOptions = useMemo(() => ({ footnoteLabel: m.footnotes, footnoteBackLabel: m.footnoteBack }), [m])
+  const root = file?.root
+  const folder = file?.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : ''
+  const version = file?.version ?? 0
+  const inFile = useMemo(() => (root === undefined ? undefined : { root, folder, version }), [root, folder, version])
   return (
-    <Streamdown
-      className="markdown"
-      mode={streaming ? 'streaming' : 'static'}
-      components={components}
-      controls={false}
-      linkSafety={{ enabled: false }}
-      remarkPlugins={remarkPlugins}
-      remarkRehypeOptions={remarkRehypeOptions}
-    >
-      {text}
-    </Streamdown>
+    <InFile.Provider value={inFile}>
+      <Streamdown
+        className="markdown"
+        mode={streaming ? 'streaming' : 'static'}
+        components={components}
+        controls={false}
+        linkSafety={{ enabled: false }}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={inFile ? fileRehypePlugins : undefined}
+        remarkRehypeOptions={remarkRehypeOptions}
+      >
+        {text}
+      </Streamdown>
+    </InFile.Provider>
   )
 })
 
