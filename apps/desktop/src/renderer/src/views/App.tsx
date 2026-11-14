@@ -31,10 +31,7 @@ export function App() {
           <ContractBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />
-            <main className="relative isolate my-2.5 mr-2.5 flex min-w-0 flex-1 flex-col overflow-hidden rounded-4xl bg-canvas">
-              {/* The ground's grain reaching into the sheet's edges and fading
-                  out (dusk has one); under the content, taking no pointer. */}
-              <div aria-hidden className="sheet-grain pointer-events-none absolute inset-0 -z-10" />
+            <main className="sheet-lift my-2.5 mr-2.5 flex min-w-0 flex-1 flex-col overflow-hidden rounded-4xl bg-canvas">
               <CurrentScreen />
             </main>
           </div>

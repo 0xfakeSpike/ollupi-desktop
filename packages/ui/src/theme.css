@@ -174,9 +174,11 @@
 [data-theme='stone'] {
   color-scheme: light dark;
   /* What a theme lays over the window's ground (ground-wash): its grain and
-     its light; stone has neither. */
+     its light; and how the working sheet sits on that ground (sheet-lift).
+     Stone has none of them: its areas part by colour, not by shadow. */
   --ol-ground-wash: none;
   --ol-grain: none;
+  --ol-sheet-shadow: none;
   --ol-tint: #22252a;
   --ol-ground: #eeede8;
   --ol-canvas: #f8f7f4;
@@ -282,9 +284,9 @@
 
 /* Dusk (packages/ui/DESIGN.md §2.1): evening light seeping into paper. The
    window's ground is warm paper with lavender, peach and mist-blue light at
-   its corners and a grain meant to be seen, as on printed paper. The grain
-   reaches a little way into the working sheet and fades out, so the two
-   papers meet without a seam and the sheet stays clean where it is read. Actions are deep twilight indigo, workspaces
+   its corners and a grain meant to be seen, as on printed paper. The working
+   sheet is smooth paper lying on it, lifted by a soft shadow and a thin light
+   edge, clean where it is read. Actions are deep twilight indigo, workspaces
    pastel fields taken from the same light, and the one signal, a sunset red, still says
    only "this needs you". In the dark it is after nightfall: indigo ground,
    the same light dimmed to embers, lavender actions. */
@@ -296,8 +298,12 @@
     radial-gradient(60% 55% at 0% 100%, rgb(196 178 236 / 0.75), transparent 70%),
     radial-gradient(55% 50% at 100% 0%, rgb(247 205 186 / 0.7), transparent 70%),
     radial-gradient(45% 45% at 100% 100%, rgb(190 208 238 / 0.65), transparent 70%);
-  /* The ground's grain; it reaches into the sheet's edges and fades out. */
+  /* The ground's grain, on the ground only. */
   --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .16 0 0 0 0 .28 0 0 0 1.1 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  /* The sheet is smooth paper lying on the grainy ground, as a page lies on a
+     table: a soft shadow under it and a thin light edge, so the two
+     materials meet at an object's edge instead of fading into each other. */
+  --ol-sheet-shadow: 0 0 0 1px rgb(255 255 255 / 0.55), 0 1px 2px rgb(38 34 47 / 0.06), 0 10px 30px -8px rgb(61 55 104 / 0.22);
   --ol-canvas: #fbf9f6;
   --ol-surface: #f1edef;
   --ol-raised: #ffffff;
@@ -353,6 +359,7 @@
       radial-gradient(55% 50% at 100% 0%, rgb(140 70 70 / 0.4), transparent 70%),
       radial-gradient(45% 45% at 100% 100%, rgb(48 72 140 / 0.45), transparent 70%);
     --ol-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .92 0 0 0 0 .88 0 0 0 0 1 0 0 0 .8 -.32'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    --ol-sheet-shadow: 0 0 0 1px rgb(236 232 244 / 0.07), 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.6);
     --ol-canvas: #1b1925;
     --ol-surface: #24212f;
     --ol-raised: #282535;
@@ -406,16 +413,10 @@
   background-size: 180px 180px, 100% 100%, 100% 100%, 100% 100%;
 }
 
-/* The ground's grain where it meets the working sheet: as strong as the
-   ground's at the sheet's edges, gone 32px in, so the sheet's middle, where
-   it is read, stays clean. Laid under the sheet's content (App). */
-@utility sheet-grain {
-  background-image: var(--ol-grain);
-  background-size: 180px 180px;
-  mask-image:
-    linear-gradient(to right, #000, transparent 32px, transparent calc(100% - 32px), #000),
-    linear-gradient(to bottom, #000, transparent 32px, transparent calc(100% - 32px), #000);
-  mask-composite: add;
+/* How the working sheet sits on the ground: flat in stone and moss, lifted
+   in dusk (App). */
+@utility sheet-lift {
+  box-shadow: var(--ol-sheet-shadow);
 }
 
 /* Loader (loader.tsx): hidden for its first 300ms, then three dots
