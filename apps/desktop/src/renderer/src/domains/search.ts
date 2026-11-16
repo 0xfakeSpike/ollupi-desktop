@@ -3,7 +3,8 @@
 // kind (search). The search screen keeps its query and scope while the
 // person opens a result and comes back.
 
-import type { SearchResult } from '@ollupi/protocol'
+import { RpcError } from '@ollupi/client'
+import { ErrorCode, type SearchResult } from '@ollupi/protocol'
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
@@ -18,7 +19,14 @@ const PAUSE_MS = 250
  * workspace and none. */
 export const useSearchScreen = create<{ query: string; workspaceId: string }>()(() => ({ query: '', workspaceId: '' }))
 
-export type SearchState = { status: 'idle' } | { status: 'searching'; last: SearchResult | undefined } | { status: 'found'; result: SearchResult }
+export type SearchState =
+  | { status: 'idle' }
+  | { status: 'searching'; last: SearchResult | undefined }
+  | { status: 'found'; result: SearchResult }
+  /** ollupi bounds what one query may cost (its length, its words, how
+   * long it runs) and says why it would not run this one; shown in place
+   * of results rather than as a notice, which typing would repeat. */
+  | { status: 'refused'; reason: string }
 
 /** ollupi's answer for the query as typed, once typing pauses; idle while
  * the query has no words. The previous answer stays while the next is
@@ -37,8 +45,15 @@ export function useSearch(query: string, workspaceId: string, version = 0): Sear
     const timer = setTimeout(() => {
       void run(
         (e) => e.search,
-        () => gateway().call('search', { query: q, workspaceId: workspaceId || undefined, limit: LIMIT }),
-      ).then((result) => current && setState(result ? { status: 'found', result } : { status: 'idle' }))
+        async (): Promise<SearchState> => {
+          try {
+            return { status: 'found', result: await gateway().call('search', { query: q, workspaceId: workspaceId || undefined, limit: LIMIT }) }
+          } catch (err) {
+            if (err instanceof RpcError && (err.code === ErrorCode.invalidParams || err.code === ErrorCode.serverError)) return { status: 'refused', reason: err.message }
+            throw err
+          }
+        },
+      ).then((next) => current && setState(next ?? { status: 'idle' }))
     }, PAUSE_MS)
     return () => {
       current = false

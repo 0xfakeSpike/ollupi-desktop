@@ -26,15 +26,15 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
 	"github.com/0xfakeSpike/ollupi/agent/event"
-	"github.com/0xfakeSpike/ollupi/agent/memory"
 	"github.com/0xfakeSpike/ollupi/agent/permission"
 	"github.com/0xfakeSpike/ollupi/agent/service"
+	"github.com/0xfakeSpike/ollupi/cron"
 	"github.com/0xfakeSpike/ollupi/gateway"
+	"github.com/0xfakeSpike/ollupi/memory"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 	"github.com/0xfakeSpike/ollupi/repo/db"
 	"github.com/0xfakeSpike/ollupi/tools"
-	"github.com/0xfakeSpike/ollupi/tools/cron"
 	"github.com/0xfakeSpike/ollupi/tools/mcp"
 	"github.com/0xfakeSpike/ollupi/tools/web"
 	"github.com/0xfakeSpike/ollupi/tools/workspace"
@@ -184,6 +184,9 @@ func New(opts Options) (_ *Host, err error) {
 		AttachmentsDir: filepath.Join(dataHome, "attachments"),
 		Memory:         h.memory,
 		DB:             store,
+		// The one user's workspaces and attachments are folders of this
+		// machine.
+		BoxFor: func(string) (sandbox.Box, error) { return sandbox.Here(), nil },
 		// The gateway and clients are set before Start, so the agent never
 		// emits into nil ones.
 		OnEvent: func(e event.Event) {

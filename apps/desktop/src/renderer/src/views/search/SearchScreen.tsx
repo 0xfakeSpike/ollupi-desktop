@@ -63,6 +63,8 @@ export function SearchScreen() {
 
           {!terms.length ? (
             <p className="text-small text-fg-subtle">{t.hint}</p>
+          ) : state.status === 'refused' ? (
+            <p className="selectable text-small text-fg-muted">{t.refused(state.reason)}</p>
           ) : result && total === 0 && state.status === 'found' ? (
             <EmptyState icon={<Wolf pose="sniff" className="size-16" />} title={t.none(query.trim())} />
           ) : (

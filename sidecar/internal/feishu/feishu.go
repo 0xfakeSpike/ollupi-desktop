@@ -88,7 +88,7 @@ type Bridge struct {
 	// sending are the Feishu messages just sent, by the turn that took
 	// them, until that turn starts or is told to wait behind another.
 	sending map[string]string
-	seen     *recent             // the messages handled, by message ID
+	seen    *recent // the messages handled, by message ID
 }
 
 // turn is a turn's card as it stands.
