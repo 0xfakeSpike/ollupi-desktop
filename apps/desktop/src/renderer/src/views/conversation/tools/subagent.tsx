@@ -1,16 +1,20 @@
 // general-sub-agent and browser-sub-agent: the task a subagent was given,
-// the role it runs as, and a way into its thread. Its
-// thread's requests are answered here, since this thread reports the
-// subagent's wait as its own status.
+// the role it runs as, and a way into its thread. The launch returns at
+// once; the subagent works beside the conversation until it writes its
+// report back as an agentReport item (AgentReport), so the launch shows it
+// working until then. Its thread's requests are answered here, since this
+// thread reports the subagent's wait as its own status.
 
-import type { ToolCall } from '@ollupi/core'
+import { formatValue, subagentReport, turnActive, type ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
-import { Button } from '@ollupi/ui'
+import { Button, ProcessRow, Spinner } from '@ollupi/ui'
 import { ArrowUpRight, Bot, Globe } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRequests } from '../../../domains/requests'
 import { useT } from '../../../i18n'
-import { argumentsApproval, CallRow, RequestCard, statusFailure } from './CallRow'
+import { Markdown } from '../../common/Markdown'
+import { useCurrentTimeline } from '../CurrentTimeline'
+import { argumentsApproval, CallRow, ErrorText, RequestCard, statusFailure } from './CallRow'
 import type { ToolView } from './types'
 
 type Subagent = Extract<ToolCall, { kind: 'subagent' }>
@@ -25,13 +29,28 @@ export const subagent: ToolView<Subagent> = {
 function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
   const { task } = call
   const childRequests = useThreadRequests(task.threadId)
+  const timeline = useCurrentTimeline()
   const m = useT()
+  // Launched and not reported, while the turn that launched it goes on: a
+  // turn that ends stops its subagents, and one ended gets no report.
+  const turn = timeline?.turns.find((t) => t.id === item.turnId)
+  const working = item.status === 'completed' && !!timeline && !subagentReport(timeline.items, item) && !!turn && turnActive(turn.status)
+  const browser = task.role === 'browser-sub-agent'
   return (
     <CallRow
       item={item}
-      icon={task.role === 'browser-sub-agent' ? Globe : Bot}
+      icon={browser ? Globe : Bot}
       title={subagent.title(m, call)}
-      badge={task.role === 'browser-sub-agent' && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.browserSubagent}</span>}
+      badge={
+        <>
+          {browser && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.browserSubagent}</span>}
+          {working && (
+            <span className="flex shrink-0 items-center gap-1 text-small text-fg-subtle">
+              <Spinner size={14} /> {m.conversation.tool.subagentWorking}
+            </span>
+          )}
+        </>
+      }
       failure={subagent.failure(m, call, item)}
       after={childRequests.map((r) => (
         <RequestCard key={r.params.itemId} request={r} />
@@ -46,5 +65,23 @@ function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
         </div>
       )}
     </CallRow>
+  )
+}
+
+/** What a subagent wrote back when it ended: its final answer, or why it
+ * has none. Its text is the subagent's task. */
+export function AgentReport({ item }: { item: ItemRow }) {
+  const m = useT()
+  const failed = item.status === 'failed'
+  const report = formatValue(item.result?.output)
+  return (
+    <ProcessRow
+      icon={<Bot size={14} className={failed ? 'text-danger' : undefined} />}
+      title={m.conversation.items.subagentReport(item.text ?? '')}
+      meta={failed && <span className="text-danger">{m.conversation.tool.failed}</span>}
+    >
+      {report && <Markdown text={report} />}
+      {item.error && <ErrorText text={item.error} />}
+    </ProcessRow>
   )
 }

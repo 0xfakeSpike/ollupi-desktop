@@ -25,7 +25,6 @@ type fakeEngine struct {
 	interrupts []string
 	decisions  []string
 	answers    map[string]userinput.Answers
-	queued     bool
 }
 
 func (f *fakeEngine) StartThread(user, workspaceID, environmentID, title string, _ permission.Settings) (db.ThreadRow, error) {
@@ -41,11 +40,7 @@ func (f *fakeEngine) StartTurn(_ context.Context, user, threadID string, in serv
 		return db.TurnRow{}, db.ErrNotFound
 	}
 	f.turns = append(f.turns, threadID+" "+in.Text)
-	status := db.TurnInProgress
-	if f.queued {
-		status = db.TurnQueued
-	}
-	return db.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Input: in.Text, Status: status}, nil
+	return db.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Status: db.TurnReady}, nil
 }
 
 func (f *fakeEngine) InterruptTurn(user, threadID, turnID string) error {
@@ -75,7 +70,19 @@ func (f *fakeEngine) AnswerUserInput(user, threadID, itemID string, answers user
 	return nil
 }
 
-type fakeStore struct{ threads map[string]db.ThreadRow }
+type fakeStore struct {
+	threads map[string]db.ThreadRow
+	// messages are each turn's userMessage texts.
+	messages map[string][]string
+}
+
+func (s fakeStore) TurnItems(turnID string) ([]db.ItemRow, error) {
+	var items []db.ItemRow
+	for i, text := range s.messages[turnID] {
+		items = append(items, db.ItemRow{ID: fmt.Sprintf("%s-m%d", turnID, i), TurnID: turnID, Type: db.ItemUserMessage, Text: text})
+	}
+	return items, nil
+}
 
 func (s fakeStore) ThreadRow(id string) (db.ThreadRow, error) {
 	if t, ok := s.threads[id]; ok {
@@ -121,10 +128,16 @@ func newTest(t *testing.T) (*Bridge, *fakeEngine, *fakeChat, string) {
 	t.Helper()
 	engine, chat := &fakeEngine{}, &fakeChat{}
 	path := filepath.Join(t.TempDir(), "feishu.json")
-	store := fakeStore{threads: map[string]db.ThreadRow{
-		"thread-1": {ID: "thread-1"},
-		"sub-1":    {ID: "sub-1", ParentThreadID: "thread-1"},
-	}}
+	store := fakeStore{
+		threads: map[string]db.ThreadRow{
+			"thread-1": {ID: "thread-1"},
+			"sub-1":    {ID: "sub-1", ParentThreadID: "thread-1"},
+		},
+		messages: map[string][]string{
+			"turn-1": {"fix it"},
+			"turn-9": {"and the tests", "and the docs"},
+		},
+	}
 	b, err := newBridge(config.Feishu{AppID: "cli", AppSecret: "s", Users: []string{me}, Workspace: "/code/app"}, engine, store, chat, path)
 	if err != nil {
 		t.Fatal(err)
@@ -196,11 +209,24 @@ func TestMessageStartsSessionInItsTopic(t *testing.T) {
 }
 
 func TestQueuedMessageSaysSo(t *testing.T) {
-	b, engine, chat, _ := newTest(t)
+	b, _, chat, _ := newTest(t)
 	b.message(text("m1", "", "first"))
-	engine.queued = true
+	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-1", Status: db.TurnInProgress}})
+	run(b)
 	b.message(text("m2", "m1", "second"))
-	if len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, "排队") {
+	// ollupi tells of the turn behind the current one after it took the message.
+	b.Deliver(event.Event{Kind: event.TurnQueued, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-2", Status: db.TurnReady}})
+	run(b)
+	queued := 0
+	for _, r := range chat.replies {
+		if strings.Contains(r.content, "排队") {
+			queued++
+			if r.to != "m2" {
+				t.Fatalf("the queued reply answers %s", r.to)
+			}
+		}
+	}
+	if queued != 1 {
 		t.Fatalf("replies = %+v", chat.replies)
 	}
 }
@@ -209,7 +235,7 @@ func TestTurnIsOneCard(t *testing.T) {
 	b, _, chat, _ := newTest(t)
 	b.message(text("m1", "", "fix it"))
 	thread := db.ThreadRow{ID: "thread-1", Title: "fix it"}
-	tr := db.TurnRow{ID: "turn-1", ThreadID: "thread-1", Input: "fix it", Status: db.TurnInProgress}
+	tr := db.TurnRow{ID: "turn-1", ThreadID: "thread-1", Status: db.TurnInProgress}
 	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: thread, Turn: tr})
 	run(b)
 	if len(chat.replies) != 1 || chat.replies[0].to != "m1" || !strings.Contains(chat.replies[0].content, `"action":"stop"`) {
@@ -246,9 +272,9 @@ func TestTurnIsOneCard(t *testing.T) {
 func TestDesktopTurnIsLabelled(t *testing.T) {
 	b, _, chat, _ := newTest(t)
 	b.message(text("m1", "", "fix it"))
-	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-9", Input: "and the tests", Status: db.TurnInProgress}})
+	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-9", Status: db.TurnInProgress}})
 	run(b)
-	if len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, "桌面端发来：and the tests") {
+	if len(chat.replies) != 1 || !strings.Contains(chat.replies[0].content, "桌面端发来：and the tests / and the docs") {
 		t.Fatalf("replies = %+v", chat.replies)
 	}
 }
@@ -263,7 +289,7 @@ func TestDesktopSessionOpensItsTopic(t *testing.T) {
 		t.Fatalf("sends = %+v", chat.sends)
 	}
 
-	tr := db.TurnRow{ID: "turn-1", ThreadID: "desk-1", Input: "fix the login", Status: db.TurnInProgress}
+	tr := db.TurnRow{ID: "turn-1", ThreadID: "desk-1", Status: db.TurnInProgress}
 	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: thread, Turn: tr})
 	tr.ID = "turn-2"
 	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: thread, Turn: tr})

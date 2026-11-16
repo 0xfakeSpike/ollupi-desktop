@@ -1,13 +1,12 @@
 // The row most calls share: icon, title and state, opening into the
 // call's details, with the request it waits on below it.
 
-import { formatValue, parseArguments, startsInBackground, waitsForAnswer, waitsForApproval, waitsForBackground, waitsForSubagent } from '@ollupi/core'
+import { formatValue, parseArguments, waitsForAnswer, waitsForApproval } from '@ollupi/core'
 import type { ApprovalRequestParams, ItemRow } from '@ollupi/protocol'
 import { Badge, cn, ProcessRow, Spinner } from '@ollupi/ui'
 import { Ban, ShieldCheck, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { usePendingRequest, type PendingRequest } from '../../../domains/requests'
-import { useMayRunInBackground } from '../../../domains/tools'
 import { useT, type Messages } from '../../../i18n'
 import { duration } from '../../../i18n/format'
 import { CodeBlock } from '../../common/Markdown'
@@ -52,7 +51,6 @@ export function CallRow({
  * Success is the norm and carries no mark. */
 function CallMeta({ item, failure }: { item: ItemRow; failure: string | undefined }) {
   const approvalAsked = usePendingRequest(item.id)?.kind === 'approval'
-  const background = startsInBackground(item, useMayRunInBackground(item.tool))
   const m = useT()
   let mark: ReactNode
   switch (item.status) {
@@ -64,14 +62,6 @@ function CallMeta({ item, failure }: { item: ItemRow; failure: string | undefine
     case 'inProgress':
       mark = waitsForAnswer(item) ? (
         <Badge tone="accent">{m.conversation.tool.waiting}</Badge>
-      ) : waitsForSubagent(item) ? (
-        <>
-          <Spinner size={14} /> {m.conversation.tool.subagentWorking}
-        </>
-      ) : waitsForBackground(item) ? (
-        <>
-          <Spinner size={14} /> {m.conversation.tool.backgroundWaiting}
-        </>
       ) : (
         <Spinner size={14} />
       )
@@ -98,9 +88,7 @@ function CallMeta({ item, failure }: { item: ItemRow; failure: string | undefine
   return (
     <>
       {allowed}
-      {/* It returned at once; its result comes back as an item of its own. */}
-      {background && item.status === 'completed' && <Badge>{m.conversation.tool.inBackground}</Badge>}
-      {item.completedAt && !background && duration(m, item.startedAt, item.completedAt)}
+      {item.completedAt && duration(m, item.startedAt, item.completedAt)}
       {mark}
     </>
   )

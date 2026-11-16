@@ -56,6 +56,7 @@ type Engine interface {
 type Store interface {
 	ThreadRow(id string) (db.ThreadRow, error)
 	Workspaces(user string) ([]db.WorkspaceRow, error)
+	TurnItems(turnID string) ([]db.ItemRow, error)
 }
 
 // chat is Feishu as the bridge talks to it.
@@ -84,6 +85,9 @@ type Bridge struct {
 	turns    map[string]*turn    // by turn ID
 	requests map[string]*request // by item ID
 	ours     map[string]bool     // the turns sent from Feishu, by turn ID
+	// sending are the Feishu messages just sent, by the turn that took
+	// them, until that turn starts or is told to wait behind another.
+	sending map[string]string
 	seen     *recent             // the messages handled, by message ID
 }
 
@@ -123,7 +127,7 @@ func newBridge(cfg config.Feishu, engine Engine, store Store, chat chat, topicsP
 	}
 	return &Bridge{
 		cfg: cfg, engine: engine, store: store, chat: chat, topics: t, users: users,
-		queue: newQueue(), turns: map[string]*turn{}, requests: map[string]*request{}, ours: map[string]bool{}, seen: newRecent(512),
+		queue: newQueue(), turns: map[string]*turn{}, requests: map[string]*request{}, ours: map[string]bool{}, sending: map[string]string{}, seen: newRecent(512),
 	}, nil
 }
 
@@ -209,10 +213,12 @@ func (b *Bridge) send(messageID, threadID, text string) {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
 	}
+	// ollupi says how it took the message by what it tells of the turn
+	// next, which the bridge reads after this: turn_started, or
+	// turn_queued for a turn behind the current one, which further
+	// messages join.
 	b.ours[t.ID] = true
-	if t.Status == db.TurnQueued {
-		b.replyText(messageID, "已排队，当前这轮结束后开始。")
-	}
+	b.sending[t.ID] = messageID
 }
 
 // workspace is the ID of the workspace new sessions belong to, the one at
@@ -261,7 +267,13 @@ func (b *Bridge) event(e event.Event) {
 	switch e.Kind {
 	case event.ApprovalRequested, event.UserInputRequested:
 		b.ask(topic, e.Thread.ID, *e.Item)
+	case event.TurnQueued:
+		if messageID, ok := b.sending[e.Turn.ID]; ok {
+			delete(b.sending, e.Turn.ID)
+			b.replyText(messageID, "已排队，当前这轮结束后和前面没处理的消息一起回复。")
+		}
 	case event.TurnStarted:
+		delete(b.sending, e.Turn.ID)
 		if !sub {
 			b.turnStarted(topic, e.Thread, e.Turn)
 		}
@@ -368,7 +380,7 @@ func itemLine(it db.ItemRow) string {
 
 func (b *Bridge) turnStarted(topic string, thread db.ThreadRow, tr db.TurnRow) {
 	t := &turn{
-		id: tr.ID, threadID: thread.ID, title: thread.Title, input: tr.Input, cronJobID: tr.CronJobID,
+		id: tr.ID, threadID: thread.ID, title: thread.Title, input: b.messages(tr.ID), cronJobID: tr.CronJobID,
 		fromFeishu: b.ours[tr.ID], status: tr.Status,
 	}
 	b.turns[t.id] = t
@@ -379,6 +391,23 @@ func (b *Bridge) turnStarted(topic string, thread db.ThreadRow, tr db.TurnRow) {
 		return
 	}
 	t.message = id
+}
+
+// messages are what the turn was sent: the messages it answers, which
+// those sent while the conversation was busy join.
+func (b *Bridge) messages(turnID string) string {
+	items, err := b.store.TurnItems(turnID)
+	if err != nil {
+		slog.Error("feishu: turn's messages not read", "turn", turnID, "err", err)
+		return ""
+	}
+	var texts []string
+	for _, it := range items {
+		if it.Type == db.ItemUserMessage {
+			texts = append(texts, it.Text)
+		}
+	}
+	return strings.Join(texts, " / ")
 }
 
 // changed puts a turn's change on its card within flushEvery.
@@ -580,7 +609,7 @@ func errorText(err error) string {
 	switch {
 	case errors.Is(err, orchestrator.ErrNoActiveTurn):
 		return "现在没有在跑的一轮"
-	case errors.Is(err, service.ErrThreadArchived):
+	case errors.Is(err, db.ErrThreadArchived):
 		return "会话已归档，先在桌面端恢复"
 	}
 	return err.Error()

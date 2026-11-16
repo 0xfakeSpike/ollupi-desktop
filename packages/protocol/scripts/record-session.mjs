@@ -5,8 +5,8 @@
 // question, a plan, a scheduled task created by the model, a subagent, an
 // MCP tool call (mock-mcp.mjs, beside a server that cannot start), the
 // memory snapshot and a memory_search call, a file attached by path,
-// read_file alone and with glob and grep in one answer, a command run in
-// the background and its result coming back, queued turns, the
+// read_file alone and with glob and grep in one answer, messages sent while
+// a turn runs (a turn behind it, and one that joins it), the
 // cron, workspace, memory, settings, MCP and permission methods,
 // and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
@@ -129,6 +129,12 @@ function answer(m) {
 // Every turn that has completed, for a wait that may begin after it did.
 const ended = new Set()
 listeners.add((m) => m.method === 'turn/completed' && ended.add(m.params.turn.id))
+// Each turn's first message, as item/started told of it.
+const firstMessages = new Map()
+listeners.add((m) => {
+  const item = m.method === 'item/started' && m.params.item
+  if (item?.type === 'userMessage' && !firstMessages.has(item.turnId)) firstMessages.set(item.turnId, item)
+})
 
 /** Resolves when the turn completes (turn/completed for it). */
 const completed = (turnId) =>
@@ -166,7 +172,8 @@ const notes = join(tmp, 'notes.txt')
 writeFileSync(notes, 'indent with two spaces\n')
 const attached = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'read the attached notes' }, { type: 'file', path: notes }] })
 await completed(attached.turn.id)
-await call('attachment/read', { threadId: thread.id, attachmentId: attached.turn.attachments[0].id })
+// The file is on the turn's message, which item/started told of.
+await call('attachment/read', { threadId: thread.id, attachmentId: firstMessages.get(attached.turn.id).attachments[0].id })
 await turn(thread.id, 'run ls please')
 await turn(thread.id, 'please ask me which language')
 await turn(thread.id, 'make a plan')
@@ -176,24 +183,12 @@ await turn(thread.id, 'use the mcp echo tool')
 await turn(thread.id, 'search memory for my indentation style')
 await turn(thread.id, 'read readme')
 await turn(thread.id, 'look around the project')
-// A call in the background returns at once; its result comes back to the
-// conversation as an item of its own, in the turn under way or in one it
-// starts, which goes on to read it.
-const backgroundResult = new Promise((resolve) => {
-  const l = (m) => {
-    if (m.method === 'item/completed' && m.params.item.type === 'backgroundResult') {
-      listeners.delete(l)
-      resolve(m.params)
-    }
-  }
-  listeners.add(l)
-})
-await turn(thread.id, 'echo in the background please')
-await completed((await backgroundResult).turnId)
 
-// Two messages at once: the second waits as a queued turn.
-const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of two' }] })
-const second = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'second of two' }] })
+// Three messages at once: the second waits in a turn behind the first, and
+// the third joins it, to be answered together.
+const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of three' }] })
+const second = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'second of three' }] })
+await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'third of three' }] })
 await completed(first.turn.id)
 await completed(second.turn.id)
 

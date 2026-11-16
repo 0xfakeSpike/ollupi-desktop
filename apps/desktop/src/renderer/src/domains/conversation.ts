@@ -219,12 +219,13 @@ export function editMessage(threadId: string, message: ItemRow): Promise<void | 
   })
 }
 
-/** Sends a failed turn's message again as a new turn: the same text and
- * the files it went with. */
-export function retryTurn(turn: TurnRow): Promise<boolean> {
+/** Sends a failed turn's messages again as one message of a new turn: their
+ * texts, one after another, and the files they went with. */
+export function retryTurn(threadId: string, messages: ItemRow[]): Promise<boolean> {
   return run((e) => e.thread.send, async () => {
-    const files = await Promise.all((turn.attachments ?? []).map((a) => attachmentFile(turn.threadId, a)))
-    await withMessageInput(turn.input ?? '', files, (input) => startTurn(turn.threadId, input))
+    const files = await Promise.all(messages.flatMap((message) => message.attachments ?? []).map((a) => attachmentFile(threadId, a)))
+    const text = messages.flatMap((message) => (message.text ? [message.text] : [])).join('\n\n')
+    await withMessageInput(text, files, (input) => startTurn(threadId, input))
     return true
   }).then(Boolean)
 }

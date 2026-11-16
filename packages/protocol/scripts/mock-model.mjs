@@ -66,9 +66,6 @@ http
         'Done. Here is what I found:\n\n| Item | Value |\n|---|---|\n| status | ok |\n| tool output | received |\n\n```bash\necho done\n```\n\nAnything else?',
       )
       send({}, 'stop')
-    } else if (/^echo in the background/i.test(userText)) {
-      await stream('content', 'Starting it in the background.')
-      await call('run_command', { program: 'echo', args: ['done in the background'], run_in_background: true })
     } else if (/^run/i.test(userText)) {
       await stream('reasoning_content', 'The user wants a command run outside the sandbox.')
       await stream('content', 'Running it.')

@@ -2,8 +2,8 @@
 // Items are drawn by ItemView; a turn reads as core's layoutTurn: the
 // person's words, the process (Process) and the answer.
 
-import { groupByTurn, layoutTurn, queuedTurns, summarizeProcess, turnActive, type Timeline, type TurnGroup, type TurnPart } from '@ollupi/core'
-import type { TurnRow } from '@ollupi/protocol'
+import { groupByTurn, layoutTurn, queuedTurns, summarizeProcess, turnActive, turnMessages, type Timeline, type TurnGroup, type TurnPart } from '@ollupi/core'
+import type { ItemRow, TurnRow } from '@ollupi/protocol'
 import { Button, Callout, EmptyState } from '@ollupi/ui'
 import { CalendarClock, Clock, RotateCcw, Square } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -21,11 +21,16 @@ import { Process } from './Process'
 import { ResultFiles } from './ResultFiles'
 import { Wolf } from '../common/Wolf'
 import { MessageTime } from './items/MessageTime'
+import { CurrentTimeline } from './CurrentTimeline'
 
 export function TimelineView({ timeline }: { timeline: Timeline }) {
   const threadId = timeline.thread.id
-  const groups = useMemo(() => groupByTurn(timeline), [timeline])
   const queued = queuedTurns(timeline)
+  // A turn behind the one under way shows as its waiting messages.
+  const groups = useMemo(() => {
+    const waiting = new Set(queuedTurns(timeline).map((t) => t.id))
+    return groupByTurn(timeline).filter((g) => !waiting.has(g.turn.id))
+  }, [timeline])
   // Only the latest message can be taken back to edit; a queued one is later.
   const latest = queued.length ? undefined : timeline.items.findLast((i) => i.type === 'userMessage')?.id
   const jobNames = useJobNames()
@@ -33,6 +38,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
   useFocusedItem(timeline)
 
   return (
+    <CurrentTimeline.Provider value={timeline}>
     <ThreadWorkspace.Provider value={timeline.thread.workspaceId || undefined}>
       <div className="mx-auto flex w-full max-w-thread flex-col gap-6 px-6 pt-8 pb-10">
         {timeline.hasMore && <LoadOlder threadId={threadId} />}
@@ -45,10 +51,11 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
           <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} latest={latest} last={i === groups.length - 1 && queued.length === 0 && !timeline.thread.archivedAt && !timeline.thread.parentThreadId} />
         ))}
         {queued.map((t) => (
-          <QueuedTurn key={t.id} turn={t} jobName={jobNames(t)} />
+          <QueuedTurn key={t.id} turn={t} messages={turnMessages(timeline, t.id)} jobName={jobNames(t)} />
         ))}
       </div>
     </ThreadWorkspace.Provider>
+    </CurrentTimeline.Provider>
   )
 }
 
@@ -124,7 +131,7 @@ function TurnSection({ group, jobName, latest, last }: { group: TurnGroup; jobNa
           </div>
         ),
       )}
-      <TurnOutcome turn={turn} retry={last} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
+      <TurnOutcome turn={turn} messages={turnMessages(group, turn.id)} retry={last} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
     </section>
   )
 }
@@ -148,7 +155,7 @@ function ScheduledBy({ name }: { name: string }) {
 
 /** How the turn ended, led by the copy button for its answer when it has one.
  * The thread's last turn, when it failed, can be sent again. */
-function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; retry: boolean }) {
+function TurnOutcome({ turn, messages, copy, retry }: { turn: TurnRow; messages: ItemRow[]; copy: ReactNode; retry: boolean }) {
   const m = useT()
   // The 24px button keeps to the line's height and its icon to the column's edge.
   const lead = copy && <span className="-my-1 -ml-1.5 flex">{copy}</span>
@@ -165,7 +172,7 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
           <Callout tone="danger">
             <div className="flex items-start gap-3">
               <span className="selectable min-w-0 flex-1">{turn.error || m.conversation.timeline.failed}</span>
-              {retry && <RetryButton turn={turn} />}
+              {retry && <RetryButton turn={turn} messages={messages} />}
             </div>
           </Callout>
         </>
@@ -194,18 +201,16 @@ function TurnOutcome({ turn, copy, retry }: { turn: TurnRow; copy: ReactNode; re
         </div>
       )
     }
-    case 'queued':
     case 'ready':
     case 'inProgress':
     case 'waitingOnApproval':
     case 'waitingOnUserInput':
     case 'waitingOnAgent':
-    case 'waitingOnBackground':
       return null
   }
 }
 
-function RetryButton({ turn }: { turn: TurnRow }) {
+function RetryButton({ turn, messages }: { turn: TurnRow; messages: ItemRow[] }) {
   const [sending, setSending] = useState(false)
   const m = useT()
   return (
@@ -216,7 +221,7 @@ function RetryButton({ turn }: { turn: TurnRow }) {
       className="-my-0.5"
       onClick={() => {
         setSending(true)
-        void retryTurn(turn).finally(() => setSending(false))
+        void retryTurn(turn.threadId, messages).finally(() => setSending(false))
       }}
     >
       {m.conversation.timeline.retry}
@@ -224,16 +229,21 @@ function RetryButton({ turn }: { turn: TurnRow }) {
   )
 }
 
-/** A queued turn's input is on the turn row until it starts. */
-function QueuedTurn({ turn, jobName }: { turn: TurnRow; jobName: string | undefined }) {
+/** A turn behind the one under way: the messages it will answer together,
+ * those sent while the conversation was busy. */
+function QueuedTurn({ messages, jobName }: { turn: TurnRow; messages: ItemRow[]; jobName: string | undefined }) {
   const m = useT()
   return (
     <div className="flex flex-col items-end gap-1">
       {jobName && <ScheduledBy name={jobName} />}
-      <Attachments attachments={turn.attachments} className="opacity-70" />
-      {turn.input && (
-        <div className="max-w-130 rounded-3xl rounded-br-md border-2 border-dashed border-line-strong px-4.5 py-3 text-body break-words whitespace-pre-wrap text-fg-muted">{turn.input}</div>
-      )}
+      {messages.map((message) => (
+        <div key={message.id} data-item-id={message.id} className="flex flex-col items-end gap-1">
+          <Attachments attachments={message.attachments} className="opacity-70" />
+          {message.text && (
+            <div className="max-w-130 rounded-3xl rounded-br-md border-2 border-dashed border-line-strong px-4.5 py-3 text-body break-words whitespace-pre-wrap text-fg-muted">{message.text}</div>
+          )}
+        </div>
+      ))}
       <span className="flex items-center gap-1 text-small text-fg-subtle">
         <Clock size={14} /> {m.conversation.timeline.queued}
       </span>

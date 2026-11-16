@@ -15,7 +15,9 @@ import {
   groupByWorkspace,
   groupReads,
   readText,
-  startsInBackground,
+  subagentReport,
+  queuedTurns,
+  turnMessages,
   promptMemory,
   prependPage,
   refreshFromPage,
@@ -96,11 +98,29 @@ describe('timeline', () => {
     expect(activeTurn(t)).toBeUndefined()
   })
 
-  it('counts a turn out of its slot as under way, but not a queued one', () => {
-    for (const status of ['ready', 'waitingOnApproval', 'waitingOnUserInput', 'waitingOnAgent', 'waitingOnBackground'] as const) {
+  it('counts a turn out of its slot as under way', () => {
+    for (const status of ['ready', 'waitingOnApproval', 'waitingOnUserInput', 'waitingOnAgent'] as const) {
       expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, status)])))?.id).toBe('u1')
     }
-    expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, 'queued')])))).toBeUndefined()
+  })
+
+  it('takes the first turn not ended as under way, and those behind it as queued with their messages', () => {
+    const t = timelineFromPage(
+      page(
+        [item('m1', 1, { type: 'userMessage', text: 'go' }), item('m2', 3, { turnId: 'u2', type: 'userMessage', text: 'and this' }), item('m3', 4, { turnId: 'u2', type: 'userMessage', text: 'and that' })],
+        [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')],
+      ),
+    )
+    expect(activeTurn(t)?.id).toBe('u1')
+    expect(queuedTurns(t).map((x) => x.id)).toEqual(['u2'])
+    expect(turnMessages(t, 'u2').map((x) => x.text)).toEqual(['and this', 'and that'])
+  })
+
+  it('orders items by their turn, then their own seq', () => {
+    // A message written behind a running turn has a lower seq than what that turn writes after it.
+    let t = timelineFromPage(page([item('a', 1), item('q', 2, { turnId: 'u2' })], [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')]))
+    t = upsertItem(t, item('b', 3))
+    expect(t.items.map((i) => i.id)).toEqual(['a', 'b', 'q'])
   })
 
   it('says what the running turn waits for: its own calls, or a subagent by the status', () => {
@@ -121,9 +141,9 @@ describe('timeline', () => {
     expect(r.items.map((i) => i.id)).toEqual(['b', 'c', 'd'])
   })
 
-  it('groups items under turns; queued turns have no group', () => {
+  it('groups items under turns; a turn without loaded items has no group', () => {
     const t = timelineFromPage(
-      page([item('a', 1), item('b', 2, { turnId: 'u2' })], [turn('u1', 1), turn('u2', 2), turn('u3', 3, 'queued')]),
+      page([item('a', 1), item('b', 2, { turnId: 'u2' })], [turn('u1', 1), turn('u2', 2), turn('u3', 3, 'ready')]),
     )
     expect(groupByTurn(t).map((g) => [g.turn.id, g.items.length])).toEqual([
       ['u1', 1],
@@ -277,19 +297,21 @@ describe('calls', () => {
     expect(callOf(c)).toEqual({ kind: 'plan', plan: { plan: [{ step: 'a', status: 'in_progress' }] } })
   })
 
-  it('tells a call started in the background by its tool and its arguments', () => {
-    const c = call({ tool: 'run_command', arguments: JSON.stringify({ command: 'make', run_in_background: true }) })
-    expect(startsInBackground(c, true)).toBe(true)
-    // A tool that may not run there keeps an argument of that name as its own.
-    expect(startsInBackground(c, false)).toBe(false)
-    expect(startsInBackground(call({ tool: 'run_command', arguments: JSON.stringify({ command: 'make' }) }), true)).toBe(false)
-  })
-
-  it('reads a subagent task, the role it runs as and the thread it runs in', () => {
-    const c = call({ tool: 'general-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), await: { by: 'agent', handle: 'child', request: {} } })
+  it('reads a subagent task, the role it runs as and the thread its launch started', () => {
+    const c = call({ tool: 'general-sub-agent', status: 'completed', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), result: { output: { subagent: 'child', description: 'd' } } })
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'general-sub-agent', threadId: 'child' } })
     const b = call({ tool: 'browser-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
     expect(callOf(b)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'browser-sub-agent', threadId: undefined } })
+  })
+
+  it('finds a subagent’s report by the call that launched it', () => {
+    const launch = call({ tool: 'general-sub-agent', callId: 'call-1' })
+    const report = item('r', 9, { type: 'agentReport', callId: 'call-1', status: 'completed', result: { output: 'done' } })
+    expect(subagentReport([launch, item('x', 8, { type: 'agentReport', callId: 'call-2' }), report], launch)?.id).toBe('r')
+    expect(subagentReport([launch], launch)).toBeUndefined()
+    // An earlier launch's report under the same id is not this one's.
+    const earlier = item('e', 0, { type: 'agentReport', callId: 'call-1' })
+    expect(subagentReport([earlier, launch], launch)).toBeUndefined()
   })
 
 

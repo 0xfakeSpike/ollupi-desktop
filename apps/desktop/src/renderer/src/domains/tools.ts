@@ -14,8 +14,3 @@ export const toolsDomain: Domain = {
   },
 }
 
-/** Whether a tool's calls may run in the background, as the running agent
- * describes it (ToolDescriptor.background). */
-export function useMayRunInBackground(name: string | undefined): boolean {
-  return useTools((s) => !!name && !!s.list.find((t) => t.name === name)?.background)
-}

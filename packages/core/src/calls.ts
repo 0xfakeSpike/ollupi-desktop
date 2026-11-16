@@ -7,7 +7,6 @@
 import {
   isToolPart,
   type ApprovalRequestParams,
-  type AwaitBy,
   type BuiltinToolName,
   type CommandOutput,
   type FileChange,
@@ -32,35 +31,21 @@ export function waitsForApproval(item: ItemRow): boolean {
   return item.type === 'toolCall' && item.status === 'pending' && !!item.approval && !item.approval.decision
 }
 
-/** repo.ItemRow.Awaits: a call that ran and is answered by someone else
- * stays inProgress until the answer arrives. */
-function awaits(item: ItemRow, by: AwaitBy): boolean {
-  return item.type === 'toolCall' && item.status === 'inProgress' && item.await?.by === by
-}
-
-/** Waiting for the user to answer request_user_input. */
+/** repo.ItemRow.Awaits: a call that ran and is answered by the person
+ * (request_user_input) stays inProgress until the answer arrives. */
 export function waitsForAnswer(item: ItemRow): boolean {
-  return awaits(item, 'user')
+  return item.type === 'toolCall' && item.status === 'inProgress' && item.await?.by === 'user'
 }
 
-/** Waiting for the subagent it started to report. */
-export function waitsForSubagent(item: ItemRow): boolean {
-  return awaits(item, 'agent')
-}
-
-/** Waiting for background calls to end (wait_for_background). */
-export function waitsForBackground(item: ItemRow): boolean {
-  return awaits(item, 'background')
-}
-
-/** A call the model asked to run in the background, with run_in_background,
- * which only a tool that may run there takes (ToolDescriptor.background):
- * the call returns at once, and its result comes back to the conversation
- * as a backgroundResult item when it ends. */
-export function startsInBackground(item: ItemRow, background: boolean): boolean {
-  if (!background || item.type !== 'toolCall') return false
-  const args = parseArguments(item)
-  return typeof args === 'object' && args !== null && (args as Record<string, unknown>).run_in_background === true
+/** The report a subagent wrote back when it ended (an agentReport item),
+ * among the items in order. A report names its launch only by the model's
+ * call id, which some providers number afresh in each response, so it is
+ * the first report of that id after the launch. */
+export function subagentReport(items: readonly ItemRow[], call: ItemRow): ItemRow | undefined {
+  if (!call.callId) return undefined
+  const from = items.findIndex((it) => it.id === call.id)
+  if (from < 0) return undefined
+  return items.slice(from + 1).find((it) => it.type === 'agentReport' && it.callId === call.callId)
 }
 
 /** The model's arguments as JSON, or undefined when they do not parse. */
@@ -83,8 +68,7 @@ interface CallFacts {
   arguments: unknown
   prepared: Prepared | null | undefined
   output: unknown
-  /** The thread a call that launched a subagent waits on: the handle of
-   * its await by an agent. */
+  /** The thread of the subagent a call launched. */
   threadId: string | undefined
   /** The MCP server's own title for the tool. */
   title: string | undefined
@@ -106,6 +90,14 @@ export type ToolCall =
 
 export type ToolKind = ToolCall['kind']
 
+/** The subagent's thread in its launch's output, {subagent: <thread id>}:
+ * the launch completes at once with it. The contract does not type that
+ * output, so it is read with care. */
+function launchedThread(output: unknown): string | undefined {
+  const id = typeof output === 'object' && output !== null ? (output as Record<string, unknown>).subagent : undefined
+  return typeof id === 'string' && id ? id : undefined
+}
+
 /** A timeline item's call. */
 export function callOf(item: ItemRow): ToolCall {
   return classify({
@@ -114,7 +106,7 @@ export function callOf(item: ItemRow): ToolCall {
     arguments: parseArguments(item),
     prepared: item.preparedExecution,
     output: item.result?.output,
-    threadId: item.await?.by === 'agent' ? item.await.handle : undefined,
+    threadId: launchedThread(item.result?.output),
     title: item.annotations?.title,
   })
 }

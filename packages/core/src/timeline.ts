@@ -1,5 +1,7 @@
 // A Timeline is the client's copy of one thread: its row, its turns, and the
-// loaded tail of its items, sorted by seq. Every function returns a new
+// loaded tail of its items in the conversation's order: by their turn's seq,
+// then their own (ollupi writes a message sent while a turn runs into the
+// turn behind it, so its seq can be lower than items of the turn ahead). Every function returns a new
 // Timeline, so any state container can hold it and unchanged parts keep
 // their identity.
 
@@ -49,7 +51,8 @@ export interface Timeline {
 }
 
 export function timelineFromPage(page: ThreadPageResult): Timeline {
-  return { thread: page.thread, turns: bySeq(page.turns), items: bySeq(page.items), hasMore: page.hasMore }
+  const turns = bySeq(page.turns)
+  return { thread: page.thread, turns, items: inOrder(page.items, turns), hasMore: page.hasMore }
 }
 
 /** An empty timeline for a thread just started, before its first turn. */
@@ -60,10 +63,11 @@ export function emptyTimeline(thread: ThreadRow): Timeline {
 /** Merges the page read with beforeSeq = oldestSeq(t). */
 export function prependPage(t: Timeline, page: ThreadPageResult): Timeline {
   const known = new Set(t.items.map((i) => i.id))
+  const turns = merge(t.turns, page.turns)
   return {
     thread: page.thread,
-    turns: merge(t.turns, page.turns),
-    items: bySeq([...page.items.filter((i) => !known.has(i.id)), ...t.items]),
+    turns,
+    items: inOrder([...page.items.filter((i) => !known.has(i.id)), ...t.items], turns),
     hasMore: page.hasMore,
   }
 }
@@ -73,9 +77,14 @@ export function prependPage(t: Timeline, page: ThreadPageResult): Timeline {
  * turns, which no longer change. */
 export function refreshFromPage(t: Timeline, page: ThreadPageResult): Timeline {
   const fresh = timelineFromPage(page)
-  const first = fresh.items[0]?.seq ?? Number.POSITIVE_INFINITY
-  const older = t.items.filter((i) => i.seq < first)
-  return older.length === 0 ? fresh : { ...fresh, items: [...older, ...fresh.items], hasMore: t.hasMore }
+  const first = fresh.items[0]
+  if (!first) return fresh
+  // The page carries only the turns of its items and those not ended, so
+  // the older items' turns come from what was loaded.
+  const turns = merge(t.turns, fresh.turns)
+  const before = itemOrder(turns)
+  const older = t.items.filter((i) => before(i, first) < 0)
+  return older.length === 0 ? fresh : { ...fresh, turns, items: [...older, ...fresh.items], hasMore: t.hasMore }
 }
 
 export function oldestSeq(t: Timeline): number | undefined {
@@ -87,11 +96,18 @@ export function setThread(t: Timeline, thread: ThreadRow): Timeline {
 }
 
 export function upsertTurn(t: Timeline, turn: TurnRow): Timeline {
-  return { ...t, turns: merge(t.turns, [turn]) }
+  const known = t.turns.some((x) => x.id === turn.id)
+  const turns = merge(t.turns, [turn])
+  // A turn told of after its items places them.
+  return { ...t, turns, items: known ? t.items : inOrder(t.items, turns) }
 }
 
 export function upsertItem(t: Timeline, item: ItemRow): Timeline {
-  return { ...t, items: merge(t.items, [item]) }
+  const items = t.items.slice()
+  const i = items.findIndex((r) => r.id === item.id)
+  if (i >= 0) items[i] = item
+  else items.push(item)
+  return { ...t, items: i >= 0 ? items : inOrder(items, t.turns) }
 }
 
 /** Streams text into an item. The gateway sends item/started before any
@@ -106,14 +122,15 @@ export function appendDelta(t: Timeline, itemId: string, delta: string): Timelin
   return { ...t, items }
 }
 
-/** repo.TurnStatus.Active: started and not ended. In a slot it is
- * inProgress; out of one it is ready for the next slot or waiting on what
- * its calls await. */
+/** Not ended (repo.TurnStatus.Ended): in a slot it is inProgress; out of
+ * one it is ready for a slot, or waiting on the person or on the subagents
+ * it launched. */
 export function turnActive(status: TurnRow['status']): boolean {
-  return status !== 'queued' && status !== 'completed' && status !== 'interrupted' && status !== 'failed'
+  return status !== 'completed' && status !== 'interrupted' && status !== 'failed'
 }
 
-/** The turn under way; a thread has at most one. */
+/** The turn under way: the thread's first one not ended. Those behind it
+ * wait for it (queuedTurns). */
 export function activeTurn(t: Timeline): TurnRow | undefined {
   return t.turns.find((turn) => turnActive(turn.status))
 }
@@ -131,10 +148,17 @@ export function waitingFor(t: Timeline, status: ThreadStatus | undefined): 'appr
   return undefined
 }
 
-/** Turns waiting to start, in the order they will run. Their input lives on
- * the turn row until they start and it becomes a user message item. */
+/** Turns waiting behind the one under way, in the order they will run.
+ * ollupi writes each ready, with the messages it answers (userMessage
+ * items): a message sent while the thread is busy joins the one waiting. */
 export function queuedTurns(t: Timeline): TurnRow[] {
-  return t.turns.filter((turn) => turn.status === 'queued')
+  return t.turns.filter((turn) => turnActive(turn.status)).slice(1)
+}
+
+/** What a turn was sent: its messages, those it started with and any sent
+ * into it or joined while it waited. */
+export function turnMessages(t: Pick<Timeline, 'items'>, turnId: string): ItemRow[] {
+  return t.items.filter((it) => it.turnId === turnId && it.type === 'userMessage')
 }
 
 /** The model a new turn continues with when none is chosen: the server uses
@@ -149,8 +173,8 @@ export interface TurnGroup {
 }
 
 /** Loaded items under their turn, in order. Items always belong to a turn
- * the page carries (thread/read returns every turn), and queued turns have
- * no items yet, so they produce no group. */
+ * the page carries (thread/read returns the turns of its items and those
+ * not ended). */
 export function groupByTurn(t: Timeline): TurnGroup[] {
   const byTurn = new Map<string, ItemRow[]>()
   for (const it of t.items) {
@@ -162,6 +186,18 @@ export function groupByTurn(t: Timeline): TurnGroup[] {
     const items = byTurn.get(turn.id)
     return items ? [{ turn, items }] : []
   })
+}
+
+/** Compares items in the conversation's order: their turn's seq, then
+ * theirs. An item whose turn is not known yet goes last. */
+function itemOrder(turns: readonly TurnRow[]): (a: ItemRow, b: ItemRow) => number {
+  const seqOf = new Map(turns.map((turn) => [turn.id, turn.seq]))
+  const turnSeq = (it: ItemRow) => seqOf.get(it.turnId) ?? Number.POSITIVE_INFINITY
+  return (a, b) => turnSeq(a) - turnSeq(b) || a.seq - b.seq
+}
+
+function inOrder(items: readonly ItemRow[], turns: readonly TurnRow[]): ItemRow[] {
+  return items.slice().sort(itemOrder(turns))
 }
 
 function bySeq<T extends { seq: number }>(rows: readonly T[]): T[] {
