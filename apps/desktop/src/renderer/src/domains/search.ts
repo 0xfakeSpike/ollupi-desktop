@@ -4,7 +4,7 @@
 // person opens a result and comes back.
 
 import { RpcError } from '@ollupi/client'
-import { ErrorCode, type SearchResult } from '@ollupi/protocol'
+import { ErrorCode, Limits, type SearchResult } from '@ollupi/protocol'
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
@@ -23,10 +23,11 @@ export type SearchState =
   | { status: 'idle' }
   | { status: 'searching'; last: SearchResult | undefined }
   | { status: 'found'; result: SearchResult }
-  /** ollupi bounds what one query may cost (its length, its words, how
-   * long it runs) and says why it would not run this one; shown in place
-   * of results rather than as a notice, which typing would repeat. */
-  | { status: 'refused'; reason: string }
+  /** ollupi bounds what one query may cost: its length and its words,
+   * which the contract gives (Limits), so a query past them is not sent,
+   * and how long it runs. Shown in place of results rather than as a
+   * notice, which typing would repeat. */
+  | { status: 'refused'; reason: 'tooLong' | 'timedOut' }
 
 /** ollupi's answer for the query as typed, once typing pauses; idle while
  * the query has no words. The previous answer stays while the next is
@@ -40,6 +41,10 @@ export function useSearch(query: string, workspaceId: string, version = 0): Sear
       setState({ status: 'idle' })
       return
     }
+    if ([...q].length > Limits.searchRunes || queryTerms(q).length > Limits.searchTerms) {
+      setState({ status: 'refused', reason: 'tooLong' })
+      return
+    }
     let current = true
     setState((s) => ({ status: 'searching', last: s.status === 'found' ? s.result : s.status === 'searching' ? s.last : undefined }))
     const timer = setTimeout(() => {
@@ -49,7 +54,7 @@ export function useSearch(query: string, workspaceId: string, version = 0): Sear
           try {
             return { status: 'found', result: await gateway().call('search', { query: q, workspaceId: workspaceId || undefined, limit: LIMIT }) }
           } catch (err) {
-            if (err instanceof RpcError && (err.code === ErrorCode.invalidParams || err.code === ErrorCode.serverError)) return { status: 'refused', reason: err.message }
+            if (err instanceof RpcError && err.code === ErrorCode.searchTimedOut) return { status: 'refused', reason: 'timedOut' }
             throw err
           }
         },

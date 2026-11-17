@@ -64,6 +64,7 @@ const turn = (id: string, seq: number, status: TurnRow['status'] = 'completed'):
 const item = (id: string, seq: number, extra: Partial<ItemRow> = {}): ItemRow => ({
   id,
   turnId: 'u1',
+  turnSeq: 1,
   seq,
   type: 'agentMessage',
   status: 'completed',
@@ -107,7 +108,7 @@ describe('timeline', () => {
   it('takes the first turn not ended as under way, and those behind it as queued with their messages', () => {
     const t = timelineFromPage(
       page(
-        [item('m1', 1, { type: 'userMessage', text: 'go' }), item('m2', 3, { turnId: 'u2', type: 'userMessage', text: 'and this' }), item('m3', 4, { turnId: 'u2', type: 'userMessage', text: 'and that' })],
+        [item('m1', 1, { type: 'userMessage', text: 'go' }), item('m2', 3, { turnId: 'u2', turnSeq: 2, type: 'userMessage', text: 'and this' }), item('m3', 4, { turnId: 'u2', turnSeq: 2, type: 'userMessage', text: 'and that' })],
         [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')],
       ),
     )
@@ -118,7 +119,7 @@ describe('timeline', () => {
 
   it('orders items by their turn, then their own seq', () => {
     // A message written behind a running turn has a lower seq than what that turn writes after it.
-    let t = timelineFromPage(page([item('a', 1), item('q', 2, { turnId: 'u2' })], [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')]))
+    let t = timelineFromPage(page([item('q', 2, { turnId: 'u2', turnSeq: 2 }), item('a', 1)], [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')]))
     t = upsertItem(t, item('b', 3))
     expect(t.items.map((i) => i.id)).toEqual(['a', 'b', 'q'])
   })
@@ -143,7 +144,7 @@ describe('timeline', () => {
 
   it('groups items under turns; a turn without loaded items has no group', () => {
     const t = timelineFromPage(
-      page([item('a', 1), item('b', 2, { turnId: 'u2' })], [turn('u1', 1), turn('u2', 2), turn('u3', 3, 'ready')]),
+      page([item('a', 1), item('b', 2, { turnId: 'u2', turnSeq: 2 })], [turn('u1', 1), turn('u2', 2), turn('u3', 3, 'ready')]),
     )
     expect(groupByTurn(t).map((g) => [g.turn.id, g.items.length])).toEqual([
       ['u1', 1],
@@ -298,20 +299,19 @@ describe('calls', () => {
   })
 
   it('reads a subagent task, the role it runs as and the thread its launch started', () => {
-    const c = call({ tool: 'general-sub-agent', status: 'completed', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), result: { output: { subagent: 'child', description: 'd' } } })
+    const c = call({ tool: 'general-sub-agent', status: 'completed', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), result: { output: { subagent: 'child', description: 'd', note: 'n' } } })
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'general-sub-agent', threadId: 'child' } })
     const b = call({ tool: 'browser-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
     expect(callOf(b)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'browser-sub-agent', threadId: undefined } })
   })
 
   it('finds a subagent’s report by the call that launched it', () => {
-    const launch = call({ tool: 'general-sub-agent', callId: 'call-1' })
-    const report = item('r', 9, { type: 'agentReport', callId: 'call-1', status: 'completed', result: { output: 'done' } })
-    expect(subagentReport([launch, item('x', 8, { type: 'agentReport', callId: 'call-2' }), report], launch)?.id).toBe('r')
-    expect(subagentReport([launch], launch)).toBeUndefined()
-    // An earlier launch's report under the same id is not this one's.
-    const earlier = item('e', 0, { type: 'agentReport', callId: 'call-1' })
-    expect(subagentReport([earlier, launch], launch)).toBeUndefined()
+    const launch = call({ tool: 'general-sub-agent', callId: 'call_0' })
+    // Another launch a provider gave the same call id has a report of its own.
+    const other = item('x', 8, { type: 'agentReport', callId: 'call_0', launchItemId: 'earlier' })
+    const report = item('r', 9, { type: 'agentReport', callId: 'call_0', launchItemId: 'c', status: 'completed', result: { output: 'done' } })
+    expect(subagentReport([other, launch, report], launch)?.id).toBe('r')
+    expect(subagentReport([other, launch], launch)).toBeUndefined()
   })
 
 
@@ -346,7 +346,7 @@ describe('currentPlan', () => {
   it('is the last update_plan call that went through, from any turn', () => {
     const t = timelineFromPage(
       page(
-        [plan('p1', 1, 'first'), { ...plan('p2', 2, 'second'), turnId: 'u2' }, plan('p3', 3, 'declined', 'declined'), plan('p4', 4, 'refused', 'failed'), item('m', 5)],
+        [plan('p1', 1, 'first'), { ...plan('p2', 2, 'second'), turnId: 'u2', turnSeq: 2 }, plan('p3', 3, 'declined', 'declined'), plan('p4', 4, 'refused', 'failed'), item('m', 5)],
         [turn('u1', 1), turn('u2', 2)],
       ),
     )

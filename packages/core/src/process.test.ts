@@ -7,6 +7,7 @@ const at = (s: number) => `2026-01-01T00:00:${String(s).padStart(2, '0')}Z`
 const item = (id: string, type: ItemRow['type'], responseId: string | undefined, extra: Partial<ItemRow> = {}): ItemRow => ({
   id,
   turnId: 't',
+  turnSeq: 1,
   seq: ++seq,
   type,
   status: 'completed',

@@ -25,6 +25,9 @@ type fakeEngine struct {
 	interrupts []string
 	decisions  []string
 	answers    map[string]userinput.Answers
+	// taken is how each message after the first is taken, in order; the
+	// first starts a turn.
+	taken []db.Submission
 }
 
 func (f *fakeEngine) StartThread(user, workspaceID, environmentID, title string, _ permission.Settings) (db.ThreadRow, error) {
@@ -35,12 +38,16 @@ func (f *fakeEngine) StartThread(user, workspaceID, environmentID, title string,
 	return db.ThreadRow{ID: fmt.Sprintf("thread-%d", len(f.threads)), Title: title}, nil
 }
 
-func (f *fakeEngine) StartTurn(_ context.Context, user, threadID string, in service.Input) (db.TurnRow, error) {
+func (f *fakeEngine) StartTurn(_ context.Context, user, threadID string, in service.Input) (db.TurnRow, db.Submission, error) {
 	if user != db.DefaultUser {
-		return db.TurnRow{}, db.ErrNotFound
+		return db.TurnRow{}, "", db.ErrNotFound
 	}
 	f.turns = append(f.turns, threadID+" "+in.Text)
-	return db.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Status: db.TurnReady}, nil
+	how := db.Started
+	if len(f.turns) > 1 && len(f.taken) > 0 {
+		how, f.taken = f.taken[0], f.taken[1:]
+	}
+	return db.TurnRow{ID: fmt.Sprintf("turn-%d", len(f.turns)), ThreadID: threadID, Status: db.TurnReady}, how, nil
 }
 
 func (f *fakeEngine) InterruptTurn(user, threadID, turnID string) error {
@@ -209,24 +216,18 @@ func TestMessageStartsSessionInItsTopic(t *testing.T) {
 }
 
 func TestQueuedMessageSaysSo(t *testing.T) {
-	b, _, chat, _ := newTest(t)
+	b, engine, chat, _ := newTest(t)
+	engine.taken = []db.Submission{db.Queued, db.Joined}
 	b.message(text("m1", "", "first"))
-	b.Deliver(event.Event{Kind: event.TurnStarted, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-1", Status: db.TurnInProgress}})
-	run(b)
 	b.message(text("m2", "m1", "second"))
-	// ollupi tells of the turn behind the current one after it took the message.
-	b.Deliver(event.Event{Kind: event.TurnQueued, Thread: db.ThreadRow{ID: "thread-1"}, Turn: db.TurnRow{ID: "turn-2", Status: db.TurnReady}})
-	run(b)
-	queued := 0
+	b.message(text("m3", "m1", "third"))
+	said := map[string]string{}
 	for _, r := range chat.replies {
 		if strings.Contains(r.content, "排队") {
-			queued++
-			if r.to != "m2" {
-				t.Fatalf("the queued reply answers %s", r.to)
-			}
+			said[r.to] = r.content
 		}
 	}
-	if queued != 1 {
+	if len(said) != 2 || said["m2"] == "" || !strings.Contains(said["m3"], "一起") {
 		t.Fatalf("replies = %+v", chat.replies)
 	}
 }

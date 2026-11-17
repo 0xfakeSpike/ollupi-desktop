@@ -37,15 +37,10 @@ export function waitsForAnswer(item: ItemRow): boolean {
   return item.type === 'toolCall' && item.status === 'inProgress' && item.await?.by === 'user'
 }
 
-/** The report a subagent wrote back when it ended (an agentReport item),
- * among the items in order. A report names its launch only by the model's
- * call id, which some providers number afresh in each response, so it is
- * the first report of that id after the launch. */
+/** The report a subagent wrote back when it ended: the agentReport item
+ * that names the call that launched it. */
 export function subagentReport(items: readonly ItemRow[], call: ItemRow): ItemRow | undefined {
-  if (!call.callId) return undefined
-  const from = items.findIndex((it) => it.id === call.id)
-  if (from < 0) return undefined
-  return items.slice(from + 1).find((it) => it.type === 'agentReport' && it.callId === call.callId)
+  return items.find((it) => it.type === 'agentReport' && it.launchItemId === call.id)
 }
 
 /** The model's arguments as JSON, or undefined when they do not parse. */
@@ -68,8 +63,6 @@ interface CallFacts {
   arguments: unknown
   prepared: Prepared | null | undefined
   output: unknown
-  /** The thread of the subagent a call launched. */
-  threadId: string | undefined
   /** The MCP server's own title for the tool. */
   title: string | undefined
 }
@@ -90,14 +83,6 @@ export type ToolCall =
 
 export type ToolKind = ToolCall['kind']
 
-/** The subagent's thread in its launch's output, {subagent: <thread id>}:
- * the launch completes at once with it. The contract does not type that
- * output, so it is read with care. */
-function launchedThread(output: unknown): string | undefined {
-  const id = typeof output === 'object' && output !== null ? (output as Record<string, unknown>).subagent : undefined
-  return typeof id === 'string' && id ? id : undefined
-}
-
 /** A timeline item's call. */
 export function callOf(item: ItemRow): ToolCall {
   return classify({
@@ -106,7 +91,6 @@ export function callOf(item: ItemRow): ToolCall {
     arguments: parseArguments(item),
     prepared: item.preparedExecution,
     output: item.result?.output,
-    threadId: launchedThread(item.result?.output),
     title: item.annotations?.title,
   })
 }
@@ -134,7 +118,6 @@ export function approvalCallOf(p: ApprovalRequestParams): ToolCall {
     arguments: p.arguments,
     prepared: p.preparedExecution,
     output: undefined,
-    threadId: undefined,
     title: undefined,
   })
 }
@@ -179,8 +162,9 @@ function classify(c: CallFacts): ToolCall {
     }
     case 'general-sub-agent':
     case 'browser-sub-agent':
-      if (isToolPart(builtin, 'arguments', c.arguments)) return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: c.threadId } }
-      break
+      if (!isToolPart(builtin, 'arguments', c.arguments)) break
+      // The launch completes at once with the subagent's thread.
+      return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: isToolPart(builtin, 'output', c.output) ? c.output.subagent : undefined } }
   }
   return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
 }

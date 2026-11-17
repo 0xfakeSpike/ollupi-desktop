@@ -3,7 +3,7 @@
 // gateway dispatches from and verifies against real traffic. Nothing here
 // reads Go: the types come from the contract's JSON Schema
 // (json-schema-to-typescript), and the message maps, error codes, built-in
-// tools and providers are read off the contract's other sections.
+// tools, providers and limits are read off the contract's other sections.
 //
 //   node scripts/generate.mjs           write src/generated/
 //   node scripts/generate.mjs --check   fail if src/generated/ is out of date
@@ -112,6 +112,10 @@ function messages() {
   out.push(`/** JSON-RPC error codes, named as the contract names them. */`, `export const ErrorCode = {`)
   for (const [code, name] of Object.entries(contract.errors).sort((a, b) => a[1].localeCompare(b[1]))) out.push(`  ${name}: ${Number(code)},`)
   out.push('} as const\n', `export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]\n`)
+
+  out.push(`/** The bounds the gateway holds a request to, so that a client can keep within them before it asks. */`, `export const Limits = {`)
+  for (const [name, value] of Object.entries(contract.limits)) out.push(`  ${name}: ${Number(value)},`)
+  out.push('} as const\n')
 
   out.push(`/** Built-in tools whose arguments or output the contract describes. */`, `export interface BuiltinTools {`)
   for (const [name, t] of sorted(contract.builtinTools)) {

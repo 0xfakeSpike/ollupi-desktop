@@ -7,7 +7,8 @@ export const en = {
   scope: 'Where',
   everywhere: 'Everywhere',
   hint: 'Every word must match. Results are grouped by what they are; open one to go to it.',
-  refused: (why: string) => `This search was not run: ${why}`,
+  tooLong: (characters: number, words: number) => `A search takes at most ${characters} characters and ${words} words.`,
+  timedOut: 'This search took too long. Try longer or fewer words.',
   none: (query: string) => `Nothing matches “${query}”.`,
   groups: {
     threads: 'Conversations',
@@ -28,7 +29,8 @@ export const zh: typeof en = {
   scope: '范围',
   everywhere: '全部',
   hint: '每个词都要匹配。结果按类别分组，点击即可跳过去。',
-  refused: (why) => `这次没有搜：${why}`,
+  tooLong: (characters, words) => `一次最多搜 ${characters} 个字符、${words} 个词。`,
+  timedOut: '这次搜得太久了，换更长或更少的词试试。',
   none: (query) => `没有找到与“${query}”匹配的内容。`,
   groups: {
     threads: '会话',

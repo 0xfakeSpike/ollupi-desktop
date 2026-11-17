@@ -46,7 +46,7 @@ const flushEvery = time.Second
 // sessions and the bot's are the same ones.
 type Engine interface {
 	StartThread(user, workspaceID, environmentID, title string, settings permission.Settings) (db.ThreadRow, error)
-	StartTurn(ctx context.Context, user, threadID string, in service.Input) (db.TurnRow, error)
+	StartTurn(ctx context.Context, user, threadID string, in service.Input) (db.TurnRow, db.Submission, error)
 	InterruptTurn(user, threadID, expectedTurnID string) error
 	ResolveApproval(user, threadID, approvalID string, decision db.Decision, decidedBy string) error
 	AnswerUserInput(user, threadID, itemID string, answers userinput.Answers) error
@@ -85,9 +85,6 @@ type Bridge struct {
 	turns    map[string]*turn    // by turn ID
 	requests map[string]*request // by item ID
 	ours     map[string]bool     // the turns sent from Feishu, by turn ID
-	// sending are the Feishu messages just sent, by the turn that took
-	// them, until that turn starts or is told to wait behind another.
-	sending map[string]string
 	seen    *recent // the messages handled, by message ID
 }
 
@@ -127,7 +124,7 @@ func newBridge(cfg config.Feishu, engine Engine, store Store, chat chat, topicsP
 	}
 	return &Bridge{
 		cfg: cfg, engine: engine, store: store, chat: chat, topics: t, users: users,
-		queue: newQueue(), turns: map[string]*turn{}, requests: map[string]*request{}, ours: map[string]bool{}, sending: map[string]string{}, seen: newRecent(512),
+		queue: newQueue(), turns: map[string]*turn{}, requests: map[string]*request{}, ours: map[string]bool{}, seen: newRecent(512),
 	}, nil
 }
 
@@ -208,17 +205,18 @@ func (b *Bridge) startSession(messageID, text string) {
 }
 
 func (b *Bridge) send(messageID, threadID, text string) {
-	t, err := b.engine.StartTurn(b.ctx, db.DefaultUser, threadID, service.Input{Text: text})
+	t, how, err := b.engine.StartTurn(b.ctx, db.DefaultUser, threadID, service.Input{Text: text})
 	if err != nil {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
 	}
-	// ollupi says how it took the message by what it tells of the turn
-	// next, which the bridge reads after this: turn_started, or
-	// turn_queued for a turn behind the current one, which further
-	// messages join.
 	b.ours[t.ID] = true
-	b.sending[t.ID] = messageID
+	switch how {
+	case db.Queued:
+		b.replyText(messageID, "已排队，当前这轮结束后回复。")
+	case db.Joined:
+		b.replyText(messageID, "已排队，当前这轮结束后和前面没处理的消息一起回复。")
+	}
 }
 
 // workspace is the ID of the workspace new sessions belong to, the one at
@@ -267,13 +265,7 @@ func (b *Bridge) event(e event.Event) {
 	switch e.Kind {
 	case event.ApprovalRequested, event.UserInputRequested:
 		b.ask(topic, e.Thread.ID, *e.Item)
-	case event.TurnQueued:
-		if messageID, ok := b.sending[e.Turn.ID]; ok {
-			delete(b.sending, e.Turn.ID)
-			b.replyText(messageID, "已排队，当前这轮结束后和前面没处理的消息一起回复。")
-		}
 	case event.TurnStarted:
-		delete(b.sending, e.Turn.ID)
 		if !sub {
 			b.turnStarted(topic, e.Thread, e.Turn)
 		}

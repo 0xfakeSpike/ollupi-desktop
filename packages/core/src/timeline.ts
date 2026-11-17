@@ -1,7 +1,8 @@
 // A Timeline is the client's copy of one thread: its row, its turns, and the
-// loaded tail of its items in the conversation's order: by their turn's seq,
-// then their own (ollupi writes a message sent while a turn runs into the
-// turn behind it, so its seq can be lower than items of the turn ahead). Every function returns a new
+// loaded tail of its items in the conversation's order: by their turn's seq
+// (turnSeq), then their own (ollupi writes a message sent while a turn runs
+// into the turn behind it, so its seq can be lower than items of the turn
+// ahead). Every function returns a new
 // Timeline, so any state container can hold it and unchanged parts keep
 // their identity.
 
@@ -51,8 +52,7 @@ export interface Timeline {
 }
 
 export function timelineFromPage(page: ThreadPageResult): Timeline {
-  const turns = bySeq(page.turns)
-  return { thread: page.thread, turns, items: inOrder(page.items, turns), hasMore: page.hasMore }
+  return { thread: page.thread, turns: bySeq(page.turns), items: inOrder(page.items), hasMore: page.hasMore }
 }
 
 /** An empty timeline for a thread just started, before its first turn. */
@@ -63,11 +63,10 @@ export function emptyTimeline(thread: ThreadRow): Timeline {
 /** Merges the page read with beforeSeq = oldestSeq(t). */
 export function prependPage(t: Timeline, page: ThreadPageResult): Timeline {
   const known = new Set(t.items.map((i) => i.id))
-  const turns = merge(t.turns, page.turns)
   return {
     thread: page.thread,
-    turns,
-    items: inOrder([...page.items.filter((i) => !known.has(i.id)), ...t.items], turns),
+    turns: merge(t.turns, page.turns),
+    items: inOrder([...page.items.filter((i) => !known.has(i.id)), ...t.items]),
     hasMore: page.hasMore,
   }
 }
@@ -79,12 +78,10 @@ export function refreshFromPage(t: Timeline, page: ThreadPageResult): Timeline {
   const fresh = timelineFromPage(page)
   const first = fresh.items[0]
   if (!first) return fresh
+  const older = t.items.filter((i) => conversationOrder(i, first) < 0)
   // The page carries only the turns of its items and those not ended, so
-  // the older items' turns come from what was loaded.
-  const turns = merge(t.turns, fresh.turns)
-  const before = itemOrder(turns)
-  const older = t.items.filter((i) => before(i, first) < 0)
-  return older.length === 0 ? fresh : { ...fresh, turns, items: [...older, ...fresh.items], hasMore: t.hasMore }
+  // the older items' turns stay as they were loaded.
+  return older.length === 0 ? fresh : { ...fresh, turns: merge(t.turns, fresh.turns), items: [...older, ...fresh.items], hasMore: t.hasMore }
 }
 
 export function oldestSeq(t: Timeline): number | undefined {
@@ -96,10 +93,7 @@ export function setThread(t: Timeline, thread: ThreadRow): Timeline {
 }
 
 export function upsertTurn(t: Timeline, turn: TurnRow): Timeline {
-  const known = t.turns.some((x) => x.id === turn.id)
-  const turns = merge(t.turns, [turn])
-  // A turn told of after its items places them.
-  return { ...t, turns, items: known ? t.items : inOrder(t.items, turns) }
+  return { ...t, turns: merge(t.turns, [turn]) }
 }
 
 export function upsertItem(t: Timeline, item: ItemRow): Timeline {
@@ -107,7 +101,7 @@ export function upsertItem(t: Timeline, item: ItemRow): Timeline {
   const i = items.findIndex((r) => r.id === item.id)
   if (i >= 0) items[i] = item
   else items.push(item)
-  return { ...t, items: i >= 0 ? items : inOrder(items, t.turns) }
+  return { ...t, items: i >= 0 ? items : inOrder(items) }
 }
 
 /** Streams text into an item. The gateway sends item/started before any
@@ -188,16 +182,13 @@ export function groupByTurn(t: Timeline): TurnGroup[] {
   })
 }
 
-/** Compares items in the conversation's order: their turn's seq, then
- * theirs. An item whose turn is not known yet goes last. */
-function itemOrder(turns: readonly TurnRow[]): (a: ItemRow, b: ItemRow) => number {
-  const seqOf = new Map(turns.map((turn) => [turn.id, turn.seq]))
-  const turnSeq = (it: ItemRow) => seqOf.get(it.turnId) ?? Number.POSITIVE_INFINITY
-  return (a, b) => turnSeq(a) - turnSeq(b) || a.seq - b.seq
+/** The conversation's order: by the item's turn, then by the item. */
+function conversationOrder(a: ItemRow, b: ItemRow): number {
+  return a.turnSeq - b.turnSeq || a.seq - b.seq
 }
 
-function inOrder(items: readonly ItemRow[], turns: readonly TurnRow[]): ItemRow[] {
-  return items.slice().sort(itemOrder(turns))
+function inOrder(items: readonly ItemRow[]): ItemRow[] {
+  return items.slice().sort(conversationOrder)
 }
 
 function bySeq<T extends { seq: number }>(rows: readonly T[]): T[] {
