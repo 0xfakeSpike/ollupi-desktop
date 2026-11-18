@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/0xfakeSpike/ollupi v0.17.1
-	github.com/google/go-cmp v0.7.0
 	github.com/google/jsonschema-go v0.4.2
 	github.com/larksuite/oapi-sdk-go/v3 v3.12.2
 	golang.org/x/sync v0.25.0
@@ -31,6 +30,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.15 // indirect

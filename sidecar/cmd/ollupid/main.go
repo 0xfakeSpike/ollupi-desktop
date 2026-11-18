@@ -84,24 +84,11 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err != nil {
 		return err
 	}
-	old, err := config.ReadOld(home)
-	if err != nil {
-		return err
-	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	h, err := host.New(ctx, host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Browser: browserEndpoint()})
 	if err != nil {
 		return err
-	}
-	// Until the release after 0.7.53: config/upgrade.go.
-	if old != nil {
-		if err := h.MoveOld(ctx, old); err != nil {
-			return err
-		}
-		if err := old.Cut(); err != nil {
-			return err
-		}
 	}
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {

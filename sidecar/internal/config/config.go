@@ -206,16 +206,11 @@ func writeSkills(dir string, entries []fs.DirEntry) error {
 }
 
 // LoadFile reads a config file for a backend whose home is home: a
-// relative skills_dir resolves against home. Keys from before 0.7.53 that
-// the engine keeps now are left out (upgrade.go).
+// relative skills_dir resolves against home.
 func LoadFile(path, home string) (Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return Config{}, err
-	}
-	raw, _, err = cut(raw)
-	if err != nil {
-		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
 	cfg, err := Parse(raw)
 	if err != nil {
