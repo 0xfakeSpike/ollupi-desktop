@@ -280,7 +280,6 @@ export const en = {
     modelCalls: (n: number) => `Model calls · ${n}`,
     partial: 'Only calls in the loaded part of the thread are listed.',
     compaction: 'Summarized earlier context',
-    failed: 'Failed',
   },
   /** How a conversation names a scope of its memories: global, and its
    * own, which is its workspace or general without one. */
@@ -620,7 +619,6 @@ export const zh: typeof en = {
     modelCalls: (n) => `模型调用 · ${n}`,
     partial: '只列出会话已加载部分中的调用。',
     compaction: '压缩了之前的上下文',
-    failed: '失败',
   },
   memoryScope: {
     global: '全局',

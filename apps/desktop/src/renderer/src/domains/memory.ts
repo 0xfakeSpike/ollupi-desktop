@@ -10,19 +10,19 @@ import type { Messages } from '../i18n'
  * outside any workspace (general), or to one workspace's. */
 export type MemoryPlace = { scope: 'global' } | { scope: 'general' } | { scope: 'workspace'; workspaceId: string }
 
-/** A place's key in MemoryScopes: the scope, or the workspace id. */
+/** A place's key in Scopes: the scope, or the workspace id. */
 export const placeKey = (p: MemoryPlace): string => (p.scope === 'workspace' ? p.workspaceId : p.scope)
 
 export const placeOf = (row: MemoryRow): MemoryPlace =>
   row.scope === 'workspace' ? { scope: 'workspace', workspaceId: row.workspaceId! } : { scope: row.scope }
 
 /** Memories by placeKey. */
-export type MemoryScopes = Map<string, MemoryRow[]>
+export type Scopes = Map<string, MemoryRow[]>
 
 /** memory/status counts active memories in every scope, while memory/list
  * reads one, so each is read on its own: global, general and every
  * workspace, archived ones included, since their memories stay. */
-export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStatus; scopes: MemoryScopes } | undefined> {
+export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStatus; scopes: Scopes } | undefined> {
   return run((e) => e.memory.load, async () => {
     const client = gateway()
     const places: MemoryPlace[] = [{ scope: 'global' }, { scope: 'general' }, ...workspaceIds.map((workspaceId) => ({ scope: 'workspace' as const, workspaceId }))]

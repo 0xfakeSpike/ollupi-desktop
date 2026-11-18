@@ -21,15 +21,7 @@ const fixture = JSON.parse(readFileSync(new URL('../../protocol/fixtures/session
   messages: { direction: 'in' | 'out'; message: Message }[]
 }
 
-const timelineEvents: TimelineEventName[] = [
-  'turn/queued',
-  'turn/started',
-  'turn/completed',
-  'item/started',
-  'item/completed',
-  'item/agentMessage/delta',
-  'item/reasoning/textDelta',
-]
+const timelineEvents: TimelineEventName[] = ['thread/changed', 'turn/changed', 'item/changed', 'item/agentMessage/delta', 'item/reasoning/textDelta']
 
 /** The result of the client call that matches `pick`, by JSON-RPC id. */
 function resultOf(pick: (m: Message) => boolean): any {
@@ -53,6 +45,7 @@ it('live updates end where the server says the thread is', () => {
   expect(final.items.length).toBeGreaterThan(20)
   expect(t.turns).toEqual(final.turns)
   expect(t.items).toEqual(final.items)
+  expect(t.thread).toEqual(final.thread)
 })
 
 it("a turn's usage is the sum of its model calls' usage", () => {
@@ -69,4 +62,12 @@ it("a turn's usage is the sum of its model calls' usage", () => {
       outputTokens: sum('outputTokens'),
     }).toEqual(turn.usage)
   }
+})
+
+it('a reasoning item runs from its first piece to the answer', () => {
+  const final = resultOf((m) => m.method === 'thread/read' && m.params.threadId === fixture.threadId) as ThreadPageResult
+  const thoughts = final.items.filter((i) => i.type === 'reasoning')
+  expect(thoughts.length).toBeGreaterThan(0)
+  for (const r of thoughts) expect(Date.parse(r.completedAt!)).toBeGreaterThanOrEqual(Date.parse(r.startedAt))
+  expect(thoughts.some((r) => Date.parse(r.completedAt!) > Date.parse(r.startedAt))).toBe(true)
 })

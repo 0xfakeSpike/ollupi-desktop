@@ -19,13 +19,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
-	"github.com/0xfakeSpike/ollupi/tools"
+	"github.com/0xfakeSpike/ollupi/policy"
+	"github.com/0xfakeSpike/ollupi/tool"
+	"github.com/0xfakeSpike/ollupi/tool/kit"
 )
 
-// Name is the provider's. Its tools are named browser_<action>, as ollupi
-// names its own tools; the desktop is asked for the action.
-const Name = config.BrowserProvider
+// Name is the provider's, which an MCP server of the same name would clash
+// with. Its tools are named browser_<action>, as ollupi names its own
+// tools; the desktop is asked for the action.
+const Name = "browser"
 
 // Endpoint is where the desktop answers, and the token it takes.
 type Endpoint struct {
@@ -47,12 +49,12 @@ func (p *Provider) Name() (string, string) {
 	return Name, "The app's built-in browser, which the user sees beside the conversation; each thread has its own tabs, and these tools act in the one the user sees."
 }
 
-type tool struct {
+type action struct {
 	// action is what the desktop is asked to do; the tool is browser_<action>.
 	action      string
 	description string
 	schema      map[string]any
-	annotations tools.Annotations
+	annotations tool.Annotations
 	// described tools act on the tab, so a call names the site it acts on.
 	described bool
 }
@@ -66,12 +68,12 @@ func object(properties map[string]any, required ...string) map[string]any {
 	return map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}
 }
 
-var catalog = []tool{
+var catalog = []action{
 	{
 		action:      "navigate",
 		description: "Open a web page in this conversation's tab of the app's built-in browser, the one the user sees beside the conversation; a link that opens a new tab moves you to it. Answers with the page as text, an accessibility snapshot in which each element you can act on has a ref such as e3. A long page comes in pages: the answer ends saying how many, and browser_snapshot with page reads the others.",
 		schema:      object(map[string]any{"url": map[string]any{"type": "string", "description": "The address; https:// is added when it has no scheme (http:// for localhost)."}}, "url"),
-		annotations: tools.Annotations{Title: "Open page", ReadOnlyHint: true, OpenWorldHint: tools.Hint(true)},
+		annotations: tool.Annotations{Title: "Open page", ReadOnlyHint: true, OpenWorldHint: new(true)},
 		described:   true,
 	},
 	{
@@ -80,13 +82,13 @@ var catalog = []tool{
 		schema: object(map[string]any{
 			"page": map[string]any{"type": "integer", "minimum": 1, "description": "A page of the latest snapshot, when it has more than one."},
 		}),
-		annotations: tools.Annotations{Title: "Read page", ReadOnlyHint: true, OpenWorldHint: tools.Hint(false)},
+		annotations: tool.Annotations{Title: "Read page", ReadOnlyHint: true, OpenWorldHint: new(false)},
 	},
 	{
 		action:      "click",
 		description: "Click an element of the page by its ref, as a person would, once it is visible, enabled and not covered.",
 		schema:      object(map[string]any{"ref": ref}, "ref"),
-		annotations: tools.Annotations{Title: "Click", DestructiveHint: tools.Hint(true), OpenWorldHint: tools.Hint(true)},
+		annotations: tool.Annotations{Title: "Click", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
 	},
 	{
@@ -97,47 +99,46 @@ var catalog = []tool{
 			"text":   map[string]any{"type": "string"},
 			"submit": map[string]any{"type": "boolean", "description": "Press Enter after typing."},
 		}, "ref", "text"),
-		annotations: tools.Annotations{Title: "Type", DestructiveHint: tools.Hint(true), OpenWorldHint: tools.Hint(true)},
+		annotations: tool.Annotations{Title: "Type", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
 	},
 	{
 		action:      "press_key",
 		description: "Press a key on the focused element: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, PageUp, PageDown, Home, End, or one character; a combination such as Control+A.",
 		schema:      object(map[string]any{"key": map[string]any{"type": "string"}}, "key"),
-		annotations: tools.Annotations{Title: "Press key", DestructiveHint: tools.Hint(true), OpenWorldHint: tools.Hint(true)},
+		annotations: tool.Annotations{Title: "Press key", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
 	},
 	{
 		action:      "scroll",
 		description: "Scroll by most of a screen what is under the middle of the page, as a mouse wheel does, so a list that scrolls on its own scrolls too. Use it for what a page loads as you scroll; what is already on the page is in the snapshot's pages.",
 		schema:      object(map[string]any{"direction": map[string]any{"type": "string", "enum": []string{"down", "up"}}}, "direction"),
-		annotations: tools.Annotations{Title: "Scroll", ReadOnlyHint: true, OpenWorldHint: tools.Hint(false)},
+		annotations: tool.Annotations{Title: "Scroll", ReadOnlyHint: true, OpenWorldHint: new(false)},
 	},
 	{
 		action:      "back",
 		description: "Go back to the previous page.",
 		schema:      object(map[string]any{}),
-		annotations: tools.Annotations{Title: "Back", ReadOnlyHint: true, OpenWorldHint: tools.Hint(true)},
+		annotations: tool.Annotations{Title: "Back", ReadOnlyHint: true, OpenWorldHint: new(true)},
 		described:   true,
 	},
 }
 
-func (p *Provider) ToolList(context.Context) ([]*tools.Spec, error) {
-	specs := make([]*tools.Spec, 0, len(catalog))
+func (p *Provider) Tools(context.Context) ([]kit.Spec, error) {
+	specs := make([]kit.Spec, 0, len(catalog))
 	for _, t := range catalog {
-		a := t.annotations
-		spec := &tools.Spec{
+		spec := kit.Spec{
 			Name:        Name + "_" + t.action,
 			Description: t.description,
 			InputSchema: t.schema,
-			Annotations: &a,
+			Annotations: t.annotations,
 			// A thread's calls share its active tab, so none runs beside another.
 			Serial: true,
 		}
 		if t.described {
 			action := t.action
-			spec.PermissionContent = func(ctx context.Context, caller tools.Caller, arguments map[string]any) (tools.Content, error) {
-				return p.describe(ctx, caller, action, arguments)
+			spec.Content = func(ctx context.Context, c tool.Call) (policy.Content, error) {
+				return p.describe(ctx, c.Caller, action, c.Arguments)
 			}
 		}
 		specs = append(specs, spec)
@@ -145,35 +146,29 @@ func (p *Provider) ToolList(context.Context) ([]*tools.Spec, error) {
 	return specs, nil
 }
 
-func (p *Provider) Invoke(ctx context.Context, caller tools.Caller, tool string, arguments map[string]any) (tools.Result, error) {
-	action, ok := strings.CutPrefix(tool, Name+"_")
+func (p *Provider) Invoke(ctx context.Context, c tool.Call) (kit.Result, error) {
+	action, ok := strings.CutPrefix(c.Tool, Name+"_")
 	if !ok {
-		err := fmt.Errorf("browser: unknown tool %q", tool)
-		return tools.Result{Err: err}, err
+		return kit.Result{}, fmt.Errorf("browser: unknown tool %q", c.Tool)
 	}
 	var out struct {
 		Text string `json:"text"`
 	}
-	if err := p.post(ctx, caller, "/call", action, arguments, &out); err != nil {
-		// What went wrong on the page is the agent's to read, as a tool error.
-		var refused *refusal
-		if errors.As(err, &refused) {
-			return tools.Result{Output: refused.message, Err: refused}, nil
-		}
-		return tools.Result{Err: err}, err
+	if err := p.post(ctx, c.Caller, "/call", action, c.Arguments, &out); err != nil {
+		return kit.Result{}, err
 	}
-	return tools.Result{Output: out.Text}, nil
+	return kit.Result{Output: out.Text}, nil
 }
 
-func (p *Provider) describe(ctx context.Context, caller tools.Caller, action string, arguments map[string]any) (tools.Content, error) {
+func (p *Provider) describe(ctx context.Context, caller tool.Caller, action string, arguments map[string]any) (policy.Content, error) {
 	var out struct {
 		Host string `json:"host"`
 		Text string `json:"text"`
 	}
 	if err := p.post(ctx, caller, "/describe", action, arguments, &out); err != nil {
-		return tools.Content{}, err
+		return policy.Content{}, err
 	}
-	return tools.Content{Text: out.Text, Match: out.Host}, nil
+	return policy.Content{Text: out.Text, Match: out.Host}, nil
 }
 
 // refusal is the desktop's answer that the action cannot be done, such as a
@@ -182,8 +177,8 @@ type refusal struct{ message string }
 
 func (r *refusal) Error() string { return r.message }
 
-func (p *Provider) post(ctx context.Context, caller tools.Caller, path, action string, arguments map[string]any, out any) error {
-	thread := caller.ThreadID
+func (p *Provider) post(ctx context.Context, caller tool.Caller, path, action string, arguments map[string]any, out any) error {
+	thread := caller.Thread
 	if thread == "" {
 		return errors.New("browser: the call names no thread")
 	}

@@ -2,7 +2,7 @@
 // opens; a message opens its conversation at it; a task or a memory opens
 // the screen that lists it.
 
-import { Limits, type CronJobView, type MemoryRow, type MessageHit, type ThreadRow } from '@ollupi/protocol'
+import { Limits, type CronJobRow, type MemoryRow, type MessageHit, type ThreadRow } from '@ollupi/protocol'
 import { Badge, cn, EmptyState, Select, Spinner } from '@ollupi/ui'
 import { Bot, Brain, CalendarClock, MessageSquare, Search, User } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
@@ -168,7 +168,7 @@ function MessageResult({ hit, terms }: { hit: MessageHit; terms: string[] }) {
         {[
           <span key="who">{mine ? m.search.you : m.search.agent}</span>,
           <span key="in" className="truncate">
-            {m.search.inThread(threadTitle(m, { title: hit.threadTitle }))}
+            {m.search.inThread(threadTitle(m, { title: hit.title }))}
           </span>,
           <span key="at">{relativeTime(m, locale, hit.at)}</span>,
         ]}
@@ -177,7 +177,7 @@ function MessageResult({ hit, terms }: { hit: MessageHit; terms: string[] }) {
   )
 }
 
-function TaskResult({ job, terms }: { job: CronJobView; terms: string[] }) {
+function TaskResult({ job, terms }: { job: CronJobRow; terms: string[] }) {
   const m = useT()
   return (
     <Row icon={<CalendarClock size={14} />} onOpen={() => go({ kind: 'cron', found: job.id })}>

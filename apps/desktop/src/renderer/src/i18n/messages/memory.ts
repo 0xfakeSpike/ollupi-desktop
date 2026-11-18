@@ -1,6 +1,6 @@
 // The memory screen: scopes, entries and the learning and use switches.
 
-import type { MemoryFailureCode } from '@ollupi/protocol'
+import type { FailureCode } from '@ollupi/protocol'
 
 export const en = {
   screen: {
@@ -13,7 +13,7 @@ export const en = {
     emptyHereHint:
       'Memories are kept globally, for conversations outside workspaces, or per workspace; other scopes have some. Choose one on the left.',
     emptyYet: 'Nothing remembered yet',
-    emptyYetHint: 'Memories are distilled from finished turns while learning is on.',
+    emptyYetHint: 'Memories are distilled from finished turns once a model to learn with is chosen.',
     search: 'Search memories',
     noMatch: 'No memory here matches.',
   },
@@ -27,11 +27,11 @@ export const en = {
       invalid_response: "the model's reply could not be used",
       evidence: 'the conversation could not be read',
       storage: 'memories could not be saved',
-    } satisfies Record<MemoryFailureCode, string>,
+    } satisfies Record<FailureCode, string>,
     retryAt: (reason: string, time: string, n: number) => `The last try did not work: ${reason}. It tries again at ${time} (try ${n}).`,
     retrySoon: (reason: string) => `The last try did not work: ${reason}. It tries again shortly.`,
     skipped: (n: number) => (n === 1 ? '1 entry could not be learned from and was skipped' : `${n} entries could not be learned from and were skipped`),
-    lastSkip: (when: string, n: number) => (n === 1 ? `Last skipped ${when}: 1 entry` : `Last skipped ${when}: ${n} entries`),
+    lastSkip: (when: string) => `Last skipped ${when}`,
     skipIn: 'In',
     someConversation: 'a conversation',
     skipReason: (reason: string) => `Why: ${reason}`,
@@ -55,14 +55,13 @@ export const en = {
   settings: {
     unreadable: 'config.yaml cannot be read:',
     learn: 'Learn from conversations',
-    learnHint: "After each finished turn, a model distills what is worth remembering. This uses the model's tokens.",
-    model: 'Model that extracts memories',
-    modelNeeded: 'Choose a model to turn learning on.',
+    learnHint: 'After each finished turn, a model distills what is worth remembering. Off, nothing new is learned, including from the turns that end meanwhile; the memories kept are still used.',
+    model: 'Model',
+    modelHint: 'Learning uses its tokens. Changing it restarts the backend.',
+    modelNeeded: 'Choose a model; until then nothing new is learned.',
     chooseModel: 'Choose a model',
-    use: 'Use memories in conversations',
-    useHint: 'Each conversation starts with the memories that fit in its context, and the agent can search the rest.',
-    restarts: 'Changes take effect right away.',
-    stale: 'config.yaml differs from what the backend is using.',
+    use: 'Memory',
+    useHint: 'Each conversation starts with the memories that fit in its context, and the agent can search the rest. Off, conversations neither use memories nor teach new ones.',
   },
 }
 
@@ -76,7 +75,7 @@ export const zh: typeof en = {
     emptyHere: '这个范围里还没有记忆',
     emptyHereHint: '记忆按全局、工作区之外的会话或各个工作区分别保存；其他范围里有记忆，可在左侧选择。',
     emptyYet: '还没有记忆',
-    emptyYetHint: '开启学习后，记忆会从已完成的轮中提炼出来。',
+    emptyYetHint: '选好学习用的模型后，记忆会从已完成的轮中提炼出来。',
     search: '搜索记忆',
     noMatch: '这里没有匹配的记忆。',
   },
@@ -92,7 +91,7 @@ export const zh: typeof en = {
     retryAt: (reason, time, n) => `上次整理没成功：${reason}。${time} 会再试（第 ${n} 次）。`,
     retrySoon: (reason) => `上次整理没成功：${reason}。稍后会再试。`,
     skipped: (n) => `有 ${n} 条内容未能整理成记忆，已跳过`,
-    lastSkip: (when, n) => `最近一次跳过：${when}，共 ${n} 条`,
+    lastSkip: (when) => `最近一次跳过：${when}`,
     skipIn: '来自对话',
     someConversation: '一个对话',
     skipReason: (reason) => `原因：${reason}`,
@@ -114,13 +113,12 @@ export const zh: typeof en = {
   settings: {
     unreadable: '无法读取 config.yaml：',
     learn: '从会话中学习',
-    learnHint: '每轮结束后，由模型提炼值得记住的内容。这会消耗该模型的 token。',
-    model: '提取记忆的模型',
-    modelNeeded: '选择一个模型以开启学习。',
-    chooseModel: '选择模型',
-    use: '在会话中使用记忆',
-    useHint: '每个会话开始时会带上其上下文能容纳的记忆，其余的由 agent 按需搜索。',
-    restarts: '改动马上生效。',
-    stale: 'config.yaml 与后端正在使用的设置不一致。',
+    learnHint: '每轮结束后，由模型提炼值得记住的内容。关闭后不再学新的，关闭期间结束的会话之后也不会补学；已有的记忆照样使用。',
+    model: '模型',
+    modelHint: '学习消耗这个模型的 token。更换会重启后端。',
+    modelNeeded: '选一个模型；选好之前不会学新的。',
+    chooseModel: '选一个模型',
+    use: '记忆',
+    useHint: '每个会话开始时会带上其上下文能容纳的记忆，其余的由 agent 按需搜索。关闭后，会话既不使用记忆，也不再学习新的。',
   },
 }

@@ -1,4 +1,4 @@
-import type { ItemRow, MemoryReference, MemoryScope } from '@ollupi/protocol'
+import type { ItemRow, MemoryReference, Scope } from '@ollupi/protocol'
 import { ProcessRow } from '@ollupi/ui'
 import { Brain, CircleAlert } from 'lucide-react'
 import { useT } from '../../../i18n'
@@ -29,7 +29,7 @@ export function MemoryContext({ item }: { item: ItemRow }) {
 
 /** The scopes in the order a conversation lists them (see the catalog's
  * memoryScope for their names). */
-const scopes: MemoryScope[] = ['global', 'general', 'workspace']
+const scopes: Scope[] = ['global', 'general', 'workspace']
 
 /** Memories a conversation sees, by the scope each carries. */
 function MemoryGroups({ memories }: { memories: MemoryReference[] }) {

@@ -1,4 +1,4 @@
-import type { ItemRow, ThreadPageResult, ThreadRow, ThreadSummary, TurnRow } from '@ollupi/protocol'
+import type { ContextStats, ItemRow, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
 import { describe, expect, it } from 'vitest'
 import {
   activeTurn,
@@ -6,6 +6,7 @@ import {
   latestContextCall,
   modelCalls,
   appendDelta,
+  applyEvent,
   approvalCallOf,
   callOf,
   commandFailed,
@@ -18,6 +19,7 @@ import {
   subagentReport,
   queuedTurns,
   turnMessages,
+  turnStartedAt,
   promptMemory,
   prependPage,
   refreshFromPage,
@@ -30,6 +32,7 @@ import {
   upsertTurn,
   unread,
   waitingFor,
+  waitsForSubagents,
   waitsForAnswer,
   waitsForApproval,
   elapsed,
@@ -44,108 +47,135 @@ const thread = (extra: Partial<ThreadRow> = {}): ThreadRow => ({
   id: 'th',
   title: 'hello',
   settings: { permissions: {} },
+  status: 'idle',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   ...extra,
 })
 
-const turn = (id: string, seq: number, status: TurnRow['status'] = 'completed'): TurnRow => ({
+const turn = (id: string, status: TurnRow['status'] = 'completed'): TurnRow => ({
   id,
   threadId: 'th',
-  seq,
   status,
   model: { name: 'm', connection: 'm' },
   agent: 'full-main-agent',
   usage: { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 },
-  createdAt: '2026-01-01T00:00:00Z',
-  startedAt: '2026-01-01T00:00:00Z',
+  responses: [],
+  queuedAt: '2026-01-01T00:00:00Z',
 })
 
 const item = (id: string, seq: number, extra: Partial<ItemRow> = {}): ItemRow => ({
   id,
   turnId: 'u1',
-  turnSeq: 1,
   seq,
+  updated: seq,
   type: 'agentMessage',
   status: 'completed',
   startedAt: '2026-01-01T00:00:00Z',
   ...extra,
 })
 
-const page = (items: ItemRow[], turns: TurnRow[], hasMore = false): ThreadPageResult => ({ thread: thread(), turns, items, hasMore })
+const page = (items: ItemRow[], turns: TurnRow[], hasMore = false, seq = 10): ThreadPageResult => ({ thread: thread(), turns, items, seq, hasMore })
 
 describe('timeline', () => {
   it('sorts pages and merges an older page without duplicates', () => {
-    const t = timelineFromPage(page([item('c', 3), item('b', 2)], [turn('u1', 1)], true))
+    const t = timelineFromPage(page([item('c', 3), item('b', 2)], [turn('u1')], true))
     expect(t.items.map((i) => i.id)).toEqual(['b', 'c'])
-    const merged = prependPage(t, page([item('a', 1), item('b', 2)], [turn('u1', 1)]))
+    const merged = prependPage(t, page([item('a', 1), item('b', 2)], [turn('u0'), turn('u1')]))
     expect(merged.items.map((i) => i.id)).toEqual(['a', 'b', 'c'])
+    expect(merged.turns.map((x) => x.id)).toEqual(['u0', 'u1'])
     expect(merged.hasMore).toBe(false)
   })
 
-  it('streams deltas into a started item; completion replaces the text', () => {
-    let t = timelineFromPage(page([], [turn('u1', 1, 'inProgress')]))
-    t = upsertItem(t, item('m', 1, { status: 'inProgress', text: '' }))
-    t = appendDelta(appendDelta(appendDelta(t, 'm', 'Hel'), 'm', 'lo'), 'unknown', 'x')
-    expect(t.items[0]!.text).toBe('Hello')
-    t = upsertItem(t, item('m', 1, { text: 'Hello!' }))
-    expect(t.items.map((i) => i.text)).toEqual(['Hello!'])
+  it('applies only what was committed after the page was read', () => {
+    let t = timelineFromPage(page([item('a', 1, { text: 'old' })], [turn('u1', 'inProgress')], false, 5))
+    t = applyEvent(t, { method: 'item/changed', params: { threadId: 'th', item: item('a', 1, { text: 'stale', updated: 4 }), seq: 4 } })
+    expect(t.items[0]!.text).toBe('old')
+    t = applyEvent(t, { method: 'item/changed', params: { threadId: 'th', item: item('a', 1, { text: 'new', updated: 6 }), seq: 6 } })
+    t = applyEvent(t, { method: 'turn/changed', params: { threadId: 'th', turn: turn('u1'), seq: 6 } })
+    expect([t.items[0]!.text, t.turns[0]!.status]).toEqual(['new', 'completed'])
+    // An item changed twice keeps its latest change, whatever order they come in.
+    t = upsertItem(t, item('a', 1, { text: 'newer', updated: 8 }))
+    t = upsertItem(t, item('a', 1, { text: 'new', updated: 6 }))
+    expect(t.items[0]!.text).toBe('newer')
   })
 
-  it('follows the active turn through its status', () => {
-    let t = upsertTurn(timelineFromPage(page([], [turn('u1', 1)])), turn('u2', 2, 'inProgress'))
+  it('streams text into an item made for it until the item is kept', () => {
+    let t = timelineFromPage(page([item('a', 1)], [turn('u1', 'inProgress')]))
+    const delta = (itemId: string, d: string) => ({ turnId: 'u1', itemId, delta: d })
+    t = appendDelta(appendDelta(t, delta('m', 'Hel'), 'agentMessage'), delta('m', 'lo'), 'agentMessage')
+    expect(t.items.map((i) => [i.id, i.text, i.status])).toEqual([
+      ['a', undefined, 'completed'],
+      ['m', 'Hello', 'inProgress'],
+    ])
+    // Kept, it is the log's: a delta after it changes nothing.
+    t = upsertItem(t, item('m', 2, { text: 'Hello!' }))
+    t = appendDelta(t, delta('m', 'x'), 'agentMessage')
+    expect(t.items.map((i) => i.text)).toEqual([undefined, 'Hello!'])
+  })
+
+  it('drops streamed text the turn never kept', () => {
+    const streamed = (t: ReturnType<typeof timelineFromPage>) => appendDelta(t, { turnId: 'u1', itemId: 'm', delta: 'Hel' }, 'agentMessage')
+    const start = timelineFromPage(page([], [turn('u1', 'inProgress')]))
+    expect(upsertItem(streamed(start), item('e', 2, { type: 'error', error: 'model failed' })).items.map((i) => i.id)).toEqual(['e'])
+    expect(upsertTurn(streamed(start), turn('u1', 'interrupted')).items).toEqual([])
+  })
+
+  it('follows the turn in progress through its status', () => {
+    let t = upsertTurn(timelineFromPage(page([], [turn('u1')])), turn('u2', 'inProgress'))
     expect(activeTurn(t)?.id).toBe('u2')
-    t = upsertTurn(t, turn('u2', 2))
+    t = upsertTurn(t, turn('u2'))
     expect(activeTurn(t)).toBeUndefined()
   })
 
-  it('counts a turn out of its slot as under way', () => {
-    for (const status of ['ready', 'waitingOnApproval', 'waitingOnUserInput', 'waitingOnAgent'] as const) {
-      expect(activeTurn(timelineFromPage(page([], [turn('u1', 1, status)])))?.id).toBe('u1')
-    }
-  })
-
-  it('takes the first turn not ended as under way, and those behind it as queued with their messages', () => {
+  it('takes the turns behind the one in progress as queued, each with its message', () => {
     const t = timelineFromPage(
       page(
-        [item('m1', 1, { type: 'userMessage', text: 'go' }), item('m2', 3, { turnId: 'u2', turnSeq: 2, type: 'userMessage', text: 'and this' }), item('m3', 4, { turnId: 'u2', turnSeq: 2, type: 'userMessage', text: 'and that' })],
-        [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')],
+        [item('m1', 1, { type: 'userMessage', text: 'go' }), item('m2', 3, { turnId: 'u2', type: 'userMessage', text: 'and this' }), item('m3', 4, { turnId: 'u3', type: 'userMessage', text: 'and that' })],
+        [turn('u1', 'inProgress'), turn('u2', 'queued'), turn('u3', 'queued')],
       ),
     )
     expect(activeTurn(t)?.id).toBe('u1')
-    expect(queuedTurns(t).map((x) => x.id)).toEqual(['u2'])
-    expect(turnMessages(t, 'u2').map((x) => x.text)).toEqual(['and this', 'and that'])
+    expect(queuedTurns(t).map((x) => x.id)).toEqual(['u2', 'u3'])
+    expect(turnMessages(t, 'u3').map((x) => x.text)).toEqual(['and that'])
   })
 
-  it('orders items by their turn, then their own seq', () => {
-    // A message written behind a running turn has a lower seq than what that turn writes after it.
-    let t = timelineFromPage(page([item('q', 2, { turnId: 'u2', turnSeq: 2 }), item('a', 1)], [turn('u1', 1, 'inProgress'), turn('u2', 2, 'ready')]))
-    t = upsertItem(t, item('b', 3))
-    expect(t.items.map((i) => i.id)).toEqual(['a', 'b', 'q'])
-  })
-
-  it('says what the running turn waits for: its own calls, or a subagent by the status', () => {
-    const asks = item('c', 1, { type: 'toolCall', status: 'pending', approval: { id: 'a', requestedAt: '2026-01-01T00:00:00Z' } })
-    const answer = item('q', 2, { type: 'toolCall', status: 'inProgress', await: { by: 'user', request: {} } })
-    const running = (items: ItemRow[]) => timelineFromPage(page(items, [turn('u1', 1, 'inProgress')]))
+  it('says what the turn in progress waits for: its own calls, or a subagent by the status', () => {
+    const asks = item('c', 1, { type: 'toolCall', status: 'pending', approval: { approvalId: 'a', askedAt: '2026-01-01T00:00:00Z', availableDecisions: ['accept', 'decline'] } })
+    const answer = item('q', 2, { type: 'toolCall', status: 'inProgress', input: { request: {}, askedAt: '2026-01-01T00:00:00Z', answered: false } })
+    const running = (items: ItemRow[]) => timelineFromPage(page(items, [turn('u1', 'inProgress')]))
     expect(waitingFor(running([]), 'active')).toBeUndefined()
     expect(waitingFor(running([asks, answer]), 'active')).toBe('approval')
     expect(waitingFor(running([answer]), 'active')).toBe('answer')
     expect(waitingFor(running([]), 'waitingOnUserInput')).toBe('answer')
     expect(waitingFor(running([]), 'waitingOnApproval')).toBe('approval')
-    expect(waitingFor(timelineFromPage(page([asks], [turn('u1', 1)])), 'waitingOnApproval')).toBeUndefined()
+    expect(waitingFor(timelineFromPage(page([asks], [turn('u1')])), 'waitingOnApproval')).toBeUndefined()
+  })
+
+  it('waits for the subagents the turn launched once it has nothing else under way', () => {
+    const launch = item('s', 1, { type: 'toolCall', tool: 'general-sub-agent', childThreadId: 'child' })
+    const running = (items: ItemRow[]) => timelineFromPage(page(items, [turn('u1', 'inProgress')]))
+    expect(waitsForSubagents(running([launch]))).toBe(true)
+    expect(waitsForSubagents(running([launch, item('c', 2, { type: 'toolCall', status: 'inProgress' })]))).toBe(false)
+    expect(waitsForSubagents(running([launch, item('r', 2, { type: 'agentReport', launchItemId: 's' })]))).toBe(false)
+    expect(waitsForSubagents(timelineFromPage(page([launch], [turn('u1')])))).toBe(false)
   })
 
   it('keeps older loaded history when refreshing from the latest page', () => {
-    const t = prependPage(timelineFromPage(page([item('c', 3)], [turn('u1', 1)], true)), page([item('b', 2)], [], true))
-    const r = refreshFromPage(t, page([item('c', 3), item('d', 4)], [turn('u1', 1)], true))
+    const t = prependPage(timelineFromPage(page([item('c', 3)], [turn('u1')], true)), page([item('b', 2)], [], true))
+    const r = refreshFromPage(t, page([item('c', 3), item('d', 4)], [turn('u1')], true, 20))
     expect(r.items.map((i) => i.id)).toEqual(['b', 'c', 'd'])
+    expect(r.seq).toBe(20)
+  })
+
+  it('starts a turn once it is queued and the turn before it has ended', () => {
+    const at = (id: string, queuedAt: string, completedAt?: string): TurnRow => ({ ...turn(id), queuedAt, completedAt })
+    const t = { turns: [at('u1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:09Z'), at('u2', '2026-01-01T00:00:05Z'), at('u3', '2026-01-01T00:00:20Z')] }
+    expect(t.turns.map((x) => turnStartedAt(t, x))).toEqual(['2026-01-01T00:00:00Z', '2026-01-01T00:00:09Z', undefined])
   })
 
   it('groups items under turns; a turn without loaded items has no group', () => {
-    const t = timelineFromPage(
-      page([item('a', 1), item('b', 2, { turnId: 'u2', turnSeq: 2 })], [turn('u1', 1), turn('u2', 2), turn('u3', 3, 'ready')]),
-    )
+    const t = timelineFromPage(page([item('a', 1), item('b', 2, { turnId: 'u2' })], [turn('u1'), turn('u2'), turn('u3', 'queued')]))
     expect(groupByTurn(t).map((g) => [g.turn.id, g.items.length])).toEqual([
       ['u1', 1],
       ['u2', 1],
@@ -155,12 +185,12 @@ describe('timeline', () => {
 
 describe('threads', () => {
   it('orders like thread/list: updatedAt, then createdAt, newest first', () => {
-    let list = upsertThread([], thread({ id: 'a' }), 'active')
+    let list = upsertThread([], thread({ id: 'a', status: 'active' }))
     list = upsertThread(list, thread({ id: 'b', createdAt: '2026-01-02T00:00:00Z' }))
     list = upsertThread(list, thread({ id: 'c', updatedAt: '2026-02-01T00:00:00Z' }))
     expect(list.map((t) => t.id)).toEqual(['c', 'b', 'a'])
     list = upsertThread(list, thread({ id: 'a', title: 'renamed' }))
-    expect(list.find((t) => t.id === 'a')).toMatchObject({ title: 'renamed', status: 'active' })
+    expect(list.find((t) => t.id === 'a')).toMatchObject({ title: 'renamed', status: 'idle' })
   })
 
   it('drops a thread once archived or deleted', () => {
@@ -198,10 +228,7 @@ describe('threads', () => {
 
   it('puts what waits on the person first: its threads, then its workspace', () => {
     const ws = (id: string) => ({ id, name: id, rootPath: `/${id}`, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
-    const at = (id: string, workspaceId: string | undefined, updatedAt: string, status: ThreadSummary['status']): ThreadSummary => ({
-      ...thread({ id, workspaceId, updatedAt }),
-      status,
-    })
+    const at = (id: string, workspaceId: string | undefined, updatedAt: string, status: ThreadRow['status']): ThreadRow => thread({ id, workspaceId, updatedAt, status })
     // Newest first, as thread/list orders them.
     const list = [
       at('a1', 'a', '2026-01-06T00:00:00Z', 'active'),
@@ -230,7 +257,7 @@ describe('threads', () => {
 
   it('orders workspaces by the work done in them last, not by when they were added', () => {
     const ws = (id: string, updatedAt: string) => ({ id, name: id, rootPath: `/${id}`, settings: { permissions: {} }, createdAt: updatedAt, updatedAt })
-    const at = (id: string, workspaceId: string, updatedAt: string): ThreadSummary => ({ ...thread({ id, workspaceId, updatedAt }), status: 'idle' })
+    const at = (id: string, workspaceId: string, updatedAt: string): ThreadRow => thread({ id, workspaceId, updatedAt })
     // workspace/list's order: the workspaces changed last first.
     const workspaces = [ws('docs', '2026-01-08T00:00:00Z'), ws('app', '2026-01-07T00:00:00Z'), ws('fresh', '2026-01-09T12:00:00.5Z'), ws('old', '2026-01-01T00:00:00Z')]
     const list = [at('s1', 'app', '2026-01-11T14:31:31.610699Z'), at('d1', 'docs', '2026-01-08T08:28:18.489406Z'), at('o1', 'old', '2026-01-09T12:00:00.25Z')]
@@ -276,15 +303,15 @@ describe('calls', () => {
   })
 
   it('waits for approval only while pending', () => {
-    const c = call({ approval: { id: 'ap', requestedAt: '' } })
+    const c = call({ approval: { approvalId: 'ap', askedAt: '', availableDecisions: ['accept', 'decline'] } })
     expect(waitsForApproval(c)).toBe(true)
     expect(waitsForApproval({ ...c, status: 'inProgress' })).toBe(false)
-    expect(waitsForApproval({ ...c, approval: { id: 'ap', requestedAt: '', decision: 'accept' } })).toBe(false)
+    expect(waitsForApproval({ ...c, approval: { approvalId: 'ap', askedAt: '', availableDecisions: ['accept', 'decline'], decision: 'accept' } })).toBe(false)
   })
 
   it('pairs questions with stored answers', () => {
     const args = JSON.stringify({ questions: [{ id: 'q', header: 'H', question: 'Which?' }] })
-    const asked = call({ tool: 'request_user_input', status: 'inProgress', arguments: args, await: { by: 'user', request: {} } })
+    const asked = call({ tool: 'request_user_input', status: 'inProgress', arguments: args, input: { request: {}, askedAt: '', answered: false } })
     expect(waitsForAnswer(asked)).toBe(true)
     expect(callOf(asked)).toEqual({ kind: 'question', questions: [{ id: 'q', header: 'H', question: 'Which?', answers: undefined }] })
     const answered = { ...asked, status: 'completed' as const, result: { output: { q: { answers: ['Go'] } } } }
@@ -299,7 +326,7 @@ describe('calls', () => {
   })
 
   it('reads a subagent task, the role it runs as and the thread its launch started', () => {
-    const c = call({ tool: 'general-sub-agent', status: 'completed', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), result: { output: { subagent: 'child', description: 'd', note: 'n' } } })
+    const c = call({ tool: 'general-sub-agent', status: 'completed', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), childThreadId: 'child', result: { output: { subagent: 'child', description: 'd', note: 'n' } } })
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'general-sub-agent', threadId: 'child' } })
     const b = call({ tool: 'browser-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
     expect(callOf(b)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'browser-sub-agent', threadId: undefined } })
@@ -328,7 +355,7 @@ describe('calls', () => {
     const read = (id: string, seq: number, extra: Partial<ItemRow> = {}) =>
       item(id, seq, { type: 'toolCall', status: 'completed', tool: 'read_file', arguments: JSON.stringify({ path: id }), ...extra })
     const text = item('m', 3, { type: 'agentMessage', text: 'hi' })
-    const asked = read('r5', 6, { status: 'pending', approval: { id: 'ap', requestedAt: '' } })
+    const asked = read('r5', 6, { status: 'pending', approval: { approvalId: 'ap', askedAt: '', availableDecisions: ['accept', 'decline'] } })
     const groups = groupReads([read('r1', 1), read('r2', 2), text, read('r3', 4), read('r4', 5), asked, read('r6', 7)])
     expect(groups.map((g) => (g.kind === 'item' ? g.item.id : g.items.map((i) => i.id).join('+')))).toEqual(['r1+r2', 'm', 'r3+r4', 'r5', 'r6'])
   })
@@ -346,8 +373,8 @@ describe('currentPlan', () => {
   it('is the last update_plan call that went through, from any turn', () => {
     const t = timelineFromPage(
       page(
-        [plan('p1', 1, 'first'), { ...plan('p2', 2, 'second'), turnId: 'u2', turnSeq: 2 }, plan('p3', 3, 'declined', 'declined'), plan('p4', 4, 'refused', 'failed'), item('m', 5)],
-        [turn('u1', 1), turn('u2', 2)],
+        [plan('p1', 1, 'first'), { ...plan('p2', 2, 'second'), turnId: 'u2' }, plan('p3', 3, 'declined', 'declined'), plan('p4', 4, 'refused', 'failed'), item('m', 5)],
+        [turn('u1'), turn('u2')],
       ),
     )
     expect(currentPlan(t)?.item.id).toBe('p2')
@@ -355,7 +382,7 @@ describe('currentPlan', () => {
   })
 
   it('is none before any plan', () => {
-    expect(currentPlan(timelineFromPage(page([item('m', 1)], [turn('u1', 1)])))).toBeUndefined()
+    expect(currentPlan(timelineFromPage(page([item('m', 1)], [turn('u1')])))).toBeUndefined()
   })
 })
 
@@ -368,24 +395,31 @@ describe('context', () => {
     expect(contextUse({ ...stats, calibratedTokens: 500 }).calibrated).toBe(false)
   })
 
-  it('reads one call per item carrying stats, and skips compactions for the latest', () => {
+  const usage = { inputTokens: 400, cachedInputTokens: 100, cacheWriteInputTokens: 0, outputTokens: 20 }
+  const withResponses = (responses: [string, ContextStats][]): TurnRow => ({ ...turn('u1'), responses: responses.map(([id, contextStats]) => ({ id, usage, contextStats })) })
+
+  it("reads one call per turn response at its first item, and skips compactions for the latest", () => {
     const t = timelineFromPage(
       page(
         [
           item('mem', 1, { type: 'memoryContext', memory: [{ id: 'x', scope: 'global', text: 'likes tea' }] }),
-          item('a', 2, { contextStats: stats, usage: { inputTokens: 5, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 1 } }),
-          item('tool', 3, { type: 'toolCall' }),
-          item('c', 4, { type: 'contextCompaction', contextStats: { ...stats, estimatedTokens: 900 } }),
+          item('think', 2, { type: 'reasoning', responseId: 'r1' }),
+          item('a', 3, { responseId: 'r1' }),
+          item('tool', 4, { type: 'toolCall', responseId: 'r2' }),
+          item('c', 5, { type: 'contextCompaction', responseId: 'r3' }),
+          item('err', 6, { type: 'error' }),
         ],
-        [turn('u1', 1)],
+        [withResponses([['r1', stats], ['r2', stats], ['r3', { ...stats, estimatedTokens: 900 }]])],
       ),
     )
     const calls = modelCalls(t)
     expect(calls.map((c) => [c.itemId, c.kind])).toEqual([
-      ['a', 'response'],
+      ['think', 'response'],
+      ['tool', 'response'],
       ['c', 'compaction'],
     ])
-    expect(latestContextCall(calls)?.itemId).toBe('a')
+    expect(calls[0]!.usage).toEqual(usage)
+    expect(latestContextCall(calls)?.itemId).toBe('tool')
   })
 
   it("reads a call's memory from the snapshot it was sent with", () => {
@@ -395,17 +429,25 @@ describe('context', () => {
       page(
         [
           item('mem', 1, { type: 'memoryContext', memory: [tea, tabs] }),
-          item('a', 2, { contextStats: { ...stats, globalMemory: { tokens: 10, ids: ['x'] }, localMemory: { tokens: 40, ids: ['y'] } } }),
-          item('c', 3, { type: 'contextCompaction' }),
+          item('a', 2, { responseId: 'ra' }),
+          item('c', 3, { type: 'contextCompaction', responseId: 'rc' }),
           item('mem2', 4, { type: 'memoryContext', memory: [tabs] }),
-          item('b', 5, { contextStats: { ...stats, globalMemory: { tokens: 0, ids: [] }, localMemory: { tokens: 40, ids: ['y'] } } }),
-          item('d', 6, { contextStats: stats }),
-          item('e', 7, { contextStats: { ...stats, calibratedTokens: 250, localMemory: { tokens: 40, ids: ['y'] } } }),
+          item('b', 5, { responseId: 'rb' }),
+          item('d', 6, { responseId: 'rd' }),
+          item('e', 7, { responseId: 're' }),
         ],
-        [turn('u1', 1)],
+        [
+          withResponses([
+            ['ra', { ...stats, globalMemory: { tokens: 10, ids: ['x'] }, localMemory: { tokens: 40, ids: ['y'] } }],
+            ['rc', stats],
+            ['rb', { ...stats, globalMemory: { tokens: 0, ids: [] }, localMemory: { tokens: 40, ids: ['y'] } }],
+            ['rd', stats],
+            ['re', { ...stats, calibratedTokens: 250, localMemory: { tokens: 40, ids: ['y'] } }],
+          ]),
+        ],
       ),
     )
-    const [a, b, d, e] = modelCalls(t)
+    const [a, , b, d, e] = modelCalls(t)
     expect(promptMemory(t, a!)).toEqual({
       global: { tokens: 10, ids: ['x'], entries: [tea] },
       local: { tokens: 40, ids: ['y'], entries: [tabs] },

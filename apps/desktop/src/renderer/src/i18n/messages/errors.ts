@@ -52,6 +52,9 @@ export const en = {
   },
   settings: {
     redaction: 'Could not change redaction',
+    memory: 'Could not turn memory on or off',
+    learn: 'Could not turn learning on or off',
+    permissions: 'Could not save the permissions',
   },
   config: {
     read: 'Could not read config.yaml',
@@ -153,6 +156,9 @@ export const zh: typeof en = {
   },
   settings: {
     redaction: '无法更改脱敏设置',
+    memory: '无法开关记忆',
+    learn: '无法开关学习',
+    permissions: '无法保存权限',
   },
   config: {
     read: '无法读取 config.yaml',

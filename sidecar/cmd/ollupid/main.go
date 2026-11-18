@@ -33,8 +33,8 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
-	"github.com/0xfakeSpike/ollupi/agent/role"
-	"github.com/0xfakeSpike/ollupi/repo/skills"
+	"github.com/0xfakeSpike/ollupi/agent"
+	"github.com/0xfakeSpike/ollupi/skill"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -84,17 +84,29 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err != nil {
 		return err
 	}
-	h, err := host.New(host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Version: version(), Browser: browserEndpoint()})
+	old, err := config.ReadOld(home)
 	if err != nil {
 		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	h, err := host.New(ctx, host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Browser: browserEndpoint()})
+	if err != nil {
+		return err
+	}
+	// Until the release after 0.7.53: config/upgrade.go.
+	if old != nil {
+		if err := h.MoveOld(ctx, old); err != nil {
+			return err
+		}
+		if err := old.Cut(); err != nil {
+			return err
+		}
 	}
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		return err
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	if watchStdin {
 		go func() {
 			// However stdin ends, the parent is gone.
@@ -103,12 +115,8 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 		}()
 	}
 
-	// Ready only once the agent has started, so a start failure is reported
+	// Ready only once the backend is built, so a start failure is reported
 	// as fatal rather than after a ready line.
-	if err := h.Start(ctx); err != nil {
-		ln.Close()
-		return err
-	}
 	handshake.Ready(fmt.Sprintf("ws://%s/", ln.Addr()), version())
 	return h.Serve(ctx, ln)
 }
@@ -125,10 +133,9 @@ func browserEndpoint() *browser.Endpoint {
 }
 
 // checkResult is --check-config's output: the config as the backend decodes
-// it (defaults applied, paths resolved, the MCP env and header values
-// written in the file left out) with its models as the app selects them, or
-// why it would not start. API keys stay in: the app edits them like the base
-// URL.
+// it (defaults applied, paths resolved) with its models as the app selects
+// them, or why it would not start. API keys stay in: the app edits them like
+// the base URL.
 type checkResult struct {
 	OK     bool              `json:"ok"`
 	Config *config.Config    `json:"config,omitempty"`
@@ -143,9 +150,6 @@ func check(path, home string) int {
 	}
 	out := checkResult{Error: errorText(err)}
 	if err == nil {
-		for i := range cfg.MCP {
-			cfg.MCP[i] = cfg.MCP[i].Redacted()
-		}
 		out = checkResult{OK: true, Config: &cfg, Models: cfg.ModelRefs()}
 	}
 	line, _ := json.Marshal(out)
@@ -170,8 +174,8 @@ type skillsResult struct {
 // roleSkills are the skills of one role, in the directory of its name; a
 // role without one has none.
 type roleSkills struct {
-	Role   string         `json:"role"`
-	Skills []skills.Skill `json:"skills"`
+	Role   string        `json:"role"`
+	Skills []skill.Skill `json:"skills"`
 }
 
 func configuredSkills(home string) skillsResult {
@@ -188,16 +192,16 @@ func configuredSkills(home string) skillsResult {
 // skillsIn checks dir as the agent does at start, so a folder it lists is
 // one the agent starts with, and reads each role's skills as a run does.
 func skillsIn(dir string) skillsResult {
-	names := make([]string, len(role.NameValues))
-	for i, r := range role.NameValues {
+	names := make([]string, len(agent.Names))
+	for i, r := range agent.Names {
 		names[i] = string(r)
 	}
-	if err := skills.Check(dir, names); err != nil {
+	if err := skill.Check(dir, names); err != nil {
 		return skillsResult{Dir: dir, Error: err.Error()}
 	}
 	out := skillsResult{OK: true, Dir: dir, Roles: make([]roleSkills, 0, len(names))}
 	for _, name := range names {
-		list, err := skills.Load(dir, name)
+		list, err := skill.Load(dir, name)
 		if err != nil {
 			return skillsResult{Dir: dir, Error: err.Error()}
 		}

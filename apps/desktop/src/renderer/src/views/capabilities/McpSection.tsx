@@ -1,83 +1,33 @@
-// config.yaml's MCP servers beside how each is doing in the running
-// backend. ollupi connects them at start, so saving a change checks it with
-// the backend, writes it and restarts. Secrets stay in the user's
-// environment: env and header values name them as ${NAME}.
+// The user's MCP servers beside how each is doing. ollupi keeps them and
+// applies a change without a restart; what a server runs with is kept as
+// it is written.
 
-import type { ServerStatus } from '@ollupi/protocol'
-import { Badge, Button, Callout, Dialog, Field, IconButton, Input, Select, Textarea } from '@ollupi/ui'
+import type { MCPServer } from '@ollupi/protocol'
+import { Badge, Button, Dialog, Field, IconButton, Input, Select, Textarea } from '@ollupi/ui'
 import { Pencil, Plus, RotateCw, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
-import {
-  addServer,
-  editServer,
-  KEPT,
-  nameError,
-  readMcpStatus,
-  removeServer,
-  valuesOf,
-  type McpFields,
-  type McpServer,
-  type Values,
-} from '../../domains/mcpConfig'
+import { useState } from 'react'
+import { nameError, refreshMcp, removeServer, saveServer, useMcpServers, type McpFields } from '../../domains/mcp'
 import { useTools } from '../../domains/tools'
-import { useConnection } from '../../gateway/connection'
 import { useT, type Messages } from '../../i18n'
-import { desktop } from '../../platform/desktop'
 
 export function McpSection() {
   const m = useT()
-  const [checked, setChecked] = useState<CheckedConfig>()
-  const [error, setError] = useState<string>()
-  const [statuses, setStatuses] = useState<ServerStatus[]>()
-  const [editing, setEditing] = useState<{ index?: number }>()
-  const connected = useConnection((s) => s.gateway === 'connected')
+  const servers = useMcpServers((s) => s.list)
+  const [editing, setEditing] = useState<{ name?: string }>()
   const tools = useTools((s) => s.list)
-
-  const reloadStatus = useCallback(async () => setStatuses(await readMcpStatus()), [])
-  useEffect(() => {
-    void readConfig().then((r) => (r?.ok ? setChecked(r) : setError(r?.error)))
-  }, [])
-  // A restart replaces the backend and its servers: read again once the new
-  // one is connected.
-  useEffect(() => {
-    if (connected) void reloadStatus()
-  }, [connected, reloadStatus])
-
-  if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
-  if (!checked) return null
-
-  const servers = checked.config.mcp ?? []
-  const apply = async (changes: Parameters<typeof applyConfig>[0]) => {
-    const applied = await applyConfig(changes)
-    if (applied) setChecked(applied)
-    return !!applied
-  }
-  // The file and the running backend disagree, e.g. after a hand edit.
-  const stale = connected && statuses && statuses.map((s) => s.name).join('\n') !== servers.map((s) => s.name).join('\n')
+  if (!servers) return null
 
   return (
     <>
-      {stale && (
-        <Callout tone="warning">
-          <div className="flex items-center gap-3">
-            <span className="flex-1">{m.settings.mcp.stale}</span>
-            <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
-              {m.common.restartBackend}
-            </Button>
-          </div>
-        </Callout>
-      )}
       {servers.length === 0 && <p className="text-ui text-fg-subtle">{m.settings.mcp.empty}</p>}
-      {servers.map((s, i) => (
+      {servers.map((s) => (
         <ServerCard
-          key={`${i}:${s.name}`}
+          key={s.name}
           server={s}
-          status={statuses?.find((x) => x.name === s.name)}
           tools={tools.filter((t) => t.provider === s.name).map((t) => t.name)}
-          onEdit={() => setEditing({ index: i })}
+          onEdit={() => setEditing({ name: s.name })}
           onRemove={() => {
-            if (confirm(m.settings.mcp.confirmRemove(s.name))) void apply(removeServer(i))
+            if (confirm(m.settings.mcp.confirmRemove(s.name))) void removeServer(s.name)
           }}
         />
       ))}
@@ -86,19 +36,18 @@ export function McpSection() {
           {m.settings.mcp.addServer}
         </Button>
         {servers.length > 0 && (
-          <Button variant="ghost" icon={<RotateCw size={14} />} onClick={() => void reloadStatus()}>
+          <Button variant="ghost" icon={<RotateCw size={14} />} onClick={() => void refreshMcp()}>
             {m.settings.mcp.refreshStatus}
           </Button>
         )}
       </div>
       {editing && (
         <ServerDialog
-          server={editing.index === undefined ? undefined : servers[editing.index]}
-          taken={servers.filter((_, i) => i !== editing.index).map((s) => s.name)}
+          server={servers.find((s) => s.name === editing.name)}
+          taken={servers.filter((s) => s.name !== editing.name).map((s) => s.name)}
           onClose={() => setEditing(undefined)}
           onSave={async (fields) => {
-            const changes = editing.index === undefined ? addServer(checked.config, fields) : editServer(checked.config, editing.index, fields)
-            if (await apply(changes)) setEditing(undefined)
+            if (await saveServer(fields, editing.name)) setEditing(undefined)
           }}
         />
       )}
@@ -106,21 +55,10 @@ export function McpSection() {
   )
 }
 
-function ServerCard({
-  server: s,
-  status,
-  tools,
-  onEdit,
-  onRemove,
-}: {
-  server: McpServer
-  /** Undefined when the running backend did not start with this server. */
-  status: ServerStatus | undefined
-  tools: string[]
-  onEdit(): void
-  onRemove(): void
-}) {
+function ServerCard({ server: s, tools, onEdit, onRemove }: { server: MCPServer; tools: string[]; onEdit(): void; onRemove(): void }) {
   const c = useT().settings.mcp.card
+  // Left out for a server not started yet: it starts when its tools are needed.
+  const status = s.status
   const keys = Object.keys((s.url ? s.headers : s.env) ?? {})
   return (
     <div className="flex flex-col gap-2 rounded-3xl bg-surface px-5 py-3">
@@ -176,18 +114,15 @@ function ServerCard({
   )
 }
 
-/** `written` is shown in place of a value the app was not given; kept
- * unless changed. */
-function toLines(values: Values, sep: string, written: string): string {
-  return Object.entries(values)
-    .map(([k, v]) => `${k}${sep}${v === KEPT ? written : v}`)
+function toLines(values: Record<string, string | undefined> | undefined, sep: string): string {
+  return Object.entries(values ?? {})
+    .map(([k, v]) => `${k}${sep}${v ?? ''}`)
     .join('\n')
 }
 
-/** Parses KEY=value (or Name: value) lines; a line still showing `written`,
- * as toLines put it, keeps the value in the file. */
-function fromLines(text: string, sep: string, before: Values, written: string, m: Messages): { values: Values; error?: string } {
-  const values: Values = {}
+/** Parses KEY=value (or Name: value) lines. */
+function fromLines(text: string, sep: string, m: Messages): { values: Record<string, string>; error?: string } {
+  const values: Record<string, string> = {}
   for (const raw of text.split('\n')) {
     const line = raw.trim()
     if (!line) continue
@@ -195,8 +130,7 @@ function fromLines(text: string, sep: string, before: Values, written: string, m
     const key = at > 0 ? line.slice(0, at).trim() : ''
     if (!key) return { values, error: m.settings.mcp.lineFormat(sep) }
     if (key in values) return { values, error: m.settings.mcp.listedTwice(key) }
-    const value = line.slice(at + sep.length).trim()
-    values[key] = value === written && before[key] === KEPT ? KEPT : value
+    values[key] = line.slice(at + sep.length).trim()
   }
   return { values }
 }
@@ -207,32 +141,27 @@ function ServerDialog({
   onClose,
   onSave,
 }: {
-  server: McpServer | undefined
+  server: MCPServer | undefined
   taken: string[]
   onClose(): void
   onSave(fields: McpFields): Promise<void>
 }) {
   const m = useT()
   const t = m.settings.mcp.dialog
-  // The placeholder as the dialog first showed it, so a language change
-  // while it is open still reads it back as a kept value.
-  const [written] = useState(m.settings.mcp.written)
-  const env = valuesOf(server?.env)
-  const headers = valuesOf(server?.headers)
   const [name, setName] = useState(server?.name ?? '')
   const [transport, setTransport] = useState<'stdio' | 'http'>(server?.url ? 'http' : 'stdio')
   const [command, setCommand] = useState(server?.command ?? '')
   const [args, setArgs] = useState((server?.args ?? []).join('\n'))
-  const [envText, setEnvText] = useState(toLines(env, '=', written))
+  const [envText, setEnvText] = useState(toLines(server?.env, '='))
   const [url, setUrl] = useState(server?.url ?? '')
-  const [headersText, setHeadersText] = useState(toLines(headers, ': ', written))
+  const [headersText, setHeadersText] = useState(toLines(server?.headers, ': '))
   const [saving, setSaving] = useState(false)
 
   const trimmed = name.trim()
   const nameReason = trimmed ? nameError(trimmed, taken) : undefined
   const nameProblem = nameReason && m.errors.mcpName[nameReason]
-  const parsedEnv = fromLines(envText, '=', env, written, m)
-  const parsedHeaders = fromLines(headersText, ':', headers, written, m)
+  const parsedEnv = fromLines(envText, '=', m)
+  const parsedHeaders = fromLines(headersText, ':', m)
   const valid =
     !!trimmed &&
     !nameProblem &&
@@ -268,7 +197,7 @@ function ServerDialog({
         <>
           <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
           <Button size="lg" variant="primary" disabled={!valid} loading={saving} onClick={() => void save()}>
-            {m.settings.config.saveAndRestart}
+            {m.settings.mcp.dialog.save}
           </Button>
         </>
       }
@@ -304,7 +233,7 @@ function ServerDialog({
                 spellCheck={false}
                 className="font-mono text-small"
                 value={envText}
-                placeholder="API_TOKEN=${MY_API_TOKEN}"
+                placeholder="API_TOKEN=…"
                 onChange={(e) => setEnvText(e.target.value)}
               />
             </Field>
@@ -326,7 +255,7 @@ function ServerDialog({
                 spellCheck={false}
                 className="font-mono text-small"
                 value={headersText}
-                placeholder="Authorization: Bearer ${GITHUB_TOKEN}"
+                placeholder="Authorization: Bearer …"
                 onChange={(e) => setHeadersText(e.target.value)}
               />
             </Field>

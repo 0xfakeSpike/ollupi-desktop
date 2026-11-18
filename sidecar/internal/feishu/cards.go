@@ -6,8 +6,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/0xfakeSpike/ollupi/repo/db"
-	"github.com/0xfakeSpike/ollupi/tools/userinput"
+	"github.com/0xfakeSpike/ollupi/ask"
+	"github.com/0xfakeSpike/ollupi/conversation"
+	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 )
 
 // The cards are Feishu's card JSON 2.0. Each is shared (update_multi), the
@@ -78,67 +79,65 @@ func turnCard(t *turn) card {
 	if len(t.lines) == 0 && t.running() {
 		parts = append(parts, grey("思考中…"))
 	}
-	if t.status == db.TurnFailed && t.err != "" {
+	if t.ended == conversation.Failed && t.err != "" {
 		parts = append(parts, "**出错了**："+t.err)
 	}
 	elements := []any{markdown(tail(strings.Join(parts, "\n\n")))}
 	if t.running() {
 		elements = append(elements, row(button("停止", "danger", map[string]any{"action": actionStop, "thread": t.threadID, "turn": t.id})))
 	}
-	s := turnStates[t.status]
-	if t.running() {
-		s = turnStates[db.TurnInProgress]
-	}
+	s := turnStates[t.ended]
 	return newCard(t.title, s.template, &tag{s.text, s.color}, elements...)
 }
 
-var turnStates = map[db.TurnStatus]struct{ text, color, template string }{
-	db.TurnInProgress:  {"进行中", "blue", "blue"},
-	db.TurnCompleted:   {"完成", "green", "green"},
-	db.TurnInterrupted: {"已停止", "neutral", "grey"},
-	db.TurnFailed:      {"失败", "red", "red"},
+// turnStates are by how a turn ended, "" while it runs.
+var turnStates = map[conversation.End]struct{ text, color, template string }{
+	"":                       {"进行中", "blue", "blue"},
+	conversation.Completed:   {"完成", "green", "green"},
+	conversation.Interrupted: {"已停止", "neutral", "grey"},
+	conversation.Failed:      {"失败", "red", "red"},
 }
 
 // approvalCard asks for an approval with the decisions it offers, but
 // "always allow": the rule it writes is better chosen on the desktop.
-func approvalCard(threadID string, it db.ItemRow) card {
+func approvalCard(threadID string, it conversation.Item) card {
 	var buttons []map[string]any
-	for _, d := range it.Approval.AvailableDecisions() {
+	for _, d := range it.Approval.Decisions() {
 		label, kind := decisionLabel(d)
-		if d == db.DecisionAcceptAlways {
+		if d == conversation.AcceptAlways {
 			continue
 		}
-		buttons = append(buttons, button(label, kind, map[string]any{"action": actionApprove, "thread": threadID, "approval": it.Approval.ID, "decision": string(d)}))
+		buttons = append(buttons, button(label, kind, map[string]any{"action": actionApprove, "thread": threadID, "approval": it.Approval.Approval, "decision": string(d)}))
 	}
 	return newCard("需要审批", "orange", nil, markdown(callDetails(it)), row(buttons...))
 }
 
 // settledApprovalCard replaces an approval's buttons with how it was
-// decided and where.
-func settledApprovalCard(it db.ItemRow) card {
+// decided and where: here, or else on the desktop.
+func settledApprovalCard(it conversation.Item, here bool) card {
 	a := it.Approval
 	if a.Decision == "" {
 		return newCard("审批已取消", "grey", nil, markdown(callDetails(it)))
 	}
 	label, _ := decisionLabel(a.Decision)
 	where := "在桌面"
-	if a.DecidedBy == Decider {
+	if here {
 		where = "在飞书"
 	}
 	template := "green"
-	if a.Decision == db.DecisionDecline {
+	if a.Decision == conversation.Decline {
 		template = "grey"
 	}
 	return newCard(label, template, &tag{where, "neutral"}, markdown(callDetails(it)))
 }
 
-func decisionLabel(d db.Decision) (label, kind string) {
+func decisionLabel(d conversation.Decision) (label, kind string) {
 	switch d {
-	case db.DecisionAccept:
+	case conversation.Accept:
 		return "允许一次", "primary"
-	case db.DecisionAcceptForSession:
+	case conversation.AcceptForSession:
 		return "在此会话中允许", "default"
-	case db.DecisionAcceptAlways:
+	case conversation.AcceptAlways:
 		return "总是允许", "default"
 	}
 	return "拒绝", "danger"
@@ -146,14 +145,15 @@ func decisionLabel(d db.Decision) (label, kind string) {
 
 // callDetails is what an approval is for: the tool, then what it would
 // run or change as frozen for the approval, or its arguments.
-func callDetails(it db.ItemRow) string {
+func callDetails(it conversation.Item) string {
 	var b strings.Builder
-	name := it.Tool
-	if it.Server != "" {
-		name = it.Server + "__" + it.Tool
+	call := it.Call
+	name := call.Tool
+	if call.Server != "" {
+		name = call.Server + "__" + call.Tool
 	}
 	fmt.Fprintf(&b, "**%s**", name)
-	p := it.PreparedExecution
+	p := prepared(*call)
 	switch {
 	case p != nil && p.Program != "":
 		fmt.Fprintf(&b, "\n```\n%s\n```", cut(commandLine(p.Program, p.Args), 2000))
@@ -165,7 +165,7 @@ func callDetails(it db.ItemRow) string {
 			fmt.Fprintf(&b, "\n- %s (+%d −%d)", f.Path, f.Added, f.Removed)
 		}
 	default:
-		if args := strings.TrimSpace(it.Arguments); args != "" && args != "{}" {
+		if args := strings.TrimSpace(call.Arguments); args != "" && args != "{}" {
 			fmt.Fprintf(&b, "\n```\n%s\n```", cut(args, 2000))
 		}
 	}
@@ -189,7 +189,7 @@ func callDetails(it db.ItemRow) string {
 // questionCard asks a request_user_input's questions in one form: each a
 // pick of its options, if it has any, and a box for an answer in the
 // person's own words, which wins over the pick.
-func questionCard(threadID string, it db.ItemRow, req userinput.Request) card {
+func questionCard(threadID string, it conversation.Item, req ask.Request) card {
 	ids := make([]any, len(req.Questions))
 	var fields []any
 	for i, q := range req.Questions {
@@ -220,7 +220,7 @@ func questionCard(threadID string, it db.ItemRow, req userinput.Request) card {
 	return newCard("需要回答", "indigo", nil, map[string]any{"tag": "form", "name": "answers", "elements": fields})
 }
 
-func settledQuestionCard(req userinput.Request, answered bool) card {
+func settledQuestionCard(req ask.Request, answered bool) card {
 	var lines []string
 	for _, q := range req.Questions {
 		lines = append(lines, "**"+q.Question+"**")
@@ -235,15 +235,15 @@ func pickField(questionID string) string { return "pick_" + questionID }
 func textField(questionID string) string { return "text_" + questionID }
 
 // callLine is a tool call as one line of a turn's card.
-func callLine(it db.ItemRow) string {
-	line := "`" + it.Tool + "`"
-	if s := callSummary(it); s != "" {
+func callLine(it conversation.Item) string {
+	line := "`" + it.Call.Tool + "`"
+	if s := callSummary(*it.Call); s != "" {
 		line += " " + strings.ReplaceAll(s, "`", "'")
 	}
 	switch it.Status {
-	case db.ItemFailed:
+	case conversation.Errored:
 		line += "（失败）"
-	case db.ItemDeclined:
+	case conversation.Declined:
 		line += "（被拒绝）"
 	}
 	return grey(line)
@@ -251,8 +251,8 @@ func callLine(it db.ItemRow) string {
 
 // callSummary is the gist of a call: the command it ran, the files it
 // changed, or the argument that says what it is about.
-func callSummary(it db.ItemRow) string {
-	if p := it.PreparedExecution; p != nil {
+func callSummary(call conversation.ToolCall) string {
+	if p := prepared(call); p != nil {
 		if p.Program != "" {
 			return cut(commandLine(p.Program, p.Args), 120)
 		}
@@ -265,7 +265,7 @@ func callSummary(it db.ItemRow) string {
 		}
 	}
 	var args map[string]any
-	if json.Unmarshal([]byte(it.Arguments), &args) != nil {
+	if json.Unmarshal([]byte(call.Arguments), &args) != nil {
 		return ""
 	}
 	for _, k := range []string{"description", "command", "path", "pattern", "url", "query", "name"} {
@@ -274,6 +274,19 @@ func callSummary(it db.ItemRow) string {
 		}
 	}
 	return ""
+}
+
+// prepared is a workspace call's plan, which says what it runs or changes;
+// nil for a call without one.
+func prepared(call conversation.ToolCall) *workspace.Prepared {
+	if len(call.Prepared) == 0 {
+		return nil
+	}
+	var p workspace.Prepared
+	if json.Unmarshal(call.Prepared, &p) != nil {
+		return nil
+	}
+	return &p
 }
 
 func commandLine(program string, args []string) string {

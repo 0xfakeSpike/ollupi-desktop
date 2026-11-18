@@ -8,7 +8,7 @@ import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
 import { defaultEnvironment, useEnvironments } from '../../domains/environments'
 import { chooseApproval, chooseEnvironment, go, useNavigation } from '../../domains/navigation'
-import { useAgentPolicy } from '../../domains/backendConfig'
+import { useUserPolicy } from '../../domains/settings'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { BrowserPanel } from '../conversation/BrowserPanel'
@@ -31,7 +31,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const environment = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
   const [managing, setManaging] = useState(false)
   const approval = useNavigation((s) => s.approval)
-  const agentPolicy = useAgentPolicy((s) => s.policy)
+  const agentPolicy = useUserPolicy()
   const m = useT()
   // Known once the thread list has been read (more has a key per scope).
   const firstUse = useThreads((s) => Object.keys(s.more).length > 0 && s.list.length === 0)

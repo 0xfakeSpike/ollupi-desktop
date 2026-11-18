@@ -1,34 +1,42 @@
 // What a thread's model calls put in the context window, as ollupi records
-// it. Each call's prompt stats (ContextStats) and usage sit on exactly one
-// item of that call: its answer, else its reasoning, else its first tool
-// call; a call that failed before answering records an error item, and a
-// compaction records them on its contextCompaction item.
+// it. Each turn lists the responses its calls got (TurnRow.responses): what
+// the call used, as the API reported it, and its prompt's stats
+// (ContextStats). The items a response made carry its id (responseId); a
+// compaction's is its contextCompaction item. A call that failed got no
+// response, so it is not listed.
 
 import type { ContextStats, ItemRow, MemoryReference, MemoryStats, Usage } from '@ollupi/protocol'
 import type { Timeline } from './timeline'
 
 export interface ModelCall {
+  responseId: string
+  /** The first item the response made, where its call sits in the thread. */
   itemId: string
   turnId: string
   /** compaction: the call that summarized earlier context; its prompt is
    * that history, not the conversation's next prompt. */
-  kind: 'response' | 'failed' | 'compaction'
+  kind: 'response' | 'compaction'
   stats: ContextStats
-  usage: Usage | undefined
+  usage: Usage
   startedAt: string
 }
 
-/** The loaded items' model calls, oldest first. */
+/** The model calls of the loaded items, oldest first. */
 export function modelCalls(t: Timeline): ModelCall[] {
+  const responses = new Map(t.turns.flatMap((turn) => (turn.responses ?? []).map((r) => [r.id, r] as const)))
   const calls: ModelCall[] = []
+  const seen = new Set<string>()
   for (const it of t.items) {
-    if (!it.contextStats) continue
+    const r = it.responseId ? responses.get(it.responseId) : undefined
+    if (!r || seen.has(r.id)) continue
+    seen.add(r.id)
     calls.push({
+      responseId: r.id,
       itemId: it.id,
       turnId: it.turnId,
-      kind: it.type === 'contextCompaction' ? 'compaction' : it.type === 'error' ? 'failed' : 'response',
-      stats: it.contextStats,
-      usage: it.usage ?? undefined,
+      kind: it.type === 'contextCompaction' ? 'compaction' : 'response',
+      stats: r.contextStats,
+      usage: r.usage,
       startedAt: it.startedAt,
     })
   }

@@ -40,6 +40,8 @@ export function setNotification(kind: NoticeKind, on: boolean): void {
 
 /** Requests the gateway sends again after a reconnect were told already. */
 const told = new Set<string>()
+/** The turns whose end was told: a turn ends once, told once. */
+const ended = new Set<string>()
 
 function titleOf(threadId: string): string {
   const thread = useThreads.getState().list.find((x) => x.id === threadId)
@@ -60,11 +62,13 @@ export const notificationsDomain: Domain = {
   bind: (client) => {
     const offs = [
       onRequest(tellRequest),
-      client.on('turn/completed', ({ thread, turn }) => {
-        // A subagent's turn ending is its parent's business, told when that ends.
-        if (thread.parentThreadId) return
+      client.on('turn/changed', ({ turn }) => {
+        // Only the list's threads: a subagent's turn ending is its parent's
+        // business, told when that ends.
+        const thread = useThreads.getState().list.find((x) => x.id === turn.threadId)
         const kind = turn.status === 'completed' ? 'completed' : turn.status === 'failed' ? 'failed' : undefined
-        if (!kind || !useNotificationPrefs.getState()[kind]) return
+        if (!thread || !kind || ended.has(turn.id) || !useNotificationPrefs.getState()[kind]) return
+        ended.add(turn.id)
         const m = t().notifications
         void desktop.notify({ threadId: thread.id, title: threadTitle(t(), thread), body: kind === 'completed' ? m.completed : m.failed(turn.error ?? '') })
       }),

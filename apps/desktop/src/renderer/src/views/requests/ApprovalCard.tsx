@@ -8,7 +8,7 @@
 // call run, ollupi suggests one: always allowing saves it, and the card says
 // what it adds and where.
 
-import { approvalCallOf } from '@ollupi/core'
+import { approvalCallOf, preparedOf } from '@ollupi/core'
 import type { Decision, ThreadRow } from '@ollupi/protocol'
 import { ActionCard, Button, cn, type ButtonProps } from '@ollupi/ui'
 import { ChevronDown } from 'lucide-react'
@@ -27,7 +27,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
   const p = request.params
   const call = useMemo(() => approvalCallOf(p), [p])
   const { approval } = viewOf(call)
-  const exec = p.preparedExecution
+  const exec = preparedOf(p.preparedExecution)
   const fullAccess = !!exec?.escalated
   const decisions = order.filter((d) => p.availableDecisions.includes(d) && !(fullAccess && d === 'acceptForSession'))
   const thread = useTimeline(p.threadId)?.thread

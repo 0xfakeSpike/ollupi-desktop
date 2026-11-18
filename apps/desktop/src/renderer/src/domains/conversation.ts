@@ -1,6 +1,6 @@
 // Conversations: the loaded timeline of each opened thread, kept live from
-// turn and item notifications, and the user's intents on them (start a
-// thread, send, steer, queue, interrupt, page back).
+// the thread's, turns' and items' changes, and the user's intents on them
+// (start a thread, send, steer, queue, interrupt, page back).
 
 import { RpcError } from '@ollupi/client'
 import {
@@ -10,7 +10,6 @@ import {
   oldestSeq,
   prependPage,
   refreshFromPage,
-  setThread,
   timelineFromPage,
   titleFromMessage,
   upsertTurn,
@@ -53,20 +52,16 @@ export const conversationDomain: Domain = {
     const apply = (e: TimelineEvent) => update(e.params.threadId, (t) => applyEvent(t, e))
     const offs = [
       // A renamed or archived thread changes its row; a deleted one is gone.
-      client.on('thread/changed', ({ threadId, thread }) =>
-        thread
-          ? update(threadId, (t) => setThread(t, thread))
+      client.on('thread/changed', (params) =>
+        params.thread
+          ? apply({ method: 'thread/changed', params })
           : useTimelines.setState((s) => {
-              const { [threadId]: _, ...rest } = s.byThread
+              const { [params.threadId]: _, ...rest } = s.byThread
               return { byThread: rest }
             }),
       ),
-      client.on('turn/queued', (params) => apply({ method: 'turn/queued', params })),
-      client.on('turn/started', (params) => apply({ method: 'turn/started', params })),
-      client.on('turn/completed', (params) => apply({ method: 'turn/completed', params })),
-      client.on('item/started', (params) => apply({ method: 'item/started', params })),
-      client.on('item/updated', (params) => apply({ method: 'item/updated', params })),
-      client.on('item/completed', (params) => apply({ method: 'item/completed', params })),
+      client.on('turn/changed', (params) => apply({ method: 'turn/changed', params })),
+      client.on('item/changed', (params) => apply({ method: 'item/changed', params })),
       client.on('item/agentMessage/delta', (params) => apply({ method: 'item/agentMessage/delta', params })),
       client.on('item/reasoning/textDelta', (params) => apply({ method: 'item/reasoning/textDelta', params })),
     ]
@@ -142,12 +137,13 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
       // One that is no longer there (deleted elsewhere) starts here too.
       environmentId: chosenEnvironment(),
       title: title || undefined,
-      // The policy chosen on the draft's composer; none inherits.
-      approvalPolicy: useNavigation.getState().approval,
-      permissions: {},
     })
-    // thread/started has put it in the list already.
+    // thread/changed has put it in the list already.
     store(thread.id, emptyTimeline(thread))
+    // The policy chosen on the draft's composer, before its first turn;
+    // none inherits.
+    const approvalPolicy = useNavigation.getState().approval
+    if (approvalPolicy) await gateway().call('thread/updatePermissions', { threadId: thread.id, approvalPolicy, permissions: {} })
     // The pages the draft opened are the thread's, before its agent acts.
     await desktop.browser.handOver(DRAFT_BROWSER, thread.id)
     const model = useNavigation.getState().model
@@ -220,7 +216,8 @@ export function editMessage(threadId: string, message: ItemRow): Promise<void | 
 }
 
 /** Sends a failed turn's messages again as one message of a new turn: their
- * texts, one after another, and the files they went with. */
+ * texts, one after another (the one it was sent and any sent into it while
+ * it ran), and the files they went with. */
 export function retryTurn(threadId: string, messages: ItemRow[]): Promise<boolean> {
   return run((e) => e.thread.send, async () => {
     const files = await Promise.all(messages.flatMap((message) => message.attachments ?? []).map((a) => attachmentFile(threadId, a)))

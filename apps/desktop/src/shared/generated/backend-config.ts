@@ -28,12 +28,6 @@ export interface ConfigCheck {
               }[];
         }[];
     tools?: null | string[];
-    permissions: {
-      approval?: string;
-      allow?: null | string[];
-      ask?: null | string[];
-      deny?: null | string[];
-    };
     slots?: number;
     workspace: {
       enabled: boolean;
@@ -52,23 +46,7 @@ export interface ConfigCheck {
       env_passthrough?: null | string[];
       max_output_bytes?: number;
     };
-    mcp?:
-      | null
-      | {
-          name: string;
-          command?: string;
-          args?: null | string[];
-          env?: {
-            [k: string]: string | undefined;
-          };
-          url?: string;
-          headers?: {
-            [k: string]: string | undefined;
-          };
-        }[];
-    memory: {
-      use: boolean;
-      generate: boolean;
+    memory?: {
       model?: string;
     };
     skills_dir?: string;

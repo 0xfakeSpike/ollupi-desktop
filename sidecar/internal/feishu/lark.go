@@ -16,9 +16,9 @@ import (
 
 // New builds the bridge for cfg's app; Run connects it. The topics file
 // lives at topicsPath.
-func New(cfg config.Feishu, engine Engine, store Store, topicsPath string) (*Bridge, error) {
+func New(cfg config.Feishu, a App, st Store, topicsPath string) (*Bridge, error) {
 	client := lark.NewClient(cfg.AppID, cfg.AppSecret, lark.WithOpenBaseUrl(baseURL(cfg.Domain)), lark.WithLogger(logger{}))
-	return newBridge(cfg, engine, store, openAPI{client}, topicsPath)
+	return newBridge(cfg, a, st, openAPI{client}, topicsPath)
 }
 
 // Run receives the bot's messages and card presses over a long connection,

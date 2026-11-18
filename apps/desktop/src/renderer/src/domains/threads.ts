@@ -1,14 +1,14 @@
 // The sidebar's thread list. It mirrors thread/list for each workspace and
 // for threads outside any: top-level threads that are not archived, newest
-// first, with status from thread/status/changed and rows from the turn
-// notifications and thread/changed. Each group is read a page at a time,
+// first, each row as thread/changed last told it, its status among it. Each
+// group is read a page at a time,
 // the next page on request. The archived threads are a list of their own,
 // read when the sidebar shows it. Renaming, archiving and deleting a
 // thread are here too.
 
-import { compareThreads, removeThread, setThreadStatus, threadCursor, unread, upsertThread } from '@ollupi/core'
+import { compareThreads, removeThread, threadCursor, unread, upsertThread } from '@ollupi/core'
 import type { OllupiClient } from '@ollupi/client'
-import type { ThreadRow, ThreadSummary } from '@ollupi/protocol'
+import type { ThreadRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -22,7 +22,7 @@ const PAGE_SIZE = 50
 
 /** more: whether a group has threads past those read, by workspace id
  * ('' for threads outside any). */
-export const useThreads = create<{ list: ThreadSummary[]; more: Record<string, boolean> }>()(() => ({ list: [], more: {} }))
+export const useThreads = create<{ list: ThreadRow[]; more: Record<string, boolean> }>()(() => ({ list: [], more: {} }))
 
 /** thread/list with archived: across every workspace, newest first.
  * Undefined until the sidebar first shows it. */
@@ -36,12 +36,12 @@ async function readGroup(workspaceId: string, from: 'start' | 'more'): Promise<v
   const last = from === 'more' ? read.at(-1) : undefined
   const page = await gateway().call('thread/list', { workspaceId, after: last && threadCursor(last), limit: PAGE_SIZE })
   useThreads.setState((s) => ({
-    list: page.data.reduce((acc, t) => upsertThread(acc, t, t.status), s.list),
+    list: page.data.reduce((acc, t) => upsertThread(acc, t), s.list),
     more: { ...s.more, [workspaceId]: page.hasMore },
   }))
 }
 
-const update = (fn: (list: ThreadSummary[]) => ThreadSummary[]) => useThreads.setState((s) => ({ list: fn(s.list) }))
+const update = (fn: (list: ThreadRow[]) => ThreadRow[]) => useThreads.setState((s) => ({ list: fn(s.list) }))
 
 /** A thread row changed or went away: both lists follow, and a deleted
  * thread that is on screen gives way to a new one. An archived or deleted
@@ -90,13 +90,8 @@ export const threadsDomain: Domain = {
       useNavigation.subscribe((now, before) => now.screen !== before.screen && seen()),
       () => window.removeEventListener('focus', seen),
       () => document.removeEventListener('visibilitychange', seen),
-      client.on('thread/started', ({ thread }) => update((l) => upsertThread(l, thread))),
-      client.on('thread/status/changed', ({ threadId, status }) => update((l) => setThreadStatus(l, threadId, status))),
       client.on('thread/changed', ({ threadId, thread }) => changed(threadId, thread)),
     ]
-    for (const event of ['turn/queued', 'turn/started', 'turn/completed'] as const) {
-      offs.push(client.on(event, ({ thread }) => update((l) => upsertThread(l, thread))))
-    }
     // A workspace restored from the archive has threads nobody listed yet.
     offs.push(
       useWorkspaces.subscribe((now, before) => {
@@ -162,7 +157,7 @@ export function deleteThread(threadId: string): Promise<boolean> {
   }).then(Boolean)
 }
 
-export function useThreadSummary(id: string | undefined): ThreadSummary | undefined {
+export function useThreadRow(id: string | undefined): ThreadRow | undefined {
   return useThreads((s) => (id ? s.list.find((t) => t.id === id) : undefined))
 }
 

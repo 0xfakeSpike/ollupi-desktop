@@ -1,5 +1,5 @@
-// The tools the agent offers its model (tool/list). Fixed for the agent's
-// lifetime, so read once per connection.
+// The tools the agent offers its model (tool/list): read once per
+// connection, and again when the MCP servers change (domains/mcp).
 
 import type { ToolDescriptor } from '@ollupi/protocol'
 import { create } from 'zustand'

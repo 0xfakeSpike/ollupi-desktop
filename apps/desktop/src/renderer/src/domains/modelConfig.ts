@@ -111,7 +111,7 @@ export function editProvider(config: BackendConfig, index: number, p: ProviderFi
     setOrDelete(['models', index, 'base_url'], p.baseUrl),
     setOrDelete(['models', index, 'api_key'], p.apiKey),
   ]
-  const memory = config.memory.model
+  const memory = config.memory?.model
   const used = (old.names ?? []).find((m) => modelId(old.provider, m.name) === memory)
   if (used && p.provider !== old.provider) {
     changes.push({ kind: 'set', path: ['memory', 'model'], value: modelId(p.provider, used.name) })
@@ -119,18 +119,10 @@ export function editProvider(config: BackendConfig, index: number, p: ProviderFi
   return changes
 }
 
-/** memory.model must name an existing model. With learning off nothing
- * uses it, so it goes with the model; with learning on, cannotRemove says
- * to choose another first. */
-function forgetMemoryModel(config: BackendConfig, removed: string[]): ConfigChange[] {
-  const m = config.memory.model
-  return m && removed.includes(m) && !config.memory.generate ? [{ kind: 'delete', path: ['memory', 'model'] }] : []
-}
-
 export function removeProvider(config: BackendConfig, index: number): ConfigChange[] {
   const p = providers(config)[index]!
   const ids = (p.names ?? []).map((m) => modelId(p.provider, m.name))
-  return [{ kind: 'delete', path: ['models', index] }, ...forgetMemoryModel(config, ids)]
+  return [{ kind: 'delete', path: ['models', index] }]
 }
 
 /** Appends models to a provider, after the ones it serves. */
@@ -151,7 +143,7 @@ export function editModel(config: BackendConfig, provider: number, index: number
     setOrDelete([...path, 'images'], m.images || undefined),
     { kind: 'set', path: [...path, 'limits'], value: m.limits },
   ]
-  if (m.name !== old.name && config.memory.model === modelId(p.provider, old.name)) {
+  if (m.name !== old.name && config.memory?.model === modelId(p.provider, old.name)) {
     changes.push({ kind: 'set', path: ['memory', 'model'], value: modelId(p.provider, m.name) })
   }
   return changes
@@ -161,7 +153,7 @@ export function editModel(config: BackendConfig, provider: number, index: number
 export function removeModel(config: BackendConfig, provider: number, index: number): ConfigChange[] {
   const p = providers(config)[provider]!
   if ((p.names ?? []).length === 1) return removeProvider(config, provider)
-  return [{ kind: 'delete', path: ['models', provider, 'names', index] }, ...forgetMemoryModel(config, [modelId(p.provider, p.names![index]!.name)])]
+  return [{ kind: 'delete', path: ['models', provider, 'names', index] }]
 }
 
 /** The default is the first model of the first provider. */
@@ -173,12 +165,12 @@ export function makeDefault(provider: number, index: number): ConfigChange[] {
 }
 
 /** Why a model cannot be removed, if it cannot: the backend requires at
- * least one model (lastModel), and learning needs the model memory.model
- * names (memoryModel). */
+ * least one model (lastModel), and memory.model, the model memory learns
+ * with, must be one (memoryModel). */
 export function cannotRemove(config: BackendConfig, provider: number, index: number): 'lastModel' | 'memoryModel' | undefined {
   const p = providers(config)[provider]!
   if (providers(config).reduce((n, q) => n + (q.names ?? []).length, 0) === 1) return 'lastModel'
-  if (config.memory.generate && config.memory.model === modelId(p.provider, p.names![index]!.name)) return 'memoryModel'
+  if (config.memory?.model === modelId(p.provider, p.names![index]!.name)) return 'memoryModel'
   return undefined
 }
 
@@ -187,6 +179,6 @@ export function cannotRemoveProvider(config: BackendConfig, provider: number): '
   const p = providers(config)[provider]!
   const others = providers(config).reduce((n, q, i) => n + (i === provider ? 0 : (q.names ?? []).length), 0)
   if (others === 0) return 'lastModel'
-  if (config.memory.generate && (p.names ?? []).some((m) => config.memory.model === modelId(p.provider, m.name))) return 'memoryModels'
+  if ((p.names ?? []).some((m) => config.memory?.model === modelId(p.provider, m.name))) return 'memoryModels'
   return undefined
 }

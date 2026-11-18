@@ -6,7 +6,7 @@ import { setColorScheme, setTheme, themes, useAppearance, type Theme } from '../
 import { clearHistory } from '../../domains/browser'
 import { openPath } from '../../domains/files'
 import { noticeKinds, setNotification, useNotificationPrefs } from '../../domains/notifications'
-import { setRedaction, useSettings } from '../../domains/settings'
+import { setRedaction, updateUserPermissions, useSettings } from '../../domains/settings'
 import { useConnection } from '../../gateway/connection'
 import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18n'
 import { locales, systemLocale } from '../../i18n/locale'
@@ -14,12 +14,14 @@ import { desktop } from '../../platform/desktop'
 import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
+import { PermissionEditor } from './PermissionEditor'
 import { Emblem } from '../common/Wolf'
 
 /** Most used first: models are where keys, providers and balances live;
  * general, beside them, holds the version and the backend they run on;
- * redaction is switched as the work changes; what is set once comes last. */
-const sections = ['models', 'general', 'redaction', 'notifications', 'feishu', 'appearance', 'language'] as const
+ * permissions and redaction change as the work does; what is set once
+ * comes last. */
+const sections = ['models', 'general', 'permissions', 'redaction', 'notifications', 'feishu', 'appearance', 'language'] as const
 type Section = (typeof sections)[number]
 
 const bodies: Record<Section, () => ReactNode> = {
@@ -28,6 +30,7 @@ const bodies: Record<Section, () => ReactNode> = {
   appearance: Appearance,
   notifications: Notifications,
   models: ModelsSection,
+  permissions: Permissions,
   redaction: Redaction,
   feishu: FeishuSection,
 }
@@ -270,6 +273,15 @@ function Redaction() {
       <Switch label={t.redactionSwitch} checked={settings?.redaction ?? false} disabled={!settings} onChange={(on) => void setRedaction(on)} />
     </div>
   )
+}
+
+/** The permissions every conversation starts from; a workspace and a
+ * conversation add their own above them. */
+function Permissions() {
+  const m = useT()
+  const settings = useSettings((s) => s.settings)
+  if (!settings) return null
+  return <PermissionEditor value={settings.permissions} inheritFrom={m.settings.permissions.fromOllupi} onSave={updateUserPermissions} />
 }
 
 function Appearance() {

@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/0xfakeSpike/ollupi/tools"
+	"github.com/0xfakeSpike/ollupi/tool"
+	"github.com/0xfakeSpike/ollupi/tool/kit"
 )
 
 // desktop answers as the app does: by thread, a description for describe
@@ -40,8 +41,8 @@ func desktop(t *testing.T) *httptest.Server {
 	}))
 }
 
-func spec(t *testing.T, p *Provider, name string) *tools.Spec {
-	specs, err := p.ToolList(context.Background())
+func spec(t *testing.T, p *Provider, name string) kit.Spec {
+	specs, err := p.Tools(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,20 +52,20 @@ func spec(t *testing.T, p *Provider, name string) *tools.Spec {
 		}
 	}
 	t.Fatalf("no tool %s", name)
-	return nil
+	return kit.Spec{}
 }
 
 func TestCallsGoToTheCallersTab(t *testing.T) {
 	srv := desktop(t)
 	defer srv.Close()
 	p := New(Endpoint{URL: srv.URL, Token: "secret"})
-	ctx, caller := context.Background(), tools.Caller{ThreadID: "th1"}
+	ctx, caller := context.Background(), tool.Caller{Thread: "th1"}
 
-	res, err := p.Invoke(ctx, caller, "browser_snapshot", map[string]any{})
+	res, err := p.Invoke(ctx, tool.Call{Caller: caller, Tool: "browser_snapshot", Arguments: map[string]any{}})
 	if err != nil || res.Output != "page of th1" {
 		t.Fatalf("res = %+v, err = %v", res, err)
 	}
-	content, err := spec(t, p, "browser_click").PermissionContent(ctx, caller, map[string]any{"ref": "e1"})
+	content, err := spec(t, p, "browser_click").Content(ctx, tool.Call{Caller: caller, Tool: "browser_click", Arguments: map[string]any{"ref": "e1"}})
 	if err != nil || content.Text != "th1: click e1" || content.Match != "example.com" || content.Parts != nil || content.Opaque {
 		t.Fatalf("content = %+v, err = %v", content, err)
 	}
@@ -74,16 +75,16 @@ func TestWhatCannotBeDoneIsTheAgentsToRead(t *testing.T) {
 	srv := desktop(t)
 	defer srv.Close()
 	p := New(Endpoint{URL: srv.URL, Token: "secret"})
-	ctx, caller := context.Background(), tools.Caller{ThreadID: "th1"}
-	res, err := p.Invoke(ctx, caller, "browser_click", map[string]any{"ref": "e9"})
-	if err != nil || res.Err == nil || res.Output != "no element e9 on the page now; take a new snapshot" {
-		t.Fatalf("res = %+v, err = %v", res, err)
+	ctx, caller := context.Background(), tool.Caller{Thread: "th1"}
+	click := tool.Call{Caller: caller, Tool: "browser_click", Arguments: map[string]any{"ref": "e9"}}
+	if _, err := p.Invoke(ctx, click); err == nil || err.Error() != "no element e9 on the page now; take a new snapshot" {
+		t.Fatalf("err = %v", err)
 	}
-	if _, err := spec(t, p, "browser_click").PermissionContent(ctx, caller, map[string]any{"ref": "e9"}); err == nil {
+	if _, err := spec(t, p, "browser_click").Content(ctx, click); err == nil {
 		t.Fatal("a call that cannot be described has no content")
 	}
 	bad := New(Endpoint{URL: srv.URL, Token: "wrong"})
-	if _, err := bad.Invoke(ctx, caller, "browser_snapshot", nil); err == nil {
+	if _, err := bad.Invoke(ctx, tool.Call{Caller: caller, Tool: "browser_snapshot"}); err == nil {
 		t.Fatal("a refused token is an error")
 	}
 }
@@ -95,8 +96,8 @@ func TestAnUnreadableRefusalIsAnError(t *testing.T) {
 	}))
 	defer srv.Close()
 	p := New(Endpoint{URL: srv.URL, Token: "secret"})
-	ctx, caller := context.Background(), tools.Caller{ThreadID: "th1"}
-	if _, err := p.Invoke(ctx, caller, "browser_snapshot", nil); err == nil {
+	ctx, caller := context.Background(), tool.Caller{Thread: "th1"}
+	if _, err := p.Invoke(ctx, tool.Call{Caller: caller, Tool: "browser_snapshot"}); err == nil {
 		t.Fatal("a refusal the app did not write is an error, not an empty reason")
 	}
 }
@@ -104,12 +105,12 @@ func TestAnUnreadableRefusalIsAnError(t *testing.T) {
 func TestReadingToolsNameNoSite(t *testing.T) {
 	p := New(Endpoint{})
 	for _, name := range []string{"browser_snapshot", "browser_scroll"} {
-		if s := spec(t, p, name); s.PermissionContent != nil || !s.Serial {
-			t.Fatalf("%s: content %v, serial %v", name, s.PermissionContent != nil, s.Serial)
+		if s := spec(t, p, name); s.Content != nil || !s.Serial {
+			t.Fatalf("%s: content %v, serial %v", name, s.Content != nil, s.Serial)
 		}
 	}
 	for _, name := range []string{"browser_navigate", "browser_click", "browser_type", "browser_press_key", "browser_back"} {
-		if spec(t, p, name).PermissionContent == nil {
+		if spec(t, p, name).Content == nil {
 			t.Fatalf("%s names no site", name)
 		}
 	}

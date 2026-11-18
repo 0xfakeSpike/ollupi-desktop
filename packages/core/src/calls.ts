@@ -17,7 +17,7 @@ import {
   type GrepOutput,
   type ItemRow,
   type Plan,
-  type Prepared,
+  type PreparedExecution,
   type ReadFile,
   type ReadFileOutput,
   type SubagentCall,
@@ -25,16 +25,16 @@ import {
 } from '@ollupi/protocol'
 import type { Timeline } from './timeline'
 
-/** repo.ItemRow.WaitsForApproval: approval happens before a call runs, so
- * only a pending call can wait on it. */
+/** Approval happens before a call runs, so only a pending call can wait on
+ * it, until it is decided. */
 export function waitsForApproval(item: ItemRow): boolean {
   return item.type === 'toolCall' && item.status === 'pending' && !!item.approval && !item.approval.decision
 }
 
-/** repo.ItemRow.Awaits: a call that ran and is answered by the person
- * (request_user_input) stays inProgress until the answer arrives. */
+/** A call that asked the person questions (request_user_input) stays
+ * inProgress until they answer or skip them. */
 export function waitsForAnswer(item: ItemRow): boolean {
-  return item.type === 'toolCall' && item.status === 'inProgress' && item.await?.by === 'user'
+  return item.type === 'toolCall' && item.status === 'inProgress' && !!item.input && !item.input.answered
 }
 
 /** The report a subagent wrote back when it ended: the agentReport item
@@ -61,10 +61,12 @@ interface CallFacts {
   server: string | undefined
   /** The model's arguments, parsed; undefined when they are not JSON. */
   arguments: unknown
-  prepared: Prepared | null | undefined
+  prepared: PreparedExecution | undefined
   output: unknown
   /** The MCP server's own title for the tool. */
   title: string | undefined
+  /** The conversation the call launched, a subagent's. */
+  child: string | undefined
 }
 
 /** A call as the kind of thing it does, with what the contract types of
@@ -89,10 +91,24 @@ export function callOf(item: ItemRow): ToolCall {
     tool: item.tool,
     server: item.server,
     arguments: parseArguments(item),
-    prepared: item.preparedExecution,
+    prepared: preparedOf(item.preparedExecution),
     output: item.result?.output,
-    title: item.annotations?.title,
+    title: titleOf(item.annotations),
+    child: item.childThreadId || undefined,
   })
+}
+
+/** A workspace call's plan: what it runs or changes, as decided on. The
+ * contract keeps a tool's plan as the tool wrote it; the workspace's is a
+ * PreparedExecution. */
+export function preparedOf(value: unknown): PreparedExecution | undefined {
+  return typeof value === 'object' && value !== null && typeof (value as { cwd?: unknown }).cwd === 'string' ? (value as PreparedExecution) : undefined
+}
+
+/** An MCP tool's own title, from the annotations it was listed with. */
+function titleOf(annotations: unknown): string | undefined {
+  const title = typeof annotations === 'object' && annotations !== null ? (annotations as { title?: unknown }).title : undefined
+  return typeof title === 'string' ? title : undefined
 }
 
 /** The thread's plan: ollupi keeps none of its own, and each update_plan
@@ -116,9 +132,10 @@ export function approvalCallOf(p: ApprovalRequestParams): ToolCall {
     tool: p.tool,
     server: p.server,
     arguments: p.arguments,
-    prepared: p.preparedExecution,
+    prepared: preparedOf(p.preparedExecution),
     output: undefined,
     title: undefined,
+    child: undefined,
   })
 }
 
@@ -163,8 +180,8 @@ function classify(c: CallFacts): ToolCall {
     case 'general-sub-agent':
     case 'browser-sub-agent':
       if (!isToolPart(builtin, 'arguments', c.arguments)) break
-      // The launch completes at once with the subagent's thread.
-      return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: isToolPart(builtin, 'output', c.output) ? c.output.subagent : undefined } }
+      // The launch completes once the subagent's conversation is started.
+      return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: c.child } }
   }
   return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
 }
@@ -220,9 +237,9 @@ export function createsFile(change: FileChange): boolean {
 }
 
 /** The frozen execution of a command that has a program to run. */
-export type FrozenCommand = Prepared & { program: string }
+export type FrozenCommand = PreparedExecution & { program: string }
 
-export function commandLine(p: Pick<Prepared, 'program' | 'args'>): string {
+export function commandLine(p: Pick<PreparedExecution, 'program' | 'args'>): string {
   return [p.program ?? '', ...(p.args ?? [])].map(shellQuote).join(' ')
 }
 

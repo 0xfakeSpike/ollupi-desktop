@@ -86,7 +86,7 @@ export function ModelsSection() {
           key={`${i}:${p.provider}`}
           provider={p}
           isFirst={i === 0}
-          memoryModel={config.memory.generate ? config.memory.model : undefined}
+          memoryModel={config.memory?.model}
           onEdit={() => setEditing({ kind: 'provider', index: i })}
           onRemove={() => {
             const reason = cannotRemoveProvider(config, i)

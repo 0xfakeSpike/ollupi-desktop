@@ -40,12 +40,8 @@
     "Approval": {
       "type": "object",
       "properties": {
-        "id": {
+        "approvalId": {
           "type": "string"
-        },
-        "requestedAt": {
-          "type": "string",
-          "format": "date-time"
         },
         "reason": {
           "type": "string"
@@ -65,6 +61,16 @@
             "type": "string"
           }
         },
+        "availableDecisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Decision"
+          }
+        },
+        "askedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "decision": {
           "$ref": "#/$defs/Decision"
         },
@@ -80,8 +86,9 @@
         }
       },
       "required": [
-        "id",
-        "requestedAt"
+        "approvalId",
+        "availableDecisions",
+        "askedAt"
       ],
       "additionalProperties": false
     },
@@ -96,16 +103,6 @@
     "ApprovalRequestParams": {
       "type": "object",
       "properties": {
-        "preparedExecution": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/Prepared"
-            }
-          ]
-        },
         "threadId": {
           "type": "string"
         },
@@ -125,6 +122,7 @@
           "type": "string"
         },
         "arguments": true,
+        "preparedExecution": true,
         "reason": {
           "type": "string"
         },
@@ -171,6 +169,26 @@
       ],
       "additionalProperties": false
     },
+    "Artifact": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "content"
+      ],
+      "additionalProperties": false
+    },
     "Attachment": {
       "type": "object",
       "properties": {
@@ -178,7 +196,7 @@
           "type": "string"
         },
         "kind": {
-          "$ref": "#/$defs/AttachmentKind"
+          "type": "string"
         },
         "name": {
           "type": "string"
@@ -213,13 +231,6 @@
       ],
       "additionalProperties": false
     },
-    "AttachmentKind": {
-      "type": "string",
-      "enum": [
-        "image",
-        "file"
-      ]
-    },
     "AttachmentReadParams": {
       "type": "object",
       "properties": {
@@ -251,29 +262,6 @@
         "data"
       ],
       "additionalProperties": false
-    },
-    "Await": {
-      "type": "object",
-      "properties": {
-        "by": {
-          "$ref": "#/$defs/AwaitBy"
-        },
-        "request": true,
-        "handle": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "by",
-        "request"
-      ],
-      "additionalProperties": false
-    },
-    "AwaitBy": {
-      "type": "string",
-      "enum": [
-        "user"
-      ]
     },
     "ClientInfo": {
       "type": "object",
@@ -333,26 +321,6 @@
       ],
       "additionalProperties": false
     },
-    "ContextArtifact": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "content": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "name",
-        "content"
-      ],
-      "additionalProperties": false
-    },
     "ContextStats": {
       "type": "object",
       "properties": {
@@ -402,9 +370,6 @@
         },
         "calibratedTokens": {
           "type": "integer"
-        },
-        "throughSeq": {
-          "type": "integer"
         }
       },
       "required": [
@@ -432,7 +397,7 @@
               "type": "null"
             },
             {
-              "$ref": "#/$defs/CronJobView"
+              "$ref": "#/$defs/CronJobRow"
             }
           ]
         }
@@ -527,58 +492,6 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "threadId",
-        "name",
-        "spec",
-        "prompt",
-        "runs",
-        "paused",
-        "nextRunAt",
-        "createdAt"
-      ],
-      "additionalProperties": false
-    },
-    "CronJobView": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "spec": {
-          "type": "string"
-        },
-        "prompt": {
-          "type": "string"
-        },
-        "times": {
-          "type": [
-            "null",
-            "integer"
-          ]
-        },
-        "runs": {
-          "type": "integer"
-        },
-        "paused": {
-          "type": "boolean"
-        },
-        "nextRunAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
         },
         "threadTitle": {
           "type": "string"
@@ -586,11 +499,11 @@
         "workspaceId": {
           "type": "string"
         },
-        "parentThreadId": {
-          "type": "string"
-        },
         "threadArchived": {
           "type": "boolean"
+        },
+        "lastTurnId": {
+          "type": "string"
         },
         "lastRunAt": {
           "type": [
@@ -598,9 +511,6 @@
             "string"
           ],
           "format": "date-time"
-        },
-        "lastTurnId": {
-          "type": "string"
         }
       },
       "required": [
@@ -632,7 +542,7 @@
         "data": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/CronJobView"
+            "$ref": "#/$defs/CronJobRow"
           }
         }
       },
@@ -661,6 +571,18 @@
         "threadId",
         "name",
         "paused"
+      ],
+      "additionalProperties": false
+    },
+    "CronResult": {
+      "type": "object",
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/CronJobRow"
+        }
+      },
+      "required": [
+        "job"
       ],
       "additionalProperties": false
     },
@@ -851,6 +773,15 @@
         "message"
       ],
       "additionalProperties": false
+    },
+    "FailureCode": {
+      "type": "string",
+      "enum": [
+        "model_request",
+        "invalid_response",
+        "evidence",
+        "storage"
+      ]
     },
     "FileChange": {
       "type": "object",
@@ -1092,25 +1023,58 @@
       ],
       "additionalProperties": false
     },
-    "ItemNotification": {
+    "Input": {
+      "type": "object",
+      "properties": {
+        "request": true,
+        "askedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "answered": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request",
+        "askedAt",
+        "answered"
+      ],
+      "additionalProperties": false
+    },
+    "ItemChangedNotification": {
       "type": "object",
       "properties": {
         "threadId": {
           "type": "string"
         },
-        "turnId": {
-          "type": "string"
-        },
         "item": {
           "$ref": "#/$defs/ItemRow"
+        },
+        "seq": {
+          "type": "integer"
         }
       },
       "required": [
         "threadId",
-        "turnId",
-        "item"
+        "item",
+        "seq"
       ],
       "additionalProperties": false
+    },
+    "ItemKind": {
+      "type": "string",
+      "enum": [
+        "userMessage",
+        "agentMessage",
+        "reasoning",
+        "toolCall",
+        "agentReport",
+        "contextCompaction",
+        "memoryContext",
+        "error",
+        "notice"
+      ]
     },
     "ItemRow": {
       "type": "object",
@@ -1121,22 +1085,28 @@
         "turnId": {
           "type": "string"
         },
-        "turnSeq": {
-          "type": "integer"
-        },
         "seq": {
           "type": "integer"
         },
+        "updated": {
+          "type": "integer"
+        },
         "type": {
-          "$ref": "#/$defs/ItemType"
+          "$ref": "#/$defs/ItemKind"
         },
         "status": {
           "$ref": "#/$defs/ItemStatus"
         },
-        "callId": {
+        "text": {
           "type": "string"
         },
-        "launchItemId": {
+        "error": {
+          "type": "string"
+        },
+        "responseId": {
+          "type": "string"
+        },
+        "callId": {
           "type": "string"
         },
         "tool": {
@@ -1145,23 +1115,11 @@
         "server": {
           "type": "string"
         },
-        "responseId": {
+        "arguments": {
           "type": "string"
         },
-        "error": {
-          "type": "string"
-        },
-        "startedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "completedAt": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "format": "date-time"
-        },
+        "annotations": true,
+        "preparedExecution": true,
         "approval": {
           "anyOf": [
             {
@@ -1172,35 +1130,40 @@
             }
           ]
         },
-        "await": {
+        "input": {
           "anyOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "#/$defs/Await"
+              "$ref": "#/$defs/Input"
             }
           ]
         },
-        "annotations": {
+        "result": {
           "anyOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "#/$defs/Annotations"
+              "$ref": "#/$defs/Result"
             }
           ]
         },
-        "usage": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/Usage"
-            }
-          ]
+        "childThreadId": {
+          "type": "string"
+        },
+        "launchItemId": {
+          "type": "string"
+        },
+        "attachments": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "$ref": "#/$defs/Attachment"
+          }
         },
         "contextStats": {
           "anyOf": [
@@ -1221,47 +1184,23 @@
             "$ref": "#/$defs/MemoryReference"
           }
         },
-        "attachments": {
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
           "type": [
             "null",
-            "array"
+            "string"
           ],
-          "items": {
-            "$ref": "#/$defs/Attachment"
-          }
-        },
-        "text": {
-          "type": "string"
-        },
-        "arguments": {
-          "type": "string"
-        },
-        "preparedExecution": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/Prepared"
-            }
-          ]
-        },
-        "result": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/ToolResult"
-            }
-          ]
+          "format": "date-time"
         }
       },
       "required": [
         "id",
         "turnId",
-        "turnSeq",
         "seq",
+        "updated",
         "type",
         "status",
         "startedAt"
@@ -1278,36 +1217,135 @@
         "declined"
       ]
     },
-    "ItemType": {
+    "Kind": {
       "type": "string",
       "enum": [
-        "userMessage",
-        "agentMessage",
-        "reasoning",
-        "toolCall",
-        "contextCompaction",
-        "memoryContext",
-        "error",
-        "agentReport"
+        "preference",
+        "decision",
+        "fact",
+        "procedure"
       ]
     },
-    "Launch": {
+    "MCPServer": {
       "type": "object",
       "properties": {
-        "subagent": {
+        "name": {
           "type": "string"
         },
-        "description": {
+        "command": {
           "type": "string"
         },
-        "note": {
+        "args": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "url": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/MCPServerStatus"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "MCPServerChangedNotification": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "server": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/MCPServerConfig"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "server"
+      ],
+      "additionalProperties": false
+    },
+    "MCPServerConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "args": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "url": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "MCPServerDeleteParams": {
+      "type": "object",
+      "properties": {
+        "name": {
           "type": "string"
         }
       },
       "required": [
-        "subagent",
-        "description",
-        "note"
+        "name"
       ],
       "additionalProperties": false
     },
@@ -1317,7 +1355,7 @@
         "data": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/ServerStatus"
+            "$ref": "#/$defs/MCPServer"
           }
         }
       },
@@ -1326,11 +1364,43 @@
       ],
       "additionalProperties": false
     },
+    "MCPServerStatus": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "connected": {
+          "type": "boolean"
+        },
+        "tools": {
+          "type": "integer"
+        },
+        "skippedTools": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "connected",
+        "tools"
+      ],
+      "additionalProperties": false
+    },
     "MemoryFailure": {
       "type": "object",
       "properties": {
         "code": {
-          "$ref": "#/$defs/MemoryFailureCode"
+          "$ref": "#/$defs/FailureCode"
         },
         "error": {
           "type": "string"
@@ -1341,15 +1411,6 @@
         "error"
       ],
       "additionalProperties": false
-    },
-    "MemoryFailureCode": {
-      "type": "string",
-      "enum": [
-        "model_request",
-        "invalid_response",
-        "evidence",
-        "storage"
-      ]
     },
     "MemoryForgetParams": {
       "type": "object",
@@ -1367,7 +1428,7 @@
       "type": "object",
       "properties": {
         "scope": {
-          "$ref": "#/$defs/MemoryScope"
+          "$ref": "#/$defs/Scope"
         },
         "workspaceId": {
           "type": "string"
@@ -1418,7 +1479,7 @@
           "type": "string"
         },
         "scope": {
-          "$ref": "#/$defs/MemoryScope"
+          "type": "string"
         },
         "workspaceId": {
           "type": "string"
@@ -1428,34 +1489,6 @@
         "id",
         "text",
         "scope"
-      ],
-      "additionalProperties": false
-    },
-    "MemoryReport": {
-      "type": "object",
-      "properties": {
-        "model": {
-          "$ref": "#/$defs/Model"
-        },
-        "estimatedInputTokens": {
-          "type": "integer"
-        },
-        "inputTokens": {
-          "type": "integer"
-        },
-        "outputTokens": {
-          "type": "integer"
-        },
-        "usageReported": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "model",
-        "estimatedInputTokens",
-        "inputTokens",
-        "outputTokens",
-        "usageReported"
       ],
       "additionalProperties": false
     },
@@ -1478,7 +1511,7 @@
           "type": "string"
         },
         "scope": {
-          "$ref": "#/$defs/MemoryScope"
+          "$ref": "#/$defs/Scope"
         },
         "workspaceId": {
           "type": "string"
@@ -1490,13 +1523,13 @@
           "type": "string"
         },
         "kind": {
-          "type": "string"
+          "$ref": "#/$defs/Kind"
         },
         "text": {
           "type": "string"
         },
         "status": {
-          "$ref": "#/$defs/MemoryRowStatus"
+          "$ref": "#/$defs/Status"
         },
         "userEdited": {
           "type": "boolean"
@@ -1529,31 +1562,12 @@
       ],
       "additionalProperties": false
     },
-    "MemoryRowStatus": {
-      "type": "string",
-      "enum": [
-        "active",
-        "retired",
-        "forgotten"
-      ]
-    },
-    "MemoryScope": {
-      "type": "string",
-      "enum": [
-        "global",
-        "general",
-        "workspace"
-      ]
-    },
     "MemorySkip": {
       "type": "object",
       "properties": {
         "at": {
           "type": "string",
           "format": "date-time"
-        },
-        "entries": {
-          "type": "integer"
         },
         "threadId": {
           "type": "string"
@@ -1562,7 +1576,7 @@
           "type": "string"
         },
         "code": {
-          "$ref": "#/$defs/MemoryFailureCode"
+          "$ref": "#/$defs/FailureCode"
         },
         "error": {
           "type": "string"
@@ -1570,7 +1584,6 @@
       },
       "required": [
         "at",
-        "entries",
         "threadId",
         "turnId",
         "code",
@@ -1581,19 +1594,16 @@
     "MemorySource": {
       "type": "object",
       "properties": {
-        "table": {
+        "thread": {
           "type": "string"
         },
-        "id": {
-          "type": "string"
-        },
-        "occurredAt": {
+        "item": {
           "type": "string"
         }
       },
       "required": [
-        "table",
-        "id"
+        "thread",
+        "item"
       ],
       "additionalProperties": false
     },
@@ -1619,13 +1629,10 @@
     "MemoryStatus": {
       "type": "object",
       "properties": {
-        "generationEnabled": {
+        "enabled": {
           "type": "boolean"
         },
-        "useEnabled": {
-          "type": "boolean"
-        },
-        "pending": {
+        "unread": {
           "type": "integer"
         },
         "active": {
@@ -1670,22 +1677,11 @@
               "$ref": "#/$defs/MemorySkip"
             }
           ]
-        },
-        "lastReport": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/MemoryReport"
-            }
-          ]
         }
       },
       "required": [
-        "generationEnabled",
-        "useEnabled",
-        "pending",
+        "enabled",
+        "unread",
         "active",
         "skipped"
       ],
@@ -1713,7 +1709,7 @@
         "threadId": {
           "type": "string"
         },
-        "threadTitle": {
+        "title": {
           "type": "string"
         },
         "itemId": {
@@ -1726,7 +1722,7 @@
           "type": "integer"
         },
         "type": {
-          "$ref": "#/$defs/ItemType"
+          "$ref": "#/$defs/ItemKind"
         },
         "snippet": {
           "type": "string"
@@ -1738,7 +1734,7 @@
       },
       "required": [
         "threadId",
-        "threadTitle",
+        "title",
         "itemId",
         "turnId",
         "seq",
@@ -1887,7 +1883,7 @@
         "completed"
       ]
     },
-    "Prepared": {
+    "PreparedExecution": {
       "type": "object",
       "properties": {
         "cwd": {
@@ -2009,6 +2005,53 @@
       ],
       "additionalProperties": false
     },
+    "ResponseRow": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        },
+        "contextStats": {
+          "$ref": "#/$defs/ContextStats"
+        }
+      },
+      "required": [
+        "id",
+        "usage",
+        "contextStats"
+      ],
+      "additionalProperties": false
+    },
+    "Result": {
+      "type": "object",
+      "properties": {
+        "output": true,
+        "artifacts": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          }
+        }
+      },
+      "required": [
+        "output"
+      ],
+      "additionalProperties": false
+    },
+    "Scope": {
+      "type": "string",
+      "enum": [
+        "global",
+        "general",
+        "workspace"
+      ]
+    },
     "SearchParams": {
       "type": "object",
       "properties": {
@@ -2031,30 +2074,21 @@
       "type": "object",
       "properties": {
         "threads": {
-          "type": [
-            "null",
-            "array"
-          ],
+          "type": "array",
           "items": {
             "$ref": "#/$defs/ThreadRow"
           }
         },
         "messages": {
-          "type": [
-            "null",
-            "array"
-          ],
+          "type": "array",
           "items": {
             "$ref": "#/$defs/MessageHit"
           }
         },
         "tasks": {
-          "type": [
-            "null",
-            "array"
-          ],
+          "type": "array",
           "items": {
-            "$ref": "#/$defs/CronJobView"
+            "$ref": "#/$defs/CronJobRow"
           }
         },
         "memories": {
@@ -2091,35 +2125,18 @@
       ],
       "additionalProperties": false
     },
-    "ServerStatus": {
+    "SettingsPermissionsParams": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string"
+        "approvalPolicy": {
+          "$ref": "#/$defs/ApprovalPolicy"
         },
-        "connected": {
-          "type": "boolean"
-        },
-        "tools": {
-          "type": "integer"
-        },
-        "skippedTools": {
-          "type": [
-            "null",
-            "array"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "error": {
-          "type": "string"
+        "permissions": {
+          "$ref": "#/$defs/PermissionRules"
         }
       },
       "required": [
-        "name",
-        "connected",
-        "tools"
+        "permissions"
       ],
       "additionalProperties": false
     },
@@ -2128,10 +2145,22 @@
       "properties": {
         "redaction": {
           "type": "boolean"
+        },
+        "memory": {
+          "type": "boolean"
+        },
+        "learn": {
+          "type": "boolean"
+        },
+        "permissions": {
+          "$ref": "#/$defs/PermissionSettings"
         }
       },
       "required": [
-        "redaction"
+        "redaction",
+        "memory",
+        "learn",
+        "permissions"
       ],
       "additionalProperties": false
     },
@@ -2143,12 +2172,29 @@
             "null",
             "boolean"
           ]
+        },
+        "memory": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        },
+        "learn": {
+          "type": [
+            "null",
+            "boolean"
+          ]
         }
       },
-      "required": [
-        "redaction"
-      ],
       "additionalProperties": false
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "retired",
+        "forgotten"
+      ]
     },
     "SubagentCall": {
       "type": "object",
@@ -2172,13 +2218,25 @@
       ],
       "additionalProperties": false
     },
-    "Submission": {
-      "type": "string",
-      "enum": [
-        "started",
-        "queued",
-        "joined"
-      ]
+    "SubagentLaunched": {
+      "type": "object",
+      "properties": {
+        "subagent": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "subagent",
+        "description",
+        "note"
+      ],
+      "additionalProperties": false
     },
     "ThreadArchiveParams": {
       "type": "object",
@@ -2214,11 +2272,15 @@
               "$ref": "#/$defs/ThreadRow"
             }
           ]
+        },
+        "seq": {
+          "type": "integer"
         }
       },
       "required": [
         "threadId",
-        "thread"
+        "thread",
+        "seq"
       ],
       "additionalProperties": false
     },
@@ -2256,7 +2318,7 @@
       ],
       "additionalProperties": false
     },
-    "ThreadFilter": {
+    "ThreadListParams": {
       "type": "object",
       "properties": {
         "workspaceId": {
@@ -2290,7 +2352,7 @@
         "data": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/ThreadSummary"
+            "$ref": "#/$defs/ThreadRow"
           }
         },
         "hasMore": {
@@ -2351,6 +2413,9 @@
             "$ref": "#/$defs/ItemRow"
           }
         },
+        "seq": {
+          "type": "integer"
+        },
         "hasMore": {
           "type": "boolean"
         }
@@ -2359,6 +2424,7 @@
         "thread",
         "turns",
         "items",
+        "seq",
         "hasMore"
       ],
       "additionalProperties": false
@@ -2434,6 +2500,9 @@
         "parentItemId": {
           "type": "string"
         },
+        "status": {
+          "$ref": "#/$defs/ThreadStatus"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -2468,6 +2537,7 @@
         "id",
         "title",
         "settings",
+        "status",
         "createdAt",
         "updatedAt"
       ],
@@ -2484,17 +2554,8 @@
         },
         "title": {
           "type": "string"
-        },
-        "approvalPolicy": {
-          "$ref": "#/$defs/ApprovalPolicy"
-        },
-        "permissions": {
-          "$ref": "#/$defs/PermissionRules"
         }
       },
-      "required": [
-        "permissions"
-      ],
       "additionalProperties": false
     },
     "ThreadStatus": {
@@ -2505,89 +2566,6 @@
         "waitingOnApproval",
         "waitingOnUserInput"
       ]
-    },
-    "ThreadStatusNotification": {
-      "type": "object",
-      "properties": {
-        "threadId": {
-          "type": "string"
-        },
-        "status": {
-          "$ref": "#/$defs/ThreadStatus"
-        }
-      },
-      "required": [
-        "threadId",
-        "status"
-      ],
-      "additionalProperties": false
-    },
-    "ThreadSummary": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "workspaceId": {
-          "type": "string"
-        },
-        "environmentId": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "settings": {
-          "$ref": "#/$defs/PermissionSettings"
-        },
-        "parentThreadId": {
-          "type": "string"
-        },
-        "parentItemId": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "archivedAt": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "format": "date-time"
-        },
-        "repliedAt": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "format": "date-time"
-        },
-        "readAt": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "format": "date-time"
-        },
-        "status": {
-          "$ref": "#/$defs/ThreadStatus"
-        }
-      },
-      "required": [
-        "id",
-        "title",
-        "settings",
-        "createdAt",
-        "updatedAt",
-        "status"
-      ],
-      "additionalProperties": false
     },
     "ToolDescriptor": {
       "type": "object",
@@ -2633,20 +2611,24 @@
       ],
       "additionalProperties": false
     },
-    "ToolResult": {
+    "TurnChangedNotification": {
       "type": "object",
       "properties": {
-        "output": true,
-        "artifacts": {
-          "type": [
-            "null",
-            "array"
-          ],
-          "items": {
-            "$ref": "#/$defs/ContextArtifact"
-          }
+        "threadId": {
+          "type": "string"
+        },
+        "turn": {
+          "$ref": "#/$defs/TurnRow"
+        },
+        "seq": {
+          "type": "integer"
         }
       },
+      "required": [
+        "threadId",
+        "turn",
+        "seq"
+      ],
       "additionalProperties": false
     },
     "TurnInterruptParams": {
@@ -2665,39 +2647,15 @@
       ],
       "additionalProperties": false
     },
-    "TurnNotification": {
-      "type": "object",
-      "properties": {
-        "threadId": {
-          "type": "string"
-        },
-        "thread": {
-          "$ref": "#/$defs/ThreadRow"
-        },
-        "turn": {
-          "$ref": "#/$defs/TurnRow"
-        }
-      },
-      "required": [
-        "threadId",
-        "thread",
-        "turn"
-      ],
-      "additionalProperties": false
-    },
     "TurnResult": {
       "type": "object",
       "properties": {
         "turn": {
           "$ref": "#/$defs/TurnRow"
-        },
-        "submission": {
-          "$ref": "#/$defs/Submission"
         }
       },
       "required": [
-        "turn",
-        "submission"
+        "turn"
       ],
       "additionalProperties": false
     },
@@ -2709,9 +2667,6 @@
         },
         "threadId": {
           "type": "string"
-        },
-        "seq": {
-          "type": "integer"
         },
         "status": {
           "$ref": "#/$defs/TurnStatus"
@@ -2725,17 +2680,22 @@
         "usage": {
           "$ref": "#/$defs/Usage"
         },
+        "responses": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "$ref": "#/$defs/ResponseRow"
+          }
+        },
         "error": {
           "type": "string"
         },
         "cronJobId": {
           "type": "string"
         },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "startedAt": {
+        "queuedAt": {
           "type": "string",
           "format": "date-time"
         },
@@ -2750,13 +2710,12 @@
       "required": [
         "id",
         "threadId",
-        "seq",
         "status",
         "model",
         "agent",
         "usage",
-        "createdAt",
-        "startedAt"
+        "responses",
+        "queuedAt"
       ],
       "additionalProperties": false
     },
@@ -2788,14 +2747,11 @@
     "TurnStatus": {
       "type": "string",
       "enum": [
-        "ready",
+        "queued",
         "inProgress",
-        "waitingOnApproval",
-        "waitingOnUserInput",
-        "waitingOnAgent",
         "completed",
-        "interrupted",
-        "failed"
+        "failed",
+        "interrupted"
       ]
     },
     "TurnSteerParams": {
@@ -3192,7 +3148,7 @@
         "$ref": "#/$defs/CronCreateParams"
       },
       "result": {
-        "$ref": "#/$defs/CronJobRow"
+        "$ref": "#/$defs/CronResult"
       }
     },
     "cron/delete": {
@@ -3216,7 +3172,7 @@
         "$ref": "#/$defs/CronPauseParams"
       },
       "result": {
-        "$ref": "#/$defs/CronJobRow"
+        "$ref": "#/$defs/CronResult"
       }
     },
     "environment/add": {
@@ -3232,7 +3188,7 @@
         "$ref": "#/$defs/EnvironmentDeleteParams"
       },
       "result": {
-        "$ref": "#/$defs/EnvironmentResult"
+        "$ref": "#/$defs/Empty"
       }
     },
     "environment/list": {
@@ -3259,12 +3215,28 @@
         "$ref": "#/$defs/InitializeResult"
       }
     },
+    "mcpServer/delete": {
+      "params": {
+        "$ref": "#/$defs/MCPServerDeleteParams"
+      },
+      "result": {
+        "$ref": "#/$defs/Empty"
+      }
+    },
     "mcpServer/list": {
       "params": {
         "$ref": "#/$defs/Empty"
       },
       "result": {
         "$ref": "#/$defs/MCPServerListResult"
+      }
+    },
+    "mcpServer/set": {
+      "params": {
+        "$ref": "#/$defs/MCPServerConfig"
+      },
+      "result": {
+        "$ref": "#/$defs/MCPServerConfig"
       }
     },
     "memory/forget": {
@@ -3339,6 +3311,14 @@
         "$ref": "#/$defs/SettingsRow"
       }
     },
+    "settings/updatePermissions": {
+      "params": {
+        "$ref": "#/$defs/SettingsPermissionsParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SettingsRow"
+      }
+    },
     "thread/archive": {
       "params": {
         "$ref": "#/$defs/ThreadArchiveParams"
@@ -3357,7 +3337,7 @@
     },
     "thread/list": {
       "params": {
-        "$ref": "#/$defs/ThreadFilter"
+        "$ref": "#/$defs/ThreadListParams"
       },
       "result": {
         "$ref": "#/$defs/ThreadListResult"
@@ -3505,17 +3485,17 @@
     "item/agentMessage/delta": {
       "$ref": "#/$defs/DeltaNotification"
     },
-    "item/completed": {
-      "$ref": "#/$defs/ItemNotification"
+    "item/changed": {
+      "$ref": "#/$defs/ItemChangedNotification"
     },
     "item/reasoning/textDelta": {
       "$ref": "#/$defs/DeltaNotification"
     },
-    "item/started": {
-      "$ref": "#/$defs/ItemNotification"
+    "mcpServer/changed": {
+      "$ref": "#/$defs/MCPServerChangedNotification"
     },
-    "item/updated": {
-      "$ref": "#/$defs/ItemNotification"
+    "memory/changed": {
+      "$ref": "#/$defs/MemoryResult"
     },
     "settings/changed": {
       "$ref": "#/$defs/SettingsRow"
@@ -3523,20 +3503,8 @@
     "thread/changed": {
       "$ref": "#/$defs/ThreadChangedNotification"
     },
-    "thread/started": {
-      "$ref": "#/$defs/ThreadResult"
-    },
-    "thread/status/changed": {
-      "$ref": "#/$defs/ThreadStatusNotification"
-    },
-    "turn/completed": {
-      "$ref": "#/$defs/TurnNotification"
-    },
-    "turn/queued": {
-      "$ref": "#/$defs/TurnNotification"
-    },
-    "turn/started": {
-      "$ref": "#/$defs/TurnNotification"
+    "turn/changed": {
+      "$ref": "#/$defs/TurnChangedNotification"
     },
     "workspace/changed": {
       "$ref": "#/$defs/WorkspaceResult"
@@ -3577,6 +3545,7 @@
     "-32015": "threadArchived",
     "-32016": "threadBusy",
     "-32017": "searchTimedOut",
+    "-32018": "refused",
     "-32600": "invalidRequest",
     "-32601": "methodNotFound",
     "-32602": "invalidParams",
@@ -3637,7 +3606,7 @@
         "$ref": "#/$defs/SubagentCall"
       },
       "output": {
-        "$ref": "#/$defs/Launch"
+        "$ref": "#/$defs/SubagentLaunched"
       }
     },
     "edit_file": {
@@ -3650,7 +3619,7 @@
         "$ref": "#/$defs/SubagentCall"
       },
       "output": {
-        "$ref": "#/$defs/Launch"
+        "$ref": "#/$defs/SubagentLaunched"
       }
     },
     "glob": {

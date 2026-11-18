@@ -2,6 +2,8 @@ package config
 
 // Template is written to <home>/config.yaml on first start.
 const Template = `# Ollupi desktop backend. Restart the backend from the app after editing.
+# Permissions, MCP servers, and whether memory is on and learns are set in
+# the app.
 name: ollupi
 
 # Empty uses ollupi's default system prompt.
@@ -47,13 +49,6 @@ models:
   #     - name: qwen3:32b
   #       limits: { context: 40960, output: 8192 }
 
-# Agent-level permissions; workspaces and threads add rules on top.
-permissions:
-  approval: on-request # untrusted | on-request | never
-  allow: []
-  ask: []
-  deny: []
-
 # How many threads may run at once (default 32).
 # slots: 32
 
@@ -64,28 +59,15 @@ workspace:
   command_timeout_sec: 60
   network: false
 
-# MCP servers: a command run over stdio, or an HTTP URL. Their tools appear
-# as <name>__<tool>; a server that cannot start is skipped. Write secrets in
-# env and header values as ${NAME}, a variable from your login shell; a
-# command also inherits that environment.
-# mcp:
-#   - name: filesystem
-#     command: npx
-#     args: [-y, "@modelcontextprotocol/server-filesystem", /path/to/dir]
-#   - name: github
-#     url: https://api.githubcopilot.com/mcp/
-#     headers: { Authorization: "Bearer ${GITHUB_TOKEN}" }
-
 # Agent Skills: a folder holding one folder per skill, each with a SKILL.md,
 # relative to this file's folder. Leave it out to turn skills off.
 skills_dir: skills
 
-# Learning extracts memories from finished turns with one of the models
-# above (provider/name), sharing its calls; recall puts them in context.
-memory:
-  use: true
-  generate: false
-  # model: openai/gpt-5.2
+# The model (provider/name, one of those above) that learns memories from
+# finished turns, sharing its calls, while memory and learning are on in the
+# app. Leave it out to learn none.
+# memory:
+#   model: openai/gpt-5.2
 
 # A Feishu bot to drive sessions from your phone: a self-built app with
 # events and card callbacks received over a long connection. Message it

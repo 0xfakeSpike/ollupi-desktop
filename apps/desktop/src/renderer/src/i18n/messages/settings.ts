@@ -20,6 +20,10 @@ export const en = {
         label: 'Models',
         description: 'The services you have a key for, and the models from each that it can use.',
       },
+      permissions: {
+        label: 'Permissions',
+        description: 'What the agent may do without asking you, in every conversation. A workspace and a conversation can set their own on top. Applies from its next call.',
+      },
       redaction: {
         label: 'Redaction',
         description:
@@ -175,13 +179,12 @@ export const en = {
 
   mcp: {
     renamed: 'Its tools are named <name>__<tool>, so permission rules that name the old tools must change too.',
-    stale: 'config.yaml lists different MCP servers than the backend started with.',
     empty: 'No MCP servers yet.',
     confirmRemove: (name: string) => `Remove the MCP server ${name}? Its tools go with it.`,
     addServer: 'Add server',
     refreshStatus: 'Refresh status',
     card: {
-      notStarted: 'not started',
+      notStarted: 'starts when needed',
       connected: (n: number) => `connected · ${n} ${n === 1 ? 'tool' : 'tools'}`,
       notConnected: 'not connected',
       headers: 'Headers',
@@ -190,14 +193,13 @@ export const en = {
       remove: (name: string) => `Remove ${name}`,
       skipped: (names: ReactNode): ReactNode => join('Not offered, since the model API refuses their names once prefixed: ', names),
     },
-    /** Shown in place of a value the app was not given. */
-    written: '(written in config.yaml)',
     lineFormat: (sep: string) => `Write each line as name${sep}value.`,
     listedTwice: (key: string) => `${key} is listed twice.`,
     dialog: {
       editTitle: (name: string) => `Edit ${name}`,
       addTitle: 'Add MCP server',
-      secrets: 'Write a secret as ${NAME}, a variable exported in ~/.zshrc; the backend checks it is set.',
+      secrets: 'Values are kept as written, a secret among them, and sent to the server as they are.',
+      save: 'Save',
       name: 'Name',
       nameHint: (name: string) => `Its tools are offered as ${name}__<tool>.`,
       namePlaceholder: 'name',
@@ -209,7 +211,7 @@ export const en = {
       args: 'Arguments',
       argsHint: 'One per line.',
       env: 'Environment',
-      envHint: (secrets: string) => `KEY=value per line. The command also inherits the backend's environment. ${secrets}`,
+      envHint: (secrets: string) => `KEY=value per line. The command also inherits the backend's environment, the variables exported in ~/.zshrc among them. ${secrets}`,
       url: 'URL',
       headers: 'Headers',
       headersHint: (secrets: string) => `Name: value per line, sent with every request. ${secrets}`,
@@ -256,7 +258,8 @@ export const en = {
     rulesPlaceholder: 'run_command(git:*)',
     save: 'Save permissions',
     fromWorkspace: 'the workspace',
-    fromAgent: 'the agent defaults',
+    fromAgent: 'Settings → Permissions',
+    fromOllupi: 'Ollupi’s default, asking on what matters',
     thread: {
       title: 'Thread permissions',
       intro: 'Layered over the workspace and agent defaults. A running turn uses them from its next batch of calls.',
@@ -287,6 +290,10 @@ export const zh: typeof en = {
       models: {
         label: '模型',
         description: '你有密钥的模型服务，以及它能用的每家的模型。',
+      },
+      permissions: {
+        label: '权限',
+        description: 'agent 在所有会话里哪些事可以不问你就做。工作区和会话可以在它之上再设自己的。从下一次调用起生效。',
       },
       redaction: {
         label: '脱敏',
@@ -441,13 +448,12 @@ export const zh: typeof en = {
 
   mcp: {
     renamed: '其工具名为 <name>__<tool>，因此指定旧工具名的权限规则也需要修改。',
-    stale: 'config.yaml 中的 MCP 服务器与后端启动时的不同。',
     empty: '还没有 MCP 服务器。',
     confirmRemove: (name) => `删除 MCP 服务器 ${name}？它的工具也会一并移除。`,
     addServer: '添加服务器',
     refreshStatus: '刷新状态',
     card: {
-      notStarted: '未启动',
+      notStarted: '用到时启动',
       connected: (n) => `已连接 · ${n} 个工具`,
       notConnected: '未连接',
       headers: 'Headers',
@@ -456,13 +462,13 @@ export const zh: typeof en = {
       remove: (name) => `删除 ${name}`,
       skipped: (names) => join('未提供，因为加上前缀后模型 API 不接受这些名字：', names),
     },
-    written: '（写在 config.yaml 中）',
     lineFormat: (sep) => `每行写成 name${sep}value。`,
     listedTwice: (key) => `${key} 出现了两次。`,
     dialog: {
       editTitle: (name) => `编辑 ${name}`,
       addTitle: '添加 MCP 服务器',
-      secrets: '密钥写成 ${NAME}，即在 ~/.zshrc 中 export 的变量；后端会检查它是否已设置。',
+      secrets: '值按写的保存（密钥也是），原样发给服务器。',
+      save: '保存',
       name: '名称',
       nameHint: (name) => `其工具以 ${name}__<tool> 的名字提供。`,
       namePlaceholder: 'name',
@@ -474,7 +480,7 @@ export const zh: typeof en = {
       args: '参数',
       argsHint: '每行一个。',
       env: '环境变量',
-      envHint: (secrets) => `每行一个 KEY=value。命令也会继承后端的环境变量。${secrets}`,
+      envHint: (secrets) => `每行一个 KEY=value。命令也会继承后端的环境变量，包括 ~/.zshrc 中 export 的。${secrets}`,
       url: 'URL',
       headers: 'Headers',
       headersHint: (secrets) => `每行一个 Name: value，随每个请求发送。${secrets}`,
@@ -507,7 +513,8 @@ export const zh: typeof en = {
     rulesPlaceholder: 'run_command(git:*)',
     save: '保存权限',
     fromWorkspace: '工作区',
-    fromAgent: 'agent 默认设置',
+    fromAgent: '设置 → 权限',
+    fromOllupi: 'Ollupi 的默认：重要的事先问',
     thread: {
       title: '会话权限',
       intro: '叠加在工作区和 agent 默认设置之上。正在进行的轮次从下一批调用起使用它们。',

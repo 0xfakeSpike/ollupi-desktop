@@ -14,20 +14,21 @@ const words: MarkdownWords = {
   stopped: 'Stopped',
 }
 
-const thread: ThreadRow = { id: 'th', title: 'Fix the build', settings: { permissions: {} }, createdAt: '', updatedAt: '' }
+const thread: ThreadRow = { id: 'th', title: 'Fix the build', settings: { permissions: {} }, status: 'idle', createdAt: '', updatedAt: '' }
 const usage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 }
-const turn = (id: string, seq: number, status: TurnRow['status'], error?: string): TurnRow =>
-  ({ id, threadId: 'th', seq, status, model: { name: 'm', connection: 'p/m' }, usage, startedAt: '', ...(error && { error }) }) as TurnRow
+const turn = (id: string, status: TurnRow['status'], error?: string): TurnRow =>
+  ({ id, threadId: 'th', status, model: { name: 'm', connection: 'p/m' }, agent: 'full-main-agent', usage, queuedAt: '', ...(error && { error }) }) as TurnRow
 const item = (id: string, turnId: string, seq: number, fields: Partial<ItemRow>): ItemRow =>
-  ({ id, turnId, seq, type: 'agentMessage', status: 'completed', startedAt: '', ...fields }) as ItemRow
+  ({ id, turnId, seq, updated: seq, type: 'agentMessage', status: 'completed', startedAt: '', ...fields }) as ItemRow
 
 describe('threadMarkdown', () => {
   it('writes who said what, a line per call, and how a turn ended', () => {
     const md = threadMarkdown(
       {
         thread,
+        seq: 9,
         hasMore: false,
-        turns: [turn('t1', 1, 'completed'), turn('t2', 2, 'failed', 'rate limited')],
+        turns: [turn('t1', 'completed'), turn('t2', 'failed', 'rate limited')],
         items: [
           item('u1', 't1', 1, { type: 'userMessage', text: 'Why does `go build` fail?', attachments: [{ id: 'a', kind: 'file', name: 'log.txt', mimeType: 'text/plain', size: 3, file: 'a.txt', tokens: 1 }] }),
           item('r1', 't1', 2, { type: 'reasoning', text: 'thinking out loud' }),

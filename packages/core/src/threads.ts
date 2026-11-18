@@ -1,10 +1,10 @@
-// The sidebar's thread list follows thread/list (repo.ThreadRows): only
+// The sidebar's thread list follows thread/list (store.Threads): only
 // top-level threads that are not archived, ordered by updated_at, then
-// created_at, then id, newest first, a page at a time. Live updates must keep that, since
-// thread/started also announces the threads subagents run in, and
-// thread/changed the threads archived or deleted.
+// created_at, then id, newest first, a page at a time. Live updates must
+// keep that, since thread/changed also announces the threads subagents run
+// in, and the threads archived or deleted.
 
-import type { ThreadCursor, ThreadRow, ThreadStatus, ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
+import type { ThreadCursor, ThreadRow, ThreadStatus, WorkspaceRow } from '@ollupi/protocol'
 
 export function isTopLevel(thread: Pick<ThreadRow, 'parentThreadId'>): boolean {
   return !thread.parentThreadId
@@ -19,19 +19,14 @@ export function threadCursor(t: ThreadRow): ThreadCursor {
   return { updatedAt: t.updatedAt, createdAt: t.createdAt, id: t.id }
 }
 
-/** Inserts or refreshes a top-level thread, or drops it once archived. Its
- * status comes from thread/status/changed, so a known one is kept when only
- * the row changed; a thread seen for the first time without one is idle
- * (thread/start). */
-export function upsertThread(list: readonly ThreadSummary[], thread: ThreadRow, status?: ThreadStatus): ThreadSummary[] {
+/** Inserts or refreshes a top-level thread, or drops it once archived. */
+export function upsertThread(list: readonly ThreadRow[], thread: ThreadRow): ThreadRow[] {
   if (!isTopLevel(thread)) return list.slice()
   if (thread.archivedAt) return removeThread(list, thread.id)
-  const known = list.find((t) => t.id === thread.id)
-  const next: ThreadSummary = { ...thread, status: status ?? known?.status ?? 'idle' }
-  return [...list.filter((t) => t.id !== thread.id), next].sort(compareThreads)
+  return [...list.filter((t) => t.id !== thread.id), thread].sort(compareThreads)
 }
 
-export function removeThread(list: readonly ThreadSummary[], threadId: string): ThreadSummary[] {
+export function removeThread(list: readonly ThreadRow[], threadId: string): ThreadRow[] {
   return list.filter((t) => t.id !== threadId)
 }
 
@@ -48,15 +43,7 @@ export function titleFromMessage(text: string, attachmentNames: readonly string[
   return chars.length > TITLE_FROM_MESSAGE ? chars.slice(0, TITLE_FROM_MESSAGE).join('').trimEnd() + '…' : line
 }
 
-export function setThreadStatus(list: readonly ThreadSummary[], threadId: string, status: ThreadStatus): ThreadSummary[] {
-  return list.map((t) => (t.id === threadId ? { ...t, status } : t))
-}
-
-/** agent.threadStatus: idle without an inProgress turn; while one exists,
- * waitingOn* when this thread, or a subagent thread it waits on, has a
- * request pending, else active (running, waiting for a slot or for a
- * subagent). So a waiting parent's request may live in a child thread. */
-/** repo.ThreadRow.Unread: a turn ended after the user last read the thread
+/** ThreadRow.Unread: a turn ended after the user last read the thread
  * (thread/markRead). The times are parsed, as their fractions of a second
  * differ in length. */
 export function unread(thread: Pick<ThreadRow, 'repliedAt' | 'readAt'>): boolean {
@@ -74,7 +61,7 @@ export function isWorking(status: ThreadStatus | undefined): boolean {
 
 export interface WorkspaceGroup {
   workspace: WorkspaceRow | undefined
-  threads: ThreadSummary[]
+  threads: ThreadRow[]
 }
 
 /** Threads under each active workspace, then those outside any workspace.
@@ -86,7 +73,7 @@ export interface WorkspaceGroup {
  * Threads keep thread/list's order, newest first. The order is the
  * sidebar's alone: the list itself stays thread/list's, as its last thread
  * is where the next page starts. */
-export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: readonly ThreadSummary[]): WorkspaceGroup[] {
+export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: readonly ThreadRow[]): WorkspaceGroup[] {
   const groups: WorkspaceGroup[] = workspaces
     .filter((w) => !w.archivedAt)
     .map((workspace) => ({ workspace, threads: waitingFirst(threads.filter((t) => t.workspaceId === workspace.id)) }))
@@ -105,6 +92,6 @@ function lastActivity(g: WorkspaceGroup): number {
   return times.length ? Math.max(...times) : -Infinity
 }
 
-function waitingFirst(threads: ThreadSummary[]): ThreadSummary[] {
+function waitingFirst(threads: ThreadRow[]): ThreadRow[] {
   return [...threads.filter((t) => needsUser(t.status)), ...threads.filter((t) => !needsUser(t.status))]
 }

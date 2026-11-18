@@ -2,7 +2,7 @@
 // Items are drawn by ItemView; a turn reads as core's layoutTurn: the
 // person's words, the process (Process) and the answer.
 
-import { groupByTurn, layoutTurn, queuedTurns, summarizeProcess, turnActive, turnMessages, type Timeline, type TurnGroup, type TurnPart } from '@ollupi/core'
+import { groupByTurn, layoutTurn, queuedTurns, summarizeProcess, turnActive, turnMessages, turnStartedAt, type Timeline, type TurnGroup, type TurnPart } from '@ollupi/core'
 import type { ItemRow, TurnRow } from '@ollupi/protocol'
 import { Button, Callout, EmptyState } from '@ollupi/ui'
 import { CalendarClock, Clock, RotateCcw, Square } from 'lucide-react'
@@ -48,7 +48,7 @@ export function TimelineView({ timeline }: { timeline: Timeline }) {
           </EmptyState>
         )}
         {groups.map((g, i) => (
-          <TurnSection key={g.turn.id} group={g} jobName={jobNames(g.turn)} latest={latest} last={i === groups.length - 1 && queued.length === 0 && !timeline.thread.archivedAt && !timeline.thread.parentThreadId} />
+          <TurnSection key={g.turn.id} group={g} startedAt={turnStartedAt(timeline, g.turn)} jobName={jobNames(g.turn)} latest={latest} last={i === groups.length - 1 && queued.length === 0 && !timeline.thread.archivedAt && !timeline.thread.parentThreadId} />
         ))}
         {queued.map((t) => (
           <QueuedTurn key={t.id} turn={t} messages={turnMessages(timeline, t.id)} jobName={jobNames(t)} />
@@ -104,7 +104,7 @@ function LoadOlder({ threadId }: { threadId: string }) {
   )
 }
 
-function TurnSection({ group, jobName, latest, last }: { group: TurnGroup; jobName: string | undefined; latest: string | undefined; last: boolean }) {
+function TurnSection({ group, startedAt, jobName, latest, last }: { group: TurnGroup; startedAt: string | undefined; jobName: string | undefined; latest: string | undefined; last: boolean }) {
   const { turn, items } = group
   const parts = useMemo(() => layoutTurn(items), [items])
   const ended = !turnActive(turn.status)
@@ -131,7 +131,7 @@ function TurnSection({ group, jobName, latest, last }: { group: TurnGroup; jobNa
           </div>
         ),
       )}
-      <TurnOutcome turn={turn} messages={turnMessages(group, turn.id)} retry={last} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
+      <TurnOutcome turn={turn} startedAt={startedAt} messages={turnMessages(group, turn.id)} retry={last} copy={answer ? <CopyButton text={answer} label={m.conversation.timeline.copyAnswer} /> : null} />
     </section>
   )
 }
@@ -155,7 +155,7 @@ function ScheduledBy({ name }: { name: string }) {
 
 /** How the turn ended, led by the copy button for its answer when it has one.
  * The thread's last turn, when it failed, can be sent again. */
-function TurnOutcome({ turn, messages, copy, retry }: { turn: TurnRow; messages: ItemRow[]; copy: ReactNode; retry: boolean }) {
+function TurnOutcome({ turn, startedAt, messages, copy, retry }: { turn: TurnRow; startedAt: string | undefined; messages: ItemRow[]; copy: ReactNode; retry: boolean }) {
   const m = useT()
   // The 24px button keeps to the line's height and its icon to the column's edge.
   const lead = copy && <span className="-my-1 -ml-1.5 flex">{copy}</span>
@@ -188,7 +188,7 @@ function TurnOutcome({ turn, messages, copy, retry }: { turn: TurnRow; messages:
       )
     case 'completed': {
       const usage = usageLine(m, turn.usage)
-      const facts = [turn.model.connection, turn.completedAt && duration(m, turn.startedAt, turn.completedAt), usage].filter(Boolean)
+      const facts = [turn.model.connection, startedAt && turn.completedAt && duration(m, startedAt, turn.completedAt), usage].filter(Boolean)
       // Which model, how long, how much: one step further, shown while the
       // turn is pointed at or focused (PRODUCT.md, principle 0).
       return (
@@ -201,11 +201,8 @@ function TurnOutcome({ turn, messages, copy, retry }: { turn: TurnRow; messages:
         </div>
       )
     }
-    case 'ready':
+    case 'queued':
     case 'inProgress':
-    case 'waitingOnApproval':
-    case 'waitingOnUserInput':
-    case 'waitingOnAgent':
       return null
   }
 }

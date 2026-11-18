@@ -7,10 +7,12 @@ import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi
 import { Badge, Button, ClampText, Details, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCheckedConfig } from '../../domains/backendConfig'
 import { openThread } from '../../domains/conversation'
-import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type MemoryScopes } from '../../domains/memory'
+import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type Scopes } from '../../domains/memory'
 import { shownResult, useSearch } from '../../domains/search'
-import { useThreadSummary } from '../../domains/threads'
+import { useSettings } from '../../domains/settings'
+import { useThreadRow } from '../../domains/threads'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { useLocale, useT, type Messages } from '../../i18n'
@@ -31,8 +33,9 @@ function placesOf(m: Messages, workspaces: { id: string; name: string }[]): { pl
 export function MemoryScreen({ found }: { found?: { id: string; scope: string } }) {
   const m = useT()
   const workspaces = useWorkspaces((s) => s.list)
+  const config = useCheckedConfig()
   const [scope, setScope] = useState(found?.scope ?? 'global')
-  const [data, setData] = useState<{ status: MemoryStatus; scopes: MemoryScopes }>()
+  const [data, setData] = useState<{ status: MemoryStatus; scopes: Scopes }>()
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState(0)
   // A workspace's search also finds global memories; the list keeps this tab's.
@@ -110,8 +113,8 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
         <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
             {/* The switches are the app's, not a scope's: shown once, on Global. */}
-            {scope === 'global' && <MemorySettings status={data?.status} />}
-            {data && <StatusLine status={data.status} />}
+            {scope === 'global' && <MemorySettings config={config} />}
+            {data && <StatusLine status={data.status} learning={!!config.checked?.config.memory?.model} />}
             <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
               <Search size={14} className="shrink-0 text-fg-subtle" />
               <input
@@ -160,18 +163,19 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   )
 }
 
-/** How many memories there are, and, while learning is on, how it is
- * going. The switches above already say whether learning and use are on;
- * while learning is off nothing is retried, so its old failures and skips
- * are not news and stay out of sight. */
-function StatusLine({ status }: { status: MemoryStatus }) {
+/** How many memories there are, and, while learning is on (memory and
+ * learning on, and a model to learn with), how it is going. The settings above already say
+ * whether it is; while it is off nothing is retried, so its old failures
+ * and skips are not news and stay out of sight. */
+function StatusLine({ status, learning: withModel }: { status: MemoryStatus; learning: boolean }) {
   const m = useT()
-  const learning = status.generationEnabled
+  const learn = useSettings((s) => s.settings?.learn)
+  const learning = status.enabled && !!learn && withModel
   return (
     <div className="flex flex-col gap-1.5 text-small text-fg-muted">
       <p>
         {m.memory.status.active(status.active)}
-        {learning && status.pending > 0 && <span> · {m.memory.status.pending(status.pending)}</span>}
+        {learning && status.unread > 0 && <span> · {m.memory.status.pending(status.unread)}</span>}
       </p>
       {learning && status.lastFailure && <FailureLine failure={status.lastFailure} attempts={status.attempts ?? 0} nextAttempt={status.nextAttempt} />}
       {learning && status.skipped > 0 && <SkipLine skipped={status.skipped} skip={status.lastSkip} />}
@@ -208,12 +212,12 @@ function SkipLine({ skipped, skip }: { skipped: number; skip?: MemorySkip | null
   const m = useT()
   const s = m.memory.status
   const locale = useLocale((l) => l.locale)
-  const thread = useThreadSummary(skip?.threadId)
+  const thread = useThreadRow(skip?.threadId)
   if (!skip) return <p>{s.skipped(skipped)}</p>
   return (
     <Details summary={s.skipped(skipped)}>
       <div className="mt-1 flex flex-col gap-0.5 pl-3 text-fg-subtle">
-        <span title={new Date(skip.at).toLocaleString(locale)}>{s.lastSkip(relativeTime(m, locale, skip.at), skip.entries)}</span>
+        <span title={new Date(skip.at).toLocaleString(locale)}>{s.lastSkip(relativeTime(m, locale, skip.at))}</span>
         <span>
           {s.skipIn}{' '}
           <button type="button" className="text-fg-muted hover:text-fg hover:underline" onClick={() => void openThread(skip.threadId)}>

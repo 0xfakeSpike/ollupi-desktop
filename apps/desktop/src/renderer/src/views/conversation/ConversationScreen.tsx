@@ -1,11 +1,11 @@
-import { activeTurn, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
+import { activeTurn, lastConnection, needsUser, waitingFor, waitsForSubagents, type Timeline } from '@ollupi/core'
 import { Badge, Button, cn, IconButton, Loader, useTooltip } from '@ollupi/ui'
 import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud } from 'lucide-react'
-import { useAgentPolicy } from '../../domains/backendConfig'
+import { useUserPolicy } from '../../domains/settings'
 import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
 import { openPanel, useNavigation } from '../../domains/navigation'
-import { archiveThread, renameThread, useThreadSummary } from '../../domains/threads'
+import { archiveThread, renameThread, useThreadRow } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useEffect, useState } from 'react'
 import { useT } from '../../i18n'
@@ -28,7 +28,7 @@ import { ToastHost } from '../common/Toasts'
 
 export function ConversationScreen({ threadId }: { threadId: string }) {
   const timeline = useTimeline(threadId)
-  const summary = useThreadSummary(threadId)
+  const summary = useThreadRow(threadId)
   const thread = timeline?.thread ?? summary
   const workspace = useWorkspace(thread?.workspaceId)
   // Where the thread runs: this machine keeps quiet, a cloud sandbox says so.
@@ -43,7 +43,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
   const panel = useNavigation((s) => s.panel)
   const m = useT()
-  const agentPolicy = useAgentPolicy((s) => s.policy)
+  const agentPolicy = useUserPolicy()
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
   const renameTip = useTooltip({ label: m.conversation.screen.rename })
   const rootTip = useTooltip({ label: workspace?.rootPath ?? '' })
@@ -229,7 +229,7 @@ function useEscapeStops(threadId: string, enabled: boolean): void {
  * breathing dot while it works, the signal's dot when an approval or an
  * answer waits above. */
 function StatusLine({ timeline }: { timeline: Timeline }) {
-  const status = useThreadSummary(timeline.thread.id)?.status
+  const status = useThreadRow(timeline.thread.id)?.status
   const m = useT()
   const turn = activeTurn(timeline)
   if (!turn) return null
@@ -241,7 +241,7 @@ function StatusLine({ timeline }: { timeline: Timeline }) {
         ? m.conversation.screen.waitingApproval
         : waiting === 'answer'
           ? m.conversation.screen.waitingAnswer
-          : turn.status === 'waitingOnAgent'
+          : waitsForSubagents(timeline)
             ? m.conversation.screen.subagentsWorking
             : m.conversation.screen.working}
     </div>

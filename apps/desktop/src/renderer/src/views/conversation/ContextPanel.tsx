@@ -61,7 +61,7 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
                 use={contextUse(latest.stats)}
                 details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
               />
-              {latest.usage && <LastCall call={latest} />}
+              <LastCall call={latest} />
               <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
             </div>
           </Details>
@@ -212,7 +212,7 @@ function PartRow({ label, color, tokens, budget, details }: { label: string; col
  * of the input's colour; then what this call wrote to the cache, which the
  * next call can read from it. */
 function LastCall({ call }: { call: ModelCall }) {
-  const u = call.usage!
+  const u = call.usage
   const t = useT().conversation.context
   const segments: Segment[] = [
     { key: 'cached', label: t.cachedInput, tokens: u.cachedInputTokens, color: 'bg-chart-1/45' },
@@ -288,11 +288,11 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
           .map((c) => {
             const use = contextUse(c.stats)
             return (
-              <li key={c.itemId} className="flex flex-col gap-1">
+              <li key={c.responseId} className="flex flex-col gap-1">
                 <div className="flex items-center gap-2 text-small">
                   <span className="text-fg-subtle tabular-nums">{new Date(c.startedAt).toLocaleTimeString(locale)}</span>
-                  <span className={cn('min-w-0 flex-1 truncate', c.kind === 'failed' ? 'text-danger' : 'text-fg-muted')}>
-                    {c.kind === 'compaction' ? t.compaction : c.kind === 'failed' ? t.failed : connection(c)}
+                  <span className="min-w-0 flex-1 truncate text-fg-muted">
+                    {c.kind === 'compaction' ? t.compaction : connection(c)}
                   </span>
                   <span className="text-fg tabular-nums">{formatTokens(use.used)}</span>
                   <span className="w-8 text-right text-fg-subtle tabular-nums">{percent(use.used, use.budget)}%</span>
@@ -300,7 +300,7 @@ function History({ calls, connection, partial }: { calls: ModelCall[]; connectio
                 <div className="relative">
                   <div className="h-1 overflow-hidden rounded-full bg-hover">
                     <div
-                      className={cn('h-full', c.kind === 'compaction' ? 'bg-warning' : c.kind === 'failed' ? 'bg-danger' : 'bg-fg/35')}
+                      className={cn('h-full', c.kind === 'compaction' ? 'bg-warning' : 'bg-fg/35')}
                       style={{ width: `${Math.min(100, percent(use.used, use.budget))}%` }}
                     />
                   </div>

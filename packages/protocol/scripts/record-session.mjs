@@ -6,9 +6,8 @@
 // MCP tool call (mock-mcp.mjs, beside a server that cannot start), the
 // memory snapshot and a memory_search call, a file attached by path,
 // read_file alone and with glob and grep in one answer, messages sent while
-// a turn runs (a turn behind it, and one that joins it), the
-// cron, workspace, memory, settings, MCP and permission methods,
-// and an error response. Server requests are answered as a user would (approve,
+// a turn runs (each a turn behind it), the cron, workspace, memory,
+// settings, MCP and permission methods, and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
 // with its direction.
 //
@@ -60,22 +59,9 @@ models:
     names:
       - name: mock-model
         limits: { context: 128000, output: 8000 }
-permissions:
-  approval: on-request
-  # broken does not connect: the rule is kept and matches nothing.
-  deny: [broken__delete_everything]
 workspace:
   enabled: true
   sandbox_mode: workspace-write
-mcp:
-  - name: mock
-    command: node
-    args: [${JSON.stringify(join(here, 'mock-mcp.mjs'))}]
-  - name: broken
-    command: ollupi-no-such-mcp-command
-memory:
-  use: true
-  generate: false
 `,
 )
 
@@ -126,22 +112,23 @@ function answer(m) {
   send({ jsonrpc: '2.0', id: m.id, result: { answers } })
 }
 
-// Every turn that has completed, for a wait that may begin after it did.
+const endedStatus = (m) => m.method === 'turn/changed' && ['completed', 'failed', 'interrupted'].includes(m.params.turn.status)
+// Every turn that has ended, for a wait that may begin after it did.
 const ended = new Set()
-listeners.add((m) => m.method === 'turn/completed' && ended.add(m.params.turn.id))
-// Each turn's first message, as item/started told of it.
+listeners.add((m) => endedStatus(m) && ended.add(m.params.turn.id))
+// Each turn's first message, as item/changed told of it.
 const firstMessages = new Map()
 listeners.add((m) => {
-  const item = m.method === 'item/started' && m.params.item
+  const item = m.method === 'item/changed' && m.params.item
   if (item?.type === 'userMessage' && !firstMessages.has(item.turnId)) firstMessages.set(item.turnId, item)
 })
 
-/** Resolves when the turn completes (turn/completed for it). */
+/** Resolves when the turn ends (turn/changed to an ending). */
 const completed = (turnId) =>
   new Promise((resolve) => {
     if (ended.has(turnId)) return resolve()
     const l = (m) => {
-      if (m.method === 'turn/completed' && m.params.turn.id === turnId) {
+      if (endedStatus(m) && m.params.turn.id === turnId) {
         listeners.delete(l)
         resolve(m.params.turn)
       }
@@ -159,12 +146,21 @@ async function turn(threadId, text) {
 await call('initialize', { clientInfo: { name: 'record-session', version: '0' } })
 send({ jsonrpc: '2.0', method: 'initialized', params: {} })
 await call('model/list', {})
+await call('settings/read', {})
+// The user's MCP servers, one that cannot start beside it; each arrives as
+// mcpServer/changed.
+await call('mcpServer/set', { name: 'mock', command: 'node', args: [join(here, 'mock-mcp.mjs')] })
+await call('mcpServer/set', { name: 'broken', command: 'ollupi-no-such-mcp-command' })
 await call('tool/list', {})
 await call('mcpServer/list', {})
+await call('settings/updatePermissions', { approvalPolicy: 'on-request', permissions: {} })
+// broken does not connect, so a rule naming its tool cannot be checked: refused.
+await call('settings/updatePermissions', { approvalPolicy: 'on-request', permissions: { deny: ['broken__delete_everything'] } }).catch(() => {})
+await call('settings/update', { memory: true })
 const { workspace: ws1 } = await call('workspace/add', { path: workspace })
 await call('workspace/rename', { workspaceId: ws1.id, name: 'Demo' })
 await call('workspace/list', {})
-const { thread } = await call('thread/start', { workspaceId: ws1.id, permissions: {} })
+const { thread } = await call('thread/start', { workspaceId: ws1.id })
 
 await turn(thread.id, 'Hello there\nsecond line')
 // A file goes by its path; ollupi copies it into the thread's attachments.
@@ -184,13 +180,11 @@ await turn(thread.id, 'search memory for my indentation style')
 await turn(thread.id, 'read readme')
 await turn(thread.id, 'look around the project')
 
-// Three messages at once: the second waits in a turn behind the first, and
-// the third joins it, to be answered together.
-const first = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'first of three' }] })
-const second = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'second of three' }] })
-await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'third of three' }] })
-await completed(first.turn.id)
-await completed(second.turn.id)
+// Three messages at once: the second and third each wait in a turn behind
+// the one before.
+const three = []
+for (const text of ['first of three', 'second of three', 'third of three']) three.push(await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text }] }))
+for (const { turn } of three) await completed(turn.id)
 
 await call('cron/list', { threadId: thread.id })
 await call('cron/list', {})
@@ -210,7 +204,6 @@ await call('memory/list', { scope: 'workspace', workspaceId: ws1.id })
 await call('memory/list', { scope: 'workspace' }).catch(() => {})
 await call('memory/move', { id: 'no-such-memory' }).catch(() => {})
 // Each switch arrives as settings/changed; it ends on, as it starts.
-await call('settings/read', {})
 await call('settings/update', { redaction: false })
 await call('settings/update', { redaction: true })
 await call('thread/list', { limit: 100 })
@@ -222,6 +215,7 @@ await call('workspace/move', { workspaceId: ws1.id, path: moved })
 await call('thread/list', { workspaceId: ws1.id, limit: 100 })
 await call('thread/read', { threadId: thread.id, limit: 500 })
 await call('thread/read', { threadId: 'no-such-thread' }).catch(() => {})
+await call('mcpServer/delete', { name: 'broken' })
 
 ws.close()
 writeFileSync(

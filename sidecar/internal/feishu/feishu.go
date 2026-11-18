@@ -11,8 +11,10 @@
 // desktop answers first, the card then shows how. Only the configured
 // users are acted for.
 //
-// The bridge is another client of the agent beside the gateway: it calls
-// the agent directly and is handed every event the gateway is.
+// The bridge is another client of ollupi's app beside the gateway: it calls
+// the app's commands as the gateway's one user, so the desktop's sessions
+// and the bot's are the same ones, and learns what changed from the
+// store's feed, as the gateway does.
 package feishu
 
 import (
@@ -26,37 +28,37 @@ import (
 	"time"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
-	"github.com/0xfakeSpike/ollupi/agent/event"
-	"github.com/0xfakeSpike/ollupi/agent/orchestrator"
-	"github.com/0xfakeSpike/ollupi/agent/permission"
-	"github.com/0xfakeSpike/ollupi/agent/service"
-	"github.com/0xfakeSpike/ollupi/repo/db"
-	"github.com/0xfakeSpike/ollupi/tools/userinput"
+	"github.com/0xfakeSpike/ollupi/account"
+	"github.com/0xfakeSpike/ollupi/app"
+	"github.com/0xfakeSpike/ollupi/ask"
+	"github.com/0xfakeSpike/ollupi/conversation"
+	"github.com/0xfakeSpike/ollupi/gateway"
+	"github.com/0xfakeSpike/ollupi/store"
 )
 
-// Decider is who an approval decided from Feishu is recorded as decided by.
-const Decider = "feishu"
+// owner is the user the bridge acts as: the gateway's one user, whose token
+// the desktop holds.
+const owner = gateway.DefaultUser
 
 // flushEvery spaces a turn card's updates: Feishu allows a message a few
 // updates a second, and a phone needs fewer.
 const flushEvery = time.Second
 
-// Engine is what the bridge does to sessions; *service.Service is one. The bridge
-// acts as db.DefaultUser, the user the gateway's token is, so the desktop's
-// sessions and the bot's are the same ones.
-type Engine interface {
-	StartThread(user, workspaceID, environmentID, title string, settings permission.Settings) (db.ThreadRow, error)
-	StartTurn(ctx context.Context, user, threadID string, in service.Input) (db.TurnRow, db.Submission, error)
-	InterruptTurn(user, threadID, expectedTurnID string) error
-	ResolveApproval(user, threadID, approvalID string, decision db.Decision, decidedBy string) error
-	AnswerUserInput(user, threadID, itemID string, answers userinput.Answers) error
+// App is what the bridge does to sessions; *app.App is one.
+type App interface {
+	StartThread(ctx context.Context, u, workspace, environment, title string) (store.Thread, error)
+	Send(ctx context.Context, u, id string, in app.Input) (turn conversation.Turn, inProgress bool, err error)
+	Interrupt(ctx context.Context, u, id, expected string) error
+	Decide(ctx context.Context, u, id, approval string, decision conversation.Decision) error
+	Answer(ctx context.Context, u, id, item string, answers ask.Answers) error
+	Workspaces(ctx context.Context, u string) ([]account.Workspace, error)
 }
 
-// Store is what the bridge reads of the database; *db.DB is one.
+// Store is where the bridge reads conversations and hears of their changes;
+// store.Store is one.
 type Store interface {
-	ThreadRow(id string) (db.ThreadRow, error)
-	Workspaces(user string) ([]db.WorkspaceRow, error)
-	TurnItems(turnID string) ([]db.ItemRow, error)
+	Read(ctx context.Context, fn func(store.Reader) error) error
+	Feed() *store.Feed
 }
 
 // chat is Feishu as the bridge talks to it.
@@ -73,7 +75,7 @@ type chat interface {
 
 type Bridge struct {
 	cfg    config.Feishu
-	engine Engine
+	app    App
 	store  Store
 	chat   chat
 	topics *topics
@@ -82,10 +84,12 @@ type Bridge struct {
 
 	// Read and written only by Run's goroutine, which runs the queue.
 	ctx      context.Context
-	turns    map[string]*turn    // by turn ID
+	turns    map[string]*turn    // the cards of turns in progress, by turn ID
+	inputs   map[string]string   // what each turn not yet ended was sent, by turn ID
 	requests map[string]*request // by item ID
 	ours     map[string]bool     // the turns sent from Feishu, by turn ID
-	seen    *recent // the messages handled, by message ID
+	decided  map[string]bool     // the approvals decided from Feishu, by approval ID
+	seen     *recent             // the messages handled, by message ID
 }
 
 // turn is a turn's card as it stands.
@@ -94,8 +98,11 @@ type turn struct {
 	input, cronJobID    string
 	fromFeishu          bool
 	lines               []string
-	status              db.TurnStatus
-	err                 string
+	// line is where each item's line is among lines, by item ID.
+	line map[string]int
+	// ended is how the turn ended, "" while it runs.
+	ended conversation.End
+	err   string
 	// message is the card's, once sent.
 	message string
 	// dirty marks a change not yet on the card; flushing means an update
@@ -103,17 +110,15 @@ type turn struct {
 	dirty, flushing bool
 }
 
-func (t *turn) running() bool {
-	return t.status != db.TurnCompleted && t.status != db.TurnInterrupted && t.status != db.TurnFailed
-}
+func (t *turn) running() bool { return t.ended == "" }
 
 // request is an approval's or a question's card.
 type request struct {
 	message  string
-	question *userinput.Request
+	question *ask.Request
 }
 
-func newBridge(cfg config.Feishu, engine Engine, store Store, chat chat, topicsPath string) (*Bridge, error) {
+func newBridge(cfg config.Feishu, a App, st Store, chat chat, topicsPath string) (*Bridge, error) {
 	t, err := loadTopics(topicsPath)
 	if err != nil {
 		return nil, fmt.Errorf("feishu: %w", err)
@@ -123,20 +128,26 @@ func newBridge(cfg config.Feishu, engine Engine, store Store, chat chat, topicsP
 		users[u] = true
 	}
 	return &Bridge{
-		cfg: cfg, engine: engine, store: store, chat: chat, topics: t, users: users,
-		queue: newQueue(), turns: map[string]*turn{}, requests: map[string]*request{}, ours: map[string]bool{}, seen: newRecent(512),
+		cfg: cfg, app: a, store: st, chat: chat, topics: t, users: users, queue: newQueue(),
+		turns: map[string]*turn{}, inputs: map[string]string{}, requests: map[string]*request{}, ours: map[string]bool{},
+		decided: map[string]bool{}, seen: newRecent(512),
 	}, nil
 }
 
-// Deliver hands the bridge an agent event. It never blocks: the agent emits
-// from its own loop, which the bridge's calls into the agent wait on.
-func (b *Bridge) Deliver(e event.Event) {
-	b.queue.push(func() { b.event(e) })
+// hear takes a change from the feed. It never blocks: the feed hands it
+// over in the goroutine of the commit.
+func (b *Bridge) hear(e store.Event) {
+	if e.Change != nil {
+		b.queue.push(func() { b.changed(e.Thread, *e.Change) })
+	}
 }
 
-// work runs what is queued until ctx ends.
+// work runs what is queued until ctx ends, hearing the owner's changes
+// meanwhile.
 func (b *Bridge) work(ctx context.Context) {
 	b.ctx = ctx
+	sub := b.store.Feed().Subscribe(owner, b.hear)
+	defer sub.Close()
 	for {
 		select {
 		case <-ctx.Done():
@@ -178,12 +189,31 @@ func (b *Bridge) message(m incoming) {
 		return
 	}
 	if strings.TrimSpace(text) == "/stop" {
-		if err := b.engine.InterruptTurn(db.DefaultUser, threadID, ""); err != nil {
+		if err := b.stop(threadID); err != nil {
 			b.replyText(m.id, "没能停止："+errorText(err))
 		}
 		return
 	}
 	b.send(m.id, threadID, text)
+}
+
+// stop interrupts the turn in progress, whichever it is.
+func (b *Bridge) stop(threadID string) error {
+	var active string
+	err := b.store.Read(b.ctx, func(r store.Reader) error {
+		v, err := r.View(threadID)
+		if t, ok := v.Active(); ok {
+			active = t.ID
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if active == "" {
+		return app.ErrNoActiveTurn
+	}
+	return b.app.Interrupt(b.ctx, owner, threadID, active)
 }
 
 func (b *Bridge) startSession(messageID, text string) {
@@ -192,12 +222,12 @@ func (b *Bridge) startSession(messageID, text string) {
 		b.replyText(messageID, errorText(err))
 		return
 	}
-	t, err := b.engine.StartThread(db.DefaultUser, workspaceID, "", titleFromMessage(text), permission.Settings{})
+	t, err := b.app.StartThread(b.ctx, owner, workspaceID, "", titleFromMessage(text))
 	if err != nil {
 		b.replyText(messageID, "没能开始会话："+errorText(err))
 		return
 	}
-	// Recorded before the turn starts, so its events find the topic.
+	// Recorded before the turn starts, so its changes find the topic.
 	if err := b.topics.put(t.ID, messageID); err != nil {
 		slog.Error("feishu: topic not recorded", "thread", t.ID, "err", err)
 	}
@@ -205,17 +235,14 @@ func (b *Bridge) startSession(messageID, text string) {
 }
 
 func (b *Bridge) send(messageID, threadID, text string) {
-	t, how, err := b.engine.StartTurn(b.ctx, db.DefaultUser, threadID, service.Input{Text: text})
+	t, inProgress, err := b.app.Send(b.ctx, owner, threadID, app.Input{Text: text})
 	if err != nil {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
 	}
 	b.ours[t.ID] = true
-	switch how {
-	case db.Queued:
-		b.replyText(messageID, "已排队，当前这轮结束后回复。")
-	case db.Joined:
-		b.replyText(messageID, "已排队，当前这轮结束后和前面没处理的消息一起回复。")
+	if !inProgress {
+		b.replyText(messageID, "已排队，前面的消息处理完后回复。")
 	}
 }
 
@@ -225,98 +252,140 @@ func (b *Bridge) workspace() (string, error) {
 	if b.cfg.Workspace == "" {
 		return "", nil
 	}
-	list, err := b.store.Workspaces(db.DefaultUser)
+	list, err := b.app.Workspaces(b.ctx, owner)
 	if err != nil {
 		return "", err
 	}
 	for _, w := range list {
-		if w.RootPath == b.cfg.Workspace && w.ArchivedAt == nil {
+		if w.Root == b.cfg.Workspace && w.Archived == nil {
 			return w.ID, nil
 		}
 	}
 	return "", fmt.Errorf("没有在 %s 的工作区：先在桌面端添加它，或改 config.yaml 的 feishu.workspace", b.cfg.Workspace)
 }
 
-func (b *Bridge) event(e event.Event) {
-	if e.Kind == event.ThreadDeleted {
-		if err := b.topics.forget(e.Thread.ID); err != nil {
-			slog.Error("feishu: topic not forgotten", "thread", e.Thread.ID, "err", err)
+// changed is what a commit did to one conversation.
+func (b *Bridge) changed(threadID string, c store.Change) {
+	if c.Deleted {
+		if err := b.topics.forget(threadID); err != nil {
+			slog.Error("feishu: topic not forgotten", "thread", threadID, "err", err)
 		}
 		return
 	}
-	// A request settles whichever thread it is in.
-	if it := e.Item; it != nil && (e.Kind == event.ItemUpdated || e.Kind == event.ItemCompleted) {
-		b.settle(*it, e.Kind == event.ItemCompleted)
+	// A request settles whichever conversation it is in.
+	for _, it := range c.Items {
+		b.settle(it)
 	}
-	root, ok := b.rootOf(e.Thread)
+	thread, root, ok := b.rootOf(threadID)
 	if !ok {
 		return
 	}
-	sub := root.ID != e.Thread.ID
-	topic, ok := b.topics.root(root.ID)
-	if !ok {
-		if !shows(e.Kind, sub) {
-			return
-		}
-		if topic, ok = b.openTopic(root); !ok {
-			return
-		}
+	sub := root.ID != thread.ID
+	if !sub {
+		b.turnsChanged(thread, c)
 	}
-	switch e.Kind {
-	case event.ApprovalRequested, event.UserInputRequested:
-		b.ask(topic, e.Thread.ID, *e.Item)
-	case event.TurnStarted:
-		if !sub {
-			b.turnStarted(topic, e.Thread, e.Turn)
-		}
-	case event.ItemCompleted:
-		if t := b.turns[e.Turn.ID]; t != nil && !sub {
-			if line := itemLine(*e.Item); line != "" {
-				t.lines = append(t.lines, line)
-				b.changed(t)
+	for _, it := range c.Items {
+		if waitsForApproval(it) || waitsForAnswer(it) {
+			if topic, ok := b.topicOf(root); ok {
+				b.ask(topic, thread.ID, it)
 			}
 		}
-	case event.TurnCompleted:
-		if t := b.turns[e.Turn.ID]; t != nil && !sub {
-			t.status, t.err = e.Turn.Status, e.Turn.Error
+	}
+}
+
+// turnsChanged keeps the cards of a session's turns: one starts when its
+// turn comes to be in progress, gains a line as each of its items ends,
+// and shows how the turn ended.
+func (b *Bridge) turnsChanged(thread store.Thread, c store.Change) {
+	for _, it := range c.Items {
+		if _, ok := b.inputs[it.Turn]; !ok && it.Kind == conversation.ItemUserMessage {
+			b.inputs[it.Turn] = it.Text
+		}
+	}
+	for _, tr := range c.Turns {
+		if tr.ID == c.Active && tr.Ended == nil && b.turns[tr.ID] == nil {
+			if topic, ok := b.topicOf(thread); ok {
+				b.turnStarted(topic, thread, tr)
+			}
+		}
+	}
+	for _, it := range c.Items {
+		t := b.turns[it.Turn]
+		if t == nil || !ended(it) {
+			continue
+		}
+		if line := itemLine(it); line != "" {
+			if i, ok := t.line[it.ID]; ok {
+				t.lines[i] = line
+			} else {
+				t.line[it.ID] = len(t.lines)
+				t.lines = append(t.lines, line)
+			}
+			b.cardChanged(t)
+		}
+	}
+	for _, tr := range c.Turns {
+		if tr.Ended == nil {
+			continue
+		}
+		if t := b.turns[tr.ID]; t != nil {
+			t.ended, t.err = tr.Ended.Status, tr.Ended.Reason
 			b.flush(t)
 			delete(b.turns, t.id)
-			delete(b.ours, t.id)
 		}
-	case event.Error:
-		if !sub {
-			b.replyText(topic, "出错了："+e.Error)
-		}
+		delete(b.inputs, tr.ID)
+		delete(b.ours, tr.ID)
 	}
 }
 
-// rootOf is the session a thread belongs to: itself, or the session whose
-// subagent it is.
-func (b *Bridge) rootOf(t db.ThreadRow) (db.ThreadRow, bool) {
-	for t.ParentThreadID != "" {
-		parent, err := b.store.ThreadRow(string(t.ParentThreadID))
-		if err != nil {
-			return db.ThreadRow{}, false
-		}
-		t = parent
-	}
-	return t, true
+func ended(it conversation.Item) bool {
+	return it.Status != conversation.Pending && it.Status != conversation.InProgress
 }
 
-// shows reports whether an event puts something in its session's topic.
-func shows(kind event.Kind, sub bool) bool {
-	switch kind {
-	case event.ApprovalRequested, event.UserInputRequested:
-		return true
-	case event.TurnStarted, event.Error:
-		return !sub
+func waitsForApproval(it conversation.Item) bool {
+	return it.Approval != nil && it.Approval.Decision == "" && it.Status == conversation.Pending
+}
+
+func waitsForAnswer(it conversation.Item) bool {
+	return it.Input != nil && !it.Input.Answered && it.Status == conversation.InProgress
+}
+
+// rootOf is a conversation, and the session it belongs to: itself, or the
+// session whose subagent it is.
+func (b *Bridge) rootOf(threadID string) (thread, root store.Thread, ok bool) {
+	err := b.store.Read(b.ctx, func(r store.Reader) error {
+		var err error
+		if thread, err = r.Thread(threadID); err != nil {
+			return err
+		}
+		root = thread
+		for root.Parent != "" {
+			if root, err = r.Thread(root.Parent); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if !errors.Is(err, store.ErrNotFound) {
+			slog.Error("feishu: conversation not read", "thread", threadID, "err", err)
+		}
+		return store.Thread{}, store.Thread{}, false
 	}
-	return false
+	return thread, root, true
+}
+
+// topicOf is the topic of a session, opened now if it has none.
+func (b *Bridge) topicOf(t store.Thread) (string, bool) {
+	if topic, ok := b.topics.root(t.ID); ok {
+		return topic, true
+	}
+	return b.openTopic(t)
 }
 
 // openTopic starts the topic of a session begun elsewhere, under a message
 // the bot sends the first user naming the session and its workspace.
-func (b *Bridge) openTopic(t db.ThreadRow) (string, bool) {
+func (b *Bridge) openTopic(t store.Thread) (string, bool) {
 	if len(b.cfg.Users) == 0 {
 		return "", false
 	}
@@ -324,7 +393,7 @@ func (b *Bridge) openTopic(t db.ThreadRow) (string, bool) {
 	if name == "" {
 		name = "新会话"
 	}
-	if ws := b.workspaceName(string(t.WorkspaceID)); ws != "" {
+	if ws := b.workspaceName(t.Workspace); ws != "" {
 		name = ws + " · " + name
 	}
 	content, _ := json.Marshal(map[string]string{"text": name})
@@ -343,7 +412,7 @@ func (b *Bridge) workspaceName(id string) string {
 	if id == "" {
 		return ""
 	}
-	list, err := b.store.Workspaces(db.DefaultUser)
+	list, err := b.app.Workspaces(b.ctx, owner)
 	if err != nil {
 		return ""
 	}
@@ -358,22 +427,22 @@ func (b *Bridge) workspaceName(id string) string {
 // itemLine is an item as a line of its turn's card: the agent's messages,
 // and its tool calls once they end. Approvals and questions have cards of
 // their own.
-func itemLine(it db.ItemRow) string {
-	switch it.Type {
-	case db.ItemAgentMessage:
+func itemLine(it conversation.Item) string {
+	switch it.Kind {
+	case conversation.ItemAgentMessage:
 		return strings.TrimSpace(it.Text)
-	case db.ItemToolCall:
+	case conversation.ItemToolCall:
 		return callLine(it)
-	case db.ItemError:
-		return "**出错了**：" + it.Text
+	case conversation.ItemError:
+		return "**出错了**：" + it.Error
 	}
 	return ""
 }
 
-func (b *Bridge) turnStarted(topic string, thread db.ThreadRow, tr db.TurnRow) {
+func (b *Bridge) turnStarted(topic string, thread store.Thread, tr conversation.Turn) {
 	t := &turn{
-		id: tr.ID, threadID: thread.ID, title: thread.Title, input: b.messages(tr.ID), cronJobID: tr.CronJobID,
-		fromFeishu: b.ours[tr.ID], status: tr.Status,
+		id: tr.ID, threadID: thread.ID, title: thread.Title, input: b.inputs[tr.ID], cronJobID: tr.CronJob,
+		fromFeishu: b.ours[tr.ID], line: map[string]int{},
 	}
 	b.turns[t.id] = t
 	content, _ := json.Marshal(turnCard(t))
@@ -385,25 +454,8 @@ func (b *Bridge) turnStarted(topic string, thread db.ThreadRow, tr db.TurnRow) {
 	t.message = id
 }
 
-// messages are what the turn was sent: the messages it answers, which
-// those sent while the conversation was busy join.
-func (b *Bridge) messages(turnID string) string {
-	items, err := b.store.TurnItems(turnID)
-	if err != nil {
-		slog.Error("feishu: turn's messages not read", "turn", turnID, "err", err)
-		return ""
-	}
-	var texts []string
-	for _, it := range items {
-		if it.Type == db.ItemUserMessage {
-			texts = append(texts, it.Text)
-		}
-	}
-	return strings.Join(texts, " / ")
-}
-
-// changed puts a turn's change on its card within flushEvery.
-func (b *Bridge) changed(t *turn) {
+// cardChanged puts a turn's change on its card within flushEvery.
+func (b *Bridge) cardChanged(t *turn) {
 	t.dirty = true
 	if t.flushing {
 		return
@@ -430,18 +482,18 @@ func (b *Bridge) flush(t *turn) {
 	}
 }
 
-// ask sends an approval's or a question's card, once: the agent reports a
-// request again when it resumes one.
-func (b *Bridge) ask(topic, threadID string, it db.ItemRow) {
+// ask sends an approval's or a question's card, once: a later change to
+// the call while it still waits is no new request.
+func (b *Bridge) ask(topic, threadID string, it conversation.Item) {
 	if _, ok := b.requests[it.ID]; ok {
 		return
 	}
 	r := &request{}
 	var c card
-	if it.WaitsForApproval() {
+	if it.Approval != nil {
 		c = approvalCard(threadID, it)
 	} else {
-		req, err := userinput.Decode(it.Await.Request)
+		req, err := ask.Decode(it.Input.Request)
 		if err != nil {
 			slog.Error("feishu: question not sent", "item", it.ID, "err", err)
 			return
@@ -461,22 +513,20 @@ func (b *Bridge) ask(topic, threadID string, it db.ItemRow) {
 
 // settle shows on a request's card that it was answered, here or on the
 // desktop, or that its turn ended first.
-func (b *Bridge) settle(it db.ItemRow, completed bool) {
+func (b *Bridge) settle(it conversation.Item) {
 	r := b.requests[it.ID]
-	if r == nil || it.WaitsOnUser() {
+	if r == nil || waitsForApproval(it) || waitsForAnswer(it) {
 		return
 	}
 	var c card
 	if r.question != nil {
-		if !completed {
+		if !ended(it) {
 			return
 		}
-		c = settledQuestionCard(*r.question, it.Status == db.ItemCompleted)
+		c = settledQuestionCard(*r.question, it.Status == conversation.Done)
 	} else {
-		if it.Approval == nil {
-			return
-		}
-		c = settledApprovalCard(it)
+		c = settledApprovalCard(it, b.decided[it.Approval.Approval])
+		delete(b.decided, it.Approval.Approval)
 	}
 	delete(b.requests, it.ID)
 	content, _ := json.Marshal(c)
@@ -487,26 +537,33 @@ func (b *Bridge) settle(it db.ItemRow, completed bool) {
 
 // press is a card's button pressed, or its form sent, by operator. It runs
 // on Feishu's goroutine and answers with a toast; the cards change when the
-// agent reports what the press did.
+// feed tells what the press did.
 func (b *Bridge) press(operator string, value, form map[string]any) (toast string, ok bool) {
 	if !b.users[operator] {
 		return "你还不能用这个机器人", false
 	}
 	str := func(k string) string { s, _ := value[k].(string); return s }
+	ctx := context.Background()
 	var err error
 	switch str("action") {
 	case actionStop:
-		err = b.engine.InterruptTurn(db.DefaultUser, str("thread"), str("turn"))
+		err = b.app.Interrupt(ctx, owner, str("thread"), str("turn"))
 		toast = "已停止"
 	case actionApprove:
-		err = b.engine.ResolveApproval(db.DefaultUser, str("thread"), str("approval"), db.Decision(str("decision")), Decider)
+		approval := str("approval")
+		// Marked before the decision commits, so the card it settles says
+		// it was decided here.
+		b.queue.push(func() { b.decided[approval] = true })
+		if err = b.app.Decide(ctx, owner, str("thread"), approval, conversation.Decision(str("decision"))); err != nil {
+			b.queue.push(func() { delete(b.decided, approval) })
+		}
 		toast = "已提交"
 	case actionAnswer:
 		answers, missing := formAnswers(value["questions"], form)
 		if missing {
 			return "还有问题没回答", false
 		}
-		err = b.engine.AnswerUserInput(db.DefaultUser, str("thread"), str("item"), answers)
+		err = b.app.Answer(ctx, owner, str("thread"), str("item"), answers)
 		toast = "已提交"
 	default:
 		return "这个按钮已失效", false
@@ -519,9 +576,9 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 
 // formAnswers reads a question card's form: each question's own words if
 // written, else its pick.
-func formAnswers(ids any, form map[string]any) (userinput.Answers, bool) {
+func formAnswers(ids any, form map[string]any) (ask.Answers, bool) {
 	list, _ := ids.([]any)
-	answers := userinput.Answers{}
+	answers := ask.Answers{}
 	for _, v := range list {
 		id, _ := v.(string)
 		text, _ := form[textField(id)].(string)
@@ -533,7 +590,7 @@ func formAnswers(ids any, form map[string]any) (userinput.Answers, bool) {
 		if answer == "" {
 			return nil, true
 		}
-		answers[id] = userinput.Answer{Answers: []string{answer}}
+		answers[id] = ask.Answer{Answers: []string{answer}}
 	}
 	return answers, len(answers) == 0
 }
@@ -599,15 +656,15 @@ func strangerText(openID string, noneListed bool) string {
 
 func errorText(err error) string {
 	switch {
-	case errors.Is(err, orchestrator.ErrNoActiveTurn):
+	case errors.Is(err, app.ErrNoActiveTurn), errors.Is(err, app.ErrTurnMismatch):
 		return "现在没有在跑的一轮"
-	case errors.Is(err, db.ErrThreadArchived):
+	case errors.Is(err, app.ErrThreadArchived):
 		return "会话已归档，先在桌面端恢复"
 	}
 	return err.Error()
 }
 
-// queue holds work for Run's goroutine, without bound: the agent must
+// queue holds work for Run's goroutine, without bound: the feed must
 // never wait on the bridge.
 type queue struct {
 	mu    sync.Mutex

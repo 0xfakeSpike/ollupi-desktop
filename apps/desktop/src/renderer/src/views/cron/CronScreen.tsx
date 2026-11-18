@@ -1,10 +1,10 @@
 // Every thread's scheduled tasks in one place, by workspace. A task sends
 // its prompt to its thread on its schedule, like a message from the user
 // (queued if the thread is busy). ollupi skips a run while the thread's
-// workspace is archived, and a subagent thread takes no messages.
+// workspace is archived; a subagent thread has no tasks.
 
 import { cronSpec, isTopLevel, onceAt, scheduleOf } from '@ollupi/core'
-import type { CronJobView, WorkspaceRow } from '@ollupi/protocol'
+import type { CronJobRow, WorkspaceRow } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Loader, Switch, Tabs, Textarea } from '@ollupi/ui'
 import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -81,12 +81,12 @@ export function CronScreen({ found }: { found?: string }) {
 }
 
 /** Soonest first; paused tasks, which have no next run, last. */
-function byNextRun(a: CronJobView, b: CronJobView): number {
+function byNextRun(a: CronJobRow, b: CronJobRow): number {
   if (a.paused !== b.paused) return a.paused ? 1 : -1
   return Date.parse(a.nextRunAt) - Date.parse(b.nextRunAt)
 }
 
-function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: WorkspaceRow | undefined; showWorkspace: boolean }) {
+function Job({ job, workspace, showWorkspace }: { job: CronJobRow; workspace: WorkspaceRow | undefined; showWorkspace: boolean }) {
   const m = useT()
   const locale = useLocale((s) => s.locale)
   const archived = !!workspace?.archivedAt
@@ -107,13 +107,7 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobView; workspace: W
             <code className="selectable font-mono text-small text-fg-muted">{job.spec}</code>
           )}
           {!once && job.times != null && <span className="text-small text-fg-muted">{m.cron.timesTotal(job.times)}</span>}
-          {job.parentThreadId ? (
-            <Badge tone="danger">{m.cron.subagent}</Badge>
-          ) : archived ? (
-            <Badge>{m.cron.archived}</Badge>
-          ) : (
-            job.threadArchived && <Badge>{m.cron.threadArchived}</Badge>
-          )}
+          {archived ? <Badge>{m.cron.archived}</Badge> : job.threadArchived && <Badge>{m.cron.threadArchived}</Badge>}
         </div>
         <p className="selectable mt-0.5 line-clamp-2 text-small text-fg-muted">{job.prompt}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-small text-fg-subtle">

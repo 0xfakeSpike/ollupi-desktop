@@ -6,10 +6,9 @@
 
 import type { Annotations, ToolDescriptor } from '@ollupi/protocol'
 import { Badge, ClampText, Details } from '@ollupi/ui'
-import { useEffect, useMemo, useState } from 'react'
-import { readMcpStatus } from '../../domains/mcpConfig'
+import { useMemo } from 'react'
+import { useMcpServers } from '../../domains/mcp'
 import { useTools } from '../../domains/tools'
-import { useConnection } from '../../gateway/connection'
 import { useT, type Messages } from '../../i18n'
 
 /** The providers ollupi and this app register, in the order a person meets
@@ -20,12 +19,8 @@ type Known = keyof Messages['capabilities']['groups']
 export function ToolsSection() {
   const m = useT()
   const tools = useTools((s) => s.list)
-  // An MCP server is its tools' provider: the running backend names them.
-  const [servers, setServers] = useState<string[]>()
-  const connected = useConnection((s) => s.gateway === 'connected')
-  useEffect(() => {
-    if (connected) void readMcpStatus().then((list) => setServers(list?.map((s) => s.name) ?? []))
-  }, [connected])
+  // An MCP server is its tools' provider.
+  const servers = useMcpServers((s) => s.list?.map((x) => x.name))
   const byProvider = useMemo(() => {
     const groups = new Map<string, ToolDescriptor[]>()
     for (const t of tools) if (!servers?.includes(t.provider)) groups.set(t.provider, [...(groups.get(t.provider) ?? []), t])

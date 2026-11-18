@@ -1,5 +1,5 @@
 import { isWorking, needsUser, unread } from '@ollupi/core'
-import type { ThreadSummary, WorkspaceRow } from '@ollupi/protocol'
+import type { ThreadRow, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, useTooltip } from '@ollupi/ui'
 import { Archive, ChevronRight, Ellipsis, Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -19,7 +19,7 @@ const SHOWN = 8
 /** One workspace's threads, as an area on the map: a field in the
  * workspace's colour holding its name, how many things are in it, and a
  * row for each. Threads outside any workspace sit on the bare ground. */
-export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadSummary[] }) {
+export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadRow[] }) {
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -106,7 +106,7 @@ function MoreButton({ onClick, children }: { onClick(): void; children: ReactNod
   )
 }
 
-function ThreadEntry({ thread }: { thread: ThreadSummary }) {
+function ThreadEntry({ thread }: { thread: ThreadRow }) {
   const active = useOpenThreadId() === thread.id
   const [renaming, setRenaming] = useState(false)
   const m = useT()

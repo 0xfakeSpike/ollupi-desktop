@@ -1,82 +1,67 @@
-// Package host assembles one ollupi backend from a Config, following the
-// assembly ollupi's README describes: the database, one model client per
-// model, the tool providers (cron, the workspace's commands and file tools, web_fetch, the
-// app's browser, MCP servers),
-// memory, the agent, the gateway and the clients configured beside it,
-// such as the Feishu bot. It owns their lifetimes: New builds everything
-// without starting anything, Start starts the agent and its sibling
-// goroutines, Serve serves
-// the gateway until the context ends and then waits for every component to
-// stop.
+// Package host puts one ollupi backend together from a Config: ollupi's own
+// host (the store, the models, the flows that run turns, learn memory and
+// send scheduled tasks, the app and its gateway) with the tools the desktop
+// adds to it (the workspace's commands and files, web_fetch, the app's
+// browser) and the clients beside the gateway, such as the Feishu bot. New
+// builds everything without starting anything; Serve runs it all until the
+// context ends.
 package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
-	"github.com/0xfakeSpike/ollupi/agent/event"
-	"github.com/0xfakeSpike/ollupi/agent/permission"
-	"github.com/0xfakeSpike/ollupi/agent/service"
+	"github.com/0xfakeSpike/ollupi/account"
 	"github.com/0xfakeSpike/ollupi/gateway"
-	"github.com/0xfakeSpike/ollupi/memory"
+	ollupi "github.com/0xfakeSpike/ollupi/host"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
-	"github.com/0xfakeSpike/ollupi/repo/db"
-	"github.com/0xfakeSpike/ollupi/tools"
-	"github.com/0xfakeSpike/ollupi/tools/cron"
-	"github.com/0xfakeSpike/ollupi/tools/mcp"
-	"github.com/0xfakeSpike/ollupi/tools/web"
-	"github.com/0xfakeSpike/ollupi/tools/workspace"
+	"github.com/0xfakeSpike/ollupi/store"
+	"github.com/0xfakeSpike/ollupi/tool"
+	"github.com/0xfakeSpike/ollupi/tool/builtin/web"
+	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
+	"github.com/0xfakeSpike/ollupi/tool/kit"
+	"golang.org/x/sync/errgroup"
 )
 
 type Options struct {
 	// Home is where config and skills paths resolve; commands outside a
 	// workspace run in its scratch folder (ollupi makes it).
 	Home string
-	// DataHome holds the database (<DataHome>/data); empty means Home.
+	// DataHome holds the store and the attachments; empty means Home.
 	DataHome string
 	Token    string
 	Config   config.Config
 	// AllowedOrigins are WebSocket origin patterns beyond loopback, e.g. the
 	// packaged renderer's app://ollupi.
 	AllowedOrigins []string
-	// Version is the backend's, which MCP servers see as the client's.
-	Version string
 	// Browser is where the app's built-in browser answers; nil outside the
 	// app, which has none.
 	Browser *browser.Endpoint
 }
 
 // A Client is a front end of the agent beside the gateway, such as a chat
-// bot: it is handed every event the gateway is, and runs until the backend
-// stops. Deliver must not block: the agent emits from its own loop.
+// bot. It runs until the backend stops.
 type Client interface {
-	Deliver(event.Event)
 	Run(ctx context.Context)
 }
 
 type Host struct {
-	agent    *service.Service
-	gateway  *gateway.Server
-	clients  []Client
-	memory   *memory.Manager
-	jobs     *cron.Jobs
-	closers  []func() error
-	siblings sync.WaitGroup
+	ollupi  *ollupi.Host
+	clients []Client
+	closers []func() error
 }
 
-func New(opts Options) (_ *Host, err error) {
+// New builds the backend within ctx, which the user's MCP servers run in.
+func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	cfg := opts.Config
 	h := &Host{}
 	defer func() {
@@ -84,28 +69,36 @@ func New(opts Options) (_ *Host, err error) {
 			h.close()
 		}
 	}()
-
 	dataHome := opts.DataHome
 	if dataHome == "" {
 		dataHome = opts.Home
 	}
-	store, err := db.Open(dataHome)
-	if err != nil {
-		return nil, err
-	}
-	h.closers = append(h.closers, store.Close)
 
 	models, connections, err := modelClients(cfg.Models)
 	if err != nil {
 		return nil, err
 	}
+	var memory *llm.Model
+	if cfg.Memory.Model != "" {
+		for _, m := range models {
+			if m.Connection == cfg.Memory.Model {
+				memory = &m
+			}
+		}
+	}
 
-	// The cron component is both a tool provider (the model manages tasks)
-	// and the timer that sends due tasks; the gateway exposes it as cron/*
-	// and reports each change to a task as cron/changed.
-	var cronChanged func(id, threadID string)
-	h.jobs = cron.New(store, time.Local, func(id, threadID string) { cronChanged(id, threadID) })
-	providers := []tools.Provider{h.jobs}
+	// The one user's box: their workspaces' folders and attachments are this
+	// machine's, and their MCP servers run here.
+	box, err := userBox(opts.Home)
+	if err != nil {
+		return nil, err
+	}
+	h.closers = append(h.closers, box.Close)
+
+	// The store is the host's, made below; a call reaches this only once
+	// it is.
+	var st store.Store
+	tools := []kit.Provider{web.New()}
 	if cfg.Workspace.Enabled {
 		ws, err := workspace.New(workspace.Options{
 			Config: cfg.Workspace.Config,
@@ -114,18 +107,22 @@ func New(opts Options) (_ *Host, err error) {
 			DenyRead:  []string{filepath.Join(opts.Home, config.FileName)},
 			EnvMarker: "OLLUPI_SANDBOX",
 			// Commands run on this machine and nowhere else: a conversation
-			// started in a cloud environment is told so rather than having its
+			// started in another environment is told so rather than having its
 			// commands run here. A nil box leaves the call in this machine's.
-			BoxIn: func(c tools.Caller) (sandbox.Box, error) {
-				if c.EnvironmentID == "" {
+			BoxIn: func(c tool.Caller) (sandbox.Box, error) {
+				if c.Environment == "" {
 					return nil, nil
 				}
-				env, err := store.EnvironmentOf(c.UserID, c.EnvironmentID)
+				var env account.Environment
+				err := st.Read(context.Background(), func(r store.Reader) (err error) {
+					env, err = r.Environment(c.User, c.Environment)
+					return err
+				})
 				if err != nil {
 					return nil, err
 				}
-				if env.Kind != db.EnvironmentLocal {
-					return nil, fmt.Errorf("%s is a cloud sandbox, and this build has no machine for it; start the conversation in %s", env.Name, db.LocalEnvironmentName)
+				if env.Kind != account.Local {
+					return nil, fmt.Errorf("%s is another machine, and this build has no way to reach it; start the conversation in %s", env.Name, account.LocalName)
 				}
 				return nil, nil
 			},
@@ -134,165 +131,92 @@ func New(opts Options) (_ *Host, err error) {
 			return nil, err
 		}
 		h.closers = append(h.closers, ws.Close)
-		providers = append(providers, ws)
+		tools = append(tools, ws)
 	}
-
-	providers = append(providers, web.New(web.Options{}))
 	if opts.Browser != nil {
-		providers = append(providers, browser.New(*opts.Browser))
+		tools = append(tools, browser.New(*opts.Browser))
 	}
 
-	servers, err := mcpServers(cfg.MCP)
-	if err != nil {
-		return nil, err
-	}
-	box, err := mcpBox(opts.Home)
-	if err != nil {
-		return nil, err
-	}
-	h.closers = append(h.closers, box.Close)
-	connected := mcp.NewUsers(context.Background(), mcp.Client{Name: "ollupi-desktop", Version: opts.Version},
-		func(string) ([]mcp.Server, error) { return servers, nil },
-		func(string) (sandbox.Box, error) { return box, nil })
-	h.closers = append(h.closers, connected.Close)
-	// Each server connects and lists its tools now rather than in the first
-	// turn, which would hold up the agent's loop; one that cannot is skipped,
-	// and the gateway reports why (mcpServer/list). One that drops later
-	// starts again the next time it is needed.
-	if _, err := connected.For(db.DefaultUser); err != nil {
-		return nil, err
-	}
-
-	if h.memory, err = memoryManager(store, models, connections, cfg.Memory); err != nil {
-		return nil, err
-	}
-
-	h.agent = service.New(service.Config{
+	h.ollupi, err = ollupi.New(ctx, ollupi.Config{
+		Home:        dataHome,
 		Name:        cfg.Name,
 		Prompt:      cfg.Prompt,
 		Models:      models,
-		Tools:       cfg.Tools,
-		Settings:    cfg.Permissions.Settings(),
-		Slots:       cfg.Slots,
 		Connections: connections,
-		Providers:   providers,
-		// Rules naming a skipped server's tools stay valid; they match
-		// nothing until it connects.
-		ToolsFor:  connected.Tools,
-		SkillsDir: cfg.SkillsDir,
-		// Images and files sent with messages live beside the database.
-		AttachmentsDir: filepath.Join(dataHome, "attachments"),
-		Memory:         h.memory,
-		DB:             store,
-		// The one user's workspaces and attachments are folders of this
-		// machine.
-		BoxFor: func(string) (sandbox.Box, error) { return sandbox.Here(), nil },
-		// The gateway and clients are set before Start, so the agent never
-		// emits into nil ones.
-		OnEvent: func(e event.Event) {
-			h.gateway.Deliver(e)
-			for _, c := range h.clients {
-				c.Deliver(e)
-			}
-		},
-	})
-	h.gateway, err = gateway.NewServer(h.agent, gateway.Options{
-		DB:             store,
-		Token:          opts.Token,
-		AllowedOrigins: opts.AllowedOrigins,
-		Memory:         h.memory,
-		Jobs:           h.jobs,
-		MCP:            connected,
+		Memory:      memory,
+		Tools:       tools,
+		Allowlist:   cfg.Tools,
+		Boxes:       func(string) (sandbox.Box, error) { return box, nil },
+		SkillsDir:   cfg.SkillsDir,
+		Slots:       cfg.Slots,
+		Gateway:     &gateway.Options{Token: opts.Token, AllowedOrigins: opts.AllowedOrigins},
 	})
 	if err != nil {
 		return nil, err
 	}
-	if h.clients, err = clients(cfg, h.agent, store, dataHome); err != nil {
-		return nil, err
-	}
-	// Set before Start, so the cron timer never reports into a nil gateway.
-	cronChanged = h.gateway.CronChanged
-	return h, nil
-}
+	h.closers = append(h.closers, h.ollupi.Close)
+	st = h.ollupi.Store
 
-// Start starts the agent, then memory extraction, the cron timer and the
-// clients beside it. Cancelling ctx stops them all.
-func (h *Host) Start(ctx context.Context) error {
-	if err := h.agent.Start(ctx); err != nil {
-		h.close()
-		return err
-	}
-	h.siblings.Go(func() { h.memory.Run(ctx) })
-	h.siblings.Go(func() {
-		// A due task runs as its thread's owner, who set it.
-		h.jobs.Run(ctx, h.agent.StartScheduledTurn)
-	})
-	for _, c := range h.clients {
-		h.siblings.Go(func() { c.Run(ctx) })
-	}
-	return nil
-}
-
-// clients are the front ends cfg configures beside the gateway.
-func clients(cfg config.Config, a *service.Service, store *db.DB, dataHome string) ([]Client, error) {
-	var out []Client
 	if cfg.Feishu != nil {
-		// Which topic holds which session is kept beside the database.
-		b, err := feishu.New(*cfg.Feishu, a, store, filepath.Join(dataHome, "data", "feishu.json"))
+		// Which topic holds which session is kept beside the store.
+		bot, err := feishu.New(*cfg.Feishu, h.ollupi.App, h.ollupi.Store, filepath.Join(dataHome, "data", "feishu.json"))
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, b)
+		h.clients = append(h.clients, bot)
 	}
-	return out, nil
+	return h, nil
 }
 
-// Serve serves the gateway on ln until the context given to Start ends, then
-// waits for the siblings and the agent before releasing the database.
+// Serve serves the gateway on ln and runs ollupi's flows and the clients
+// until ctx ends or one of them fails, then releases the store.
 func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	defer h.close()
-	err := h.gateway.Serve(ctx, ln)
-	h.siblings.Wait()
-	h.agent.Wait()
-	return err
+	// The user's MCP servers connect and list their tools now rather than
+	// in the first turn; one that cannot is skipped, and mcpServer/list
+	// says why.
+	go h.ollupi.Users.Tools(ctx, gateway.DefaultUser)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return h.ollupi.Run(ctx) })
+	g.Go(func() error { return h.ollupi.Gateway.Serve(ctx, ln) })
+	for _, c := range h.clients {
+		g.Go(func() error {
+			c.Run(ctx)
+			return nil
+		})
+	}
+	return g.Wait()
 }
 
-// Check reports whether cfg would start: it assembles the backend as New
-// does, MCP servers included, and starts the agent, which is where ollupi
-// validates the rest (permission rules against the tools every user has,
-// each model's context budget), against a throwaway database, then stops it.
-// Starting a thread checks the rules against the MCP servers' tools too,
-// which would otherwise surface only when a turn fails on them.
-// Nothing is served and the real database is not opened.
+// Check reports whether cfg would start: it builds the backend as New
+// does, which is where ollupi checks the models, the skills folder and the
+// workspace's sandbox, against a throwaway store. Nothing is served and the
+// real store is not opened.
 func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 	data, err := os.MkdirTemp("", "ollupid-check-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(data)
-	h, err := New(Options{Home: home, DataHome: data, Token: "check", Config: cfg, Version: "check", Browser: browser})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h, err := New(ctx, Options{Home: home, DataHome: data, Token: "check", Config: cfg, Browser: browser})
 	if err != nil {
 		return err
 	}
-	defer h.close()
-	ctx, cancel := context.WithCancel(context.Background())
-	if err := h.agent.Start(ctx); err != nil {
-		cancel()
-		return err
-	}
-	_, err = h.agent.StartThread(db.DefaultUser, "", "", "", permission.Settings{})
-	cancel()
-	h.agent.Wait()
-	return err
+	h.close()
+	return nil
 }
 
 func (h *Host) close() {
+	var errs []error
 	for i := len(h.closers) - 1; i >= 0; i-- {
-		if err := h.closers[i](); err != nil {
-			slog.Warn("host component not closed", "err", err)
-		}
+		errs = append(errs, h.closers[i]())
 	}
 	h.closers = nil
+	if err := errors.Join(errs...); err != nil {
+		fmt.Fprintln(os.Stderr, "host: not closed:", err)
+	}
 }
 
 // modelClients gives each model its own ollupi connection and client, of
@@ -329,11 +253,12 @@ func modelClient(p config.Provider, m config.Model) (llm.Client, error) {
 	return nil, fmt.Errorf("unknown API type %q", p.Type)
 }
 
-// mcpBox is where MCP servers run: on this machine, outside the workspace's
-// sandbox, with the environment the backend was given, as commands the user
-// configured themselves. The app's own variables stay out, its tokens above
-// all, and so do names the sandbox refuses, such as a shell's BASH_FUNC_x%%.
-func mcpBox(home string) (*sandbox.Sandbox, error) {
+// userBox is the user's box: this machine, where their MCP servers run
+// outside the workspace's sandbox with the environment the backend was
+// given, as commands the user configured themselves. The app's own
+// variables stay out, its tokens above all, and so do names the sandbox
+// refuses, such as a shell's BASH_FUNC_x%%.
+func userBox(home string) (*sandbox.Sandbox, error) {
 	var env []string
 	for _, pair := range os.Environ() {
 		name, _, _ := strings.Cut(pair, "=")
@@ -342,53 +267,4 @@ func mcpBox(home string) (*sandbox.Sandbox, error) {
 		}
 	}
 	return sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{home}, EnvPassthrough: env})
-}
-
-// mcpServers resolves the ${NAME} references in env and header values. A
-// reference to a variable that is not set refuses the config: the server
-// would otherwise run without its secret.
-func mcpServers(list []config.MCPServer) ([]mcp.Server, error) {
-	out := make([]mcp.Server, 0, len(list))
-	for _, s := range list {
-		expand := func(m map[string]string) (map[string]string, error) {
-			if m == nil {
-				return nil, nil
-			}
-			res := make(map[string]string, len(m))
-			for k, v := range m {
-				x, err := config.Expand(v)
-				if err != nil {
-					return nil, fmt.Errorf("mcp server %s: %s: %w", s.Name, k, err)
-				}
-				res[k] = x
-			}
-			return res, nil
-		}
-		env, err := expand(s.Env)
-		if err != nil {
-			return nil, err
-		}
-		headers, err := expand(s.Headers)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, mcp.Server{Name: s.Name, Command: s.Command, Args: s.Args, Env: env, URL: s.URL, Headers: headers})
-	}
-	return out, nil
-}
-
-// memoryManager extracts with the model memory.model names, through that
-// model's client, so extraction shares its calls with the model's turns.
-func memoryManager(store *db.DB, models []llm.Model, clients map[string]llm.Client, m config.Memory) (*memory.Manager, error) {
-	opts := memory.Options{Use: m.Use, Generate: m.Generate}
-	var client llm.Client
-	if m.Model != "" {
-		i := slices.IndexFunc(models, func(x llm.Model) bool { return x.Connection == m.Model })
-		opts.Model, client = models[i], clients[m.Model]
-	}
-	mgr, err := memory.New(store, client, opts)
-	if err != nil {
-		return nil, fmt.Errorf("memory: %w", err)
-	}
-	return mgr, nil
 }

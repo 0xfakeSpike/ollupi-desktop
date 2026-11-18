@@ -24,13 +24,12 @@ const config = (memory: BackendConfig['memory']): BackendConfig =>
       { provider: 'deepseek', type: 'openai', api_key: 'sk-test', names: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
       { provider: 'local', type: 'openai', names: [{ name: 'qwen3:32b', limits }] },
     ],
-    permissions: {},
     workspace: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
     memory,
   }) as BackendConfig
 
-const learning = config({ use: true, generate: true, model: 'deepseek/deepseek-flash' })
-const notLearning = config({ use: true, generate: false, model: 'deepseek/deepseek-flash' })
+const learning = config({ model: 'deepseek/deepseek-flash' })
+const notLearning = config(undefined)
 
 describe('model edits', () => {
   it('adds a provider with the models chosen from its list', () => {
@@ -78,12 +77,11 @@ describe('model edits', () => {
     expect(removeModel(learning, 0, 1)).toEqual([{ kind: 'delete', path: ['models', 0, 'names', 1] }])
   })
 
-  it('keeps the memory model while learning uses it, and drops it otherwise', () => {
+  it('keeps the model memory learns with', () => {
     expect(cannotRemove(learning, 0, 0)).toBe('memoryModel')
     expect(cannotRemoveProvider(learning, 0)).toBe('memoryModels')
     expect(cannotRemove(notLearning, 0, 0)).toBeUndefined()
-    expect(removeProvider(notLearning, 0)).toContainEqual({ kind: 'delete', path: ['memory', 'model'] })
-    expect(removeModel(notLearning, 0, 1).some((c) => c.path[0] === 'memory')).toBe(false)
+    expect(removeProvider(notLearning, 0)).toEqual([{ kind: 'delete', path: ['models', 0] }])
   })
 
   it('refuses to remove the only model', () => {

@@ -1,7 +1,9 @@
 // Package config is the backend's configuration file, <home>/config.yaml:
-// the agent-level settings ollupi takes once at start (models and the APIs
-// that serve them, default permissions, the workspace tools, MCP servers, memory,
-// slots). It only describes; host turns it into running components.
+// what ollupi takes once at start as the deployment's (models and the APIs
+// that serve them, the workspace tools, the model memory is learned with,
+// slots). What the user sets while it runs (permissions, MCP servers,
+// whether memory is on) is theirs in ollupi's store, set through the
+// gateway. It only describes; host turns it into running components.
 package config
 
 import (
@@ -12,15 +14,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
-	"github.com/0xfakeSpike/ollupi/agent/role"
+	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
-	"github.com/0xfakeSpike/ollupi/repo/db"
-	"github.com/0xfakeSpike/ollupi/tools/workspace"
+	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 	"gopkg.in/yaml.v3"
 )
 
@@ -33,17 +33,13 @@ type Config struct {
 	// first model of the first provider is the default.
 	Models []Provider `json:"models"`
 	// Tools is ollupi's tool allow-list; empty allows every tool.
-	Tools       []string    `json:"tools,omitempty"`
-	Permissions Permissions `json:"permissions"`
+	Tools []string `json:"tools,omitempty"`
 	// Slots caps how many threads run at once; 0 uses ollupi's default.
 	Slots int `json:"slots,omitempty"`
 	// Workspace turns on run_command, edit_file and write_file.
 	Workspace Workspace `json:"workspace"`
-	// MCP are the MCP servers whose tools the agent gets, as
-	// <name>__<tool>. One that cannot start is skipped.
-	MCP       []MCPServer `json:"mcp,omitempty"`
-	Memory    Memory      `json:"memory"`
-	SkillsDir string      `json:"skills_dir,omitempty"`
+	Memory    Memory    `json:"memory,omitzero"`
+	SkillsDir string    `json:"skills_dir,omitempty"`
 	// Feishu is the Feishu (Lark) bot that sessions are driven through from
 	// a phone; leave it out to run without one.
 	Feishu *Feishu `json:"feishu,omitempty"`
@@ -136,100 +132,21 @@ func (c Config) ModelRefs() []ModelRef {
 	return out
 }
 
-// Permissions are the agent-level layer of ollupi's permission settings;
-// workspaces and threads add their own on top.
-type Permissions struct {
-	// Approval is the approval policy: untrusted, on-request or never.
-	Approval string   `json:"approval,omitempty"`
-	Allow    []string `json:"allow,omitempty"`
-	Ask      []string `json:"ask,omitempty"`
-	Deny     []string `json:"deny,omitempty"`
-}
-
-func (p Permissions) Settings() db.PermissionSettings {
-	return db.PermissionSettings{
-		ApprovalPolicy: p.Approval,
-		Rules:          db.PermissionRules{Allow: p.Allow, Ask: p.Ask, Deny: p.Deny},
-	}
-}
-
 type Workspace struct {
 	Enabled bool `json:"enabled"`
 	workspace.Config
 }
 
 type Memory struct {
-	Use      bool `json:"use"`
-	Generate bool `json:"generate"`
-	// Model is the ID of the model that extracts memories; required when
-	// Generate is on. It shares that model's client and Calls.
+	// Model is the ID of the model that learns memories from finished
+	// turns, for a user who has memory and learning on; without one none
+	// are learned. It
+	// shares that model's client and Calls.
 	Model string `json:"model,omitempty"`
 }
 
-// MCPServer is one MCP server: a command run over stdio, or a streamable
-// HTTP URL. ollupi validates the rest (the name, one transport) and skips a
-// server it cannot use. Env and header values may name environment
-// variables as ${NAME}, so secrets stay out of this file; a command also
-// inherits the backend's environment.
-type MCPServer struct {
-	Name    string            `json:"name"`
-	Command string            `json:"command,omitempty"`
-	Args    []string          `json:"args,omitempty"`
-	Env     map[string]string `json:"env,omitempty"`
-	URL     string            `json:"url,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
-}
-
-// BrowserProvider names the app's built-in browser, a tool provider of its
-// own; an MCP server of that name would clash with it.
-const BrowserProvider = "browser"
-
-var variable = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
-
-// Expand replaces each ${NAME} in s with that environment variable, which
-// must be set.
-func Expand(s string) (string, error) {
-	var missing string
-	out := variable.ReplaceAllStringFunc(s, func(ref string) string {
-		name := variable.FindStringSubmatch(ref)[1]
-		v, ok := os.LookupEnv(name)
-		if !ok && missing == "" {
-			missing = name
-		}
-		return v
-	})
-	if missing != "" {
-		return "", fmt.Errorf("environment variable %s is not set", missing)
-	}
-	return out, nil
-}
-
-// Redacted is the server without values that may be secrets: an env or
-// header value that names no variable is written in the file, so it is
-// emptied. One built from ${NAME} references stays, since it names where
-// the secret is, not the secret.
-func (s MCPServer) Redacted() MCPServer {
-	redact := func(m map[string]string) map[string]string {
-		if m == nil {
-			return nil
-		}
-		out := make(map[string]string, len(m))
-		for k, v := range m {
-			if variable.MatchString(v) {
-				out[k] = v
-			} else {
-				out[k] = ""
-			}
-		}
-		return out
-	}
-	s.Env, s.Headers = redact(s.Env), redact(s.Headers)
-	return s
-}
-
 // Load reads <home>/config.yaml, writing the starter template and skills
-// first when there is none, and moves skills_dir's skills to the layout
-// ollupi reads (moveFlatSkills).
+// first when there is none.
 func Load(home string) (Config, error) {
 	path := filepath.Join(home, FileName)
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
@@ -241,21 +158,14 @@ func Load(home string) (Config, error) {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
 	}
-	cfg, err := LoadFile(path, home)
-	if err != nil || cfg.SkillsDir == "" {
-		return cfg, err
-	}
-	if err := moveFlatSkills(cfg.SkillsDir); err != nil {
-		return Config{}, fmt.Errorf("move skills to the main agent: %w", err)
-	}
-	return cfg, nil
+	return LoadFile(path, home)
 }
 
 // starterRoles have the skills the desktop ships: the main agent, which is
 // both of its roles, so that a conversation that moves to a model of
 // another size keeps them (ollupi installs a role's skills in the
 // directory of its name).
-var starterRoles = []role.Name{role.FullMain, role.CompactMain}
+var starterRoles = []agent.Name{agent.FullMain, agent.CompactMain}
 
 // writeStarterSkills copies each skill the desktop ships into the
 // directory of each starter role under dir, leaving a folder already there
@@ -296,11 +206,16 @@ func writeSkills(dir string, entries []fs.DirEntry) error {
 }
 
 // LoadFile reads a config file for a backend whose home is home: a
-// relative skills_dir resolves against home.
+// relative skills_dir resolves against home. Keys from before 0.7.53 that
+// the engine keeps now are left out (upgrade.go).
 func LoadFile(path, home string) (Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return Config{}, err
+	}
+	raw, _, err = cut(raw)
+	if err != nil {
+		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
 	cfg, err := Parse(raw)
 	if err != nil {
@@ -375,16 +290,8 @@ func (c Config) Validate() error {
 	if len(ids) == 0 {
 		return errors.New("models: at least one model is required; the first is the default")
 	}
-	if c.Memory.Generate && c.Memory.Model == "" {
-		return errors.New("memory.model is required when memory.generate is on")
-	}
 	if c.Memory.Model != "" && !ids[c.Memory.Model] {
 		return fmt.Errorf("memory.model %q is not a model listed under models (provider/name)", c.Memory.Model)
-	}
-	for _, s := range c.MCP {
-		if s.Name == BrowserProvider {
-			return fmt.Errorf("mcp: the name %s is the app's built-in browser; choose another", BrowserProvider)
-		}
 	}
 	if c.Slots < 0 {
 		return errors.New("slots must not be negative")

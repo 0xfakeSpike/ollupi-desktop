@@ -7,16 +7,16 @@
 // current. The cron/* calls below change tasks; their results are not
 // applied here, the notification is.
 
-import type { CronJobView, ThreadRow } from '@ollupi/protocol'
+import type { CronJobRow, ThreadRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 
 /** Undefined until the first list arrives. */
-export const useCron = create<{ jobs: CronJobView[] | undefined }>()(() => ({ jobs: undefined }))
+export const useCron = create<{ jobs: CronJobRow[] | undefined }>()(() => ({ jobs: undefined }))
 
-function applyChange(id: string, job: CronJobView | null): void {
+function applyChange(id: string, job: CronJobRow | null): void {
   useCron.setState((s) => {
     if (!s.jobs) return s
     const rest = s.jobs.filter((j) => j.id !== id)
@@ -24,12 +24,13 @@ function applyChange(id: string, job: CronJobView | null): void {
   })
 }
 
-/** A task shows its thread's title and whether it is archived (when ollupi
- * sends it nothing); those change with the thread, not the task. */
+/** A task shows its thread's title, workspace and whether it is archived
+ * (when ollupi sends it nothing); those change with the thread, and ollupi
+ * says so as thread/changed, not cron/changed. */
 function applyThread(thread: ThreadRow): void {
   useCron.setState((s) =>
     s.jobs?.some((j) => j.threadId === thread.id)
-      ? { jobs: s.jobs.map((j) => (j.threadId === thread.id ? { ...j, threadTitle: thread.title, threadArchived: !!thread.archivedAt } : j)) }
+      ? { jobs: s.jobs.map((j) => (j.threadId === thread.id ? { ...j, threadTitle: thread.title, workspaceId: thread.workspaceId, threadArchived: !!thread.archivedAt } : j)) }
       : s,
   )
 }
@@ -56,13 +57,13 @@ export function createJob(threadId: string, name: string, spec: string, prompt: 
   }).then(Boolean)
 }
 
-export function setPaused(job: CronJobView, paused: boolean): Promise<void | undefined> {
+export function setPaused(job: CronJobRow, paused: boolean): Promise<void | undefined> {
   return run((e) => (paused ? e.cron.pause : e.cron.resume), async () => {
     await gateway().call('cron/pause', { threadId: job.threadId, name: job.name, paused })
   })
 }
 
-export function deleteJob(job: CronJobView): Promise<void | undefined> {
+export function deleteJob(job: CronJobRow): Promise<void | undefined> {
   return run((e) => e.cron.delete, async () => {
     await gateway().call('cron/delete', { threadId: job.threadId, name: job.name })
   })

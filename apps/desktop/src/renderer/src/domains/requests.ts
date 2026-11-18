@@ -3,6 +3,7 @@
 // is calling it. They belong to the connection that received them; after a
 // reconnect the gateway sends every pending one again.
 
+import { waitsForAnswer, waitsForApproval } from '@ollupi/core'
 import type { ApprovalRequestParams, Decision, UserInputAnswer, UserInputRequestParams } from '@ollupi/protocol'
 import { create } from 'zustand'
 import type { Domain } from '../gateway/domain'
@@ -62,8 +63,8 @@ export const requestsDomain: Domain = {
           ),
       ),
       // A request settled elsewhere (another client, or the turn ending)
-      // completes its item; nothing is waiting for an answer any more.
-      client.on('item/completed', ({ item }) => remove(item.id)),
+      // changes its item so that it waits no more.
+      client.on('item/changed', ({ item }) => !waitsForApproval(item) && !waitsForAnswer(item) && remove(item.id)),
     ]
     return () => offs.forEach((off) => off())
   },
@@ -82,8 +83,8 @@ export function usePendingRequest(itemId: string): PendingRequest | undefined {
   return useRequests((s) => s.byItem[itemId])
 }
 
-/** Requests waiting in one thread, e.g. a subagent's, shown at its parent's
- * call because the parent reports the child's wait as its own status. */
+/** Requests waiting in one thread, e.g. a subagent's, shown at the
+ * parent's call that launched it. */
 export function useThreadRequests(threadId: string | undefined): PendingRequest[] {
   const byItem = useRequests((s) => s.byItem)
   return threadId ? Object.values(byItem).filter((r) => r.params.threadId === threadId) : []
