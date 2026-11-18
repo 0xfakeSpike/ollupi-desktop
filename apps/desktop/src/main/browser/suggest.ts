@@ -6,15 +6,7 @@
 // page's address begins with what is typed, the bar completes it: to the
 // site alone while what is typed is still within its name.
 
-import type { Bookmark, Suggestions } from '../../shared/ipc'
-
-/** A page the browser opened: how often, and when last. */
-export interface Visit {
-  url: string
-  title: string
-  visits: number
-  last: number
-}
+import type { Bookmark, Suggestions, Visit } from '../../shared/ipc'
 
 const LIMIT = 8
 const DAY = 86_400_000

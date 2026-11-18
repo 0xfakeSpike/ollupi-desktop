@@ -19,7 +19,7 @@ import { EventEmitter, once } from 'node:events'
 import { join } from 'node:path'
 import type { Locator, Page } from 'playwright-core'
 import type { BrowserDownload, BrowserState, BrowserTab } from '../../shared/ipc'
-import { isWebPage, normalize } from './address'
+import { isWebPage, normalize, START_PAGE } from './address'
 import { Pages, playwright, type Size } from './playwright'
 
 const PARTITION = 'persist:browser'
@@ -117,6 +117,20 @@ export class AgentBrowser extends EventEmitter {
     const view = this.add(thread)
     this.changed(thread)
     return view
+  }
+
+  /** Opens a page in a new tab after the active one, made active. */
+  async openTab(thread: string, url: string): Promise<void> {
+    const target = address(url)
+    await load(this.newTab(thread), target)
+  }
+
+  /** The browser opened: a thread with no tab yet starts at the start
+   * page. A tab the agent opened is there already, as it opens it before
+   * the panel shows. */
+  async start(thread: string): Promise<void> {
+    if (this.strips.get(thread)?.tabs.length) return
+    await this.openTab(thread, START_PAGE)
   }
 
   select(thread: string, id: number): void {
@@ -397,7 +411,7 @@ export class AgentBrowser extends EventEmitter {
     // A link that opens a window opens in a new tab.
     wc.setWindowOpenHandler(({ url }) => {
       const now = owner()
-      if (now && isWebPage(url)) void load(this.newTab(now.thread), url)
+      if (now && isWebPage(url)) void this.openTab(now.thread, url)
       return { action: 'deny' }
     })
     for (const event of ['did-navigate', 'did-navigate-in-page', 'page-title-updated', 'did-start-loading', 'did-stop-loading'] as const) {

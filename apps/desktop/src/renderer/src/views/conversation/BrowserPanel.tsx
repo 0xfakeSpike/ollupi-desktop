@@ -6,18 +6,24 @@
 // area: the tabs and address bar are a region of their own whose menus and
 // tooltips stay out of it, and the view steps aside only for what is meant
 // to lie over the page: the panel's own lists, a dialog, a dragged edge.
+// The browser opened with no tab starts at Google, as does a new tab; what is
+// typed in the address bar opens as an address when it is one, and is
+// searched for on Google when it is not.
 // A star keeps the page shown among the person's bookmarks, which open from
-// a list beside Chrome's. Typing an address offers the pages visited and
-// bookmarked that match it, and completes the best one's address in place.
+// a list beside Chrome's. The pages visited open from the history, newest
+// first, where the person can also take one out or clear them all. Typing an
+// address offers the pages visited and bookmarked that match it, and
+// completes the best one's address in place.
 // A page's download is saved where the person chooses in the save dialog, and
 // the panel then says where it went, with a way to show it in Finder.
 
 import { Button, cn, IconButton, Input, useDialogOpen } from '@ollupi/ui'
 import { ArrowLeft, ArrowRight, BookMarked, CircleAlert, Download, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Bookmark, BookmarkList, BrowserDownload, BrowserState, BrowserTab, Suggestions } from '../../../../shared/ipc'
-import { addBookmark, openPage, removeBookmark } from '../../domains/browser'
-import { useT } from '../../i18n'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import type { Bookmark, BookmarkList, BrowserDownload, BrowserState, BrowserTab, Suggestions, Visit } from '../../../../shared/ipc'
+import { addBookmark, clearHistory, openPage, removeBookmark, removeVisit } from '../../domains/browser'
+import { useLocale, useT } from '../../i18n'
+import { clockTime } from '../../i18n/format'
 import { desktop } from '../../platform/desktop'
 import { CLEAR_OF_EDGE, SidePanel, usePanelWidths } from './SidePanel'
 
@@ -28,7 +34,8 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const area = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const [own, setOwn] = useState<Bookmark[]>([])
-  const [listing, setListing] = useState(false)
+  // The list open under the address bar, if one is.
+  const [listing, setListing] = useState<'bookmarks' | 'history'>()
   // What the address bar offers for what is typed; the latest asked wins.
   const [offer, setOffer] = useState<Suggestions>()
   const asked = useRef(0)
@@ -38,6 +45,8 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const [saved, setSaved] = useState<BrowserDownload>()
 
   useEffect(() => {
+    // The browser opened: with no tab yet, it starts at Google.
+    void desktop.browser.start(thread)
     void desktop.browser.state(thread).then(setState)
     void desktop.browser.bookmarks.list().then((l) => setOwn(l.own))
     const offState = desktop.browser.onState((t, s) => t === thread && setState(s))
@@ -86,7 +95,7 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const open = !!state?.url
   const resizing = usePanelWidths((s) => s.resizing)
   const dialog = useDialogOpen()
-  const covered = listing || offered.length > 0 || dialog
+  const covered = !!listing || offered.length > 0 || dialog
   useLayoutEffect(() => {
     const el = area.current
     if (!el || !open || resizing || covered) return
@@ -203,18 +212,30 @@ export function BrowserPanel({ thread }: { thread: string }) {
             >
               <Star size={14} fill={kept ? 'currentColor' : 'none'} />
             </IconButton>
-            <IconButton label={t.bookmarks} size="sm" active={listing} data-bookmarks-toggle onClick={() => setListing((l) => !l)}>
+            <IconButton label={t.bookmarks} size="sm" active={listing === 'bookmarks'} data-list-toggle onClick={() => setListing((l) => (l === 'bookmarks' ? undefined : 'bookmarks'))}>
               <BookMarked size={14} />
             </IconButton>
+            <IconButton label={t.history} size="sm" active={listing === 'history'} data-list-toggle onClick={() => setListing((l) => (l === 'history' ? undefined : 'history'))}>
+              <History size={14} />
+            </IconButton>
             {offered.length > 0 && <Offered id={`${thread}-offered`} items={offered} pick={pick} onPick={setPick} onOpen={go} />}
-            {listing && (
+            {listing === 'bookmarks' && (
               <Bookmarks
                 onOpen={(url) => {
-                  setListing(false)
+                  setListing(undefined)
                   void openPage(thread, url)
                 }}
-                onClose={() => setListing(false)}
+                onClose={() => setListing(undefined)}
                 onChanged={setOwn}
+              />
+            )}
+            {listing === 'history' && (
+              <HistoryList
+                onOpen={(url) => {
+                  setListing(undefined)
+                  void openPage(thread, url)
+                }}
+                onClose={() => setListing(undefined)}
               />
             )}
           </form>
@@ -307,24 +328,10 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
   const t = useT().conversation.browser
   const [list, setList] = useState<BookmarkList>()
   const [filter, setFilter] = useState('')
-  const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     void desktop.browser.bookmarks.list().then(setList)
   }, [])
-  // Closes on a click elsewhere or Escape.
-  useEffect(() => {
-    const away = (e: MouseEvent) => {
-      if (!box.current?.contains(e.target as Node) && !(e.target as Element).closest?.('[data-bookmarks-toggle]')) onClose()
-    }
-    const escape = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('mousedown', away)
-    document.addEventListener('keydown', escape)
-    return () => {
-      document.removeEventListener('mousedown', away)
-      document.removeEventListener('keydown', escape)
-    }
-  }, [onClose])
 
   const words = filter.trim().toLowerCase()
   const matches = (b: Bookmark & { folder?: string }) => !words || `${b.title} ${b.url} ${b.folder ?? ''}`.toLowerCase().includes(words)
@@ -332,10 +339,7 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
   const chrome = (list?.chrome ?? []).map((c) => ({ ...c, bookmarks: c.bookmarks.filter(matches) })).filter((c) => c.bookmarks.length)
 
   return (
-    <div
-      ref={box}
-      className="absolute top-full right-2 z-20 mt-1 flex max-h-[70vh] w-96 animate-enter flex-col overflow-hidden rounded-2xl bg-raised shadow-lg dark:ring-1 dark:ring-line motion-reduce:animate-fade"
-    >
+    <Dropdown onClose={onClose}>
       <div className="border-b border-line p-2">
         <Input autoFocus aria-label={t.filterBookmarks} placeholder={t.filterBookmarks} value={filter} onChange={(e) => setFilter(e.target.value)} />
       </div>
@@ -348,8 +352,11 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
             {own.map((b) => (
               <Row
                 key={b.url}
-                bookmark={b}
+                url={b.url}
+                title={b.title}
+                detail={host(b.url)}
                 onOpen={onOpen}
+                removeLabel={t.unbookmark}
                 onRemove={async () => {
                   const next = await removeBookmark(b.url)
                   if (!next) return
@@ -362,13 +369,107 @@ function Bookmarks({ onOpen, onClose, onChanged }: { onOpen(url: string): void; 
               <div key={c.profile}>
                 <Group label={t.chromeBookmarks(c.profile)} />
                 {c.bookmarks.map((b, i) => (
-                  <Row key={`${i}:${b.url}`} bookmark={b} folder={b.folder} onOpen={onOpen} />
+                  <Row key={`${i}:${b.url}`} url={b.url} title={b.title} detail={b.folder ? `${b.folder} · ${host(b.url)}` : host(b.url)} onOpen={onOpen} />
                 ))}
               </div>
             ))}
           </>
         )}
       </div>
+    </Dropdown>
+  )
+}
+
+/** The pages the browser has opened, the most lately first, under a search;
+ * a click opens one in the tab shown. Each can be taken out, or all
+ * cleared. */
+function HistoryList({ onOpen, onClose }: { onOpen(url: string): void; onClose(): void }) {
+  const m = useT()
+  const t = m.conversation.browser
+  const locale = useLocale((s) => s.locale)
+  const [filter, setFilter] = useState('')
+  const [pages, setPages] = useState<Visit[]>()
+  // The pages for what is typed; the latest asked wins.
+  const asked = useRef(0)
+  const look = (typed: string) => {
+    const ask = ++asked.current
+    void desktop.browser.history.list(typed).then((p) => ask === asked.current && setPages(p))
+  }
+  useEffect(() => look(''), [])
+
+  return (
+    <Dropdown onClose={onClose}>
+      <div className="border-b border-line p-2">
+        <Input
+          autoFocus
+          aria-label={t.filterHistory}
+          placeholder={t.filterHistory}
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value)
+            look(e.target.value)
+          }}
+        />
+      </div>
+      <div className="overflow-y-auto py-1">
+        {!pages ? null : pages.length === 0 ? (
+          <p className="px-3 py-4 text-center text-small text-fg-subtle">{filter.trim() ? t.noHistoryMatch : t.noHistory}</p>
+        ) : (
+          pages.map((page) => (
+            <Row
+              key={page.url}
+              url={page.url}
+              title={page.title || written(page.url)}
+              detail={`${host(page.url)} · ${clockTime(m, locale, new Date(page.last).toISOString())}`}
+              onOpen={onOpen}
+              removeLabel={t.removeVisit}
+              onRemove={async () => {
+                if (await removeVisit(page.url)) setPages((p) => p?.filter((v) => v.url !== page.url))
+              }}
+            />
+          ))
+        )}
+      </div>
+      {!filter.trim() && !!pages?.length && (
+        <div className="flex justify-end border-t border-line p-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={async () => {
+              if (confirm(t.clearHistoryConfirm) && (await clearHistory())) setPages([])
+            }}
+          >
+            {t.clearHistory}
+          </Button>
+        </div>
+      )}
+    </Dropdown>
+  )
+}
+
+/** A list under the address bar, at its right, over the page: the page's
+ * view steps aside while it is open. It closes on a click elsewhere, other
+ * than on a list's own button, or Escape. */
+function Dropdown({ onClose, children }: { onClose(): void; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const away = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node) && !(e.target as Element).closest?.('[data-list-toggle]')) onClose()
+    }
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [onClose])
+  return (
+    <div
+      ref={box}
+      className="absolute top-full right-2 z-20 mt-1 flex max-h-[70vh] w-96 animate-enter flex-col overflow-hidden rounded-2xl bg-raised shadow-lg dark:ring-1 dark:ring-line motion-reduce:animate-fade"
+    >
+      {children}
     </div>
   )
 }
@@ -414,21 +515,22 @@ function Group({ label }: { label: string }) {
   return <div className="px-3 pt-2 pb-1 text-small font-medium text-fg-subtle">{label}</div>
 }
 
-function Row({ bookmark, folder, onOpen, onRemove }: { bookmark: Bookmark; folder?: string; onOpen(url: string): void; onRemove?(): void }) {
-  const t = useT().conversation.browser
+/** A page in a list: its title, and under it where it is; a click opens
+ * it. One that can be taken out of the list shows how on hover. */
+function Row({ url, title, detail, onOpen, removeLabel, onRemove }: { url: string; title: string; detail: string; onOpen(url: string): void; removeLabel?: string; onRemove?(): void }) {
   return (
     <div className="group flex items-center gap-1 px-1">
       <button
         type="button"
-        title={bookmark.url}
-        onClick={() => onOpen(bookmark.url)}
+        title={url}
+        onClick={() => onOpen(url)}
         className="flex min-w-0 flex-1 flex-col rounded-xl px-2.5 py-1.5 text-left hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
       >
-        <span className="truncate text-small text-fg">{bookmark.title}</span>
-        <span className="truncate text-small text-fg-subtle">{folder ? `${folder} · ${host(bookmark.url)}` : host(bookmark.url)}</span>
+        <span className="truncate text-small text-fg">{title}</span>
+        <span className="truncate text-small text-fg-subtle">{detail}</span>
       </button>
-      {onRemove && (
-        <IconButton label={t.unbookmark} size="sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={onRemove}>
+      {onRemove && removeLabel && (
+        <IconButton label={removeLabel} size="sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={onRemove}>
           <X size={12} />
         </IconButton>
       )}

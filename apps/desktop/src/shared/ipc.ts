@@ -188,6 +188,14 @@ export interface BookmarkList {
   chrome: ChromeBookmarks[]
 }
 
+/** A page the browser opened: how often, and when last. */
+export interface Visit {
+  url: string
+  title: string
+  visits: number
+  last: number
+}
+
 /** What the address bar offers for query: visited and bookmarked pages,
  * best first, and how it completes what is typed, if it does. */
 export interface Suggestions {
@@ -338,9 +346,14 @@ export interface DesktopApi {
     /** Shows the thread's active tab over the panel's area; undefined hides
      * it. */
     place(thread: string, bounds: BrowserBounds | undefined): Promise<void>
+    /** Opens what the person typed in the active tab: an address, or a
+     * Google search for anything else. */
     open(thread: string, url: string): Promise<void>
-    /** Opens an empty tab after the active one and makes it active. */
+    /** Opens the start page in a new tab after the active one, made
+     * active. */
     newTab(thread: string): Promise<void>
+    /** The browser opened: a thread with no tab yet opens the start page. */
+    start(thread: string): Promise<void>
     selectTab(thread: string, id: number): Promise<void>
     closeTab(thread: string, id: number): Promise<void>
     /** Closes the thread's tabs and forgets them: it was archived or
@@ -358,6 +371,9 @@ export interface DesktopApi {
     /** The pages the browser has opened, by the person or an agent. */
     history: {
       count(): Promise<number>
+      /** The pages matching filter, the most lately opened first. */
+      list(filter: string): Promise<Visit[]>
+      remove(url: string): Promise<void>
       clear(): Promise<void>
     }
     /** What the address bar offers for what is typed. */
@@ -454,6 +470,7 @@ export const IpcChannel = {
   BrowserPlace: 'browser:place',
   BrowserOpen: 'browser:open',
   BrowserNewTab: 'browser:newTab',
+  BrowserStart: 'browser:start',
   BrowserSelectTab: 'browser:selectTab',
   BrowserCloseTab: 'browser:closeTab',
   BrowserForget: 'browser:forget',
@@ -462,6 +479,8 @@ export const IpcChannel = {
   BookmarksAdd: 'bookmarks:add',
   BookmarksRemove: 'bookmarks:remove',
   HistoryCount: 'history:count',
+  HistoryList: 'history:list',
+  HistoryRemove: 'history:remove',
   HistoryClear: 'history:clear',
   BrowserSuggest: 'browser:suggest',
   BrowserBack: 'browser:back',

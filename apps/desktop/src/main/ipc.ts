@@ -10,6 +10,7 @@ import { setAppIcon } from './appIcon'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
+import { START_PAGE, typedPage } from './browser/address'
 import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
 import type { History } from './browser/history'
@@ -86,8 +87,9 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.TerminalClose, (_event, key: unknown) => terminals.close(text(key)))
   ipcMain.handle(IpcChannel.BrowserState, (_event, thread: unknown) => browser.state(text(thread)))
   ipcMain.handle(IpcChannel.BrowserPlace, (_event, thread: unknown, bounds: unknown) => browser.place(text(thread), validBounds(bounds)))
-  ipcMain.handle(IpcChannel.BrowserOpen, (_event, thread: unknown, url: unknown) => browser.open(text(thread), text(url)))
-  ipcMain.handle(IpcChannel.BrowserNewTab, (_event, thread: unknown) => void browser.newTab(text(thread)))
+  ipcMain.handle(IpcChannel.BrowserOpen, (_event, thread: unknown, url: unknown) => browser.open(text(thread), typedPage(text(url))))
+  ipcMain.handle(IpcChannel.BrowserNewTab, (_event, thread: unknown) => browser.openTab(text(thread), START_PAGE))
+  ipcMain.handle(IpcChannel.BrowserStart, (_event, thread: unknown) => browser.start(text(thread)))
   ipcMain.handle(IpcChannel.BrowserSelectTab, (_event, thread: unknown, id: unknown) => browser.select(text(thread), tabId(id)))
   ipcMain.handle(IpcChannel.BrowserCloseTab, (_event, thread: unknown, id: unknown) => browser.close(text(thread), tabId(id)))
   ipcMain.handle(IpcChannel.BrowserForget, (_event, thread: unknown) => browser.forget(text(thread)))
@@ -96,6 +98,8 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BookmarksAdd, (_event, url: unknown, title: unknown) => bookmarks.add(text(url), text(title)))
   ipcMain.handle(IpcChannel.BookmarksRemove, (_event, url: unknown) => bookmarks.remove(text(url)))
   ipcMain.handle(IpcChannel.HistoryCount, () => history.count())
+  ipcMain.handle(IpcChannel.HistoryList, (_event, filter: unknown) => history.list(typeof filter === 'string' ? filter : ''))
+  ipcMain.handle(IpcChannel.HistoryRemove, (_event, url: unknown) => history.remove(text(url)))
   ipcMain.handle(IpcChannel.HistoryClear, () => history.clear())
   ipcMain.handle(IpcChannel.BrowserSuggest, async (_event, query: unknown) => {
     const [visited, kept] = await Promise.all([history.entries(), bookmarks.list()])

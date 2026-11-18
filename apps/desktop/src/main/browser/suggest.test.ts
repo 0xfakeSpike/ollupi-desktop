@@ -2,8 +2,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { Visit } from '../../shared/ipc'
 import { History } from './history'
-import { bare, suggest, type Visit } from './suggest'
+import { bare, suggest } from './suggest'
 
 const NOW = Date.UTC(2026, 10, 2)
 const DAY = 86_400_000
@@ -91,5 +92,18 @@ describe('history', () => {
     await h.clear()
     expect(await h.count()).toBe(0)
     expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([])
+  })
+
+  it('lists the pages matching every word, the most lately opened first, and takes one out', async () => {
+    const file = join(dir, 'history.json')
+    const h = new History(file)
+    await h.visit('https://a.example/rice', 'Cook rice', 1)
+    await h.visit('https://b.example/', 'Beans', 2)
+    await h.visit('https://c.example/rice', 'Rice fields', 3)
+    expect((await h.list('')).map((p) => p.url)).toEqual(['https://c.example/rice', 'https://b.example/', 'https://a.example/rice'])
+    expect((await h.list(' RICE cook ')).map((p) => p.url)).toEqual(['https://a.example/rice'])
+
+    await h.remove('https://b.example/')
+    expect(JSON.parse(await readFile(file, 'utf8')).map((p: { url: string }) => p.url)).toEqual(['https://a.example/rice', 'https://c.example/rice'])
   })
 })

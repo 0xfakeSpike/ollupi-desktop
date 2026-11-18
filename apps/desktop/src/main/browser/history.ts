@@ -1,14 +1,16 @@
 // The pages the browser has opened, by the person or an agent, kept in the
-// app's data folder for the address bar to offer again. Each page is kept
-// once: how often it was opened, when last, and under its latest title. The
-// oldest go once there are too many; changes reach the file a moment after,
-// several at once.
+// app's data folder for the address bar to offer again and for the person to
+// look back through. Each page is kept once: how often it was opened, when
+// last, and under its latest title. The oldest go once there are too many;
+// changes reach the file a moment after, several at once.
 
+import type { Visit } from '../../shared/ipc'
 import { isWebPage } from './address'
 import { readKept, writeKept } from './file'
-import type { Visit } from './suggest'
 
 const LIMIT = 5000
+/** The most pages a look through the history shows at once. */
+const SHOWN = 300
 const SAVE_DELAY = 1000
 
 export class History {
@@ -44,6 +46,24 @@ export class History {
 
   async entries(): Promise<Visit[]> {
     return [...(await this.load()).values()]
+  }
+
+  /** The pages whose address or title holds every word of filter, the most
+   * lately opened first; at most SHOWN of them. */
+  async list(filter: string): Promise<Visit[]> {
+    const words = filter.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    const out: Visit[] = []
+    for (const page of [...(await this.load()).values()].reverse()) {
+      const text = `${page.url} ${page.title}`.toLowerCase()
+      if (!words.every((w) => text.includes(w))) continue
+      out.push(page)
+      if (out.length === SHOWN) break
+    }
+    return out
+  }
+
+  async remove(url: string): Promise<void> {
+    if ((await this.load()).delete(url)) await this.write()
   }
 
   async count(): Promise<number> {

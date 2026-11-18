@@ -16,6 +16,13 @@ export function removeBookmark(url: string): Promise<Bookmark[] | undefined> {
   return run((e) => e.browser.bookmark, () => desktop.browser.bookmarks.remove(url))
 }
 
+export function removeVisit(url: string): Promise<boolean> {
+  return run((e) => e.browser.removeVisit, async () => {
+    await desktop.browser.history.remove(url)
+    return true
+  }).then(Boolean)
+}
+
 export function clearHistory(): Promise<boolean> {
   return run((e) => e.browser.clearHistory, async () => {
     await desktop.browser.history.clear()

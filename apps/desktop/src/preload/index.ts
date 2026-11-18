@@ -68,6 +68,7 @@ const api: DesktopApi = {
     place: (thread, bounds) => ipcRenderer.invoke(IpcChannel.BrowserPlace, thread, bounds),
     open: (thread, url) => ipcRenderer.invoke(IpcChannel.BrowserOpen, thread, url),
     newTab: (thread) => ipcRenderer.invoke(IpcChannel.BrowserNewTab, thread),
+    start: (thread) => ipcRenderer.invoke(IpcChannel.BrowserStart, thread),
     selectTab: (thread, id) => ipcRenderer.invoke(IpcChannel.BrowserSelectTab, thread, id),
     closeTab: (thread, id) => ipcRenderer.invoke(IpcChannel.BrowserCloseTab, thread, id),
     forget: (thread) => ipcRenderer.invoke(IpcChannel.BrowserForget, thread),
@@ -79,6 +80,8 @@ const api: DesktopApi = {
     },
     history: {
       count: () => ipcRenderer.invoke(IpcChannel.HistoryCount),
+      list: (filter) => ipcRenderer.invoke(IpcChannel.HistoryList, filter),
+      remove: (url) => ipcRenderer.invoke(IpcChannel.HistoryRemove, url),
       clear: () => ipcRenderer.invoke(IpcChannel.HistoryClear),
     },
     suggest: (query) => ipcRenderer.invoke(IpcChannel.BrowserSuggest, query),
