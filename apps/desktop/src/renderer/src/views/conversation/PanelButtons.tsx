@@ -1,11 +1,12 @@
 // The header's way into a conversation's panels. The two used most, the
 // browser and the files, are buttons of their own; the rest (changes,
-// terminal, plan, context) and the export sit behind "More", each with a
-// line on what it is for (PRODUCT.md: the first layer shows only what the
-// person needs). A panel's button, or More when the open panel is one of
-// its own, reads as on; picking the open panel closes it.
+// terminal, plan, context) and the export sit behind "More", which opens on
+// a rest of the pointer as tiles in two columns, each with a line on what it
+// is for (PRODUCT.md: the first layer shows only what the person needs). A
+// panel's button, or More when the open panel is one of its own, reads as
+// on; picking the open panel closes it.
 
-import { cn, Picker, useTooltip, type PickerAction, type PickerOption } from '@ollupi/ui'
+import { cn, TileMenu, useTooltip, type PickerAction, type TileMenuTile } from '@ollupi/ui'
 import { ChevronDown, Download, Ellipsis, FolderTree, Gauge, GitBranch, Globe, ListChecks, SquareTerminal, type LucideIcon } from 'lucide-react'
 import { exportThread } from '../../domains/export'
 import { openPanel, togglePanel, useNavigation, type Panel } from '../../domains/navigation'
@@ -37,23 +38,14 @@ export function PanelButtons({ workspace, thread }: { workspace: boolean; thread
   const t = m.conversation.more
   const outside: Panel[] = ['browser', ...(workspace ? (['files'] as const) : [])]
   const inside: Panel[] = [...(workspace ? (['environment', 'terminal'] as const) : []), ...(thread ? (['tasks', 'context'] as const) : [])]
-  const options: PickerOption<Panel>[] = inside.map((p) => {
+  const tiles: TileMenuTile<Panel>[] = inside.map((p) => {
     const Icon = ICONS[p]!
-    return {
-      value: p,
-      label: (
-        <span className="flex items-center gap-2">
-          <Icon size={14} className="shrink-0 text-fg-muted" aria-hidden />
-          {m.conversation.screen[p]}
-        </span>
-      ),
-      description: t.about[p as keyof typeof t.about],
-    }
+    return { value: p, icon: <Icon size={16} aria-hidden />, label: m.conversation.screen[p], description: t.about[p as keyof typeof t.about] }
   })
   const actions: PickerAction[] = thread
     ? [
-        { label: t.exportMarkdown, icon: <Download size={14} />, onSelect: () => void exportThread(thread, 'markdown') },
-        { label: t.exportJson, icon: <Download size={14} />, onSelect: () => void exportThread(thread, 'json') },
+        { label: t.exportMarkdown, icon: <Download size={14} aria-hidden />, onSelect: () => void exportThread(thread, 'markdown') },
+        { label: t.exportJson, icon: <Download size={14} aria-hidden />, onSelect: () => void exportThread(thread, 'json') },
       ]
     : []
   const open = panel && inside.includes(panel) ? panel : undefined
@@ -62,20 +54,19 @@ export function PanelButtons({ workspace, thread }: { workspace: boolean; thread
       {outside.map((p) => (
         <PanelButton key={p} panel={p} on={panel === p} />
       ))}
-      {(options.length > 0 || actions.length > 0) && (
-        <Picker
+      {(tiles.length > 0 || actions.length > 0) && (
+        <TileMenu
           label={t.label}
           value={open}
-          options={options}
-          onChange={(p) => (p === panel ? togglePanel(p) : openPanel(p))}
+          tiles={tiles}
+          onPick={(p) => (p === panel ? togglePanel(p) : openPanel(p))}
           actions={actions}
-          width={300}
           className={cn(capsule, state(!!open))}
         >
           <Ellipsis size={14} aria-hidden />
           <span className="hidden @3xl:inline">{open ? m.conversation.screen[open] : t.label}</span>
           <ChevronDown size={12} className="hidden opacity-60 @3xl:block" aria-hidden />
-        </Picker>
+        </TileMenu>
       )}
     </>
   )

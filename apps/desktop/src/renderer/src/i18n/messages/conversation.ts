@@ -44,7 +44,7 @@ export const en = {
   more: {
     label: 'More',
     exportMarkdown: 'Export as Markdown',
-    exportJson: 'Export everything as JSON',
+    exportJson: 'Export all as JSON',
     about: {
       browser: 'Where it reads and clicks web pages; you can take over',
       files: 'The files in this workspace',
@@ -385,7 +385,7 @@ export const zh: typeof en = {
   more: {
     label: '更多',
     exportMarkdown: '导出为 Markdown',
-    exportJson: '导出全部内容（JSON）',
+    exportJson: '导出全部（JSON）',
     about: {
       browser: '它看网页、点按钮的地方，你也可以接手',
       files: '这个工作区里的文件',
