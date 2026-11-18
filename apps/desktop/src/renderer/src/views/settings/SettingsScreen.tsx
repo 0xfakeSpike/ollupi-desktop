@@ -17,11 +17,11 @@ import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
 import { Emblem } from '../common/Wolf'
 
-/** Most used first: models are where keys, providers and balances live;
- * general, beside them, holds the version and the backend they run on;
- * permissions and redaction change as the work does; what is set once
- * comes last. */
-const sections = ['models', 'general', 'permissions', 'redaction', 'notifications', 'feishu', 'appearance', 'language'] as const
+/** General first, with the version and the backend everything runs on;
+ * redaction and what is set once follow. Permissions, models and Feishu come
+ * last: each shows nothing until the backend has answered, and filling in
+ * above the others would push the page down under the reader. */
+const sections = ['general', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'feishu'] as const
 type Section = (typeof sections)[number]
 
 const bodies: Record<Section, () => ReactNode> = {
