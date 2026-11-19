@@ -27,7 +27,7 @@ export function SearchScreen() {
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => input.current?.select(), [])
 
-  const total = result ? (result.threads?.length ?? 0) + (result.messages?.length ?? 0) + (result.tasks?.length ?? 0) + (result.memories?.length ?? 0) : 0
+  const total = result ? (result.threads?.length ?? 0) + (result.messages?.length ?? 0) + (result.cronJobs?.length ?? 0) + (result.memories?.length ?? 0) : 0
 
   return (
     <div className="flex h-full flex-col">
@@ -76,7 +76,7 @@ export function SearchScreen() {
                 <Group title={t.groups.messages} items={result.messages}>
                   {(x) => <MessageResult key={x.itemId} hit={x} terms={terms} />}
                 </Group>
-                <Group title={t.groups.tasks} items={result.tasks}>
+                <Group title={t.groups.tasks} items={result.cronJobs}>
                   {(x) => <TaskResult key={x.id} job={x} terms={terms} />}
                 </Group>
                 <Group title={t.groups.memories} items={result.memories}>
