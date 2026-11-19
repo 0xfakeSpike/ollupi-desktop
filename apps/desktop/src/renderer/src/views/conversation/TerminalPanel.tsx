@@ -36,7 +36,10 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
         background: color('--color-canvas'),
         foreground: color('--color-fg'),
         cursor: color('--color-fg'),
-        selectionBackground: color('--color-selected'),
+        // As the page's ::selection (styles.css), ink at 22%. xterm reads
+        // hex and rgb() only: given color-mix() it drew the selection in
+        // white, unseen on paper.
+        selectionBackground: `${hex(color('--color-ink'))}38`,
         ...(dark.matches ? ansiDark : ansiLight),
       }
     }
@@ -45,6 +48,10 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
       fontSize: 12,
       cursorBlink: true,
       scrollback: 5000,
+      // A program that takes the mouse (vim, less, an agent's TUI) gets every
+      // drag, so nothing could be selected to copy; Option-drag selects all
+      // the same, as in Terminal and iTerm.
+      macOptionClickForcesSelection: true,
       theme: theme(),
     })
     // The page's colours follow the system as it changes; the terminal's
@@ -105,6 +112,14 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
       <div ref={host} className="min-h-0 flex-1 bg-canvas px-2 py-1" />
     </SidePanel>
   )
+}
+
+/** An opaque CSS colour as #rrggbb, the form a canvas gives it back in. */
+function hex(css: string): string {
+  const ctx = document.createElement('canvas').getContext('2d')
+  if (!ctx) return css
+  ctx.fillStyle = css
+  return ctx.fillStyle
 }
 
 // The 16 colours a shell prints in, one set per scheme: xterm's own are made
