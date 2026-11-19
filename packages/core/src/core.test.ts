@@ -16,7 +16,8 @@ import {
   groupByWorkspace,
   groupReads,
   readText,
-  subagentReport,
+  reportOf,
+  asRan,
   queuedTurns,
   turnMessages,
   turnStartedAt,
@@ -32,7 +33,7 @@ import {
   upsertTurn,
   unread,
   waitingFor,
-  waitsForSubagents,
+  awaitedReports,
   waitsForAnswer,
   waitsForApproval,
   elapsed,
@@ -155,10 +156,14 @@ describe('timeline', () => {
   it('waits for the subagents the turn launched once it has nothing else under way', () => {
     const launch = item('s', 1, { type: 'toolCall', tool: 'general-sub-agent', childThreadId: 'child' })
     const running = (items: ItemRow[]) => timelineFromPage(page(items, [turn('u1', 'inProgress')]))
-    expect(waitsForSubagents(running([launch]))).toBe(true)
-    expect(waitsForSubagents(running([launch, item('c', 2, { type: 'toolCall', status: 'inProgress' })]))).toBe(false)
-    expect(waitsForSubagents(running([launch, item('r', 2, { type: 'agentReport', launchItemId: 's' })]))).toBe(false)
-    expect(waitsForSubagents(timelineFromPage(page([launch], [turn('u1')])))).toBe(false)
+    const task = item('t', 2, { type: 'toolCall', tool: 'run_command', taskId: 'task' })
+    expect(awaitedReports(running([launch]))).toEqual({ subagents: 1, tasks: 0 })
+    expect(awaitedReports(running([task]))).toEqual({ subagents: 0, tasks: 1 })
+    expect(awaitedReports(running([launch, task]))).toEqual({ subagents: 1, tasks: 1 })
+    expect(awaitedReports(running([launch, task, item('r', 3, { type: 'agentReport', launchItemId: 't', taskId: 'task' })]))).toEqual({ subagents: 1, tasks: 0 })
+    expect(awaitedReports(running([launch, item('c', 2, { type: 'toolCall', status: 'inProgress' })]))).toBeUndefined()
+    expect(awaitedReports(running([launch, item('r', 2, { type: 'agentReport', launchItemId: 's' })]))).toBeUndefined()
+    expect(awaitedReports(timelineFromPage(page([launch], [turn('u1')])))).toBeUndefined()
   })
 
   it('keeps older loaded history when refreshing from the latest page', () => {
@@ -337,8 +342,20 @@ describe('calls', () => {
     // Another launch a provider gave the same call id has a report of its own.
     const other = item('x', 8, { type: 'agentReport', callId: 'call_0', launchItemId: 'earlier' })
     const report = item('r', 9, { type: 'agentReport', callId: 'call_0', launchItemId: 'c', status: 'completed', result: { output: 'done' } })
-    expect(subagentReport([other, launch, report], launch)?.id).toBe('r')
-    expect(subagentReport([other, launch], launch)).toBeUndefined()
+    expect(reportOf([other, launch, report], launch)?.id).toBe('r')
+    expect(reportOf([other, launch], launch)).toBeUndefined()
+  })
+
+  it('reads a call run in the background as it ran, from its report', () => {
+    const output = { exit_code: 0, stdout: 'ok', stderr: '', truncated: false }
+    const started = call({ id: 'c', tool: 'run_command', status: 'completed', taskId: 'task', result: { output: { task: 'task', note: 'runs in the background' } } })
+    expect(asRan([started], started)).toMatchObject({ status: 'inProgress', result: undefined })
+    const done = item('r', 9, { type: 'agentReport', launchItemId: 'c', taskId: 'task', status: 'completed', result: { output } })
+    expect(asRan([started, done], started)).toMatchObject({ status: 'completed', result: { output } })
+    const stopped = item('r', 9, { type: 'agentReport', launchItemId: 'c', taskId: 'task', status: 'failed', error: 'stopped with its turn' })
+    expect(asRan([started, stopped], started)).toMatchObject({ status: 'failed', error: 'stopped with its turn', result: undefined })
+    const plain = call({ id: 'p', tool: 'run_command', status: 'completed', result: { output } })
+    expect(asRan([plain], plain)).toBe(plain)
   })
 
 

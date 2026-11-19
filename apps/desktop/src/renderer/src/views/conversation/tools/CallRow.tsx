@@ -13,6 +13,9 @@ import { CodeBlock } from '../../common/Markdown'
 import { ApprovalCard } from '../../requests/ApprovalCard'
 import { QuestionsCard } from '../../requests/QuestionsCard'
 
+/** A call run in the background (taskId) says so beside its title; it
+ * comes in already read as it ran (asRan), its report's state in place of
+ * its own. */
 export function CallRow({
   item,
   icon: Icon,
@@ -31,12 +34,18 @@ export function CallRow({
   /** Shown below the row and its pending request. */
   after?: ReactNode
 }) {
+  const m = useT()
   return (
     <div className="flex flex-col gap-2">
       <ProcessRow
         icon={<Icon size={14} className={cn(failure && 'text-danger')} />}
         title={title}
-        badge={badge}
+        badge={
+          <>
+            {badge}
+            {item.taskId && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.background}</span>}
+          </>
+        }
         meta={<CallMeta item={item} failure={failure} />}
       >
         {children}

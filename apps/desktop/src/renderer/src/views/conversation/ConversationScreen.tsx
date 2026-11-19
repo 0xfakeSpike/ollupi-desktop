@@ -1,4 +1,4 @@
-import { activeTurn, lastConnection, needsUser, waitingFor, waitsForSubagents, type Timeline } from '@ollupi/core'
+import { activeTurn, awaitedReports, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
 import { Badge, Button, cn, IconButton, Loader, useTooltip } from '@ollupi/ui'
 import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud } from 'lucide-react'
 import { useUserPolicy } from '../../domains/settings'
@@ -234,6 +234,7 @@ function StatusLine({ timeline }: { timeline: Timeline }) {
   const turn = activeTurn(timeline)
   if (!turn) return null
   const waiting = waitingFor(timeline, status)
+  const awaited = awaitedReports(timeline)
   return (
     <div className="mx-auto flex w-full max-w-thread items-center gap-2 px-8 pb-2.5 text-ui text-fg-muted" role="status">
       <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', waiting ? 'bg-accent' : 'breathe bg-ink')} />
@@ -241,8 +242,8 @@ function StatusLine({ timeline }: { timeline: Timeline }) {
         ? m.conversation.screen.waitingApproval
         : waiting === 'answer'
           ? m.conversation.screen.waitingAnswer
-          : waitsForSubagents(timeline)
-            ? m.conversation.screen.subagentsWorking
+          : awaited
+            ? m.conversation.screen.awaiting(awaited.subagents, awaited.tasks)
             : m.conversation.screen.working}
     </div>
   )

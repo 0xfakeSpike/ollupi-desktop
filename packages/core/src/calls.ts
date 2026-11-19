@@ -37,10 +37,23 @@ export function waitsForAnswer(item: ItemRow): boolean {
   return item.type === 'toolCall' && item.status === 'inProgress' && !!item.input && !item.input.answered
 }
 
-/** The report a subagent wrote back when it ended: the agentReport item
- * that names the call that launched it. */
-export function subagentReport(items: readonly ItemRow[], call: ItemRow): ItemRow | undefined {
+/** What came back from a call that runs apart from its turn, a subagent
+ * (childThreadId) or a call run in the background (taskId): the
+ * agentReport item that names the call. */
+export function reportOf(items: readonly ItemRow[], call: ItemRow): ItemRow | undefined {
   return items.find((it) => it.type === 'agentReport' && it.launchItemId === call.id)
+}
+
+/** A call run in the background completes at once, with only a note that
+ * it started; what it did comes back as its report, which ollupi always
+ * sends: the result, or that it failed, was stopped with its turn or cut
+ * off. So the call as it ran is in progress until then, and after it has
+ * the report's status, output and error. */
+export function asRan(items: readonly ItemRow[], call: ItemRow): ItemRow {
+  if (call.type !== 'toolCall' || !call.taskId || call.status !== 'completed') return call
+  const report = reportOf(items, call)
+  if (!report) return { ...call, status: 'inProgress', result: undefined, completedAt: undefined }
+  return { ...call, status: report.status, result: report.result, error: report.error, completedAt: report.completedAt }
 }
 
 /** The model's arguments as JSON, or undefined when they do not parse. */

@@ -5,16 +5,15 @@
 // working until then. Its thread's requests are answered here, since this
 // thread reports the subagent's wait as its own status.
 
-import { formatValue, subagentReport, turnActive, type ToolCall } from '@ollupi/core'
+import { reportOf, turnActive, type ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
-import { Button, ProcessRow, Spinner } from '@ollupi/ui'
+import { Button, Spinner } from '@ollupi/ui'
 import { ArrowUpRight, Bot, Globe } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRequests } from '../../../domains/requests'
 import { useT } from '../../../i18n'
-import { Markdown } from '../../common/Markdown'
 import { useCurrentTimeline } from '../CurrentTimeline'
-import { argumentsApproval, CallRow, ErrorText, RequestCard, statusFailure } from './CallRow'
+import { argumentsApproval, CallRow, RequestCard, statusFailure } from './CallRow'
 import type { ToolView } from './types'
 
 type Subagent = Extract<ToolCall, { kind: 'subagent' }>
@@ -34,7 +33,7 @@ function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
   // Launched and not reported, while the turn that launched it goes on: a
   // turn that ends stops its subagents, and one ended gets no report.
   const turn = timeline?.turns.find((t) => t.id === item.turnId)
-  const working = item.status === 'completed' && !!timeline && !subagentReport(timeline.items, item) && !!turn && turnActive(turn.status)
+  const working = item.status === 'completed' && !!timeline && !reportOf(timeline.items, item) && !!turn && turnActive(turn.status)
   const browser = task.role === 'browser-sub-agent'
   return (
     <CallRow
@@ -65,23 +64,5 @@ function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
         </div>
       )}
     </CallRow>
-  )
-}
-
-/** What a subagent wrote back when it ended: its final answer, or why it
- * has none. Its text is the subagent's task. */
-export function AgentReport({ item }: { item: ItemRow }) {
-  const m = useT()
-  const failed = item.status === 'failed'
-  const report = formatValue(item.result?.output)
-  return (
-    <ProcessRow
-      icon={<Bot size={14} className={failed ? 'text-danger' : undefined} />}
-      title={m.conversation.items.subagentReport(item.text ?? '')}
-      meta={failed && <span className="text-danger">{m.conversation.tool.failed}</span>}
-    >
-      {report && <Markdown text={report} />}
-      {item.error && <ErrorText text={item.error} />}
-    </ProcessRow>
   )
 }

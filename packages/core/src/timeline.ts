@@ -157,16 +157,18 @@ export function queuedTurns(t: Timeline): TurnRow[] {
   return t.turns.filter((turn) => turn.status === 'queued')
 }
 
-/** The turn in progress has answered and waits for the subagents it
- * launched to report: launches with no report yet, and nothing else of its
- * own under way. */
-export function waitsForSubagents(t: Timeline): boolean {
+/** What the turn in progress waits on once it has answered: the subagents
+ * it launched and the calls it ran in the background that have not
+ * reported yet, with nothing else of its own under way. Undefined while it
+ * is not waiting on any. */
+export function awaitedReports(t: Timeline): { subagents: number; tasks: number } | undefined {
   const turn = activeTurn(t)
-  if (!turn) return false
+  if (!turn) return undefined
   const own = t.items.filter((it) => it.turnId === turn.id)
-  const launched = own.filter((it) => it.childThreadId && it.type === 'toolCall')
-  if (!launched.some((call) => !own.some((r) => r.type === 'agentReport' && r.launchItemId === call.id))) return false
-  return !own.some((it) => streaming(it) || it.status === 'pending' || it.status === 'inProgress')
+  const awaited = own.filter((it) => it.type === 'toolCall' && (it.childThreadId || it.taskId) && !own.some((r) => r.type === 'agentReport' && r.launchItemId === it.id))
+  if (!awaited.length || own.some((it) => streaming(it) || it.status === 'pending' || it.status === 'inProgress')) return undefined
+  const subagents = awaited.filter((it) => it.childThreadId).length
+  return { subagents, tasks: awaited.length - subagents }
 }
 
 /** What a turn was sent: the message it started with and any sent into it

@@ -5,7 +5,7 @@ import { memo } from 'react'
 import { AgentMessage, Reasoning, UserMessage } from './Messages'
 import { CompactionMarker, ErrorItem, MemoryContext } from './SystemItems'
 import { ToolCallView } from '../tools'
-import { AgentReport } from '../tools/subagent'
+import { AgentReport } from './AgentReport'
 
 /** editable: the thread's latest message, which can be taken back to edit. */
 export const ItemView = memo(function ItemView({ item, editable }: { item: ItemRow; editable?: boolean }) {
