@@ -19,8 +19,10 @@ type Known = keyof Messages['capabilities']['groups']
 export function ToolsSection() {
   const m = useT()
   const tools = useTools((s) => s.list)
-  // An MCP server is its tools' provider.
-  const servers = useMcpServers((s) => s.list?.map((x) => x.name))
+  // An MCP server is its tools' provider. Select the stored list itself: a
+  // selector that builds a new array each call never settles.
+  const serverList = useMcpServers((s) => s.list)
+  const servers = useMemo(() => serverList?.map((x) => x.name), [serverList])
   const byProvider = useMemo(() => {
     const groups = new Map<string, ToolDescriptor[]>()
     for (const t of tools) if (!servers?.includes(t.provider)) groups.set(t.provider, [...(groups.get(t.provider) ?? []), t])
