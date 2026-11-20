@@ -9,7 +9,7 @@ import { useMemo } from 'react'
 import { useCurrentTimeline } from '../CurrentTimeline'
 import { command } from './command'
 import { file } from './file'
-import { followup, handoff, todo } from './hub'
+import { followup, handoff } from './hub'
 import { plan } from './plan'
 import { question } from './question'
 import { glob, grep, read } from './read'
@@ -27,7 +27,6 @@ const views: { [K in ToolKind]: ToolView<Extract<ToolCall, { kind: K }>> } = {
   question,
   subagent,
   handoff,
-  todo,
   followup,
   tool,
 }

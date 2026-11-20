@@ -78,9 +78,7 @@ export interface ProcessSummary {
   /** Work the hub handed to projects: conversations started there, and
    * messages sent to ones already there, that went through. */
   handoffs: number
-  /** The hub's changes to the user's todos that went through. */
-  todos: number
-  /** The hub's looks at the workspaces, conversations and todos. */
+  /** The hub's looks at the workspaces and conversations. */
   followups: number
   /** Any other tool: MCP, web_fetch, the browser's. */
   tools: number
@@ -100,7 +98,6 @@ export function summarizeProcess(items: readonly ItemRow[]): ProcessSummary {
     searches: 0,
     subagents: 0,
     handoffs: 0,
-    todos: 0,
     followups: 0,
     tools: 0,
     startedAt: items[0]?.startedAt ?? '',
@@ -133,9 +130,6 @@ export function summarizeProcess(items: readonly ItemRow[]): ProcessSummary {
         break
       case 'handoff':
         if (item.status === 'completed') summary.handoffs++
-        break
-      case 'todo':
-        if (item.status === 'completed') summary.todos++
         break
       case 'followup':
         summary.followups++

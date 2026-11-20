@@ -32,7 +32,7 @@ const state = (on: boolean) => (on ? 'bg-ink text-ink-fg hover:opacity-90' : 'bg
 
 /** workspace: the workspace's own panels are offered (files, changes,
  * terminal); thread: the conversation's (plan, context) and its export;
- * hub: the Super Agent's, whose todos come first and whose folder holds no
+ * hub: the Super Agent's, whose plan (todos) comes first and whose folder holds no
  * project's files, so it has the browser and the conversation's panels
  * only. Put it in a header that is an `@container`. */
 export function PanelButtons({ workspace, thread, hub = false }: { workspace: boolean; thread: string | undefined; hub?: boolean }) {

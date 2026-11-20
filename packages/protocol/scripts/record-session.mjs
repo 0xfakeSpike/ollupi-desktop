@@ -7,7 +7,7 @@
 // memory snapshot and a memory_search call, a file attached by path,
 // read_file alone and with glob and grep in one answer, messages sent while
 // a turn runs (each a turn behind it), the cron, workspace, memory,
-// settings, MCP, permission, hub and todo methods, and an error response. Server requests are answered as a user would (approve,
+// settings, MCP, permission and hub methods, and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
 // with its direction.
 //
@@ -199,17 +199,12 @@ await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { 
 await call('memory/status', {})
 await call('memory/list', { scope: 'global' })
 await call('memory/list', { scope: 'general' })
-// The Super Agent: a hub workspace with instructions, and the user's todos.
+// The Super Agent: a hub workspace with instructions.
 const hubFolder = join(tmp, 'super-agent')
 mkdirSync(hubFolder, { recursive: true })
 const { workspace: hub } = await call('workspace/add', { path: hubFolder, name: 'Super Agent' })
 await call('workspace/setKind', { workspaceId: hub.id, kind: 'hub' })
 await call('workspace/updateInstructions', { workspaceId: hub.id, instructions: 'Hand docs work to Demo.' })
-const { todo } = await call('todo/add', { title: 'Tidy the notes', notes: 'the ones in Demo' })
-await call('todo/update', { id: todo.id, status: 'handed', threadId: thread.id })
-await call('todo/update', { id: todo.id, status: 'done', result: 'Tidied.' })
-await call('todo/list', {})
-await call('todo/list', { statuses: ['open', 'handed'] })
 await call('memory/list', { scope: 'workspace', workspaceId: ws1.id })
 // The workspace scope needs its workspace: refused.
 await call('memory/list', { scope: 'workspace' }).catch(() => {})

@@ -1,4 +1,4 @@
-import { isOpenTodo, isWorking, needsUser, unread } from '@ollupi/core'
+import { isWorking, needsUser, unread } from '@ollupi/core'
 import type { ThreadRow, WorkspaceRow } from '@ollupi/protocol'
 import { Button, cn, IconButton, useTooltip } from '@ollupi/ui'
 import { Archive, ChevronRight, Ellipsis, Plus, Waypoints } from 'lucide-react'
@@ -7,7 +7,6 @@ import { openThread } from '../../domains/conversation'
 import { openPath } from '../../domains/files'
 import { go, useOpenThreadId } from '../../domains/navigation'
 import { archiveThread, deleteThread, loadMoreThreads, renameThread, threadMenu, useThreads, workspaceMenu } from '../../domains/threads'
-import { useTodos } from '../../domains/todos'
 import { setArchived, startSuperAgent } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { relativeTime, threadTitle, workspaceName } from '../../i18n/format'
@@ -41,8 +40,7 @@ export function SuperAgentStart() {
 /** One workspace's threads, as an area on the map: a field in the
  * workspace's colour holding its name, how many things are in it, and a
  * row for each. Threads outside any workspace sit on the bare ground. The
- * hub is the Super Agent's area, on the paper, first on the map, saying
- * how many todos are left. */
+ * hub is the Super Agent's area, on the paper, first on the map. */
 export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadRow[] }) {
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
@@ -51,7 +49,6 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
   const t = useT()
   const m = t.shell.sidebar
   const hub = workspace?.kind === 'hub'
-  const todosLeft = useTodos((s) => (hub ? s.list.filter((t) => isOpenTodo(t.status)).length : 0))
   const rootTip = useTooltip({ label: hub ? '' : (workspace?.rootPath ?? '') })
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
@@ -76,7 +73,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
         >
           {hub && <Waypoints size={14} aria-hidden className="shrink-0 self-center text-fg-muted" />}
           <span className="truncate">{workspace ? workspaceName(t, workspace) : m.noWorkspace}</span>
-          <span className="shrink-0 font-medium text-fg-muted">{hub && todosLeft > 0 ? `· ${m.todosLeft(todosLeft)}` : m.things(threads.length)}</span>
+          <span className="shrink-0 font-medium text-fg-muted">{m.things(threads.length)}</span>
           {/* The area says it has something for you, even folded or scrolled past its rows. */}
           {waiting > 0 && <span className="shrink-0 self-center rounded-full bg-accent px-2 text-caption leading-5 font-semibold text-accent-fg">{m.areaWaiting(waiting)}</span>}
           <ChevronRight

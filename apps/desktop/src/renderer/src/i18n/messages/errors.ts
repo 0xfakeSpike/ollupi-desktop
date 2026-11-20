@@ -18,10 +18,6 @@ export const en = {
     instructions: 'Could not save the workspace instructions',
     superAgent: 'Could not set up the Super Agent',
   },
-  todo: {
-    add: 'Could not add the todo',
-    update: 'Could not change the todo',
-  },
   environment: {
     add: 'Could not add the environment',
     rename: 'Could not rename the environment',
@@ -129,10 +125,6 @@ export const zh: typeof en = {
     permissions: '无法保存工作区权限',
     instructions: '无法保存工作区指令',
     superAgent: '无法设置 Super Agent',
-  },
-  todo: {
-    add: '无法添加待办',
-    update: '无法修改待办',
   },
   environment: {
     add: '无法添加环境',

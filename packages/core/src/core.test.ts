@@ -1,4 +1,4 @@
-import type { ContextStats, ItemRow, ThreadPageResult, ThreadRow, TodoRow, TurnRow } from '@ollupi/protocol'
+import type { ContextStats, ItemRow, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
 import { describe, expect, it } from 'vitest'
 import {
   activeTurn,
@@ -14,9 +14,7 @@ import {
   currentPlan,
   groupByTurn,
   groupByWorkspace,
-  groupTodos,
   hubOf,
-  upsertTodo,
   groupReads,
   readText,
   reportOf,
@@ -345,11 +343,9 @@ describe('calls', () => {
     expect(callOf(c)).toEqual({ kind: 'plan', plan: { plan: [{ step: 'a', status: 'in_progress' }] } })
   })
 
-  it('reads the hub handing work out, changing todos and looking at how things stand', () => {
+  it('reads the hub handing work out and looking at how things stand', () => {
     const start = call({ tool: 'start_conversation', status: 'completed', arguments: JSON.stringify({ workspace: 'w', title: 'Fix the build', message: 'm' }), result: { output: { conversation: 'th2', turn: 'u', queued: false } } })
     expect(callOf(start)).toEqual({ kind: 'handoff', handoff: { tool: 'start_conversation', args: { workspace: 'w', title: 'Fix the build', message: 'm' } }, output: { conversation: 'th2', turn: 'u', queued: false } })
-    const todo = call({ tool: 'update_todo', arguments: JSON.stringify({ id: 3, status: 'done' }) })
-    expect(callOf(todo)).toEqual({ kind: 'todo', change: { tool: 'update_todo', args: { id: 3, status: 'done' } }, output: undefined })
     expect(callOf(call({ tool: 'list_conversations', arguments: '{}' }))).toEqual({ kind: 'followup', tool: 'list_conversations' })
     // Arguments that are not the contract's are any tool's.
     expect(callOf(call({ tool: 'send_message', arguments: '{}' })).kind).toBe('tool')
@@ -550,22 +546,5 @@ describe('schedules', () => {
     for (const spec of ['*/5 * * * *', '0 9 * * 1,3', '0 9 1 6 1', '0 9 * 6 *', '0 9 1 13 *', '0 9 1 * 1', '0 9 * * 7', '60 9 * * *', '0 9 * *']) {
       expect(scheduleOf(spec)).toBeUndefined()
     }
-  })
-})
-
-describe('todos', () => {
-  const todo = (id: number, status: TodoRow['status'], updatedAt = '2026-01-01T00:00:00Z', doneAt?: string): TodoRow => ({ id, title: `t${id}`, status, createdAt: '2026-01-01T00:00:00Z', updatedAt, ...(doneAt && { doneAt }) })
-
-  it('keeps the order they were added in as they change', () => {
-    const list = upsertTodo(upsertTodo([], todo(2, 'open')), todo(1, 'open'))
-    expect(upsertTodo(list, todo(2, 'done')).map((t) => [t.id, t.status])).toEqual([
-      [1, 'open'],
-      [2, 'done'],
-    ])
-  })
-
-  it('groups what is left from what is closed, the one closed last first', () => {
-    const g = groupTodos([todo(1, 'done', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z'), todo(2, 'handed'), todo(3, 'open'), todo(4, 'dropped', '2026-01-03T00:00:00Z')])
-    expect([g.open, g.handed, g.closed].map((ts) => ts.map((t) => t.id))).toEqual([[3], [2], [4, 1]])
   })
 })

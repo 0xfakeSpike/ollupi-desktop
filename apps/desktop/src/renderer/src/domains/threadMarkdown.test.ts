@@ -11,7 +11,6 @@ const words: MarkdownWords = {
   subagent: (task) => `Subagent: ${task}`,
   started: (title) => `Started a conversation: ${title}`,
   wrote: 'Wrote to a conversation:',
-  todo: (title) => `Todo: ${title}`,
   answered: (answer) => `Answered: ${answer}`,
   failed: 'The turn failed',
   stopped: 'Stopped',

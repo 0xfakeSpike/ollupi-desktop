@@ -1,23 +1,23 @@
 // The hub's tools, as the Super Agent's conversation shows them: work
 // handed to a project (a conversation started there, or a message to one),
-// a change to the user's todos, and a look at how things stand. Handing out
-// and todos are what it did for the user, so they read as results with a
-// way into the conversation; looking around is a quiet line.
+// and a look at how things stand. Handing out is what it did for the user,
+// so it reads as a result with a way into the conversation; looking around
+// is a quiet line. Its plan is a file it writes (TODO.md), shown as any
+// file change is.
 
 import { parseArguments, type ToolCall } from '@ollupi/core'
-import { isToolPart, type ItemRow, type TodoStatus } from '@ollupi/protocol'
+import { isToolPart, type ItemRow } from '@ollupi/protocol'
 import { Button } from '@ollupi/ui'
-import { ArrowUpRight, Eye, ListChecks, Send } from 'lucide-react'
+import { ArrowUpRight, Eye, Send } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRow } from '../../../domains/threads'
 import { useWorkspace } from '../../../domains/workspaces'
-import { useT, type Messages } from '../../../i18n'
+import { useT } from '../../../i18n'
 import { threadTitle } from '../../../i18n/format'
 import { argumentsApproval, CallRow, statusFailure } from './CallRow'
 import type { ToolView } from './types'
 
 type Handoff = Extract<ToolCall, { kind: 'handoff' }>
-type Todo = Extract<ToolCall, { kind: 'todo' }>
 type Followup = Extract<ToolCall, { kind: 'followup' }>
 
 /** The conversation's title as the sidebar knows it, or a stand-in when it
@@ -60,36 +60,6 @@ function HandoffCall({ item, call }: { item: ItemRow; call: Handoff }) {
           </Button>
         </div>
       )}
-    </CallRow>
-  )
-}
-
-/** A todo's change in words: what it became when its status changed, else
- * that it changed. */
-function todoTitle(m: Messages, call: Todo): string {
-  const h = m.conversation.tool.hub
-  const { change, output } = call
-  if (change.tool === 'add_todo') return h.addTodo(output?.title ?? change.args.title)
-  const name = output?.title ?? change.args.title ?? h.todoNumber(change.args.id)
-  const status: TodoStatus | undefined = change.args.status
-  return status ? h.todoTo[status](name) : h.updateTodo(name)
-}
-
-export const todo: ToolView<Todo> = {
-  title: todoTitle,
-  failure: (m, _call, item) => statusFailure(m, item),
-  Call: TodoCall,
-  approval: argumentsApproval,
-}
-
-function TodoCall({ item, call }: { item: ItemRow; call: Todo }) {
-  const m = useT()
-  const notes = call.change.args.notes
-  const result = call.change.tool === 'update_todo' ? call.change.args.result : undefined
-  const detail = [notes, result].filter(Boolean).join('\n\n')
-  return (
-    <CallRow item={item} icon={ListChecks} title={todoTitle(m, call)} failure={todo.failure(m, call, item)}>
-      {detail && <p className="selectable text-ui break-words whitespace-pre-wrap text-fg-muted">{detail}</p>}
     </CallRow>
   )
 }

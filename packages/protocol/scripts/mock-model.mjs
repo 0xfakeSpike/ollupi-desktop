@@ -7,8 +7,8 @@
 // (mock-mcp.mjs), "search memory" calls memory_search, "write notes" calls
 // write_file (notes.md), "fetch page" calls web_fetch (example.com), "hand
 // over" starts a delegate, "hand out" (as the hub) lists the workspaces and,
-// once they come back, starts a conversation in the first project and notes a
-// todo; anything else streams markdown. After a tool result it streams a
+// once they come back, starts a conversation in the first project and writes
+// the plan (TODO.md); anything else streams markdown. After a tool result it streams a
 // short summary.
 //
 //   PORT=18080 node scripts/mock-model.mjs
@@ -69,7 +69,7 @@ http
       await stream('content', `Handing it to ${project.name}.`)
       await calls([
         ['start_conversation', { workspace: project.id, title: 'Tidy the meeting notes', message: 'Please tidy the meeting notes in this folder: one file per meeting, newest first.' }],
-        ['add_todo', { title: 'Check the meeting notes are tidy', notes: 'Once the project conversation reports back.' }],
+        ['write_file', { path: 'TODO.md', content: `# Plan\n\n- [ ] Tidy the meeting notes — handed to **${project.name}**\n- [ ] Check they are tidy once it answers\n` }],
       ])
     } else if (last.role === 'tool') {
       await stream('reasoning_content', 'The tool returned; summarize for the user.')

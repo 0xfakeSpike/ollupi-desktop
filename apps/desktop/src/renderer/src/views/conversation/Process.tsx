@@ -74,7 +74,6 @@ function summaryLine(m: Messages, s: ProcessSummary, endedAt: string | undefined
   const done = [
     // What the hub did for the user comes before how it looked around.
     s.handoffs > 0 && p.handoffs(s.handoffs),
-    s.todos > 0 && p.todos(s.todos),
     s.reads > 0 && p.reads(s.reads),
     s.searches > 0 && p.searches(s.searches),
     s.filesChanged > 0 && p.filesChanged(s.filesChanged),

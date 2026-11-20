@@ -7,7 +7,7 @@
 // (delegate-sub-agent) never reports: it is the user's own conversation from
 // then on, listed in the sidebar, where its requests wait too.
 
-import { reportOf, reportsBack, turnActive, type ToolCall } from '@ollupi/core'
+import { reportOf, turnActive, type ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { Button, Spinner } from '@ollupi/ui'
 import { ArrowUpRight, Bot, Forward, Globe } from 'lucide-react'
@@ -29,7 +29,9 @@ export const subagent: ToolView<Subagent> = {
 
 function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
   const { task } = call
-  const reports = reportsBack(task.role)
+  // ollupi says whether the launch reports back: a detached one (a
+  // delegate) never does.
+  const reports = !item.detached
   const childRequests = useThreadRequests(reports ? task.threadId : undefined)
   const timeline = useCurrentTimeline()
   const m = useT()
