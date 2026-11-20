@@ -7,7 +7,7 @@
 // on; picking the open panel closes it.
 
 import { cn, TileMenu, useTooltip, type PickerAction, type TileMenuTile } from '@ollupi/ui'
-import { ChevronDown, Download, Ellipsis, FolderTree, Gauge, GitBranch, Globe, ListChecks, SquareTerminal, type LucideIcon } from 'lucide-react'
+import { ChevronDown, Download, Ellipsis, FolderTree, Gauge, GitBranch, Globe, ListChecks, ListTodo, SquareTerminal, type LucideIcon } from 'lucide-react'
 import { exportThread } from '../../domains/export'
 import { openPanel, togglePanel, useNavigation, type Panel } from '../../domains/navigation'
 import { useT } from '../../i18n'
@@ -19,6 +19,7 @@ const ICONS: Partial<Record<Panel, LucideIcon>> = {
   terminal: SquareTerminal,
   tasks: ListChecks,
   context: Gauge,
+  todos: ListTodo,
 }
 
 // Capsules on the canvas; in a narrow header (the window, or a panel beside
@@ -30,14 +31,17 @@ const capsule =
 const state = (on: boolean) => (on ? 'bg-ink text-ink-fg hover:opacity-90' : 'bg-ground text-fg-muted hover:text-fg')
 
 /** workspace: the workspace's own panels are offered (files, changes,
- * terminal); thread: the conversation's (plan, context) and its export.
- * Put it in a header that is an `@container`. */
-export function PanelButtons({ workspace, thread }: { workspace: boolean; thread: string | undefined }) {
+ * terminal); thread: the conversation's (plan, context) and its export;
+ * hub: the Super Agent's, whose todos come first and whose folder holds no
+ * project's files, so it has the browser and the conversation's panels
+ * only. Put it in a header that is an `@container`. */
+export function PanelButtons({ workspace, thread, hub = false }: { workspace: boolean; thread: string | undefined; hub?: boolean }) {
   const panel = useNavigation((s) => s.panel)
   const m = useT()
   const t = m.conversation.more
-  const outside: Panel[] = ['browser', ...(workspace ? (['files'] as const) : [])]
-  const inside: Panel[] = [...(workspace ? (['environment', 'terminal'] as const) : []), ...(thread ? (['tasks', 'context'] as const) : [])]
+  const own = workspace && !hub
+  const outside: Panel[] = [...(hub ? (['todos'] as const) : []), 'browser', ...(own ? (['files'] as const) : [])]
+  const inside: Panel[] = [...(own ? (['environment', 'terminal'] as const) : []), ...(thread ? (['tasks', 'context'] as const) : [])]
   const tiles: TileMenuTile<Panel>[] = inside.map((p) => {
     const Icon = ICONS[p]!
     return { value: p, icon: <Icon size={16} aria-hidden />, label: m.conversation.screen[p], description: t.about[p as keyof typeof t.about] }

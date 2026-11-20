@@ -3,7 +3,7 @@
 // (queued if the thread is busy). ollupi skips a run while the thread's
 // workspace is archived; a subagent thread has no tasks.
 
-import { cronSpec, isTopLevel, onceAt, scheduleOf } from '@ollupi/core'
+import { cronSpec, onceAt, scheduleOf } from '@ollupi/core'
 import type { CronJobRow, WorkspaceRow } from '@ollupi/protocol'
 import { Badge, Button, EmptyState, Field, IconButton, Input, Select, Loader, Switch, Tabs, Textarea } from '@ollupi/ui'
 import { Trash2 } from 'lucide-react'
@@ -139,15 +139,15 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobRow; workspace: Wo
 }
 
 /** A new task goes to an existing top-level thread of an active workspace
- * (or of none): ollupi skips runs in archived workspaces, and subagent
- * threads take no messages. The workspace is picked first, starting from the
+ * (or of none): ollupi skips runs in archived workspaces, and a delegate,
+ * the one kind of child the sidebar lists, keeps no cron jobs. The workspace is picked first, starting from the
  * one shown on the left, then one of its threads; those offered are the ones
  * the sidebar loaded. */
 function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow[] }) {
   const m = useT()
   const threads = useThreads((s) => s.list)
   const active = activeWorkspaces(workspaces)
-  const eligible = threads.filter((t) => isTopLevel(t) && (!t.workspaceId || active.some((w) => w.id === t.workspaceId)))
+  const eligible = threads.filter((t) => !t.parentThreadId && (!t.workspaceId || active.some((w) => w.id === t.workspaceId)))
   const spaces = [{ id: GENERAL, name: m.cron.general }, ...active].filter((s) => eligible.some((t) => placeOf(t) === s.id))
   // A workspace picked here holds until another one is shown on the left.
   const [picked, setPicked] = useState({ place, space: place })

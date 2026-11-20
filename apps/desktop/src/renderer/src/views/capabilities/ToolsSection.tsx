@@ -13,7 +13,7 @@ import { useT, type Messages } from '../../i18n'
 
 /** The providers ollupi and this app register, in the order a person meets
  * what they do; one not listed here keeps its own name, after these. */
-const order = ['workspace', 'web', 'browser', 'plan', 'user_input', 'subagent', 'memory', 'skills', 'cron', 'context', 'tool_registry']
+const order = ['workspace', 'web', 'browser', 'plan', 'user_input', 'subagent', 'hub', 'memory', 'skills', 'cron', 'context', 'tool_registry']
 type Known = keyof Messages['capabilities']['groups']
 
 export function ToolsSection() {

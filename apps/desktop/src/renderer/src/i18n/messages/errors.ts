@@ -15,6 +15,12 @@ export const en = {
     archive: 'Could not archive the workspace',
     restore: 'Could not restore the workspace',
     permissions: 'Could not save the workspace permissions',
+    instructions: 'Could not save the workspace instructions',
+    superAgent: 'Could not set up the Super Agent',
+  },
+  todo: {
+    add: 'Could not add the todo',
+    update: 'Could not change the todo',
   },
   environment: {
     add: 'Could not add the environment',
@@ -33,6 +39,7 @@ export const en = {
     archive: 'Could not archive the thread',
     restore: 'Could not restore the thread',
     delete: 'Could not delete the thread',
+    hasDelegates: 'It handed work over to other conversations; delete those first.',
     export: 'Could not export the thread',
     archived: 'Could not list archived threads',
     list: 'Could not list more threads',
@@ -120,6 +127,12 @@ export const zh: typeof en = {
     archive: '无法归档工作区',
     restore: '无法恢复工作区',
     permissions: '无法保存工作区权限',
+    instructions: '无法保存工作区指令',
+    superAgent: '无法设置 Super Agent',
+  },
+  todo: {
+    add: '无法添加待办',
+    update: '无法修改待办',
   },
   environment: {
     add: '无法添加环境',
@@ -138,6 +151,7 @@ export const zh: typeof en = {
     archive: '无法归档会话',
     restore: '无法恢复会话',
     delete: '无法删除会话',
+    hasDelegates: '它把事情委派给了别的会话，先删掉那些会话。',
     export: '无法导出会话',
     archived: '无法列出已归档的会话',
     list: '无法列出更多会话',

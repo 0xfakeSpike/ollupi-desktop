@@ -149,7 +149,10 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Boxes:       func(string) (sandbox.Box, error) { return box, nil },
 		SkillsDir:   cfg.SkillsDir,
 		Slots:       cfg.Slots,
-		Gateway:     &gateway.Options{Token: opts.Token, AllowedOrigins: opts.AllowedOrigins},
+		// The app's Super Agent is ollupi's hub: the user's one hub
+		// workspace hands work out to the project workspaces.
+		Hub:     true,
+		Gateway: &gateway.Options{Token: opts.Token, AllowedOrigins: opts.AllowedOrigins},
 	})
 	if err != nil {
 		return nil, err

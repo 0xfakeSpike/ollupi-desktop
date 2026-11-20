@@ -11,12 +11,14 @@ import { chooseApproval, chooseEnvironment, go, useNavigation } from '../../doma
 import { useUserPolicy } from '../../domains/settings'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
+import { workspaceName } from '../../i18n/format'
 import { BrowserPanel } from '../conversation/BrowserPanel'
 import { chip, Composer } from '../conversation/Composer'
 import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
 import { ApprovalPicker } from '../conversation/ApprovalPicker'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { PanelButtons } from '../conversation/PanelButtons'
+import { TodosPanel } from '../conversation/TodosPanel'
 import { WorkspacePanel } from '../conversation/WorkspacePanels'
 import { Suggestions } from './Suggestions'
 import { Emblem, Horizon } from '../common/Wolf'
@@ -35,6 +37,9 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const m = useT()
   // Known once the thread list has been read (more has a key per scope).
   const firstUse = useThreads((s) => Object.keys(s.more).length > 0 && s.list.length === 0)
+  // The Super Agent's draft: it hands work to the projects rather than
+  // running commands in a folder, so it says that instead.
+  const hub = workspace?.kind === 'hub'
   return (
     <div className="@container/screen relative flex h-full">
       {/* The screen's column: a region (@ollupi/ui region.ts) whose menus,
@@ -42,15 +47,15 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       <div data-region className="relative flex min-w-0 flex-1 flex-col">
         <ToastHost />
         <header className="drag @container flex h-16 shrink-0 items-center justify-end gap-2 pr-4">
-          <PanelButtons workspace={!!workspace} thread={undefined} />
+          <PanelButtons workspace={!!workspace} hub={hub} thread={undefined} />
         </header>
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
           {/* Before the first conversation ever, the little wolf says hello once. */}
           {/* The emblem the first time; under dusk, a small savanna horizon after. */}
           {firstUse ? <Emblem className="mb-3 size-16" /> : <Horizon className="pointer-events-none mb-4 h-auto w-80" />}
-          <h1 className="text-hero text-fg">{m.conversation.draft.title}</h1>
-          <p className="text-ui text-fg-muted">
-            {workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}
+          <h1 className="text-hero text-fg">{hub ? m.conversation.draft.hubTitle : m.conversation.draft.title}</h1>
+          <p className="max-w-md text-center text-ui text-fg-muted">
+            {hub ? m.conversation.draft.hubIntro : workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}
           </p>
           {
             // A cloud sandbox is where the conversation would run, and this
@@ -59,11 +64,11 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
               <p className="max-w-md text-center text-small text-fg-subtle">{m.conversation.draft.machineHint}</p>
             )
           }
-          <Suggestions workspace={workspace} />
+          {!hub && <Suggestions workspace={workspace} />}
         </div>
         <Composer
           draft={NEW_CONVERSATION}
-          placeholder={m.conversation.draft.placeholder}
+          placeholder={hub ? m.conversation.draft.hubPlaceholder : m.conversation.draft.placeholder}
           onSubmit={(message) => startThread(workspaceId, message)}
           toolbar={
             <>
@@ -82,6 +87,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       </div>
       {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
       {workspace && <WorkspacePanel workspace={workspace} environment={environment} turn={undefined} />}
+      {panel === 'todos' && hub && <TodosPanel />}
       {managing && <EnvironmentDialog onClose={() => setManaging(false)} />}
     </div>
   )
@@ -96,7 +102,7 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
   const m = useT()
   return (
     <label className={chip}>
-      <span className="truncate">{current?.name ?? m.conversation.draft.noWorkspace}</span>
+      <span className="truncate">{current ? workspaceName(m, current) : m.conversation.draft.noWorkspace}</span>
       <select
         aria-label={m.conversation.draft.workspace}
         className="absolute inset-0 cursor-pointer opacity-0"
@@ -106,7 +112,7 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
         <option value="">{m.conversation.draft.noWorkspace}</option>
         {workspaces.map((w) => (
           <option key={w.id} value={w.id}>
-            {w.name}
+            {workspaceName(m, w)}
           </option>
         ))}
         <option value={ADD}>{m.conversation.draft.addWorkspace}</option>

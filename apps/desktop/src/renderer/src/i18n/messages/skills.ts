@@ -37,6 +37,8 @@ export const en = {
     main: { name: 'Main agent', about: 'The agent you talk to, on a model of any size.' },
     'general-sub-agent': { name: 'General subagent', about: 'Takes on part of the work when the main agent hands it over.' },
     'browser-sub-agent': { name: 'Browser subagent', about: 'Does a task in the built-in browser for the main agent.' },
+    'hub-main-agent': { name: 'Super Agent', about: 'Plans across your projects and hands each part to the project it belongs in.' },
+    'delegate-sub-agent': { name: 'Delegate', about: 'Takes a piece of work over for good and answers you in a conversation of its own.' },
   },
   dialog: {
     loading: 'Reading the skill…',
@@ -89,6 +91,8 @@ export const zh: typeof en = {
     main: { name: '主 agent', about: '和你对话的 agent，用什么大小的模型都一样。' },
     'general-sub-agent': { name: '通用子 agent', about: '主 agent 把一部分工作交给它做。' },
     'browser-sub-agent': { name: '浏览器子 agent', about: '替主 agent 在内置浏览器里办一件事。' },
+    'hub-main-agent': { name: 'Super Agent', about: '跨项目统筹，把每件事交给它所在的项目。' },
+    'delegate-sub-agent': { name: '委派', about: '接手一件事，在自己的会话里直接回复你。' },
   },
   dialog: {
     loading: '正在读取技能…',

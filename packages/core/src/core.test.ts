@@ -1,4 +1,4 @@
-import type { ContextStats, ItemRow, ThreadPageResult, ThreadRow, TurnRow } from '@ollupi/protocol'
+import type { ContextStats, ItemRow, ThreadPageResult, ThreadRow, TodoRow, TurnRow } from '@ollupi/protocol'
 import { describe, expect, it } from 'vitest'
 import {
   activeTurn,
@@ -14,6 +14,9 @@ import {
   currentPlan,
   groupByTurn,
   groupByWorkspace,
+  groupTodos,
+  hubOf,
+  upsertTodo,
   groupReads,
   readText,
   reportOf,
@@ -164,6 +167,8 @@ describe('timeline', () => {
     expect(awaitedReports(running([launch, item('c', 2, { type: 'toolCall', status: 'inProgress' })]))).toBeUndefined()
     expect(awaitedReports(running([launch, item('r', 2, { type: 'agentReport', launchItemId: 's' })]))).toBeUndefined()
     expect(awaitedReports(timelineFromPage(page([launch], [turn('u1')])))).toBeUndefined()
+    const delegate = item('d', 3, { type: 'toolCall', tool: 'delegate-sub-agent', childThreadId: 'other', detached: true })
+    expect(awaitedReports(running([delegate]))).toBeUndefined()
   })
 
   it('keeps older loaded history when refreshing from the latest page', () => {
@@ -217,12 +222,22 @@ describe('threads', () => {
     expect(threadCursor(list[1]!)).toEqual({ updatedAt: list[1]!.updatedAt, createdAt: list[1]!.createdAt, id: 'a' })
   })
 
-  it('keeps subagent threads out of the list', () => {
-    expect(upsertThread([], thread({ id: 'child', parentThreadId: 'th' }))).toEqual([])
+  it('keeps reporting subagents out of the list, and lists delegates', () => {
+    expect(upsertThread([], thread({ id: 'child', parentThreadId: 'th', role: 'general-sub-agent' }))).toEqual([])
+    expect(upsertThread([], thread({ id: 'delegate', parentThreadId: 'th', role: 'delegate-sub-agent' })).map((t) => t.id)).toEqual(['delegate'])
+  })
+
+  it('keeps the hub out of the project groups', () => {
+    const ws = { id: 'w', name: 'W', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
+    const hub = { ...ws, id: 'hub', kind: 'hub' as const }
+    const list = [thread({ id: 'plan', workspaceId: 'hub' }), thread({ id: 'work', workspaceId: 'w' })]
+    expect(groupByWorkspace([hub, ws], list).map((g) => g.workspace?.id)).toEqual(['w', undefined])
+    expect(hubOf([ws, hub])?.id).toBe('hub')
+    expect(hubOf([ws, { ...hub, archivedAt: '2026-01-01T00:00:00Z' }])).toBeUndefined()
   })
 
   it('groups by active workspace with loose threads last', () => {
-    const ws = { id: 'w', name: 'W', rootPath: '/w', settings: { permissions: {} }, createdAt: '', updatedAt: '' }
+    const ws = { id: 'w', name: 'W', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
     const list = upsertThread(upsertThread([], thread({ workspaceId: 'w' })), thread({ id: 'loose' }))
     const groups = groupByWorkspace([ws, { ...ws, id: 'old', archivedAt: '2026-01-01T00:00:00Z' }], list)
     expect(groups.map((g) => [g.workspace?.id, g.threads.map((t) => t.id)])).toEqual([
@@ -232,7 +247,7 @@ describe('threads', () => {
   })
 
   it('puts what waits on the person first: its threads, then its workspace', () => {
-    const ws = (id: string) => ({ id, name: id, rootPath: `/${id}`, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
+    const ws = (id: string) => ({ id, name: id, rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
     const at = (id: string, workspaceId: string | undefined, updatedAt: string, status: ThreadRow['status']): ThreadRow => thread({ id, workspaceId, updatedAt, status })
     // Newest first, as thread/list orders them.
     const list = [
@@ -261,7 +276,7 @@ describe('threads', () => {
   })
 
   it('orders workspaces by the work done in them last, not by when they were added', () => {
-    const ws = (id: string, updatedAt: string) => ({ id, name: id, rootPath: `/${id}`, settings: { permissions: {} }, createdAt: updatedAt, updatedAt })
+    const ws = (id: string, updatedAt: string) => ({ id, name: id, rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: updatedAt, updatedAt })
     const at = (id: string, workspaceId: string, updatedAt: string): ThreadRow => thread({ id, workspaceId, updatedAt })
     // workspace/list's order: the workspaces changed last first.
     const workspaces = [ws('docs', '2026-01-08T00:00:00Z'), ws('app', '2026-01-07T00:00:00Z'), ws('fresh', '2026-01-09T12:00:00.5Z'), ws('old', '2026-01-01T00:00:00Z')]
@@ -328,6 +343,16 @@ describe('calls', () => {
   it('reads plans', () => {
     const c = call({ tool: 'update_plan', arguments: JSON.stringify({ plan: [{ step: 'a', status: 'in_progress' }] }) })
     expect(callOf(c)).toEqual({ kind: 'plan', plan: { plan: [{ step: 'a', status: 'in_progress' }] } })
+  })
+
+  it('reads the hub handing work out, changing todos and looking at how things stand', () => {
+    const start = call({ tool: 'start_conversation', status: 'completed', arguments: JSON.stringify({ workspace: 'w', title: 'Fix the build', message: 'm' }), result: { output: { conversation: 'th2', turn: 'u', queued: false } } })
+    expect(callOf(start)).toEqual({ kind: 'handoff', handoff: { tool: 'start_conversation', args: { workspace: 'w', title: 'Fix the build', message: 'm' } }, output: { conversation: 'th2', turn: 'u', queued: false } })
+    const todo = call({ tool: 'update_todo', arguments: JSON.stringify({ id: 3, status: 'done' }) })
+    expect(callOf(todo)).toEqual({ kind: 'todo', change: { tool: 'update_todo', args: { id: 3, status: 'done' } }, output: undefined })
+    expect(callOf(call({ tool: 'list_conversations', arguments: '{}' }))).toEqual({ kind: 'followup', tool: 'list_conversations' })
+    // Arguments that are not the contract's are any tool's.
+    expect(callOf(call({ tool: 'send_message', arguments: '{}' })).kind).toBe('tool')
   })
 
   it('reads a subagent task, the role it runs as and the thread its launch started', () => {
@@ -525,5 +550,22 @@ describe('schedules', () => {
     for (const spec of ['*/5 * * * *', '0 9 * * 1,3', '0 9 1 6 1', '0 9 * 6 *', '0 9 1 13 *', '0 9 1 * 1', '0 9 * * 7', '60 9 * * *', '0 9 * *']) {
       expect(scheduleOf(spec)).toBeUndefined()
     }
+  })
+})
+
+describe('todos', () => {
+  const todo = (id: number, status: TodoRow['status'], updatedAt = '2026-01-01T00:00:00Z', doneAt?: string): TodoRow => ({ id, title: `t${id}`, status, createdAt: '2026-01-01T00:00:00Z', updatedAt, ...(doneAt && { doneAt }) })
+
+  it('keeps the order they were added in as they change', () => {
+    const list = upsertTodo(upsertTodo([], todo(2, 'open')), todo(1, 'open'))
+    expect(upsertTodo(list, todo(2, 'done')).map((t) => [t.id, t.status])).toEqual([
+      [1, 'open'],
+      [2, 'done'],
+    ])
+  })
+
+  it('groups what is left from what is closed, the one closed last first', () => {
+    const g = groupTodos([todo(1, 'done', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z'), todo(2, 'handed'), todo(3, 'open'), todo(4, 'dropped', '2026-01-03T00:00:00Z')])
+    expect([g.open, g.handed, g.closed].map((ts) => ts.map((t) => t.id))).toEqual([[3], [2], [4, 1]])
   })
 })

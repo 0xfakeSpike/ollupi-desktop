@@ -1,10 +1,11 @@
 import type { ItemRow } from '@ollupi/protocol'
 import { cn, IconButton, ProcessRow } from '@ollupi/ui'
-import { Lightbulb, Pencil } from 'lucide-react'
-import { editMessage } from '../../../domains/conversation'
+import { Lightbulb, Pencil, Waypoints } from 'lucide-react'
+import { editMessage, openThread } from '../../../domains/conversation'
 import { useOpenThreadId } from '../../../domains/navigation'
+import { useThreadRow } from '../../../domains/threads'
 import { useT } from '../../../i18n'
-import { duration } from '../../../i18n/format'
+import { duration, threadTitle } from '../../../i18n/format'
 import { CopyButton, Markdown } from '../../common/Markdown'
 import { Attachments } from './Attachments'
 import { MessageTime } from './MessageTime'
@@ -29,6 +30,7 @@ export function UserMessage({ item, editable }: { item: ItemRow; editable?: bool
   )
   return (
     <div className="group flex flex-col items-end gap-2">
+      {item.sentByThreadId && <SentBySuperAgent threadId={item.sentByThreadId} />}
       <Attachments attachments={item.attachments} />
       {item.text ? (
         <div className="flex max-w-full items-end gap-1">
@@ -41,6 +43,23 @@ export function UserMessage({ item, editable }: { item: ItemRow; editable?: bool
       {/* When it was sent, under it; shown always, as quiet meta. */}
       <MessageTime at={item.startedAt} className="-mt-1 pr-1 text-small text-fg-subtle tabular-nums" />
     </div>
+  )
+}
+
+/** A message the Super Agent sent for the user: which of its conversations
+ * sent it, and a way back there. */
+function SentBySuperAgent({ threadId }: { threadId: string }) {
+  const m = useT()
+  const from = useThreadRow(threadId)
+  return (
+    <button
+      type="button"
+      onClick={() => void openThread(threadId)}
+      className="flex max-w-full items-center gap-1.5 rounded-full text-small text-fg-subtle hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+    >
+      <Waypoints size={14} className="shrink-0" aria-hidden />
+      <span className="truncate">{m.conversation.timeline.sentBySuperAgent(from ? threadTitle(m, from) : undefined)}</span>
+    </button>
   )
 }
 

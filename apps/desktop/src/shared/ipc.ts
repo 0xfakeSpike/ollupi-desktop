@@ -65,10 +65,10 @@ export type ModelList = { ok: true; models: ListedModel[] } | { ok: false; error
 export type Skill = NonNullable<NonNullable<NonNullable<SkillsCheck['roles']>[number]['skills']>[number]>
 /** An agent a skill belongs to, as the app offers it: the main agent, which
  * ollupi runs as one of two roles by the size of the model (its skill is in
- * both roles' folders, so a conversation that changes model keeps it), or
- * one kind of subagent. */
-export type SkillAgent = 'main' | 'general-sub-agent' | 'browser-sub-agent'
-export const skillAgents: readonly SkillAgent[] = ['main', 'general-sub-agent', 'browser-sub-agent']
+ * both roles' folders, so a conversation that changes model keeps it), the
+ * Super Agent (the hub's role), or one kind of subagent. */
+export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'delegate-sub-agent'
+export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'delegate-sub-agent']
 /** The roles whose directories hold an agent's skills (skills_dir/<role>/<skill>). */
 export function rolesOf(agent: SkillAgent): AgentRole[] {
   return agent === 'main' ? ['full-main-agent', 'compact-main-agent'] : [agent]
@@ -293,6 +293,9 @@ export interface DesktopApi {
      * skills_dir value that names it. */
     defaultFolder(): Promise<string>
   }
+  /** Creates the Super Agent's folder in the backend's home, the one its
+   * hub workspace is added at, and gives its path. */
+  superAgentFolder(): Promise<string>
   /** Files sent with a message. ollupi takes a file by its path and copies
    * it while it takes the message. */
   attachments: {
@@ -449,6 +452,7 @@ export const IpcChannel = {
   SkillsCopy: 'skills:copy',
   SkillsRemove: 'skills:remove',
   SkillsDefaultFolder: 'skills:defaultFolder',
+  SuperAgentFolder: 'superAgent:folder',
   AttachmentsWrite: 'attachments:write',
   AttachmentsRemove: 'attachments:remove',
   FilesList: 'files:list',

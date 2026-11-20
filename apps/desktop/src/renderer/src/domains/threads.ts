@@ -7,12 +7,13 @@
 // thread are here too.
 
 import { compareThreads, removeThread, threadCursor, unread, upsertThread } from '@ollupi/core'
-import type { OllupiClient } from '@ollupi/client'
-import type { ThreadRow } from '@ollupi/protocol'
+import { RpcError, type OllupiClient } from '@ollupi/client'
+import { ErrorCode, type ThreadRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
+import { t } from '../i18n'
 import { forgetDraft } from './drafts'
 import { go, openThreadId, useNavigation } from './navigation'
 import { activeWorkspaces, useWorkspaces } from './workspaces'
@@ -148,11 +149,18 @@ export function archiveThread(threadId: string, archived: boolean): Promise<bool
   }).then(Boolean)
 }
 
-/** Deletes the thread with its subagents' threads, attachments and
- * scheduled tasks; like archiving, not while a turn runs in it. */
+/** Deletes the thread with its reporting subagents' threads, attachments
+ * and scheduled tasks; like archiving, not while a turn runs in it. ollupi
+ * keeps a thread that handed work to delegates (hasDelegates): they are the
+ * user's own conversations, deleted first, so the notice says that. */
 export function deleteThread(threadId: string): Promise<boolean> {
   return run((e) => e.thread.delete, async () => {
-    await gateway().call('thread/delete', { threadId })
+    try {
+      await gateway().call('thread/delete', { threadId })
+    } catch (err) {
+      if (err instanceof RpcError && err.code === ErrorCode.hasDelegates) throw new Error(t().errors.thread.hasDelegates)
+      throw err
+    }
     return true
   }).then(Boolean)
 }

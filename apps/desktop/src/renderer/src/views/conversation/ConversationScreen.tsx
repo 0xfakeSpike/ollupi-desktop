@@ -9,7 +9,7 @@ import { archiveThread, renameThread, useThreadRow } from '../../domains/threads
 import { useWorkspace } from '../../domains/workspaces'
 import { useEffect, useState } from 'react'
 import { useT } from '../../i18n'
-import { threadTitle } from '../../i18n/format'
+import { threadTitle, workspaceName } from '../../i18n/format'
 import { areaClass } from '../common/areas'
 import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
@@ -20,6 +20,7 @@ import { ContextPanel } from './ContextPanel'
 import { ModelPicker } from './ModelPicker'
 import { PermissionsPanel } from './PermissionsPanel'
 import { TasksPanel } from './TasksPanel'
+import { TodosPanel } from './TodosPanel'
 import { TimelineView } from './TimelineView'
 import { useWaitingOutOfView } from './useWaitingOutOfView'
 import { PanelButtons } from './PanelButtons'
@@ -37,6 +38,12 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const fallback = useEnvironments((s) => defaultEnvironment(s.list))
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
+  // A delegate is handed over for good: the user's to read and write to,
+  // like a conversation they started. A subagent that reports back works on
+  // its parent's task, and its later turns would report nowhere.
+  const delegate = thread?.role === 'delegate-sub-agent'
+  const reporting = !!parent && !delegate
+  const hub = workspace?.kind === 'hub'
   // ollupi takes no messages in an archived thread (threadArchived).
   const archived = !!thread?.archivedAt
   const [renaming, setRenaming] = useState(false)
@@ -61,7 +68,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             right only what waits for you and the one Tools capsule. */}
         <header className="drag @container flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
           {parent && (
-            <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
+            <IconButton label={delegate ? m.conversation.screen.backToDelegator : m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
               <ArrowLeft size={14} />
             </IconButton>
           )}
@@ -72,7 +79,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
                 {...rootTip.trigger}
               >
                 <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ink" />
-                <span className="truncate">{workspace.name}</span>
+                <span className="truncate">{workspaceName(m, workspace)}</span>
               </span>
               {rootTip.tooltip}
             </>
@@ -85,8 +92,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               onSave={(title) => renameThread(threadId, title)}
               onDone={() => setRenaming(false)}
             />
-          ) : thread && !parent ? (
-            // Renaming is for threads the person started; a subagent's is named by its task.
+          ) : thread && !reporting ? (
+            // Renaming is for the threads the person has; a reporting subagent's is named by its task.
             <>
               <button
                 type="button"
@@ -101,7 +108,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           ) : (
             <h1 className="min-w-0 truncate px-1.5 text-title text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
           )}
-          {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
+          {parent && <Badge>{delegate ? m.conversation.screen.delegate : m.conversation.screen.subagent}</Badge>}
           {environment && environment.kind !== 'local' && (
             <>
               <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" {...machineTip.trigger}>
@@ -117,7 +124,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               {waiting.count > 0 ? m.conversation.screen.waitingCount(waiting.count) : m.conversation.screen.waiting}
             </span>
           )}
-          <PanelButtons workspace={!!workspace} thread={thread ? threadId : undefined} />
+          <PanelButtons workspace={!!workspace} hub={hub} thread={thread ? threadId : undefined} />
         </header>
 
         <div className="relative min-h-0 flex-1">
@@ -163,9 +170,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               {m.conversation.screen.restore}
             </Button>
           </div>
-        ) : parent ? (
-          // ollupi refuses messages to a subagent's thread (ErrSubagentThread):
-          // it works on the task its parent gave it and reports back there.
+        ) : reporting ? (
+          // A reporting subagent works on the task its parent gave it and
+          // reports back there; a turn of its own would report nowhere.
           <p className="px-6 pb-5 text-center text-small text-fg-subtle">
             {m.conversation.screen.subagentNote}
           </p>
@@ -199,7 +206,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
       {workspace && <WorkspacePanel workspace={workspace} environment={environment ?? fallback} turn={running?.id} />}
       {panel === 'tasks' && <TasksPanel timeline={timeline} />}
-      {panel === 'permissions' && thread && !parent && <PermissionsPanel thread={thread} />}
+      {panel === 'todos' && hub && <TodosPanel />}
+      {panel === 'permissions' && thread && !reporting && <PermissionsPanel thread={thread} />}
       {panel === 'context' && <ContextPanel timeline={timeline} />}
     </div>
   )

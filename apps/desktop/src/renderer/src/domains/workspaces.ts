@@ -63,6 +63,29 @@ export function setArchived(workspaceId: string, archived: boolean): Promise<voi
   })
 }
 
+/** The Super Agent is the user's hub: a workspace of its own folder, in the
+ * backend's home, whose conversations hand work out to the projects. The
+ * first time, the folder is made, added and made the hub; adding a folder
+ * that is a workspace already gives that one back, restored if archived. A
+ * draft opens in it either way. */
+export function startSuperAgent(name: string): Promise<void | undefined> {
+  return run((e) => e.workspace.superAgent, async () => {
+    const path = await desktop.superAgentFolder()
+    const { workspace } = await gateway().call('workspace/add', { path, name })
+    if (workspace.kind !== 'hub') await gateway().call('workspace/setKind', { workspaceId: workspace.id, kind: 'hub' })
+    go({ kind: 'draft', workspaceId: workspace.id })
+  })
+}
+
+/** What every conversation in the workspace is told, after its role's own
+ * rules; empty clears it. */
+export function updateWorkspaceInstructions(workspaceId: string, instructions: string): Promise<boolean> {
+  return run((e) => e.workspace.instructions, async () => {
+    await gateway().call('workspace/updateInstructions', { workspaceId, instructions })
+    return true
+  }).then(Boolean)
+}
+
 export function updateWorkspacePermissions(workspaceId: string, settings: PermissionSettings): Promise<boolean> {
   return run((e) => e.workspace.permissions, async () => {
     await gateway().call('workspace/updatePermissions', { workspaceId, ...settings })

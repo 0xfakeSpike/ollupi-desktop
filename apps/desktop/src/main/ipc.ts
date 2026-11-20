@@ -3,7 +3,7 @@
 // access.
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
 import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
@@ -59,6 +59,13 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SkillsCopy, (_event, agent: unknown, name: unknown, to: unknown) => skills.copy(skillAgent(agent), text(name), skillAgent(to)))
   ipcMain.handle(IpcChannel.SkillsRemove, (_event, agent: unknown, name: unknown) => skills.remove(skillAgent(agent), text(name)))
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
+  // The hub keeps nothing of the projects in it; a folder of its own in the
+  // backend's home keeps the user's folders out of it.
+  ipcMain.handle(IpcChannel.SuperAgentFolder, async () => {
+    const folder = join(home, 'super-agent')
+    await mkdir(folder, { recursive: true })
+    return folder
+  })
   ipcMain.handle(IpcChannel.FilesList, (_event, root: unknown, path: unknown) => listFolder(text(root), text(path)))
   ipcMain.handle(IpcChannel.FilesRead, (_event, root: unknown, path: unknown) => readFile(text(root), text(path)))
   ipcMain.handle(IpcChannel.FilesKind, (_event, root: unknown, path: unknown) => kindOf(text(root), text(path)))

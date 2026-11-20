@@ -15,6 +15,12 @@ import {
   type GlobOutput,
   type Grep,
   type GrepOutput,
+  type HubAddTodo,
+  type HubMessageSent,
+  type HubSendMessage,
+  type HubStartConversation,
+  type HubTodo,
+  type HubUpdateTodo,
   type ItemRow,
   type Plan,
   type PreparedExecution,
@@ -94,6 +100,9 @@ export type ToolCall =
   | { kind: 'plan'; plan: Plan }
   | { kind: 'question'; questions: QuestionAndAnswer[] }
   | { kind: 'subagent'; task: SubagentTask }
+  | { kind: 'handoff'; handoff: Handoff; output: HubMessageSent | undefined }
+  | { kind: 'todo'; change: TodoChange; output: HubTodo | undefined }
+  | { kind: 'followup'; tool: FollowupTool }
   | { kind: 'tool'; name: string | undefined; server: string | undefined }
 
 export type ToolKind = ToolCall['kind']
@@ -192,9 +201,29 @@ function classify(c: CallFacts): ToolCall {
     }
     case 'general-sub-agent':
     case 'browser-sub-agent':
+    case 'delegate-sub-agent':
       if (!isToolPart(builtin, 'arguments', c.arguments)) break
       // The launch completes once the subagent's conversation is started.
       return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: c.child } }
+    // The hub's tools: work handed to a project's conversation as the user
+    // would send it, the user's todos, and looking at how things stand.
+    case 'start_conversation':
+      if (!isToolPart(builtin, 'arguments', c.arguments)) break
+      return { kind: 'handoff', handoff: { tool: builtin, args: c.arguments }, output: isToolPart(builtin, 'output', c.output) ? c.output : undefined }
+    case 'send_message':
+      if (!isToolPart(builtin, 'arguments', c.arguments)) break
+      return { kind: 'handoff', handoff: { tool: builtin, args: c.arguments }, output: isToolPart(builtin, 'output', c.output) ? c.output : undefined }
+    case 'add_todo':
+      if (!isToolPart(builtin, 'arguments', c.arguments)) break
+      return { kind: 'todo', change: { tool: builtin, args: c.arguments }, output: isToolPart(builtin, 'output', c.output) ? c.output : undefined }
+    case 'update_todo':
+      if (!isToolPart(builtin, 'arguments', c.arguments)) break
+      return { kind: 'todo', change: { tool: builtin, args: c.arguments }, output: isToolPart(builtin, 'output', c.output) ? c.output : undefined }
+    case 'list_workspaces':
+    case 'list_conversations':
+    case 'read_conversation':
+    case 'list_todos':
+      return { kind: 'followup', tool: builtin }
   }
   return { kind: 'tool', name: c.title || c.tool || undefined, server: c.server || undefined }
 }
@@ -263,7 +292,24 @@ export function commandFailed(output: CommandOutput): boolean {
 }
 
 /** The tools that launch a subagent, each named after the role it runs as. */
-export type SubagentRole = Extract<BuiltinToolName, 'general-sub-agent' | 'browser-sub-agent'>
+export type SubagentRole = Extract<BuiltinToolName, 'general-sub-agent' | 'browser-sub-agent' | 'delegate-sub-agent'>
+
+/** A subagent that reports to the turn that launched it; a delegate never
+ * does, and works on in its own listed conversation. */
+export function reportsBack(role: SubagentRole): boolean {
+  return role !== 'delegate-sub-agent'
+}
+
+/** Work the hub hands to a project: a new conversation there with its first
+ * message, or a message to one that is there already. */
+export type Handoff = { tool: 'start_conversation'; args: HubStartConversation } | { tool: 'send_message'; args: HubSendMessage }
+
+/** A change the hub makes to the user's todos. */
+export type TodoChange = { tool: 'add_todo'; args: HubAddTodo } | { tool: 'update_todo'; args: HubUpdateTodo }
+
+/** The hub's reads: the workspaces, how conversations stand, a
+ * conversation's latest turns, the todos. */
+export type FollowupTool = Extract<BuiltinToolName, 'list_workspaces' | 'list_conversations' | 'read_conversation' | 'list_todos'>
 
 export interface SubagentTask extends SubagentCall {
   role: SubagentRole

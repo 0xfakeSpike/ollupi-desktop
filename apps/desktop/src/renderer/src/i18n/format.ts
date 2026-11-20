@@ -1,7 +1,7 @@
 // Core's language-neutral values worded in the current language.
 
 import { elapsed, formatTokens, span, type Schedule } from '@ollupi/core'
-import type { ThreadRow, Usage } from '@ollupi/protocol'
+import type { ThreadRow, Usage, WorkspaceRow } from '@ollupi/protocol'
 import type { Messages } from '.'
 import type { Locale } from './locale'
 
@@ -66,6 +66,11 @@ export function usageLine(m: Messages, u: Usage): string {
 
 /** A thread's title is what the app gave it when starting it (from the
  * first message) or the person renamed it to; it may be empty. */
+/** A workspace by name; the hub is the Super Agent, in the app's language. */
+export function workspaceName(m: Messages, w: Pick<WorkspaceRow, 'name' | 'kind'>): string {
+  return w.kind === 'hub' ? m.shell.sidebar.superAgent : w.name
+}
+
 export function threadTitle(m: Messages, thread: Pick<ThreadRow, 'title'>): string {
   return thread.title || m.common.newThread
 }

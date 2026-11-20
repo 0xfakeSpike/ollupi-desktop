@@ -5,8 +5,11 @@
 // "plan" calls update_plan, "schedule" creates a scheduled task, "delegate"
 // starts a subagent, "mcp" calls the mock MCP server's echo tool
 // (mock-mcp.mjs), "search memory" calls memory_search, "write notes" calls
-// write_file (notes.md), "fetch page" calls web_fetch (example.com); anything
-// else streams markdown. After a tool result it streams a short summary.
+// write_file (notes.md), "fetch page" calls web_fetch (example.com), "hand
+// over" starts a delegate, "hand out" (as the hub) lists the workspaces and,
+// once they come back, starts a conversation in the first project and notes a
+// todo; anything else streams markdown. After a tool result it streams a
+// short summary.
 //
 //   PORT=18080 node scripts/mock-model.mjs
 import http from 'node:http'
@@ -59,7 +62,16 @@ http
     const call = (name, args) => calls([[name, args]])
 
     send({ role: 'assistant', content: '' })
-    if (last.role === 'tool') {
+    // The hub's answer to list_workspaces: hand the work to the first project.
+    const listed = last.role === 'tool' && /"workspaces"/.test(last.content ?? '') ? JSON.parse(last.content).workspaces : undefined
+    const project = listed?.find((w) => w.kind === 'project')
+    if (project) {
+      await stream('content', `Handing it to ${project.name}.`)
+      await calls([
+        ['start_conversation', { workspace: project.id, title: 'Tidy the meeting notes', message: 'Please tidy the meeting notes in this folder: one file per meeting, newest first.' }],
+        ['add_todo', { title: 'Check the meeting notes are tidy', notes: 'Once the project conversation reports back.' }],
+      ])
+    } else if (last.role === 'tool') {
       await stream('reasoning_content', 'The tool returned; summarize for the user.')
       await stream(
         'content',
@@ -93,6 +105,12 @@ http
     } else if (/schedule/i.test(userText)) {
       await stream('content', 'Setting that up.')
       await call('create_scheduled_job', { name: 'morning-brief', spec: '0 9 * * *', prompt: 'Give me the morning brief.' })
+    } else if (/^hand out/i.test(userText) && tools.includes('list_workspaces')) {
+      await stream('content', 'Looking at your projects.')
+      await call('list_workspaces', {})
+    } else if (/^hand over/i.test(userText)) {
+      await stream('content', 'Handing this over.')
+      await call('delegate-sub-agent', { description: 'Draft the weekly update', prompt: 'Draft this week’s update and send it to me when it is ready.' })
     } else if (/delegate/i.test(userText)) {
       await stream('content', 'Handing this to a subagent.')
       await call('general-sub-agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })

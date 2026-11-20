@@ -1,4 +1,4 @@
-import { groupByWorkspace } from '@ollupi/core'
+import { groupByWorkspace, hubOf, waitingFirst } from '@ollupi/core'
 import { cn, useTooltip } from '@ollupi/ui'
 import { ArrowDown, Blocks, Bookmark, Clock, FolderPlus, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -10,7 +10,7 @@ import { UpdatePrompt } from '../common/Update'
 import { ConnectionStatus } from './ConnectionStatus'
 import { ArchivedThreads } from './ArchivedThreads'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
-import { ThreadGroup } from './ThreadGroup'
+import { SuperAgentStart, ThreadGroup } from './ThreadGroup'
 import { Wordmark } from '../common/Wordmark'
 import { Dragonfly } from '../common/Wolf'
 
@@ -22,6 +22,8 @@ export function Sidebar() {
   const screen = useNavigation((s) => s.screen)
   const m = useT().shell.sidebar
   const groups = useMemo(() => groupByWorkspace(workspaces, threads), [workspaces, threads])
+  const hub = hubOf(workspaces)
+  const hubThreads = useMemo(() => (hub ? waitingFirst(threads.filter((t) => t.workspaceId === hub.id)) : []), [hub, threads])
   const list = useRef<HTMLDivElement>(null)
   const hidden = useHiddenWaiting(list)
 
@@ -55,6 +57,8 @@ export function Sidebar() {
       </nav>
       <div className="flex min-h-0 flex-1 flex-col">
       <div ref={list} className="fade-edges min-h-0 flex-1 overflow-y-auto px-3.5 pt-2 pb-4">
+        {/* The Super Agent heads the map: it is where work for every project starts. */}
+        {hub ? <ThreadGroup workspace={hub} threads={hubThreads} /> : <SuperAgentStart />}
         {groups
           .filter((g) => g.workspace)
           .map((g) => (

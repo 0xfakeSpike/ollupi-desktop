@@ -5,7 +5,7 @@ import type { ApprovalPolicy } from '@ollupi/protocol'
 import { create } from 'zustand'
 
 /** What a conversation shows beside it. */
-export type Panel = 'browser' | 'files' | 'environment' | 'terminal' | 'tasks' | 'permissions' | 'context'
+export type Panel = 'browser' | 'files' | 'environment' | 'terminal' | 'tasks' | 'permissions' | 'context' | 'todos'
 
 /** What the agent can do, from where. */
 export type CapabilityTab = 'skills' | 'mcp' | 'tools'

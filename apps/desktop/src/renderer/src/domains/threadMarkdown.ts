@@ -13,6 +13,9 @@ export interface MarkdownWords {
   attachments: string
   plan: string
   subagent: (task: string) => string
+  started: (title: string) => string
+  wrote: string
+  todo: (title: string) => string
   answered: (answer: string) => string
   failed: string
   stopped: string
@@ -73,6 +76,15 @@ function callLine(item: ItemRow, w: MarkdownWords): string {
       return call.questions.map((q) => `> ${q.question}${q.answers?.length ? `\n>\n> ${w.answered(q.answers.join(', '))}` : ''}`).join('\n\n')
     case 'subagent':
       return `> ${w.subagent(call.task.description)}`
+    case 'handoff': {
+      const { tool, args } = call.handoff
+      const to = tool === 'start_conversation' ? w.started(args.title) : w.wrote
+      return `> ${to}\n>\n${args.message.split('\n').map((l) => `> ${l}`).join('\n')}`
+    }
+    case 'todo':
+      return `> ${w.todo(call.output?.title ?? call.change.args.title ?? '')}`
+    case 'followup':
+      return `\`${call.tool}\``
     case 'tool':
       return `\`${call.name ?? item.tool ?? ''}\``
   }

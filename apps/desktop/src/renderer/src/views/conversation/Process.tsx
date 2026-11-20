@@ -72,12 +72,16 @@ function Steps({ items }: { items: ItemRow[] }) {
 function summaryLine(m: Messages, s: ProcessSummary, endedAt: string | undefined): string {
   const p = m.conversation.process
   const done = [
+    // What the hub did for the user comes before how it looked around.
+    s.handoffs > 0 && p.handoffs(s.handoffs),
+    s.todos > 0 && p.todos(s.todos),
     s.reads > 0 && p.reads(s.reads),
     s.searches > 0 && p.searches(s.searches),
     s.filesChanged > 0 && p.filesChanged(s.filesChanged),
     s.commands > 0 && p.commands(s.commands),
     s.tools > 0 && p.tools(s.tools),
     s.subagents > 0 && p.subagents(s.subagents),
+    s.followups > 0 && p.followups(s.followups),
   ].filter(Boolean)
   return done.length ? done.join(p.separator) : p.worked(duration(m, s.startedAt, s.completedAt ?? endedAt))
 }

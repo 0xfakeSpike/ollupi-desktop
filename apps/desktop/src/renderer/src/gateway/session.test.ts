@@ -21,6 +21,7 @@ vi.mock('../domains/threads', () => ({ threadsDomain: {} }))
 vi.mock('../domains/tools', () => ({ toolsDomain: {} }))
 vi.mock('../domains/environments', () => ({ environmentsDomain: {} }))
 vi.mock('../domains/workspaces', () => ({ workspacesDomain: {} }))
+vi.mock('../domains/todos', () => ({ todosDomain: {} }))
 
 function fakeClient() {
   const closes: ((reason: string) => void)[] = []

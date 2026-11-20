@@ -1,14 +1,16 @@
-// general-sub-agent and browser-sub-agent: the task a subagent was given,
-// the role it runs as, and a way into its thread. The launch returns at
-// once; the subagent works beside the conversation until it writes its
-// report back as an agentReport item (AgentReport), so the launch shows it
-// working until then. Its thread's requests are answered here, since this
-// thread reports the subagent's wait as its own status.
+// The subagents: the task one was given, the role it runs as, and a way
+// into its thread. The launch returns at once. general-sub-agent and
+// browser-sub-agent work beside the conversation until they write their
+// report back as an agentReport item (AgentReport), so the launch shows them
+// working until then, and their thread's requests are answered here, since
+// this thread reports their wait as its own status. A delegate
+// (delegate-sub-agent) never reports: it is the user's own conversation from
+// then on, listed in the sidebar, where its requests wait too.
 
-import { reportOf, turnActive, type ToolCall } from '@ollupi/core'
+import { reportOf, reportsBack, turnActive, type ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { Button, Spinner } from '@ollupi/ui'
-import { ArrowUpRight, Bot, Globe } from 'lucide-react'
+import { ArrowUpRight, Bot, Forward, Globe } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRequests } from '../../../domains/requests'
 import { useT } from '../../../i18n'
@@ -27,22 +29,24 @@ export const subagent: ToolView<Subagent> = {
 
 function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
   const { task } = call
-  const childRequests = useThreadRequests(task.threadId)
+  const reports = reportsBack(task.role)
+  const childRequests = useThreadRequests(reports ? task.threadId : undefined)
   const timeline = useCurrentTimeline()
   const m = useT()
   // Launched and not reported, while the turn that launched it goes on: a
   // turn that ends stops its subagents, and one ended gets no report.
   const turn = timeline?.turns.find((t) => t.id === item.turnId)
-  const working = item.status === 'completed' && !!timeline && !reportOf(timeline.items, item) && !!turn && turnActive(turn.status)
+  const working = reports && item.status === 'completed' && !!timeline && !reportOf(timeline.items, item) && !!turn && turnActive(turn.status)
   const browser = task.role === 'browser-sub-agent'
   return (
     <CallRow
       item={item}
-      icon={browser ? Globe : Bot}
+      icon={browser ? Globe : reports ? Bot : Forward}
       title={subagent.title(m, call)}
       badge={
         <>
           {browser && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.browserSubagent}</span>}
+          {!reports && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.delegated}</span>}
           {working && (
             <span className="flex shrink-0 items-center gap-1 text-small text-fg-subtle">
               <Spinner size={14} /> {m.conversation.tool.subagentWorking}

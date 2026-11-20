@@ -1,54 +1,82 @@
-import { isWorking, needsUser, unread } from '@ollupi/core'
+import { isOpenTodo, isWorking, needsUser, unread } from '@ollupi/core'
 import type { ThreadRow, WorkspaceRow } from '@ollupi/protocol'
-import { cn, IconButton, useTooltip } from '@ollupi/ui'
-import { Archive, ChevronRight, Ellipsis, Plus } from 'lucide-react'
+import { Button, cn, IconButton, useTooltip } from '@ollupi/ui'
+import { Archive, ChevronRight, Ellipsis, Plus, Waypoints } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
 import { openPath } from '../../domains/files'
 import { go, useOpenThreadId } from '../../domains/navigation'
 import { archiveThread, deleteThread, loadMoreThreads, renameThread, threadMenu, useThreads, workspaceMenu } from '../../domains/threads'
-import { setArchived } from '../../domains/workspaces'
+import { useTodos } from '../../domains/todos'
+import { setArchived, startSuperAgent } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
-import { relativeTime, threadTitle } from '../../i18n/format'
+import { relativeTime, threadTitle, workspaceName } from '../../i18n/format'
 import { areaClass } from '../common/areas'
 import { TitleInput } from '../common/TitleInput'
 import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
 const SHOWN = 8
 
+/** The Super Agent before there is one: its area, saying what it is, and
+ * the one way to start it, which makes its hub workspace and opens a draft
+ * there. */
+export function SuperAgentStart() {
+  const m = useT().shell.sidebar
+  return (
+    <section className="mt-2.5 flex flex-col gap-2 rounded-3xl bg-canvas p-1.5 pb-2.5">
+      <div className="flex h-7 items-center gap-1.5 pl-2.5 text-small font-semibold text-fg">
+        <Waypoints size={14} aria-hidden className="shrink-0 text-fg-muted" />
+        {m.superAgent}
+      </div>
+      <p className="px-2.5 text-small text-fg-muted">{m.superAgentIntro}</p>
+      <div className="px-2.5">
+        <Button size="sm" onClick={() => void startSuperAgent(m.superAgent)}>
+          {m.superAgentStart}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
 /** One workspace's threads, as an area on the map: a field in the
  * workspace's colour holding its name, how many things are in it, and a
- * row for each. Threads outside any workspace sit on the bare ground. */
+ * row for each. Threads outside any workspace sit on the bare ground. The
+ * hub is the Super Agent's area, on the paper, first on the map, saying
+ * how many todos are left. */
 export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadRow[] }) {
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
   const [settings, setSettings] = useState(false)
   const more = useThreads((s) => s.more[workspace?.id ?? ''] ?? false)
-  const m = useT().shell.sidebar
-  const rootTip = useTooltip({ label: workspace?.rootPath ?? '' })
+  const t = useT()
+  const m = t.shell.sidebar
+  const hub = workspace?.kind === 'hub'
+  const todosLeft = useTodos((s) => (hub ? s.list.filter((t) => isOpenTodo(t.status)).length : 0))
+  const rootTip = useTooltip({ label: hub ? '' : (workspace?.rootPath ?? '') })
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
   const waiting = threads.filter((t) => needsUser(t.status)).length
   const menu = async () => {
     if (!workspace) return
-    const picked = await workspaceMenu({ reveal: m.revealFolder, settings: m.workspaceSettings, archive: m.archiveWorkspace })
+    const picked = await workspaceMenu({ reveal: m.revealFolder, settings: hub ? m.superAgentSettings : m.workspaceSettings, archive: m.archiveWorkspace })
     if (picked === 'reveal') void openPath(workspace.rootPath)
     else if (picked === 'settings') setSettings(true)
     else if (picked === 'archive') void setArchived(workspace.id, true)
   }
 
   return (
-    <section className={cn('mt-2.5 rounded-3xl p-1.5', workspace ? areaClass(workspace.id) : 'bg-canvas/60')}>
+    <section className={cn('mt-2.5 rounded-3xl p-1.5', hub ? 'bg-canvas' : workspace ? areaClass(workspace.id) : 'bg-canvas/60')}>
       <div className="group flex h-7 items-center gap-1 pr-0.5 pl-2.5">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left text-small font-semibold text-fg"
-          {...rootTip.trigger}
+          {...(hub ? {} : rootTip.trigger)}
         >
-          <span className="truncate">{workspace ? workspace.name : m.noWorkspace}</span>
-          <span className="shrink-0 font-medium text-fg-muted">{m.things(threads.length)}</span>
+          {hub && <Waypoints size={14} aria-hidden className="shrink-0 self-center text-fg-muted" />}
+          <span className="truncate">{workspace ? workspaceName(t, workspace) : m.noWorkspace}</span>
+          <span className="shrink-0 font-medium text-fg-muted">{hub && todosLeft > 0 ? `· ${m.todosLeft(todosLeft)}` : m.things(threads.length)}</span>
           {/* The area says it has something for you, even folded or scrolled past its rows. */}
           {waiting > 0 && <span className="shrink-0 self-center rounded-full bg-accent px-2 text-caption leading-5 font-semibold text-accent-fg">{m.areaWaiting(waiting)}</span>}
           <ChevronRight
@@ -57,7 +85,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
             className={cn('shrink-0 self-center text-fg-muted opacity-0 transition duration-160 ease-standard group-hover:opacity-100', open && 'rotate-90')}
           />
         </button>
-        {workspace && rootTip.tooltip}
+        {workspace && !hub && rootTip.tooltip}
         {workspace && (
           // Two on hover (DESIGN.md 3.6): a new thing here, and the rest in the menu.
           <div className="hidden group-focus-within:flex group-hover:flex">

@@ -1,13 +1,23 @@
-// The sidebar's thread list follows thread/list (store.Threads): only
-// top-level threads that are not archived, ordered by updated_at, then
-// created_at, then id, newest first, a page at a time. Live updates must
-// keep that, since thread/changed also announces the threads subagents run
-// in, and the threads archived or deleted.
+// The sidebar's thread list follows thread/list (store.Threads): the
+// top-level threads and the delegates that are not archived, ordered by
+// updated_at, then created_at, then id, newest first, a page at a time. Live
+// updates must keep that, since thread/changed also announces the threads
+// reporting subagents run in, and the threads archived or deleted.
 
 import type { ThreadCursor, ThreadRow, ThreadStatus, WorkspaceRow } from '@ollupi/protocol'
 
-export function isTopLevel(thread: Pick<ThreadRow, 'parentThreadId'>): boolean {
-  return !thread.parentThreadId
+/** A conversation the user started, or a delegate: one a conversation handed
+ * work to that never reports back, whose replies are the user's to read. A
+ * subagent that reports is part of the turn that launched it instead. */
+export function isListed(thread: Pick<ThreadRow, 'parentThreadId' | 'role'>): boolean {
+  return !thread.parentThreadId || thread.role === 'delegate-sub-agent'
+}
+
+/** The user's hub: the one workspace whose conversations hand work out to
+ * the projects (the app's Super Agent), if they have one that is not
+ * archived. */
+export function hubOf(workspaces: readonly WorkspaceRow[]): WorkspaceRow | undefined {
+  return workspaces.find((w) => w.kind === 'hub' && !w.archivedAt)
 }
 
 export function compareThreads(a: ThreadRow, b: ThreadRow): number {
@@ -19,9 +29,9 @@ export function threadCursor(t: ThreadRow): ThreadCursor {
   return { updatedAt: t.updatedAt, createdAt: t.createdAt, id: t.id }
 }
 
-/** Inserts or refreshes a top-level thread, or drops it once archived. */
+/** Inserts or refreshes a listed thread, or drops it once archived. */
 export function upsertThread(list: readonly ThreadRow[], thread: ThreadRow): ThreadRow[] {
-  if (!isTopLevel(thread)) return list.slice()
+  if (!isListed(thread)) return list.slice()
   if (thread.archivedAt) return removeThread(list, thread.id)
   return [...list.filter((t) => t.id !== thread.id), thread].sort(compareThreads)
 }
@@ -64,8 +74,9 @@ export interface WorkspaceGroup {
   threads: ThreadRow[]
 }
 
-/** Threads under each active workspace, then those outside any workspace.
- * Archived workspaces are not listed. What waits on the person comes first:
+/** Threads under each active project workspace, then those outside any
+ * workspace. Archived workspaces are not listed, nor the hub, which the
+ * sidebar shows on its own (hubOf). What waits on the person comes first:
  * in each group the threads waiting on an approval or an answer, then the
  * rest, and the workspaces holding such a thread before the others. Past
  * that, the workspace worked in last comes first: its latest thread's
@@ -75,7 +86,7 @@ export interface WorkspaceGroup {
  * is where the next page starts. */
 export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: readonly ThreadRow[]): WorkspaceGroup[] {
   const groups: WorkspaceGroup[] = workspaces
-    .filter((w) => !w.archivedAt)
+    .filter((w) => !w.archivedAt && w.kind !== 'hub')
     .map((workspace) => ({ workspace, threads: waitingFirst(threads.filter((t) => t.workspaceId === workspace.id)) }))
     .map((g) => ({ g, last: lastActivity(g) }))
     .sort((a, b) => b.last - a.last)
@@ -92,6 +103,7 @@ function lastActivity(g: WorkspaceGroup): number {
   return times.length ? Math.max(...times) : -Infinity
 }
 
-function waitingFirst(threads: ThreadRow[]): ThreadRow[] {
+/** What waits on the person first, each part in the order given. */
+export function waitingFirst(threads: readonly ThreadRow[]): ThreadRow[] {
   return [...threads.filter((t) => needsUser(t.status)), ...threads.filter((t) => !needsUser(t.status))]
 }
