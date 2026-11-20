@@ -25,13 +25,11 @@ export const en = {
   },
   skill: {
     version: (v: string) => `v${v}`,
-    files: (n: number) => (n === 1 ? '1 file' : `${n} files`),
-    more: (n: number) => `+${n} more`,
     edit: (name: string) => `Edit ${name}`,
-    reveal: (name: string) => `Open ${name}’s folder`,
-    remove: (name: string) => `Remove ${name}`,
+    menu: (name: string) => `More for ${name}`,
+    reveal: 'Open folder',
+    remove: 'Remove…',
     confirmRemove: (name: string, agent: string) => `Move the ${agent}’s ${name} to the Trash? Other agents keep their own.`,
-    copy: (name: string) => `Give ${name} to another agent`,
     copyTo: (agent: string) => `Copy to the ${agent}`,
   },
   /** Each agent and what it is, as the skills screen groups them. */
@@ -80,13 +78,11 @@ export const zh: typeof en = {
   },
   skill: {
     version: (v) => `v${v}`,
-    files: (n) => `${n} 个文件`,
-    more: (n) => `还有 ${n} 个`,
     edit: (name) => `编辑 ${name}`,
-    reveal: (name) => `打开 ${name} 的文件夹`,
-    remove: (name) => `删除 ${name}`,
+    menu: (name) => `${name} 的更多操作`,
+    reveal: '打开文件夹',
+    remove: '删除…',
     confirmRemove: (name, agent) => `将${agent}的 ${name} 移到废纸篓？其他 agent 各自的不受影响。`,
-    copy: (name) => `把 ${name} 也给另一个 agent`,
     copyTo: (agent) => `复制给${agent}`,
   },
   agents: {
