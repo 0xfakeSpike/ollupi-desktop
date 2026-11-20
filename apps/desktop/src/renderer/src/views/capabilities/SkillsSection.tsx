@@ -28,8 +28,8 @@ import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 import { Wolf } from '../common/Wolf'
 
-/** Resource files a skill shows before the rest are counted. */
-const shownFiles = 8
+/** Resource files a skill card shows before the rest are counted. */
+const shownFiles = 4
 
 /** A dialog open on one agent's skills: a new one, or one it has. */
 type Editing = { agent: SkillAgent; skill?: Skill }
@@ -215,9 +215,9 @@ function AgentSection({
       {group.skills.length === 0 ? (
         <div className="rounded-3xl bg-surface px-5 py-3.5 text-small text-fg-subtle">{m.screen.empty}</div>
       ) : (
-        <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-2.5">
           {group.skills.map((x) => (
-            <SkillRow key={x.name} skill={x} dir={dir} copyTo={others(x)} onEdit={() => onEdit(x)} onCopy={(to) => onCopy(x, to)} onRemove={() => onRemove(x)} />
+            <SkillCard key={x.name} skill={x} dir={dir} copyTo={others(x)} onEdit={() => onEdit(x)} onCopy={(to) => onCopy(x, to)} onRemove={() => onRemove(x)} />
           ))}
         </ul>
       )}
@@ -225,7 +225,10 @@ function AgentSection({
   )
 }
 
-function SkillRow({
+/** One skill as a card in its agent's grid: name, description and files on
+ * top, what can be done to it along the bottom so a long name keeps the
+ * whole width. */
+function SkillCard({
   skill,
   dir,
   copyTo,
@@ -249,11 +252,26 @@ function SkillRow({
     if (to) onCopy(to as SkillAgent)
   }
   return (
-    <li className="group flex flex-col gap-1.5 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <span className="text-ui font-medium text-fg">{skill.name}</span>
+    <li className="group flex min-w-0 flex-col gap-1.5 rounded-3xl bg-surface px-4 pt-3.5 pb-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="min-w-0 truncate text-ui font-medium text-fg" title={skill.name}>
+          {skill.name}
+        </span>
         {skill.version && <Badge>{m.version(skill.version)}</Badge>}
-        <div className="flex-1" />
+      </div>
+      <ClampText text={skill.description} lines={3} more={common.showAll} less={common.showLess} className="text-ui text-fg-muted" />
+      {files.length > 0 && (
+        <div className="flex min-w-0 flex-wrap items-center gap-1 text-small text-fg-subtle">
+          {files.slice(0, shownFiles).map((f) => (
+            <code key={f.path} title={f.path} className="max-w-full truncate rounded-sm bg-hover px-1.5 py-0.5 font-mono text-small text-fg-muted">
+              {f.path}
+            </code>
+          ))}
+          {files.length > shownFiles && <span>{m.more(files.length - shownFiles)}</span>}
+        </div>
+      )}
+      <div className="mt-auto flex min-h-7 items-center gap-2 pt-1">
+        <span className="flex-1 text-small text-fg-subtle">{files.length > 0 && m.files(files.length)}</span>
         <div className="flex opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100">
           <IconButton label={m.edit(skill.name)} size="sm" onClick={onEdit}>
             <Pencil size={14} />
@@ -271,18 +289,6 @@ function SkillRow({
           </IconButton>
         </div>
       </div>
-      <ClampText text={skill.description} lines={2} more={common.showAll} less={common.showLess} className="text-ui text-fg-muted" />
-      {files.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 text-small text-fg-subtle">
-          <span className="mr-1">{m.files(files.length)}</span>
-          {files.slice(0, shownFiles).map((f) => (
-            <code key={f.path} className="rounded-sm bg-hover px-1.5 py-0.5 font-mono text-small text-fg-muted">
-              {f.path}
-            </code>
-          ))}
-          {files.length > shownFiles && <span>{m.more(files.length - shownFiles)}</span>}
-        </div>
-      )}
     </li>
   )
 }
