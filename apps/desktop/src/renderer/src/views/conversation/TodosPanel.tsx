@@ -1,82 +1,107 @@
-// The Super Agent's plan beside its conversations: the Markdown file it
-// keeps at the root of its folder (HUB_PLAN_FILE), shown as written. The
-// app keeps no todos of its own and does not change the file: the Super
-// Agent writes it as it hands work out, and the user changes it by telling
-// it so, or in the file. It is read again when the panel opens, when the
-// window comes back to the front, and when a write to the file ends in the
-// conversation beside it.
+// The Super Agent's plan beside its conversations, as the files it keeps in
+// its folder (domains/plan): TODO.md, what is not finished, shown as
+// written; under it the months it has moved done and dropped tasks to, one
+// shown at a time. The app does not change them: the Super Agent writes
+// them, and the user changes them by telling it so, or in the files. A
+// conversation a line links to opens in the app.
 
-import { callOf, HUB_PLAN_FILE, type Timeline } from '@ollupi/core'
+import { HUB_PLAN_FILE } from '@ollupi/core'
 import type { WorkspaceRow } from '@ollupi/protocol'
-import { Button, EmptyState } from '@ollupi/ui'
+import { Button, cn, EmptyState } from '@ollupi/ui'
 import { ExternalLink, ListTodo, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { openPath, readTextQuietly } from '../../domains/files'
-import { useT } from '../../i18n'
+import { openPath } from '../../domains/files'
+import { readDoneMonth, refreshPlan, usePlan } from '../../domains/plan'
+import { useLocale, useT } from '../../i18n'
 import { ThreadWorkspace } from '../common/FileLink'
 import { Markdown } from '../common/Markdown'
 import { SidePanel } from './SidePanel'
 
-export function TodosPanel({ hub, timeline }: { hub: WorkspaceRow; timeline?: Timeline }) {
+export function TodosPanel({ hub }: { hub: WorkspaceRow }) {
   const m = useT()
   const t = m.conversation.todos
-  const written = useMemo(() => planWrites(timeline), [timeline])
-  const [version, setVersion] = useState(0)
-  const [text, setText] = useState<string>()
-
-  useEffect(() => {
-    const again = () => setVersion((v) => v + 1)
-    window.addEventListener('focus', again)
-    return () => window.removeEventListener('focus', again)
-  }, [])
-  useEffect(() => {
-    let current = true
-    void readTextQuietly(hub.rootPath, HUB_PLAN_FILE).then((read) => current && setText(read))
-    return () => {
-      current = false
-    }
-  }, [hub.rootPath, written, version])
-
+  const { text, months, version } = usePlan()
+  // Opening the panel reads the files again: the user may have edited them.
+  useEffect(() => void refreshPlan(), [])
   const file = useMemo(() => ({ root: hub.rootPath, path: HUB_PLAN_FILE, version }), [hub.rootPath, version])
+
   return (
     <SidePanel panel="todos" title={t.title} closeLabel={t.close}>
-      {text?.trim() ? (
-        <div className="flex flex-col gap-4">
-          {/* A link in the file opens what it names, as in the files panel. */}
+      <div className="flex flex-col gap-6">
+        {text?.trim() ? (
+          // A link in the file opens what it names, as in the files panel.
           <ThreadWorkspace.Provider value={hub.id}>
             <Markdown text={text} file={file} />
           </ThreadWorkspace.Provider>
-          <div className="flex flex-col gap-2">
-            <p className="text-small text-fg-subtle">{t.from(HUB_PLAN_FILE)}</p>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} onClick={() => setVersion((v) => v + 1)}>
-                {t.reload}
-              </Button>
-              <Button size="sm" variant="ghost" icon={<ExternalLink size={14} />} onClick={() => void openPath(`${hub.rootPath}/${HUB_PLAN_FILE}`)}>
-                {t.open}
-              </Button>
-            </div>
+        ) : (
+          <EmptyState icon={<ListTodo size={20} />} title={t.emptyTitle}>
+            {t.empty}
+          </EmptyState>
+        )}
+        {months.length > 0 && <Done hub={hub} months={months} version={version} />}
+        <div className="flex flex-col gap-2">
+          <p className="text-small text-fg-subtle">{t.from(HUB_PLAN_FILE)}</p>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} onClick={() => void refreshPlan()}>
+              {t.reload}
+            </Button>
+            <Button size="sm" variant="ghost" icon={<ExternalLink size={14} />} onClick={() => void openPath(`${hub.rootPath}/${HUB_PLAN_FILE}`)}>
+              {t.open}
+            </Button>
           </div>
         </div>
-      ) : (
-        <EmptyState icon={<ListTodo size={20} />} title={t.emptyTitle}>
-          {t.empty}
-        </EmptyState>
-      )}
+      </div>
     </SidePanel>
   )
 }
 
-/** The writes to the plan file that went through in the conversation, as
- * one key that changes with each: the panel reads the file again then. */
-function planWrites(timeline: Timeline | undefined): string {
-  if (!timeline) return ''
-  return timeline.items
-    .filter((it) => {
-      if (it.type !== 'toolCall' || it.status !== 'completed') return false
-      const call = callOf(it)
-      return call.kind === 'file' && (call.change.path === HUB_PLAN_FILE || call.change.path.endsWith(`/${HUB_PLAN_FILE}`))
-    })
-    .map((it) => it.id)
-    .join(',')
+/** What was done or dropped, a month at a time: the months as capsules,
+ * and the one picked under them. None is open at first. */
+function Done({ hub, months, version }: { hub: WorkspaceRow; months: string[]; version: number }) {
+  const m = useT()
+  const t = m.conversation.todos
+  const locale = useLocale((s) => s.locale)
+  const [month, setMonth] = useState<string>()
+  const [text, setText] = useState<string>()
+  useEffect(() => {
+    if (!month) return setText(undefined)
+    let current = true
+    void readDoneMonth(hub.rootPath, month).then((read) => current && setText(read))
+    return () => {
+      current = false
+    }
+  }, [hub.rootPath, month, version])
+  const file = useMemo(() => (month ? { root: hub.rootPath, path: `done/${month}.md`, version } : undefined), [hub.rootPath, month, version])
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-small font-medium text-fg-subtle">{t.done}</h3>
+      <div className="flex flex-wrap gap-1.5">
+        {months.map((mo) => (
+          <button
+            key={mo}
+            type="button"
+            aria-pressed={mo === month}
+            onClick={() => setMonth(mo === month ? undefined : mo)}
+            className={cn(
+              'h-7 rounded-full px-3 text-small font-medium transition-colors duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+              mo === month ? 'bg-ink text-ink-fg' : 'bg-surface text-fg-muted hover:text-fg',
+            )}
+          >
+            {monthName(mo, locale)}
+          </button>
+        ))}
+      </div>
+      {month && text !== undefined && file && (
+        <ThreadWorkspace.Provider value={hub.id}>
+          <Markdown text={text} file={file} />
+        </ThreadWorkspace.Provider>
+      )}
+    </section>
+  )
+}
+
+/** 2026-11 as the locale says a month: 2026年11月, Nov 2026. */
+function monthName(month: string, locale: string): string {
+  const [y, mo] = month.split('-').map(Number)
+  return new Date(y!, mo! - 1, 1).toLocaleDateString(locale, { year: 'numeric', month: 'short' })
 }

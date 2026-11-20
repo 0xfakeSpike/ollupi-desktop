@@ -13,7 +13,11 @@ import {
   commandLine,
   currentPlan,
   groupByTurn,
+  doneMonths,
   groupByWorkspace,
+  isPlanPath,
+  openPlanItems,
+  planThreadLink,
   hubOf,
   groupReads,
   readText,
@@ -546,5 +550,18 @@ describe('schedules', () => {
     for (const spec of ['*/5 * * * *', '0 9 * * 1,3', '0 9 1 6 1', '0 9 * 6 *', '0 9 1 13 *', '0 9 1 * 1', '0 9 * * 7', '60 9 * * *', '0 9 * *']) {
       expect(scheduleOf(spec)).toBeUndefined()
     }
+  })
+})
+
+describe('the hub plan', () => {
+  it('counts the tasks still open, not the notes or the closed ones', () => {
+    const text = '# Plan\n\n- [ ] Tidy the notes · notes · [Tidy](#thread-t1)\n  why: before Friday\n- [x] Old one\n* [ ] Another\n- [x] ~~Dropped~~ · why\n'
+    expect(openPlanItems(text)).toBe(2)
+  })
+
+  it('knows its files, its done months and its conversation links', () => {
+    expect(['TODO.md', './TODO.md', 'done/2026-11.md', '/h/super-agent/done/2026-10.md', 'notes.md'].map(isPlanPath)).toEqual([true, true, true, true, false])
+    expect(doneMonths(['2026-10.md', 'notes.md', '2026-11.md', '2026-9.md'])).toEqual(['2026-11', '2026-10'])
+    expect([planThreadLink('#thread-abc'), planThreadLink('#fn-1'), planThreadLink('#thread-'), planThreadLink(undefined)]).toEqual(['abc', undefined, undefined, undefined])
   })
 })

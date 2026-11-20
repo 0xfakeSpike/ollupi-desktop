@@ -7,8 +7,9 @@
 // (mock-mcp.mjs), "search memory" calls memory_search, "write notes" calls
 // write_file (notes.md), "fetch page" calls web_fetch (example.com), "hand
 // over" starts a delegate, "hand out" (as the hub) lists the workspaces and,
-// once they come back, starts a conversation in the first project and writes
-// the plan (TODO.md); anything else streams markdown. After a tool result it streams a
+// once they come back, starts a conversation in the first project, and once
+// that is started writes the plan (TODO.md, linking the conversation) and a
+// done task to this month's file; anything else streams markdown. After a tool result it streams a
 // short summary.
 //
 //   PORT=18080 node scripts/mock-model.mjs
@@ -65,11 +66,17 @@ http
     // The hub's answer to list_workspaces: hand the work to the first project.
     const listed = last.role === 'tool' && /"workspaces"/.test(last.content ?? '') ? JSON.parse(last.content).workspaces : undefined
     const project = listed?.find((w) => w.kind === 'project')
+    // The hub's answer to start_conversation: the conversation it started.
+    const started = last.role === 'tool' && /"turn"/.test(last.content ?? '') ? JSON.parse(last.content).conversation : undefined
     if (project) {
       await stream('content', `Handing it to ${project.name}.`)
+      await call('start_conversation', { workspace: project.id, title: 'Tidy the meeting notes', message: 'Please tidy the meeting notes in this folder: one file per meeting, newest first.' })
+    } else if (started) {
+      const month = new Date().toISOString().slice(0, 7)
+      await stream('content', 'Writing down the plan.')
       await calls([
-        ['start_conversation', { workspace: project.id, title: 'Tidy the meeting notes', message: 'Please tidy the meeting notes in this folder: one file per meeting, newest first.' }],
-        ['write_file', { path: 'TODO.md', content: `# Plan\n\n- [ ] Tidy the meeting notes — handed to **${project.name}**\n- [ ] Check they are tidy once it answers\n` }],
+        ['write_file', { path: 'TODO.md', content: `# Plan\n\n- [ ] Tidy the meeting notes · notes · [Tidy the meeting notes](#thread-${started})\n- [ ] Book the venue for the offsite\n` }],
+        ['write_file', { path: `done/${month}.md`, content: `- [x] Change the site title · site · result: it reads "Ollupi" now\n- [x] ~~Redo the logo~~ · site · dropped: the old one stays\n` }],
       ])
     } else if (last.role === 'tool') {
       await stream('reasoning_content', 'The tool returned; summarize for the user.')
