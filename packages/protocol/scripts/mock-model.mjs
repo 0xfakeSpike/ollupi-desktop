@@ -86,7 +86,7 @@ http
       )
       send({}, 'stop')
     } else if (/^run/i.test(userText)) {
-      await stream('reasoning_content', 'The user wants a command run outside the sandbox.')
+      await stream('reasoning_content', 'The user wants a command run with full access.')
       await stream('content', 'Running it.')
       // Output with nothing machine-specific in it, since recordings are committed.
       await call('run_command', {
