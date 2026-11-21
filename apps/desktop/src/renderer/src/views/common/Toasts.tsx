@@ -2,6 +2,11 @@
 // at the bottom right of the screen's column when it has one beside its
 // panels (ToastHost), so they never lie over a panel, where the browser's page
 // is drawn above the interface; elsewhere at the window's bottom right.
+//
+// ToastHost goes in the column's room above the message box, not at the
+// column's very bottom: the box is a positioned element of its own, later in
+// the page, so it would paint over the notices and hide the one thing they
+// exist for (DESIGN.md 2.0).
 
 import { cn, IconButton } from '@ollupi/ui'
 import { CircleAlert, Info, X } from 'lucide-react'
@@ -13,8 +18,8 @@ import { useT } from '../../i18n'
 const useHost = create<{ el: HTMLElement | null }>(() => ({ el: null }))
 
 /** Where the notices go on a screen with side panels: its column's bottom
- * right. Under a panel that lies over the column as a sheet, like the rest of
- * the column. */
+ * right, in the room above the message box. Under a panel that lies over the
+ * column as a sheet, like the rest of the column. */
 export function ToastHost() {
   return <div ref={(el) => useHost.setState({ el })} className="pointer-events-none absolute right-4 bottom-4 flex w-90 max-w-[calc(100%-2rem)] flex-col gap-2" />
 }

@@ -63,7 +63,6 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       {/* The screen's column: a region (@ollupi/ui region.ts) whose menus,
           tooltips and notices stay out of the panels beside it. */}
       <div data-region className="relative flex min-w-0 flex-1 flex-col">
-        <ToastHost />
         {/* Where you are first: the area's colour and name, then the title; on the
             right only what waits for you and the one Tools capsule. */}
         <header className="drag @container flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
@@ -160,6 +159,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
               {latestTip.tooltip}
             </>
           )}
+          {/* Above the message box, so the box cannot paint over it. */}
+          <ToastHost />
         </div>
 
         {timeline && <StatusLine timeline={timeline} />}

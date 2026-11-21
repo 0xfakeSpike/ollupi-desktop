@@ -45,11 +45,10 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       {/* The screen's column: a region (@ollupi/ui region.ts) whose menus,
           tooltips and notices stay out of the panels beside it. */}
       <div data-region className="relative flex min-w-0 flex-1 flex-col">
-        <ToastHost />
         <header className="drag @container flex h-16 shrink-0 items-center justify-end gap-2 pr-4">
           <PanelButtons workspace={!!workspace} hub={hub} thread={undefined} />
         </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
+        <div className="relative flex flex-1 flex-col items-center justify-center gap-2 px-6 pb-10">
           {/* Before the first conversation ever, the little wolf says hello once. */}
           {/* The emblem the first time; under dusk, a small savanna horizon after. */}
           {firstUse ? <Emblem className="mb-3 size-16" /> : <Horizon className="pointer-events-none mb-4 h-auto w-80" />}
@@ -65,6 +64,8 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
             )
           }
           {!hub && <Suggestions workspace={workspace} />}
+          {/* Above the message box, so the box cannot paint over it. */}
+          <ToastHost />
         </div>
         <Composer
           draft={NEW_CONVERSATION}
