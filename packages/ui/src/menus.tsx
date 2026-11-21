@@ -499,7 +499,7 @@ export function TileMenu<V extends string>({ label, tiles, value, onPick, action
             </div>
             {actions.length > 0 && (
               <>
-                <div role="separator" className="mx-2 my-1 h-px bg-line" />
+                {tiles.length > 0 && <div role="separator" className="mx-2 my-1 h-px bg-line" />}
                 <div className="grid grid-cols-2 gap-0.5">
                   {actions.map((a, i) => {
                     const at = tiles.length + i

@@ -46,7 +46,7 @@ export const en = {
     more: (n: number) => (n === 1 ? 'and 1 more file' : `and ${n} more files`),
   },
   more: {
-    label: 'More',
+    export: 'Export',
     exportMarkdown: 'Export as Markdown',
     exportJson: 'Export all as JSON',
     about: {
@@ -434,7 +434,7 @@ export const zh: typeof en = {
     more: (n) => `还有 ${n} 个文件`,
   },
   more: {
-    label: '更多',
+    export: '导出',
     exportMarkdown: '导出为 Markdown',
     exportJson: '导出全部（JSON）',
     about: {
