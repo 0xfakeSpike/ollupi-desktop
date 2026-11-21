@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { IconButton } from './buttons'
 import { cn } from './cn'
 
@@ -50,7 +51,10 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  return (
+  // Drawn at the root, as the menus are: a dialog opened from inside a
+  // masked or clipped container (the sidebar's list fades its edges with a
+  // mask) would otherwise be masked and clipped with it.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex animate-fade items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
       <div
         role="dialog"
@@ -77,7 +81,8 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
         </div>
         {footer && <div className={cn('flex justify-end gap-2.5 px-6 pb-6', scrolls && 'border-t border-line pt-4')}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
