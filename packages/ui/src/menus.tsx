@@ -72,6 +72,17 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
     () => [...shown.map((option) => ({ kind: 'option' as const, option })), ...actions.map((action) => ({ kind: 'action' as const, action }))],
     [shown, actions],
   )
+  // The options cut where the heading changes, so a heading pins over the rows
+  // of its own group while they scroll under it.
+  const sections = useMemo(() => {
+    const out: { group: string | undefined; options: { option: PickerOption<V>; at: number }[] }[] = []
+    shown.forEach((option, at) => {
+      const last = out[out.length - 1]
+      if (last && last.group === option.group) last.options.push({ option, at })
+      else out.push({ group: option.group, options: [{ option, at }] })
+    })
+    return out
+  }, [shown])
 
   const close = (refocus: boolean) => {
     setOpen(false)
@@ -161,8 +172,6 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
     }
   }
 
-  // Headings go before the first option of each group.
-  let lastGroup: string | undefined
   return (
     <>
       <button
@@ -220,52 +229,61 @@ export function Picker<V extends string>({ label, value, options, onChange, chil
               className="min-h-0 overflow-y-auto p-1 outline-none"
             >
               {shown.length === 0 && filter && <div className="px-2.5 py-1.5 text-ui text-fg-subtle">{filter.empty}</div>}
-              {rows.map((row, i) => {
-                if (row.kind === 'action') {
-                  return (
-                    <div key={`a${i}`}>
-                      {i === shown.length && <div role="separator" className="my-1 h-px bg-line" />}
-                      <div
-                        id={`${id}-${i}`}
-                        data-row={i}
-                        role="option"
-                        aria-selected={false}
-                        onPointerMove={() => setActive(i)}
-                        onClick={() => pick(row, false)}
-                        className={cn('flex min-h-8 cursor-default items-center gap-2 rounded-xl px-2.5 text-ui text-fg-muted', i === active && 'bg-hover text-fg')}
-                      >
-                        {row.action.icon}
-                        {row.action.label}
-                      </div>
+              {sections.map((section, si) => (
+                <div key={`s${si}`} role={section.group === undefined ? undefined : 'group'} aria-label={section.group}>
+                  {/* The heading spans the panel's full width so rows pass
+                      behind it, and its text lines up with theirs. */}
+                  {section.group !== undefined && (
+                    <div aria-hidden className="sticky top-0 z-10 -mx-1 flex items-center gap-2 bg-raised px-3.5 pt-2.5 pb-1">
+                      <span className="shrink-0 text-small font-semibold text-fg-muted">{section.group}</span>
+                      <span className="shrink-0 rounded-full bg-hover px-1.5 text-caption tabular-nums text-fg-subtle">{section.options.length}</span>
+                      <span className="ml-0.5 h-px flex-1 bg-line" />
                     </div>
-                  )
-                }
-                const o = row.option
-                const heading = o.group !== undefined && o.group !== lastGroup ? o.group : undefined
-                lastGroup = o.group
-                const selected = o.value === value
+                  )}
+                  {section.options.map(({ option: o, at }) => {
+                    const selected = o.value === value
+                    return (
+                      <div
+                        key={o.value}
+                        id={`${id}-${at}`}
+                        data-row={at}
+                        role="option"
+                        aria-selected={selected}
+                        onPointerMove={() => setActive(at)}
+                        onClick={() => pick({ kind: 'option', option: o }, false)}
+                        className={cn(
+                          'flex min-h-8 cursor-default items-start gap-2 rounded-xl px-2.5 py-1.5 text-ui text-fg',
+                          at === active && 'bg-hover',
+                          selected && 'bg-selected font-medium',
+                        )}
+                      >
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate">{o.label}</span>
+                          {o.description && <span className="text-small font-normal text-fg-muted">{o.description}</span>}
+                        </span>
+                        {o.note && <span className="shrink-0 pt-px text-small font-normal text-fg-subtle">{o.note}</span>}
+                        <Check size={14} className={cn('mt-1 shrink-0', selected ? 'text-fg' : 'invisible')} aria-hidden />
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+              {actions.map((action, ai) => {
+                const i = shown.length + ai
                 return (
-                  <div key={o.value}>
-                    {heading !== undefined && <div className="px-2.5 pt-2 pb-1 text-small font-medium text-fg-subtle first:pt-1">{heading}</div>}
+                  <div key={`a${ai}`}>
+                    {ai === 0 && <div role="separator" className="my-1 h-px bg-line" />}
                     <div
                       id={`${id}-${i}`}
                       data-row={i}
                       role="option"
-                      aria-selected={selected}
+                      aria-selected={false}
                       onPointerMove={() => setActive(i)}
-                      onClick={() => pick(row, false)}
-                      className={cn(
-                        'flex min-h-8 cursor-default items-start gap-2 rounded-xl px-2.5 py-1.5 text-ui text-fg',
-                        i === active && 'bg-hover',
-                        selected && 'bg-selected font-medium',
-                      )}
+                      onClick={() => pick({ kind: 'action', action }, false)}
+                      className={cn('flex min-h-8 cursor-default items-center gap-2 rounded-xl px-2.5 text-ui text-fg-muted', i === active && 'bg-hover text-fg')}
                     >
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate">{o.label}</span>
-                        {o.description && <span className="text-small font-normal text-fg-muted">{o.description}</span>}
-                      </span>
-                      {o.note && <span className="shrink-0 pt-px text-small font-normal text-fg-subtle">{o.note}</span>}
-                      <Check size={14} className={cn('mt-1 shrink-0', selected ? 'text-fg' : 'invisible')} aria-hidden />
+                      {action.icon}
+                      {action.label}
                     </div>
                   </div>
                 )
