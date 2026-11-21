@@ -174,6 +174,17 @@ describe('timeline', () => {
     expect(awaitedReports(running([delegate]))).toBeUndefined()
   })
 
+  it('drops a reply a newer user message overtook, and what its call streams after', () => {
+    const running = timelineFromPage(page([item('m1', 1, { type: 'userMessage' })], [turn('u1', 'inProgress')]))
+    const streamed = appendDelta(running, { turnId: 'u1', itemId: 'a1', delta: 'Half an ans' }, 'agentMessage')
+    const steered = upsertItem(streamed, item('m2', 2, { type: 'userMessage' }))
+    expect(steered.items.map((i) => i.id)).toEqual(['m1', 'm2'])
+    const late = appendDelta(steered, { turnId: 'u1', itemId: 'a1', delta: 'wer' }, 'agentMessage')
+    expect(late.items.map((i) => i.id)).toEqual(['m1', 'm2'])
+    // The next call, which saw the message, streams as usual.
+    expect(appendDelta(late, { turnId: 'u1', itemId: 'a2', delta: 'Now' }, 'agentMessage').items.map((i) => i.id)).toEqual(['m1', 'm2', 'a2'])
+  })
+
   it('keeps older loaded history when refreshing from the latest page', () => {
     const t = prependPage(timelineFromPage(page([item('c', 3)], [turn('u1')], true)), page([item('b', 2)], [], true))
     const r = refreshFromPage(t, page([item('c', 3), item('d', 4)], [turn('u1')], true, 20))

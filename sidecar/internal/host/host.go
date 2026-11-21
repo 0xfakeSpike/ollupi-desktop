@@ -1,8 +1,8 @@
 // Package host puts one ollupi backend together from a Config: ollupi's own
 // host (the store, the models, the flows that run turns, learn memory and
-// send scheduled tasks, the app and its gateway) with the tools the desktop
-// adds to it (the workspace's commands and files, web_fetch, the app's
-// browser) and the clients beside the gateway, such as the Feishu bot. New
+// send scheduled tasks, the app and its gateway, web_fetch among its tools)
+// with the tools the desktop adds to it (the workspace's commands and files,
+// the app's browser) and the clients beside the gateway, such as the Feishu bot. New
 // builds everything without starting anything; Serve runs it all until the
 // context ends.
 package host
@@ -26,7 +26,6 @@ import (
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 	"github.com/0xfakeSpike/ollupi/store"
 	"github.com/0xfakeSpike/ollupi/tool"
-	"github.com/0xfakeSpike/ollupi/tool/builtin/web"
 	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 	"github.com/0xfakeSpike/ollupi/tool/kit"
 	"golang.org/x/sync/errgroup"
@@ -98,7 +97,8 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	// The store is the host's, made below; a call reaches this only once
 	// it is.
 	var st store.Store
-	tools := []kit.Provider{web.New()}
+	// web_fetch is ollupi's own, made from the Boxes below.
+	var tools []kit.Provider
 	if cfg.Workspace.Enabled {
 		ws, err := workspace.New(workspace.Options{
 			Config: cfg.Workspace.Config,

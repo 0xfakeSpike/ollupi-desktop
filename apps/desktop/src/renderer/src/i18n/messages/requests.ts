@@ -33,6 +33,14 @@ export const en = {
     alwaysInThread: 'Always, in this thread',
     alwaysInParent: 'Always, in the parent thread',
     alwaysAdds: 'Always allowing adds',
+    alwaysAddsEscalate: 'Always allowing adds to Allow with full access too',
+    /** acceptAlways on a call that needs full access: ollupi saves the
+     * rules as escalate rules, so such calls run with full access unasked. */
+    escalate: {
+      alwaysIn: (workspace: string) => `Always, with full access too, in ${workspace}`,
+      alwaysInThread: 'Always, with full access too, in this thread',
+      alwaysInParent: 'Always, with full access too, in the parent thread',
+    },
     /** accept, when the command asks to lift this computer's limits. */
     allowFullAccess: 'Allow full access',
   },
@@ -75,6 +83,12 @@ export const zh: typeof en = {
     alwaysInThread: '以后这件事里都可以',
     alwaysInParent: '以后上级那件事里都可以',
     alwaysAdds: '总是允许会添加',
+    alwaysAddsEscalate: '总是允许会添加到「完全访问也允许」',
+    escalate: {
+      alwaysIn: (workspace) => `以后在「${workspace}」里完全访问也都可以`,
+      alwaysInThread: '以后这件事里完全访问也都可以',
+      alwaysInParent: '以后上级那件事里完全访问也都可以',
+    },
     allowFullAccess: '允许完全访问',
   },
   questions: {

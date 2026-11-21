@@ -40,6 +40,10 @@ export interface Timeline {
   seq: number
   /** Older items exist before items[0] (thread/read with beforeSeq). */
   hasMore: boolean
+  /** Items streamed for a model reply that a newer user message overtook:
+   * ollupi drops such a reply without logging it, and does not stop the
+   * call, so what it still streams is ignored. */
+  overtaken?: readonly string[]
 }
 
 export function timelineFromPage(page: ThreadPageResult): Timeline {
@@ -93,9 +97,11 @@ export function upsertTurn(t: Timeline, turn: TurnRow): Timeline {
 
 /** A change to an item, kept unless what is loaded is newer (updated is its
  * latest entry). An error from the model ends the call whose text was
- * streaming. */
+ * streaming. A user message that reaches a turn overtakes the call whose
+ * text is streaming: that call's request was built before it, and ollupi
+ * logs no reply that missed a newer message, so the text goes. */
 export function upsertItem(t: Timeline, item: ItemRow): Timeline {
-  const base = item.type === 'error' ? dropStreamed(t, item.turnId) : t
+  const base = item.type === 'error' ? dropStreamed(t, item.turnId) : item.type === 'userMessage' && !t.items.some((r) => r.id === item.id) ? overtake(t, item.turnId) : t
   const items = base.items.slice()
   const i = items.findIndex((r) => r.id === item.id)
   if (i >= 0 && items[i]!.updated > item.updated) return base
@@ -107,6 +113,7 @@ export function upsertItem(t: Timeline, item: ItemRow): Timeline {
 /** Text a model writes now, into the item it will be kept as: streamed
  * into one made for it until that item is kept, whole, by item/changed. */
 export function appendDelta(t: Timeline, d: { turnId: string; itemId: string; delta: string }, type: 'agentMessage' | 'reasoning'): Timeline {
+  if (t.overtaken?.includes(d.itemId)) return t
   const i = t.items.findIndex((it) => it.id === d.itemId)
   const items = t.items.slice()
   if (i < 0) {
@@ -123,6 +130,13 @@ export function appendDelta(t: Timeline, d: { turnId: string; itemId: string; de
  * its own. */
 export function streaming(item: ItemRow): boolean {
   return item.updated === 0
+}
+
+/** Drops the turn's streamed items as dropStreamed does, and remembers them,
+ * as their call may stream on. */
+function overtake(t: Timeline, turnId: string): Timeline {
+  const gone = t.items.filter((i) => i.turnId === turnId && streaming(i)).map((i) => i.id)
+  return gone.length ? { ...dropStreamed(t, turnId), overtaken: [...(t.overtaken ?? []), ...gone] } : t
 }
 
 function dropStreamed(t: Timeline, turnId: string): Timeline {

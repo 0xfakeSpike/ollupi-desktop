@@ -3,7 +3,7 @@ module github.com/0xfakeSpike/ollupi-desktop/sidecar
 go 1.26.0
 
 require (
-	github.com/0xfakeSpike/ollupi v0.21.1
+	github.com/0xfakeSpike/ollupi v0.21.2
 	github.com/google/jsonschema-go v0.4.2
 	github.com/larksuite/oapi-sdk-go/v3 v3.12.2
 	golang.org/x/sync v0.25.0
@@ -40,6 +40,7 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-ieproxy v0.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.4.1 // indirect
 	github.com/openai/openai-go v1.12.0 // indirect

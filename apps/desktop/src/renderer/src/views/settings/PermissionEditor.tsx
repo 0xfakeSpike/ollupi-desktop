@@ -1,7 +1,9 @@
 // Edits one layer of permission.Settings (a workspace's or a thread's).
 // Layers resolve by permission.Resolve: the most specific approval policy
-// wins and allow/ask/deny rules accumulate, so a layer adds rules but never
-// lifts a deny above it. An unset policy inherits: the field is left out.
+// wins and allow/escalate/ask/deny rules accumulate, so a layer adds rules
+// but never lifts a deny above it. An unset policy inherits: the field is
+// left out. Deny and ask are decided before allow and escalate; an escalate
+// rule lets a call run without asking also when it needs full access.
 
 import type { ApprovalPolicy, PermissionSettings } from '@ollupi/protocol'
 import { Button, cn, Field, Select, Textarea } from '@ollupi/ui'
@@ -19,9 +21,10 @@ export const approvalPolicies = (m: Messages): { value: ApprovalPolicy; label: s
 
 const INHERIT = ''
 
-type RuleKind = 'allow' | 'ask' | 'deny'
+type RuleKind = 'allow' | 'escalate' | 'ask' | 'deny'
 
-const kinds: RuleKind[] = ['allow', 'ask', 'deny']
+/** From what runs most freely to what never runs. */
+const kinds: RuleKind[] = ['allow', 'escalate', 'ask', 'deny']
 
 export function PermissionEditor({
   value,
@@ -36,6 +39,7 @@ export function PermissionEditor({
   const [policy, setPolicy] = useState<ApprovalPolicy | typeof INHERIT>(value.approvalPolicy ?? INHERIT)
   const [rules, setRules] = useState<Record<RuleKind, string>>({
     allow: (value.permissions.allow ?? []).join('\n'),
+    escalate: (value.permissions.escalate ?? []).join('\n'),
     ask: (value.permissions.ask ?? []).join('\n'),
     deny: (value.permissions.deny ?? []).join('\n'),
   })
@@ -48,7 +52,7 @@ export function PermissionEditor({
   const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
   const next: PermissionSettings = {
     ...(policy === INHERIT ? {} : { approvalPolicy: policy }),
-    permissions: { allow: lines(rules.allow), ask: lines(rules.ask), deny: lines(rules.deny) },
+    permissions: { allow: lines(rules.allow), escalate: lines(rules.escalate), ask: lines(rules.ask), deny: lines(rules.deny) },
   }
   // Saved settings come back as value, so the button rests until the next edit.
   const unchanged =

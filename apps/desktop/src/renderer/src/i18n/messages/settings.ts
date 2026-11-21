@@ -252,8 +252,9 @@ export const en = {
       'Set apart from the policy, for particular actions. Most people need none. One per line: a tool’s name, or the name with what it applies to in brackets; run_command(git:*) is every git command.',
     kinds: {
       allow: { label: 'Always allow', hint: 'Done without asking you.' },
-      ask: { label: 'Always ask me', hint: 'Asks you first, even when the policy would not.' },
-      deny: { label: 'Never allow', hint: 'Never done; wins over the two above.' },
+      escalate: { label: 'Allow with full access too', hint: 'Done without asking you, even when it needs full access; covers what Always allow covers.' },
+      ask: { label: 'Always ask me', hint: 'Asks you first, even when the policy or the rules above would not.' },
+      deny: { label: 'Never allow', hint: 'Never done; wins over everything above.' },
     },
     rulesPlaceholder: 'run_command(git:*)',
     save: 'Save permissions',
@@ -513,8 +514,9 @@ export const zh: typeof en = {
     exceptionsHint: '在审批策略之外，单独为个别操作设定。大多数情况下不需要。每行一条：工具名，或工具名加括号写明适用范围，例如 run_command(git:*) 表示所有 git 命令。',
     kinds: {
       allow: { label: '总是允许', hint: '直接做，不问你。' },
-      ask: { label: '总是先问我', hint: '即使审批策略允许，也先问你。' },
-      deny: { label: '禁止', hint: '永远不做，优先于上面两条。' },
+      escalate: { label: '完全访问也允许', hint: '即使需要完全访问，也直接做，不问你；也包含「总是允许」的范围。' },
+      ask: { label: '总是先问我', hint: '即使审批策略或上面的规则允许，也先问你。' },
+      deny: { label: '禁止', hint: '永远不做，优先于上面所有规则。' },
     },
     rulesPlaceholder: 'run_command(git:*)',
     save: '保存权限',

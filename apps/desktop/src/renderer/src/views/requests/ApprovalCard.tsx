@@ -6,7 +6,9 @@
 // dangerous, otherwise on allowing; Esc declines and ↵ allows (DESIGN.md
 // 3.2), but never full access, which takes a click. Where an allow rule would let the same
 // call run, ollupi suggests one: always allowing saves it, and the card says
-// what it adds and where.
+// what it adds and where. For a call that needs full access (escalated)
+// ollupi saves it as an escalate rule, under which such calls run with full
+// access without asking, and the card says so.
 
 import { approvalCallOf, preparedOf } from '@ollupi/core'
 import type { Decision, ThreadRow } from '@ollupi/protocol'
@@ -34,7 +36,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
   const workspace = useWorkspace(thread?.workspaceId)
   const rules = p.suggestedRules ?? []
   const label = (d: Decision) =>
-    d === 'acceptAlways' ? alwaysLabel(m, thread, workspace?.name) : d === 'accept' && fullAccess ? m.requests.approval.allowFullAccess : m.requests.approval.decisions[d]
+    d === 'acceptAlways' ? alwaysLabel(m, thread, workspace?.name, !!p.escalated) : d === 'accept' && fullAccess ? m.requests.approval.allowFullAccess : m.requests.approval.decisions[d]
   const variant = (d: Decision): ButtonProps['variant'] =>
     d === 'accept' ? (fullAccess ? 'danger' : 'primary') : d === 'decline' && !fullAccess ? 'ghost' : 'secondary'
   // The key each answer has: Esc declines, ↵ allows once unless that is full access.
@@ -114,7 +116,7 @@ export function ApprovalCard({ request }: { request: Extract<PendingRequest, { k
                 {answer('acceptAlways')}
                 {rules.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1 text-small text-fg-muted">
-                    <span className="mr-1">{m.requests.approval.alwaysAdds}</span>
+                    <span className="mr-1">{p.escalated ? m.requests.approval.alwaysAddsEscalate : m.requests.approval.alwaysAdds}</span>
                     {rules.map((r) => (
                       <code key={r} className="selectable rounded-sm bg-canvas px-1.5 py-0.5 font-mono text-small">
                         {r}
@@ -155,8 +157,8 @@ export function typing(): boolean {
 /** Where ollupi saves the rules (agent.allowAlways): the thread's
  * workspace, which a subagent shares with its parent; without one, the
  * thread's own settings, a subagent's being its parent's. */
-function alwaysLabel(m: Messages, thread: ThreadRow | undefined, workspace: string | undefined): string {
-  const t = m.requests.approval
+function alwaysLabel(m: Messages, thread: ThreadRow | undefined, workspace: string | undefined, escalated: boolean): string {
+  const t = escalated ? m.requests.approval.escalate : m.requests.approval
   if (workspace) return t.alwaysIn(workspace)
   return thread?.parentThreadId ? t.alwaysInParent : t.alwaysInThread
 }
