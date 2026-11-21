@@ -17,6 +17,7 @@ import {
   groupByWorkspace,
   isPlanPath,
   openPlanItems,
+  parsePlan,
   planThreadLink,
   hubOf,
   groupReads,
@@ -554,6 +555,27 @@ describe('schedules', () => {
 })
 
 describe('the hub plan', () => {
+  it('reads each task: what, its project, its conversation, its note', () => {
+    const text = '# Plan\n\n- [ ] Tidy the notes · notes · [Tidy them](#thread-t1)\n  before Friday\n- [ ] Book the venue\n'
+    expect(parsePlan(text)).toEqual({
+      items: [
+        { task: 'Tidy the notes', state: 'open', project: 'notes', thread: { id: 't1', title: 'Tidy them' }, note: 'before Friday' },
+        { task: 'Book the venue', state: 'open', project: undefined, thread: undefined, note: undefined },
+      ],
+      rest: false,
+    })
+  })
+
+  it('reads what was done and dropped, with the result and why', () => {
+    const text = '- [x] Change the title · site · result: it reads Ollupi\n- [x] ~~Redo the logo~~ · site · dropped: the old one stays\nSome prose\n'
+    const { items, rest } = parsePlan(text)
+    expect(items.map((i) => [i.task, i.state, i.project, i.note])).toEqual([
+      ['Change the title', 'done', 'site', 'it reads Ollupi'],
+      ['Redo the logo', 'dropped', 'site', 'the old one stays'],
+    ])
+    expect(rest).toBe(true)
+  })
+
   it('counts the tasks still open, not the notes or the closed ones', () => {
     const text = '# Plan\n\n- [ ] Tidy the notes · notes · [Tidy](#thread-t1)\n  why: before Friday\n- [x] Old one\n* [ ] Another\n- [x] ~~Dropped~~ · why\n'
     expect(openPlanItems(text)).toBe(2)

@@ -46,3 +46,77 @@ export function doneMonths(names: readonly string[]): string[] {
 export function planThreadLink(href: string | undefined): string | undefined {
   return href?.startsWith('#thread-') ? href.slice('#thread-'.length) || undefined : undefined
 }
+
+/** A task of the hub's plan, read from its line: open ([ ]) in TODO.md, or
+ * done or dropped ([x], the task struck through when dropped) in a month's
+ * done file. */
+export interface PlanItem {
+  /** What is to be done, without its marks. */
+  task: string
+  state: 'open' | 'done' | 'dropped'
+  /** The project it belongs to, as the hub wrote the workspace's name. */
+  project: string | undefined
+  /** The conversation working on it, from its #thread-<id> link. */
+  thread: { id: string; title: string } | undefined
+  /** What else the line says (a result, why it was dropped), and the
+   * indented lines under it, in order. */
+  note: string | undefined
+}
+
+/** The tasks of a plan file, in its order. Anything else in the file
+ * (headings, prose) is not a task; rest says whether there is such text,
+ * so a file written otherwise can still be shown as it is. */
+export function parsePlan(text: string): { items: PlanItem[]; rest: boolean } {
+  const items: PlanItem[] = []
+  let rest = false
+  let last: PlanItem | undefined
+  for (const line of text.split('\n')) {
+    const task = /^[-*+] \[( |x|X)\]\s+(.*)$/.exec(line.trimEnd())
+    if (task) {
+      last = planItem(task[1] !== ' ', task[2]!)
+      items.push(last)
+      continue
+    }
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    // A line indented under a task is its note.
+    if (last && /^\s+/.test(line)) {
+      const note = trimmed.replace(/^[-*+]\s+/, '')
+      last.note = last.note ? `${last.note}\n${note}` : note
+      continue
+    }
+    last = undefined
+    // A heading names the file; it is no content of its own.
+    if (!/^#{1,6}\s/.test(trimmed)) rest = true
+  }
+  return { items, rest }
+}
+
+/** A note says what it is by its place: the label a model often puts
+ * before it (result:, dropped:, 结果：) is left out. */
+function withoutLabel(note: string): string {
+  return note.replace(/^(result|outcome|dropped|why|reason|note|结果|原因|不做的原因|备注)\s*[:：]\s*/i, '')
+}
+
+function planItem(checked: boolean, body: string): PlanItem {
+  const parts = body.split(/\s+·\s+/)
+  const first = parts.shift()!.trim()
+  const struck = /^~~(.+)~~$/.exec(first)
+  let project: string | undefined
+  let thread: PlanItem['thread']
+  const notes: string[] = []
+  for (const part of parts) {
+    const link = /^\[([^\]]*)\]\(#thread-([^)\s]+)\)$/.exec(part.trim())
+    if (link && !thread) thread = { id: link[2]!, title: link[1]! }
+    // The project comes right after the task, before any link.
+    else if (project === undefined && !thread && notes.length === 0 && !/[:：]/.test(part)) project = part.trim()
+    else notes.push(withoutLabel(part.trim()))
+  }
+  return {
+    task: struck ? struck[1]! : first,
+    state: !checked ? 'open' : struck ? 'dropped' : 'done',
+    project,
+    thread,
+    note: notes.length ? notes.join(' · ') : undefined,
+  }
+}
