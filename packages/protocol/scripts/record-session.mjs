@@ -7,7 +7,8 @@
 // memory snapshot and a memory_search call, a file attached by path,
 // read_file alone and with glob and grep in one answer, messages sent while
 // a turn runs (each a turn behind it), the cron, workspace, memory,
-// settings, MCP, permission and hub methods, and an error response. Server requests are answered as a user would (approve,
+// settings, MCP, permission and hub methods, token usage grouped each way,
+// and an error response. Server requests are answered as a user would (approve,
 // pick the first option). Every JSON-RPC message is kept raw, in order,
 // with its direction.
 //
@@ -222,6 +223,11 @@ await call('thread/list', { workspaceId: ws1.id, limit: 100 })
 await call('thread/read', { threadId: thread.id, limit: 500 })
 await call('thread/read', { threadId: 'no-such-thread' }).catch(() => {})
 await call('mcpServer/delete', { name: 'broken' })
+// Token use over the last day and tomorrow, grouped each way the usage page
+// reads it.
+const usageFrom = new Date(Date.now() - 86_400_000).toISOString()
+const usageTo = new Date(Date.now() + 86_400_000).toISOString()
+for (const groupBy of ['day', 'workspace', 'model']) await call('usage/query', { from: usageFrom, to: usageTo, groupBy, offsetMinutes: 0 })
 
 ws.close()
 writeFileSync(

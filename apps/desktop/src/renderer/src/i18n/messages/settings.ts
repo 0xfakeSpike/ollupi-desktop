@@ -20,6 +20,10 @@ export const en = {
         label: 'Models',
         description: 'The services you have a key for, and the models from each that it can use.',
       },
+      usage: {
+        label: 'Usage',
+        description: 'The tokens model calls used, counted by Ollupi as they run: in total, by day, by workspace and by model.',
+      },
       permissions: {
         label: 'Permissions',
         description: 'What the agent may do without asking you, in every conversation. A workspace and a conversation can set their own on top. Applies from its next call.',
@@ -177,6 +181,30 @@ export const en = {
     },
   },
 
+  usage: {
+    period: 'Period',
+    periods: { d7: '7 days', d30: '30 days' },
+    loading: 'Reading usage…',
+    failed: (error: string) => `Token usage could not be read. ${error}`,
+    offline: 'Token usage is read from the backend, which is not running. Restart it, or look at its status in General.',
+    retry: 'Try again',
+    total: (days: number) => `Last ${days} days`,
+    unit: 'tokens',
+    chartLabel: (days: number) => `Tokens used in each of the last ${days} days`,
+    today: 'Today',
+    byDay: 'By day',
+    byWorkspace: 'By workspace',
+    byModel: 'By model',
+    noWorkspace: 'Outside any workspace',
+    unknownWorkspace: 'Removed workspace',
+    unknownModel: 'Model not recorded',
+    empty: {
+      title: 'No tokens used in these days',
+      hint: 'Every model call in a conversation is counted here, context compaction included.',
+    },
+    note: 'Input counts the cached and the cache-written part. Memory extraction is not counted, and rows stay after a thread or workspace is deleted.',
+  },
+
   mcp: {
     renamed: 'Its tools are named <name>__<tool>, so permission rules that name the old tools must change too.',
     empty: 'No MCP servers yet.',
@@ -297,6 +325,10 @@ export const zh: typeof en = {
       models: {
         label: '模型',
         description: '你有密钥的模型服务，以及它能用的每家的模型。',
+      },
+      usage: {
+        label: '用量',
+        description: '模型调用消耗的 token，由 Ollupi 在运行时记录：合计、按天、按工作区和按模型。',
       },
       permissions: {
         label: '权限',
@@ -451,6 +483,30 @@ export const zh: typeof en = {
       inputPlaceholder: '自动',
       output: '输出',
     },
+  },
+
+  usage: {
+    period: '时间范围',
+    periods: { d7: '近 7 天', d30: '近 30 天' },
+    loading: '正在读取用量…',
+    failed: (error) => `无法读取 token 用量。${error}`,
+    offline: '用量由后端记录，后端现在没有运行。重启它，或到「设置 → 通用」看它的状态。',
+    retry: '重试',
+    total: (days) => `近 ${days} 天`,
+    unit: 'token',
+    chartLabel: (days) => `近 ${days} 天每天的 token 用量`,
+    today: '今天',
+    byDay: '按天',
+    byWorkspace: '按工作区',
+    byModel: '按模型',
+    noWorkspace: '不属于任何工作区',
+    unknownWorkspace: '已删除的工作区',
+    unknownModel: '未记录模型',
+    empty: {
+      title: '这段时间还没有用量',
+      hint: '会话里每次调用模型都会记在这里，上下文压缩也算在内。',
+    },
+    note: '输入包含缓存和写入缓存的部分。记忆抽取不计入；会话或工作区删除后，记录仍保留。',
   },
 
   mcp: {

@@ -15,13 +15,14 @@ import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
+import { UsageSection } from './UsageSection'
 import { Emblem } from '../common/Wolf'
 
 /** General first, with the version and the backend everything runs on;
- * redaction and what is set once follow. Permissions, models and Feishu come
- * last: each shows nothing until the backend has answered, and filling in
- * above the others would push the page down under the reader. */
-const sections = ['general', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'feishu'] as const
+ * redaction and what is set once follow. Permissions, models, usage and
+ * Feishu come last: each shows nothing until the backend has answered, and
+ * filling in above the others would push the page down under the reader. */
+const sections = ['general', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'usage', 'feishu'] as const
 type Section = (typeof sections)[number]
 
 const bodies: Record<Section, () => ReactNode> = {
@@ -30,6 +31,7 @@ const bodies: Record<Section, () => ReactNode> = {
   appearance: Appearance,
   notifications: Notifications,
   models: ModelsSection,
+  usage: UsageSection,
   permissions: Permissions,
   redaction: Redaction,
   feishu: FeishuSection,
