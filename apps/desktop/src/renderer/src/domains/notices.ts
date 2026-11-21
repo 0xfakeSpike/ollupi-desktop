@@ -1,5 +1,6 @@
 // Transient messages shown as toasts: failed actions and gateway errors.
-// Info clears itself; an error stays until it is dismissed.
+// Info clears itself quickly; an error stays long enough to be read, then
+// clears too, or earlier when it is dismissed.
 
 import { create } from 'zustand'
 import type { Domain } from '../gateway/domain'
@@ -16,6 +17,7 @@ interface NoticeStore {
 }
 
 const INFO_TTL_MS = 4000
+const ERROR_TTL_MS = 60_000
 const MAX_SHOWN = 3
 let nextId = 1
 
@@ -24,10 +26,11 @@ export const useNotices = create<NoticeStore>()((set) => ({
   dismiss: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id) })),
 }))
 
-export function notify(message: string, tone: Notice['tone'] = 'danger'): void {
+export function notify(message: string, tone: Notice['tone'] = 'danger'): number {
   const id = nextId++
   useNotices.setState((s) => ({ notices: [...s.notices.slice(-(MAX_SHOWN - 1)), { id, tone, message }] }))
-  if (tone === 'info') setTimeout(() => useNotices.getState().dismiss(id), INFO_TTL_MS)
+  setTimeout(() => useNotices.getState().dismiss(id), tone === 'info' ? INFO_TTL_MS : ERROR_TTL_MS)
+  return id
 }
 
 /** An answer to a request that the gateway refuses comes with no call to
