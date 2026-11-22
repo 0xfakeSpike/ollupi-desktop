@@ -25,7 +25,7 @@ import { run } from '../gateway/run'
 import { attachmentFile, withMessageInput } from './attachments'
 import { reopenDraft } from './drafts'
 import { chosenEnvironment } from './environments'
-import { chooseModel, focusItem, go, handOverBrowser, openThreadId, useNavigation } from './navigation'
+import { chooseModel, focusItem, go, handOverPanel, openThreadId, useNavigation } from './navigation'
 import { desktop } from '../platform/desktop'
 
 /** Items per page; the gateway also cuts a page at about 4 MB and then
@@ -149,8 +149,8 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
     const model = useNavigation.getState().model
     go({ kind: 'thread', threadId: thread.id })
     chooseModel(model)
-    // The browser that stood beside the draft goes on beside its thread.
-    handOverBrowser(DRAFT_BROWSER, thread.id)
+    // The panel that stood beside the draft goes on beside its thread.
+    handOverPanel(DRAFT_BROWSER, thread.id)
     await withMessageInput(text, files, (input) => startTurn(thread.id, input))
     return true
   }).then(Boolean)

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DRAFT_BROWSER } from '../../../shared/ipc'
-import { go, handOverBrowser, openPanel, shownPanel, startNavigation, useNavigation } from './navigation'
+import { forgetPanel, go, handOverPanel, openPanel, showFile, shownFile, shownPanel, startNavigation, togglePanel, useNavigation } from './navigation'
 
 // A window's sessionStorage: kept across a reload, gone with the window.
 const kept = new Map<string, string>()
@@ -11,11 +11,12 @@ vi.stubGlobal('sessionStorage', {
 })
 
 const shown = () => shownPanel(useNavigation.getState())
+const file = () => shownFile(useNavigation.getState())
 
 describe('navigation', () => {
   beforeEach(() => {
     kept.clear()
-    useNavigation.setState({ screen: { kind: 'draft', workspaceId: undefined }, panel: undefined })
+    useNavigation.setState({ screen: { kind: 'draft', workspaceId: undefined }, panels: {} })
   })
 
   it('comes back to the conversation the window showed before a reload', () => {
@@ -42,42 +43,76 @@ describe('navigation', () => {
 
 describe('the panel beside the conversation', () => {
   beforeEach(() => {
-    useNavigation.setState({ screen: { kind: 'draft', workspaceId: undefined }, panel: undefined })
+    useNavigation.setState({ screen: { kind: 'draft', workspaceId: undefined }, panels: {} })
   })
 
-  it('shows a browser only beside the conversation whose tabs it is', () => {
+  it('shows a panel only beside the conversation that opened it', () => {
     go({ kind: 'thread', threadId: 'th1' })
-    openPanel('browser')
-    expect(shown()).toBe('browser')
+    openPanel('files')
+    expect(shown()).toBe('files')
 
     go({ kind: 'thread', threadId: 'th2' })
     expect(shown()).toBeUndefined()
 
-    // Back where it was opened, the browser is still open.
+    // Back where it was opened, the panel is still open.
     go({ kind: 'thread', threadId: 'th1' })
-    expect(shown()).toBe('browser')
+    expect(shown()).toBe('files')
   })
 
-  it('gives another conversation a browser of its own', () => {
-    go({ kind: 'thread', threadId: 'th1' })
-    openPanel('browser')
-    go({ kind: 'thread', threadId: 'th2' })
-    openPanel('browser')
-    expect(shown()).toBe('browser')
-
-    // The first conversation's browser closed when the second one opened its own.
-    go({ kind: 'thread', threadId: 'th1' })
-    expect(shown()).toBeUndefined()
-  })
-
-  it('leaves the panels that read the conversation on screen open across threads', () => {
+  it("keeps each conversation's own panel, never another's", () => {
     go({ kind: 'thread', threadId: 'th1' })
     openPanel('tasks')
     go({ kind: 'thread', threadId: 'th2' })
+    openPanel('browser')
+
+    go({ kind: 'thread', threadId: 'th1' })
     expect(shown()).toBe('tasks')
+    go({ kind: 'thread', threadId: 'th2' })
+    expect(shown()).toBe('browser')
   })
 
-  it("carries a draft's browser on beside the thread it starts", () => {
+  it('closes only the panel of the conversation on screen', () => {
+    go({ kind: 'thread', threadId: 'th1' })
+    openPanel('files')
+    go({ kind: 'thread', threadId: 'th2' })
+    openPanel('files')
+    togglePanel('files')
+    expect(shown()).toBeUndefined()
+
+    go({ kind: 'thread', threadId: 'th1' })
+    expect(shown()).toBe('files')
+  })
+
+  it('keeps the file each conversation opened in its Files panel', () => {
+    go({ kind: 'thread', threadId: 'th1' })
+    expect(shown()).toBeUndefined()
+    // A path in the conversation opens its file, and the Files panel with it.
+    showFile('ws1', 'src/a.ts')
+    expect(shown()).toBe('files')
+    expect(file()).toEqual({ workspaceId: 'ws1', path: 'src/a.ts' })
+
+    go({ kind: 'thread', threadId: 'th2' })
+    openPanel('files')
+    expect(file()).toBeUndefined()
+    showFile('ws1', 'src/b.ts')
+    expect(file()).toEqual({ workspaceId: 'ws1', path: 'src/b.ts' })
+
+    go({ kind: 'thread', threadId: 'th1' })
+    expect(file()).toEqual({ workspaceId: 'ws1', path: 'src/a.ts' })
+  })
+
+  it('finds the file again when the Files panel reopens', () => {
+    go({ kind: 'thread', threadId: 'th1' })
+    showFile('ws1', 'src/a.ts')
+    togglePanel('files')
+    expect(shown()).toBeUndefined()
+
+    openPanel('files')
+    expect(shown()).toBe('files')
+    expect(file()).toEqual({ workspaceId: 'ws1', path: 'src/a.ts' })
+  })
+
+  it("carries a draft's panel on beside the thread it starts", () => {
     go({ kind: 'draft', workspaceId: undefined })
     openPanel('browser')
     expect(shown()).toBe('browser')
@@ -85,7 +120,21 @@ describe('the panel beside the conversation', () => {
     // Sending the draft's first message shows its thread.
     go({ kind: 'thread', threadId: 'th1' })
     expect(shown()).toBeUndefined()
-    handOverBrowser(DRAFT_BROWSER, 'th1')
+    handOverPanel(DRAFT_BROWSER, 'th1')
     expect(shown()).toBe('browser')
+  })
+
+  it('leaves no panel behind a thread that went away', () => {
+    go({ kind: 'thread', threadId: 'th1' })
+    openPanel('terminal')
+    forgetPanel('th1')
+    go({ kind: 'thread', threadId: 'th1' })
+    expect(shown()).toBeUndefined()
+  })
+
+  it('opens no panel on a screen with no conversation beside it', () => {
+    go({ kind: 'search' })
+    openPanel('files')
+    expect(useNavigation.getState().panels).toEqual({})
   })
 })

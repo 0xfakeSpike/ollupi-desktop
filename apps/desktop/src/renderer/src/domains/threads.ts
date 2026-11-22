@@ -15,7 +15,7 @@ import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { forgetDraft } from './drafts'
-import { go, openThreadId, useNavigation } from './navigation'
+import { forgetPanel, go, openThreadId, useNavigation } from './navigation'
 import { activeWorkspaces, useWorkspaces } from './workspaces'
 import { desktop } from '../platform/desktop'
 
@@ -46,9 +46,10 @@ const update = (fn: (list: ThreadRow[]) => ThreadRow[]) => useThreads.setState((
 
 /** A thread row changed or went away: both lists follow, and a deleted
  * thread that is on screen gives way to a new one. An archived or deleted
- * thread keeps no browser tabs either: each tab is a page running in the
- * window, and nobody will look at it again. A deleted thread keeps no draft
- * either; an archived one does, for its return. */
+ * thread keeps no panel either: its browser's tabs are pages running in the
+ * window that nobody will look at again, and its other panels are shut. A
+ * deleted thread keeps no draft either; an archived one does, for its
+ * return. */
 function changed(threadId: string, thread: ThreadRow | null): void {
   update((l) => (thread ? upsertThread(l, thread) : removeThread(l, threadId)))
   useArchivedThreads.setState((s) => {
@@ -56,7 +57,10 @@ function changed(threadId: string, thread: ThreadRow | null): void {
     const rest = s.list.filter((t) => t.id !== threadId)
     return { list: thread?.archivedAt && !thread.parentThreadId ? [thread, ...rest].sort(compareThreads) : rest }
   })
-  if (!thread || thread.archivedAt) void desktop.browser.forget(threadId)
+  if (!thread || thread.archivedAt) {
+    void desktop.browser.forget(threadId)
+    forgetPanel(threadId)
+  }
   if (!thread) forgetDraft(threadId)
   if (!thread && openThreadId() === threadId) go({ kind: 'draft', workspaceId: undefined })
 }

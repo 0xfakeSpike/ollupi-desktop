@@ -11,7 +11,7 @@ import { ChevronRight, Code, Eye, File, Folder, FolderOpen, RotateCw } from 'luc
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
 import { fileMenu, readFolder, readPreview, revealPath } from '../../domains/files'
-import { showFile, useNavigation } from '../../domains/navigation'
+import { showFile, usePanelFile } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
 import { ThreadWorkspace } from '../common/FileLink'
@@ -23,7 +23,8 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
   const root = workspace.rootPath
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   // Kept with navigation, so a path in the conversation can open its file here.
-  const file = useNavigation((s) => (s.file?.workspaceId === workspace.id ? s.file.path : undefined))
+  const shown = usePanelFile()
+  const file = shown?.workspaceId === workspace.id ? shown.path : undefined
   const setFile = (path: string | undefined) => showFile(workspace.id, path)
   // Bumped by reload: every open folder and the open file read again.
   const [version, setVersion] = useState(0)
