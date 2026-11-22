@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({}))
 
-const { paged } = await import('./browser')
+const { paged, reads } = await import('./browser')
 
 describe('paged', () => {
   it('keeps a short snapshot whole', () => {
@@ -20,5 +20,22 @@ describe('paged', () => {
   it('cuts a line longer than a page into pieces', () => {
     const pages = paged(`- a\n${'x'.repeat(25)}\n- b`, 10)
     expect(pages).toEqual(['- a', 'xxxxxxxxxx', 'xxxxxxxxxx', 'xxxxx\n- b'])
+  })
+})
+
+describe('reads', () => {
+  it('reads the page back after an action that changes it', () => {
+    expect(reads({}, 'click')).toBe(true)
+    expect(reads({}, 'type')).toBe(true)
+  })
+
+  it('leaves a paste unanswered unless it asks', () => {
+    expect(reads({}, 'paste')).toBe(false)
+    expect(reads({ snapshot: true }, 'paste')).toBe(true)
+  })
+
+  it('takes snapshot for any action', () => {
+    expect(reads({ snapshot: false }, 'click')).toBe(false)
+    expect(reads({ snapshot: true }, 'scroll')).toBe(true)
   })
 })

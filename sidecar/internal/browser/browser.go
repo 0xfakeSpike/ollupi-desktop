@@ -61,6 +61,11 @@ type action struct {
 
 var ref = map[string]any{"type": "string", "description": "The ref of an element in the latest snapshot, such as e12, or f1e3 inside a frame."}
 
+// snapshot lets a call keep the page from being read back after it acts, for
+// a run of edits that is read once at the end. A paste is not read back
+// unless it asks.
+var snapshot = map[string]any{"type": "boolean", "description": "Whether to read the page back after acting; true unless the action is a paste."}
+
 func object(properties map[string]any, required ...string) map[string]any {
 	if required == nil {
 		required = []string{}
@@ -77,6 +82,29 @@ var catalog = []action{
 		described:   true,
 	},
 	{
+		action:      "open",
+		description: "Open a web page in a new tab of this conversation's browser and make it the one actions act in, keeping the tab you are in, such as an editor you are filling. Answers with the new page as text and refs, as navigate does.",
+		schema:      object(map[string]any{"url": map[string]any{"type": "string", "description": "The address; https:// is added when it has no scheme (http:// for localhost)."}}, "url"),
+		annotations: tool.Annotations{Title: "Open in a new tab", ReadOnlyHint: true, OpenWorldHint: new(true)},
+		described:   true,
+	},
+	{
+		action:      "tabs",
+		description: "List this conversation's tabs, and which one actions act in; with select, act in that tab from now on. Answered as text, with no page read.",
+		schema: object(map[string]any{
+			"select": map[string]any{"type": "integer", "minimum": 1, "description": "The number of the tab to act in from now on."},
+		}),
+		annotations: tool.Annotations{Title: "Tabs", ReadOnlyHint: true, OpenWorldHint: new(false)},
+	},
+	{
+		action:      "screenshot",
+		description: "Take a picture of the page and save it as a PNG on the Mac, answering where it is and how big. Use it when the layout or an image matters; a snapshot is how a page's text is read.",
+		schema: object(map[string]any{
+			"full": map[string]any{"type": "boolean", "description": "Capture the whole page, not only what is on screen."},
+		}),
+		annotations: tool.Annotations{Title: "Take a picture", ReadOnlyHint: true, OpenWorldHint: new(false)},
+	},
+	{
 		action:      "snapshot",
 		description: "Read the page open in this conversation's tab. Without page, takes a new snapshot, with fresh refs: use it after the page changes on its own, or when a ref is stale. With page, reads that page of the latest snapshot, whose refs all work until the next snapshot.",
 		schema: object(map[string]any{
@@ -87,7 +115,7 @@ var catalog = []action{
 	{
 		action:      "click",
 		description: "Click an element of the page by its ref, as a person would, once it is visible, enabled and not covered.",
-		schema:      object(map[string]any{"ref": ref}, "ref"),
+		schema:      object(map[string]any{"ref": ref, "snapshot": snapshot}, "ref"),
 		annotations: tool.Annotations{Title: "Click", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
 	},
@@ -95,19 +123,22 @@ var catalog = []action{
 		action:      "type",
 		description: "Replace the text of a field by its ref, and optionally press Enter after it.",
 		schema: object(map[string]any{
-			"ref":    ref,
-			"text":   map[string]any{"type": "string"},
-			"submit": map[string]any{"type": "boolean", "description": "Press Enter after typing."},
+			"ref":      ref,
+			"text":     map[string]any{"type": "string"},
+			"submit":   map[string]any{"type": "boolean", "description": "Press Enter after typing."},
+			"snapshot": snapshot,
 		}, "ref", "text"),
 		annotations: tool.Annotations{Title: "Type", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
 	},
 	{
 		action: "paste",
-		description: "Paste text into the page's focused field, or into the field a ref names, in one go, as pasting from the clipboard does: use it for a rich-text editor that ignores typed text, such as a post or comment box. The text goes in at the caret; nothing is submitted.",
+		description: "Paste text into the page's focused field, or into the field a ref names, in one go, as pasting from the clipboard does: use it for a rich-text editor that ignores typed text, such as a post or comment box. The text goes in at the caret; nothing is submitted. With html, the same text goes in as markup, so an editor that takes rich text keeps its headings, bold, lists and links. The page is not read back unless snapshot is true, so check the result with browser_snapshot.",
 		schema: object(map[string]any{
-			"text": map[string]any{"type": "string", "description": "The text to paste, newlines kept."},
-			"ref":  map[string]any{"type": "string", "description": "The field to paste into, from the latest snapshot; the focused field when left out."},
+			"text":     map[string]any{"type": "string", "description": "The text to paste, newlines kept; a blank line asks a rich-text editor for a new block."},
+			"html":     map[string]any{"type": "string", "description": "The same text as HTML, for an editor that takes rich text."},
+			"ref":      map[string]any{"type": "string", "description": "The field to paste into, from the latest snapshot; the focused field when left out."},
+			"snapshot": snapshot,
 		}, "text"),
 		annotations: tool.Annotations{Title: "Paste", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
@@ -115,20 +146,31 @@ var catalog = []action{
 	{
 		action:      "press_key",
 		description: "Press a key on the focused element: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, PageUp, PageDown, Home, End, or one character; a combination such as Control+A.",
-		schema:      object(map[string]any{"key": map[string]any{"type": "string"}}, "key"),
+		schema:      object(map[string]any{"key": map[string]any{"type": "string"}, "snapshot": snapshot}, "key"),
 		annotations: tool.Annotations{Title: "Press key", DestructiveHint: new(true), OpenWorldHint: new(true)},
 		described:   true,
 	},
 	{
 		action:      "scroll",
 		description: "Scroll by most of a screen what is under the middle of the page, as a mouse wheel does, so a list that scrolls on its own scrolls too. Use it for what a page loads as you scroll; what is already on the page is in the snapshot's pages.",
-		schema:      object(map[string]any{"direction": map[string]any{"type": "string", "enum": []string{"down", "up"}}}, "direction"),
+		schema:      object(map[string]any{"direction": map[string]any{"type": "string", "enum": []string{"down", "up"}}, "snapshot": snapshot}, "direction"),
 		annotations: tool.Annotations{Title: "Scroll", ReadOnlyHint: true, OpenWorldHint: new(false)},
+	},
+	{
+		action:      "upload",
+		description: "Put files from the Mac into the page's file input, by their paths, as choosing them in a file dialog does: an image into a post, a document into a form. Name the input's ref when the page has more than one.",
+		schema: object(map[string]any{
+			"files":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "The paths of the files to upload, at least one."},
+			"ref":      map[string]any{"type": "string", "description": "The file input, from the latest snapshot; the page's first file input when left out."},
+			"snapshot": snapshot,
+		}, "files"),
+		annotations: tool.Annotations{Title: "Upload files", DestructiveHint: new(true), OpenWorldHint: new(true)},
+		described:   true,
 	},
 	{
 		action:      "back",
 		description: "Go back to the previous page.",
-		schema:      object(map[string]any{}),
+		schema:      object(map[string]any{"snapshot": snapshot}),
 		annotations: tool.Annotations{Title: "Back", ReadOnlyHint: true, OpenWorldHint: new(true)},
 		described:   true,
 	},

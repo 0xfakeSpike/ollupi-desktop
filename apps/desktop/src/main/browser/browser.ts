@@ -17,6 +17,8 @@
 import { errorMessage } from '@ollupi/client'
 import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
+import { existsSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ElementHandle, Locator, Page } from 'playwright-core'
 import type { BrowserDownload, BrowserPermission, BrowserState, BrowserTab } from '../../shared/ipc'
@@ -231,9 +233,9 @@ export class AgentBrowser extends EventEmitter {
 
   /** What an action would do in the thread's active tab. */
   async describe(thread: string, action: string, args: Record<string, unknown>): Promise<Description> {
-    if (action === 'navigate') {
+    if (action === 'navigate' || action === 'open') {
       const url = address(text(args, 'url'))
-      return { host: new URL(url).host, text: `Open ${url}` }
+      return { host: new URL(url).host, text: action === 'open' ? `Open ${url} in a new tab` : `Open ${url}` }
     }
     const wc = this.tab(thread)
     const host = new URL(wc.getURL()).host
@@ -250,8 +252,17 @@ export class AgentBrowser extends EventEmitter {
       case 'paste': {
         const pasted = typeof args.text === 'string' ? args.text : ''
         const into = args.ref === undefined ? 'the focused field' : this.element(wc, ref(args))
-        return { host, text: `Paste "${excerpt(pasted)}" into ${into} on ${host}` }
+        const kind = typeof args.html === 'string' && args.html ? 'rich text' : 'text'
+        return { host, text: `Paste ${kind} "${excerpt(pasted)}" into ${into} on ${host}` }
       }
+      case 'upload': {
+        const files = uploadFiles(args)
+        const into = args.ref === undefined ? "the page's file input" : this.element(wc, ref(args))
+        const what = files.length === 1 ? files[0] : `${files.length} files`
+        return { host, text: `Upload ${what} into ${into} on ${host}` }
+      }
+      case 'screenshot':
+        return { host, text: `Take a picture of ${host}` }
       case 'back':
         if (!wc.navigationHistory.canGoBack()) throw new Refusal('there is no earlier page in this tab')
         return { host, text: `Go back from ${host}` }
@@ -268,6 +279,19 @@ export class AgentBrowser extends EventEmitter {
       case 'navigate':
         await this.open(thread, text(args, 'url'))
         break
+      case 'open':
+        await this.openTab(thread, text(args, 'url'))
+        break
+      case 'tabs':
+        return this.list(thread, args)
+      case 'screenshot': {
+        const wc = this.tab(thread)
+        const full = args.full === true
+        const png = await this.pages.act(wc, this.offscreen(thread), (page) => page.screenshot({ fullPage: full, animations: 'disabled' }))
+        const file = join(app.getPath('temp'), `ollupi-browser-${process.pid}-${Date.now()}.png`)
+        await writeFile(file, png)
+        return `A ${pngSize(png)} picture of ${hostOf(wc.getURL())} is saved at ${file}; open it to look at the page. A snapshot is how its text is read.`
+      }
       case 'snapshot':
         return this.read(thread, pageNumber(args))
       case 'click': {
@@ -281,7 +305,16 @@ export class AgentBrowser extends EventEmitter {
         if (typeof typed !== 'string') throw new Refusal('text is required')
         await this.act(thread, async (page) => {
           const field = await located(page, r)
-          await field.fill(typed)
+          // An editable takes keys, not a value: fill puts the whole text in as
+          // one run, folds its newlines into spaces, and cannot empty it.
+          if (await field.evaluate((el) => (el as HTMLElement).isContentEditable)) {
+            await field.click()
+            await page.keyboard.press('ControlOrMeta+A')
+            await page.keyboard.press('Delete')
+            await page.keyboard.insertText(typed)
+          } else {
+            await field.fill(typed)
+          }
           if (args.submit === true) await field.press('Enter')
         })
         break
@@ -294,12 +327,27 @@ export class AgentBrowser extends EventEmitter {
       case 'paste': {
         const value = args.text
         if (typeof value !== 'string' || !value) throw new Refusal('text is required')
+        const html = args.html === undefined ? undefined : htmlOf(args)
         const r = args.ref === undefined ? undefined : ref(args)
+        let put: Paste = { chars: value.length, blocks: blocks(value) }
         await this.act(thread, async (page) => {
           const field = r ? await located(page, r) : page.locator(':focus')
           const handle = await field.elementHandle()
           if (!handle) throw new Refusal('there is no field to paste into; click it first')
-          await pasted(page, handle, value)
+          put = await pasted(page, handle, value, html)
+        })
+        if (reads(args, action)) break
+        const wc = this.tab(thread)
+        const into = r === undefined ? 'the focused field' : this.element(wc, r)
+        return `Pasted ${put.chars.toLocaleString('en-US')} characters in ${put.blocks} block${put.blocks === 1 ? '' : 's'} into ${into} on ${hostOf(wc.getURL())}. The page was not read back; browser_snapshot reads it.`
+      }
+      case 'upload': {
+        const files = uploadFiles(args)
+        const r = args.ref === undefined ? undefined : ref(args)
+        await this.act(thread, async (page) => {
+          const input = r ? await located(page, r) : page.locator('input[type=file]').first()
+          if (r === undefined && (await input.count()) === 0) throw new Refusal("the page has no file input; name the input's ref")
+          await input.setInputFiles(files)
         })
         break
       }
@@ -313,7 +361,34 @@ export class AgentBrowser extends EventEmitter {
       default:
         throw new Refusal(`no action named ${action}`)
     }
+    if (!reads(args, action)) return this.done(thread, action, args)
     return this.read(thread)
+  }
+
+  /** What an action did, for a call that asked not to read the page back. */
+  private async done(thread: string, action: string, args: Record<string, unknown>): Promise<string> {
+    const said = (await this.describe(thread, action, args)).text
+    return `${said}. The page was not read back; browser_snapshot reads it.`
+  }
+
+  /** A thread's tabs, and with select, the one actions act in from now on.
+   * Answered as text, as no page has to be read for it. */
+  private list(thread: string, args: Record<string, unknown>): string {
+    const strip = this.strips.get(thread)
+    if (!strip?.tabs.length) throw new Refusal('this conversation has no tab open; navigate or open a page first')
+    if (args.select !== undefined) {
+      if (!Number.isInteger(args.select) || (args.select as number) < 1) throw new Refusal('select is a tab number from 1')
+      const n = args.select as number
+      const view = strip.tabs[n - 1]
+      if (!view) throw new Refusal(strip.tabs.length === 1 ? 'there is 1 tab' : `there are ${strip.tabs.length} tabs`)
+      this.select(thread, view.webContents.id)
+    }
+    const rows = strip.tabs.map((v, i) => {
+      const wc = v.webContents
+      const active = v === strip.active ? ' (the one actions act in)' : ''
+      return `${i + 1}. ${wc.getTitle() || '(no title)'} — ${wc.getURL()}${active}`
+    })
+    return `${strip.tabs.length} tab${strip.tabs.length === 1 ? '' : 's'} in this conversation:\n${rows.join('\n')}`
   }
 
   /** Does an action in the thread's active tab. What goes wrong on the
@@ -622,22 +697,78 @@ async function located(page: Page, r: string): Promise<Locator> {
   return element
 }
 
+/** What a paste put in and how much of it: a line a call answers with when
+ * the page is not read back. */
+export interface Paste {
+  chars: number
+  blocks: number
+}
+
 /** Puts text into a field as a paste does, in one go: the page's own paste
  * handler first, as a rich-text editor takes the clipboard, then the
- * browser's insertion, for a field that handles no paste event. A field
- * that takes none of it is refused, as the agent's to read. */
-async function pasted(page: Page, field: ElementHandle<Element>, value: string): Promise<void> {
+ * browser's insertion, for a field that handles no paste event. html gives
+ * the same text as markup, which an editor that takes rich text keeps as
+ * headings, bold, lists and links. A field that takes none of it is
+ * refused, as the agent's to read. */
+async function pasted(page: Page, field: ElementHandle<Element>, value: string, html?: string): Promise<Paste> {
   const before = await fieldText(field)
-  await field.evaluate((el, text) => {
-    const data = new DataTransfer()
-    data.setData('text/plain', text)
-    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
-  }, value)
-  if (await settles(field, before)) return
-  await field.evaluate(putCaretAtEnd)
-  await page.keyboard.insertText(value)
-  if (await settles(field, before)) return
-  throw new Refusal('the field did not take the text; click it first, or name its ref in the snapshot')
+  await field.evaluate(
+    (el, { value, html }) => {
+      const data = new DataTransfer()
+      data.setData('text/plain', value)
+      if (html) data.setData('text/html', html)
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+    },
+    { value, html },
+  )
+  if (!(await settles(field, before))) {
+    await field.evaluate(putCaretAtEnd)
+    await page.keyboard.insertText(value)
+    if (!(await settles(field, before))) {
+      throw new Refusal('the field did not take the text; click it first, or name its ref in the snapshot')
+    }
+  }
+  return { chars: value.length, blocks: blocks(value) }
+}
+
+/** How many blocks of text a text has: what a rich-text editor makes of it,
+ * one paragraph or heading per line that is not blank. */
+function blocks(value: string): number {
+  return value.split(/\n+/).filter((line) => line.trim()).length
+}
+
+/** Whether a call reads the page back after acting. A paste leaves the page
+ * around the field as it was, so it answers with what it did unless asked.
+ * snapshot=false keeps any call from reading the page back: a run of edits
+ * costs one snapshot at the end instead of one per call. */
+export function reads(args: Record<string, unknown>, action: string): boolean {
+  if (typeof args.snapshot === 'boolean') return args.snapshot
+  return action !== 'paste'
+}
+
+/** The markup a paste carries, if it carries one. */
+function htmlOf(args: Record<string, unknown>): string {
+  const html = args.html
+  if (typeof html !== 'string' || !html) throw new Refusal('html is the text as markup')
+  return html
+}
+
+/** The files an upload is given, as paths: a missing one is the agent's to
+ * read before the page waits on it. */
+function uploadFiles(args: Record<string, unknown>): string[] {
+  const given = args.files
+  if (!Array.isArray(given) || given.length === 0 || given.some((f) => typeof f !== 'string' || !f)) {
+    throw new Refusal('files is a list of paths, at least one')
+  }
+  const files = given as string[]
+  const missing = files.find((f) => !existsSync(f))
+  if (missing) throw new Refusal(`there is no file at ${missing}`)
+  return files
+}
+
+/** A PNG's size, from its header. */
+function pngSize(png: Buffer): string {
+  return `${png.readUInt32BE(16)}×${png.readUInt32BE(20)}`
 }
 
 /** A field's text as a person would read it: an input's value, or an
