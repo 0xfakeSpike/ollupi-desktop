@@ -5,7 +5,7 @@
 import type { EnvironmentRow, WorkspaceRow } from '@ollupi/protocol'
 import { IconButton } from '@ollupi/ui'
 import { FolderTree, GitBranch, SquareTerminal } from 'lucide-react'
-import { togglePanel, useNavigation } from '../../domains/navigation'
+import { togglePanel, usePanel } from '../../domains/navigation'
 import { useT } from '../../i18n'
 import { EnvironmentPanel } from './EnvironmentPanel'
 import { FilesPanel } from './FilesPanel'
@@ -22,7 +22,7 @@ export function WorkspacePanel({
   /** The running turn, if any. */
   turn: string | undefined
 }) {
-  const panel = useNavigation((s) => s.panel)
+  const panel = usePanel()
   // One per workspace: threads of the same workspace, and its drafts, keep
   // its open folders and its shell.
   if (panel === 'files') return <FilesPanel key={workspace.id} workspace={workspace} />

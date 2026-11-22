@@ -3,9 +3,20 @@
 
 import type { ApprovalPolicy } from '@ollupi/protocol'
 import { create } from 'zustand'
+import { DRAFT_BROWSER } from '../../../shared/ipc'
 
 /** What a conversation shows beside it. */
 export type Panel = 'browser' | 'files' | 'environment' | 'terminal' | 'tasks' | 'permissions' | 'context' | 'todos'
+
+/** The panel beside the conversation. A browser's tabs are the
+ * conversation's that opened them, so it shows beside that conversation only;
+ * thread names it. The other panels read whichever conversation is on
+ * screen, and stay open across threads as a pane. */
+export interface OpenPanel {
+  panel: Panel
+  /** The conversation whose browser shows; undefined for any other panel. */
+  thread: string | undefined
+}
 
 /** What the agent can do, from where. */
 export type CapabilityTab = 'skills' | 'mcp' | 'tools'
@@ -33,8 +44,8 @@ interface NavigationStore {
    * draft's composer. Undefined starts it inheriting its workspace's, or
    * the agent's. */
   approval: ApprovalPolicy | undefined
-  /** Stays open across threads, like a pane. */
-  panel: Panel | undefined
+  /** Stays open across threads, like a pane, but a browser beside its own. */
+  panel: OpenPanel | undefined
   /** An item to bring into view once its thread shows it, e.g. a message
    * a search found. */
   focus: { threadId: string; itemId: string } | undefined
@@ -78,20 +89,52 @@ export function go(screen: Screen): void {
   }))
 }
 
-/** Shows the panel, or closes it when it is the one showing. */
-/** Opens a panel, leaving it open when it already is. */
-export function openPanel(panel: Panel): void {
-  useNavigation.setState({ panel })
+/** The conversation a screen shows, as a browser names it: a thread's id, or
+ * a draft's place while its pages are still the draft's. */
+function browserScope(screen: Screen): string | undefined {
+  return screen.kind === 'thread' ? screen.threadId : screen.kind === 'draft' ? DRAFT_BROWSER : undefined
 }
 
+/** Opens a panel, leaving it open when it already is. A browser opens beside
+ * the conversation on screen, whose tabs it shows. */
+export function openPanel(panel: Panel): void {
+  useNavigation.setState((s) => {
+    const thread = panel === 'browser' ? browserScope(s.screen) : undefined
+    return s.panel?.panel === panel && s.panel.thread === thread ? s : { panel: { panel, thread } }
+  })
+}
+
+/** Shows the panel, or closes it when it is the one showing. */
 export function togglePanel(panel: Panel): void {
-  useNavigation.setState((s) => ({ panel: s.panel === panel ? undefined : panel }))
+  useNavigation.setState((s) => {
+    const thread = panel === 'browser' ? browserScope(s.screen) : undefined
+    const open = s.panel?.panel === panel && s.panel.thread === thread
+    return { panel: open ? undefined : { panel, thread } }
+  })
+}
+
+/** The panel to show beside the conversation on screen, if any: a browser
+ * only beside the conversation whose tabs it shows. */
+export function shownPanel(s: Pick<NavigationStore, 'screen' | 'panel'>): Panel | undefined {
+  const open = s.panel
+  if (!open) return undefined
+  if (open.panel !== 'browser') return open.panel
+  return open.thread === browserScope(s.screen) ? 'browser' : undefined
+}
+
+export function usePanel(): Panel | undefined {
+  return useNavigation(shownPanel)
+}
+
+/** A draft's browser panel goes on beside the thread its pages became. */
+export function handOverBrowser(from: string, to: string): void {
+  useNavigation.setState((s) => (s.panel?.panel === 'browser' && s.panel.thread === from ? { panel: { panel: 'browser', thread: to } } : s))
 }
 
 /** Shows a workspace's file in the Files panel, opening it; undefined goes
  * back to the tree. */
 export function showFile(workspaceId: string, path: string | undefined): void {
-  useNavigation.setState(path === undefined ? { file: undefined } : { panel: 'files', file: { workspaceId, path } })
+  useNavigation.setState(path === undefined ? { file: undefined } : { panel: { panel: 'files', thread: undefined }, file: { workspaceId, path } })
 }
 
 export function focusItem(focus: NavigationStore['focus']): void {
@@ -128,5 +171,5 @@ export function openThreadId(): string | undefined {
 /** A thread's agent acted in its browser tab: that conversation, if it is
  * on screen, shows it, so the person sees what it does. */
 export function showBrowser(thread: string): void {
-  useNavigation.setState((s) => (s.screen.kind === 'thread' && s.screen.threadId === thread ? { panel: 'browser' } : s))
+  useNavigation.setState((s) => (s.screen.kind === 'thread' && s.screen.threadId === thread ? { panel: { panel: 'browser', thread } } : s))
 }

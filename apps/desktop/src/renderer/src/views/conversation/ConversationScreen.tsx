@@ -4,7 +4,7 @@ import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud } from 'lucide-react'
 import { useUserPolicy } from '../../domains/settings'
 import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
-import { openPanel, useNavigation } from '../../domains/navigation'
+import { openPanel, usePanel } from '../../domains/navigation'
 import { archiveThread, renameThread, useThreadRow } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useEffect, useState } from 'react'
@@ -48,7 +48,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const archived = !!thread?.archivedAt
   const [renaming, setRenaming] = useState(false)
   const { ref, atBottom, scrollToBottom } = useStickToBottom<HTMLDivElement>(threadId)
-  const panel = useNavigation((s) => s.panel)
+  const panel = usePanel()
   const m = useT()
   const agentPolicy = useUserPolicy()
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })

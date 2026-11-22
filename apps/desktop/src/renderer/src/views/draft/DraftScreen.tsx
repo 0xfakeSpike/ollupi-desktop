@@ -7,7 +7,7 @@ import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
 import { defaultEnvironment, useEnvironments } from '../../domains/environments'
-import { chooseApproval, chooseEnvironment, go, useNavigation } from '../../domains/navigation'
+import { chooseApproval, chooseEnvironment, go, useNavigation, usePanel } from '../../domains/navigation'
 import { useUserPolicy } from '../../domains/settings'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
@@ -27,7 +27,7 @@ import { ToastHost } from '../common/Toasts'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
-  const panel = useNavigation((s) => s.panel)
+  const panel = usePanel()
   const environments = useEnvironments((s) => s.list)
   const chosen = useNavigation((s) => s.environment)
   const environment = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)

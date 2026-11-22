@@ -8,7 +8,7 @@
 import { cn, TileMenu, useTooltip, type PickerAction } from '@ollupi/ui'
 import { Download, FolderTree, Gauge, GitBranch, Globe, ListChecks, ListTodo, SquareTerminal, type LucideIcon } from 'lucide-react'
 import { exportThread } from '../../domains/export'
-import { togglePanel, useNavigation, type Panel } from '../../domains/navigation'
+import { togglePanel, usePanel, type Panel } from '../../domains/navigation'
 import { useT } from '../../i18n'
 
 const ICONS: Partial<Record<Panel, LucideIcon>> = {
@@ -35,7 +35,7 @@ const state = (on: boolean) => (on ? 'bg-ink text-ink-fg hover:opacity-90' : 'bg
  * holds no project's files, so it has the browser and the conversation's
  * panels only. Put it in a header that is an `@container`. */
 export function PanelButtons({ workspace, thread, hub = false }: { workspace: boolean; thread: string | undefined; hub?: boolean }) {
-  const panel = useNavigation((s) => s.panel)
+  const panel = usePanel()
   const m = useT()
   const t = m.conversation.more
   const own = workspace && !hub
