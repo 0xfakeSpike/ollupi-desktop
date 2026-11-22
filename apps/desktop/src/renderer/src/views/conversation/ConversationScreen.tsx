@@ -207,7 +207,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
       {panel === 'browser' && <BrowserPanel key={threadId} thread={threadId} />}
       {workspace && <WorkspacePanel workspace={workspace} environment={environment ?? fallback} turn={running?.id} />}
       {panel === 'tasks' && <TasksPanel timeline={timeline} />}
-      {panel === 'todos' && hub && workspace && <TodosPanel hub={workspace} />}
+      {panel === 'todos' && hub && workspace && <TodosPanel />}
       {panel === 'permissions' && thread && !reporting && <PermissionsPanel thread={thread} />}
       {panel === 'context' && <ContextPanel timeline={timeline} />}
     </div>

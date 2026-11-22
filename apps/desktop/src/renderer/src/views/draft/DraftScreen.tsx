@@ -88,7 +88,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       </div>
       {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
       {workspace && <WorkspacePanel workspace={workspace} environment={environment} turn={undefined} />}
-      {panel === 'todos' && hub && workspace && <TodosPanel hub={workspace} />}
+      {panel === 'todos' && hub && workspace && <TodosPanel />}
       {managing && <EnvironmentDialog onClose={() => setManaging(false)} />}
     </div>
   )

@@ -13,12 +13,7 @@ import {
   commandLine,
   currentPlan,
   groupByTurn,
-  doneMonths,
   groupByWorkspace,
-  isPlanPath,
-  openPlanItems,
-  parsePlan,
-  planThreadLink,
   hubOf,
   groupReads,
   readText,
@@ -31,6 +26,7 @@ import {
   prependPage,
   refreshFromPage,
   removeThread,
+  threadLink,
   threadCursor,
   timelineFromPage,
   titleFromMessage,
@@ -296,6 +292,10 @@ describe('threads', () => {
     const workspaces = [ws('docs', '2026-01-08T00:00:00Z'), ws('app', '2026-01-07T00:00:00Z'), ws('fresh', '2026-01-09T12:00:00.5Z'), ws('old', '2026-01-01T00:00:00Z')]
     const list = [at('s1', 'app', '2026-01-11T14:31:31.610699Z'), at('d1', 'docs', '2026-01-08T08:28:18.489406Z'), at('o1', 'old', '2026-01-09T12:00:00.25Z')]
     expect(groupByWorkspace(workspaces, list).map((g) => g.workspace?.id)).toEqual(['app', 'fresh', 'old', 'docs', undefined])
+  })
+
+  it('reads a link to a conversation, and leaves other links', () => {
+    expect([threadLink('#thread-abc'), threadLink('#fn-1'), threadLink('#thread-'), threadLink(undefined)]).toEqual(['abc', undefined, undefined, undefined])
   })
 })
 
@@ -569,36 +569,3 @@ describe('schedules', () => {
   })
 })
 
-describe('the hub plan', () => {
-  it('reads each task: what, its project, its conversation, its note', () => {
-    const text = '# Plan\n\n- [ ] Tidy the notes · notes · [Tidy them](#thread-t1)\n  before Friday\n- [ ] Book the venue\n'
-    expect(parsePlan(text)).toEqual({
-      items: [
-        { task: 'Tidy the notes', state: 'open', project: 'notes', thread: { id: 't1', title: 'Tidy them' }, note: 'before Friday' },
-        { task: 'Book the venue', state: 'open', project: undefined, thread: undefined, note: undefined },
-      ],
-      rest: false,
-    })
-  })
-
-  it('reads what was done and dropped, with the result and why', () => {
-    const text = '- [x] Change the title · site · result: it reads Ollupi\n- [x] ~~Redo the logo~~ · site · dropped: the old one stays\nSome prose\n'
-    const { items, rest } = parsePlan(text)
-    expect(items.map((i) => [i.task, i.state, i.project, i.note])).toEqual([
-      ['Change the title', 'done', 'site', 'it reads Ollupi'],
-      ['Redo the logo', 'dropped', 'site', 'the old one stays'],
-    ])
-    expect(rest).toBe(true)
-  })
-
-  it('counts the tasks still open, not the notes or the closed ones', () => {
-    const text = '# Plan\n\n- [ ] Tidy the notes · notes · [Tidy](#thread-t1)\n  why: before Friday\n- [x] Old one\n* [ ] Another\n- [x] ~~Dropped~~ · why\n'
-    expect(openPlanItems(text)).toBe(2)
-  })
-
-  it('knows its files, its done months and its conversation links', () => {
-    expect(['TODO.md', './TODO.md', 'done/2026-11.md', '/h/super-agent/done/2026-10.md', 'notes.md'].map(isPlanPath)).toEqual([true, true, true, true, false])
-    expect(doneMonths(['2026-10.md', 'notes.md', '2026-11.md', '2026-9.md'])).toEqual(['2026-11', '2026-10'])
-    expect([planThreadLink('#thread-abc'), planThreadLink('#fn-1'), planThreadLink('#thread-'), planThreadLink(undefined)]).toEqual(['abc', undefined, undefined, undefined])
-  })
-})

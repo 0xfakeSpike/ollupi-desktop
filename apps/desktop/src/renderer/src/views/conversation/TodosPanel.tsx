@@ -1,164 +1,204 @@
-// The Super Agent's plan beside its conversations, read from the files it
-// keeps in its folder (domains/plan) and drawn as a list: the tasks not
-// assigned yet, then those a project's conversation works on, each with its
-// project, where its conversation stands and a way into it; under them the
-// archive, a month at a time. The app does not change the files: the Super
-// Agent writes them, and the user changes them by telling it so, or in the
-// files. What a file holds besides its tasks shows as written, so nothing
-// in it is hidden.
+// The Super Agent's todos beside its conversations, kept by ollupi
+// (domains/todos) and drawn as a list: the ones nobody has taken yet, then
+// those a conversation is working on, each with its project, where its
+// conversation stands and a way into it; under them the archive, a month at
+// a time. A todo is changed here: its checkbox ends it, and a row's actions
+// drop it, put it back or hand it to another conversation. What a todo came
+// to (its result) is the Super Agent's to write when it checks the work.
 
-import { HUB_DONE_FOLDER, HUB_PLAN_FILE, isWorking, needsUser, parsePlan, unread, type PlanItem } from '@ollupi/core'
-import type { WorkspaceRow } from '@ollupi/protocol'
-import { cn, Details, EmptyState, IconButton } from '@ollupi/ui'
-import { ArrowUpRight, ExternalLink, ListTodo, RefreshCw } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { isWorking, needsUser, unread } from '@ollupi/core'
+import type { TodoRow } from '@ollupi/protocol'
+import { cn, EmptyState, IconButton, Picker, type PickerOption } from '@ollupi/ui'
+import { ArrowUpRight, Check, Circle, CircleCheck, CircleDot, ListTodo, MessagesSquare, RotateCcw, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { openThread } from '../../domains/conversation'
-import { openPath } from '../../domains/files'
-import { readDoneMonth, refreshPlan, usePlan } from '../../domains/plan'
-import { useThreadRow } from '../../domains/threads'
-import { useWorkspaces } from '../../domains/workspaces'
+import { useThreadRow, useThreads } from '../../domains/threads'
+import { assignTodo, completeTodo, dropTodo, ended, reopenTodo, useTodos } from '../../domains/todos'
+import { useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
-import { threadTitle } from '../../i18n/format'
+import { threadTitle, workspaceName } from '../../i18n/format'
 import { areaClass } from '../common/areas'
-import { ThreadWorkspace } from '../common/FileLink'
-import { Markdown, type MarkdownFile } from '../common/Markdown'
 import { SidePanel } from './SidePanel'
 
-export function TodosPanel({ hub }: { hub: WorkspaceRow }) {
-  const m = useT()
-  const t = m.conversation.todos
-  const { text, months, version } = usePlan()
-  // Opening the panel reads the files again: the user may have edited them.
-  useEffect(() => void refreshPlan(), [])
-  const plan = useMemo(() => parsePlan(text ?? ''), [text])
-  const file = useMemo(() => ({ root: hub.rootPath, path: HUB_PLAN_FILE, version }), [hub.rootPath, version])
-  const open = plan.items.filter((i) => i.state === 'open')
-  const unassigned = open.filter((i) => !i.thread)
-  const inProgress = open.filter((i) => i.thread)
+export function TodosPanel() {
+  const t = useT().conversation.todos
+  const list = useTodos((s) => s.list)
+  const error = useTodos((s) => s.error)
+  const more = useTodos((s) => s.more)
+  // Handed out or only pointed at a conversation: either way a conversation
+  // is where it is worked on, so it is no longer unassigned.
+  const open = (list ?? []).filter((todo) => todo.status === 'open' && !todo.threadId)
+  const handed = (list ?? []).filter((todo) => todo.status === 'handed' || (todo.status === 'open' && !!todo.threadId))
+  const finished = (list ?? []).filter(ended)
 
   return (
-    <SidePanel
-      panel="todos"
-      title={t.title}
-      closeLabel={t.close}
-      actions={
-        <>
-          <IconButton label={t.reload} size="sm" onClick={() => void refreshPlan()}>
-            <RefreshCw size={14} />
-          </IconButton>
-          <IconButton label={t.openFile(HUB_PLAN_FILE)} size="sm" onClick={() => void openPath(`${hub.rootPath}/${HUB_PLAN_FILE}`)}>
-            <ExternalLink size={14} />
-          </IconButton>
-        </>
-      }
-    >
+    <SidePanel panel="todos" title={t.title} closeLabel={t.close}>
       <div className="flex flex-col gap-5">
-        {open.length === 0 && !(text?.trim() && plan.rest) ? (
+        {error ? (
+          // A list that could not be read says why, rather than looking empty.
+          <p className="px-1 text-small text-fg-muted">{t.loadFailed(error)}</p>
+        ) : list === undefined ? null : list.length === 0 ? (
           <EmptyState icon={<ListTodo size={20} />} title={t.emptyTitle}>
             {t.empty}
           </EmptyState>
-        ) : open.length === 0 ? (
-          // Written otherwise than one line a task: shown as it is.
-          <Written hub={hub} text={text!} file={file} />
         ) : (
           <>
-            <PlanGroup title={t.unassigned} items={unassigned} />
-            <PlanGroup title={t.inProgress} items={inProgress} />
-            {plan.rest && <Other hub={hub} text={text!} file={file} />}
+            <Group title={t.unassigned} todos={open} />
+            <Group title={t.inProgress} todos={handed} />
+            {more && <p className="px-1 text-small text-fg-subtle">{t.moreShown}</p>}
           </>
         )}
-        {months.length > 0 && <Archive hub={hub} months={months} version={version} />}
+        <Archive todos={finished} />
       </div>
     </SidePanel>
   )
 }
 
-/** A file as the Super Agent wrote it; its links open what they name. */
-function Written({ hub, text, file }: { hub: WorkspaceRow; text: string; file: MarkdownFile }) {
-  return (
-    <ThreadWorkspace.Provider value={hub.id}>
-      <Markdown text={text} file={file} />
-    </ThreadWorkspace.Provider>
-  )
-}
-
-/** What a file holds besides its tasks, folded away. */
-function Other({ hub, text, file }: { hub: WorkspaceRow; text: string; file: MarkdownFile }) {
-  const t = useT().conversation.todos
-  return (
-    <Details summary={<span className="text-small text-fg-muted">{t.more}</span>}>
-      <div className="pt-2">
-        <Written hub={hub} text={text} file={file} />
-      </div>
-    </Details>
-  )
-}
-
-/** Tasks under a heading that counts them, as one block of rows. */
-function PlanGroup({ title, items }: { title?: string; items: PlanItem[] }) {
-  if (items.length === 0) return null
+/** Todos under a heading that counts them, as one block of rows. */
+function Group({ title, todos }: { title?: string; todos: TodoRow[] }) {
+  if (todos.length === 0) return null
   return (
     <section className="flex flex-col gap-1.5">
       {title && (
         <h3 className="flex items-baseline justify-between px-1 text-small font-medium text-fg-subtle">
           <span>{title}</span>
-          <span className="tabular-nums">{items.length}</span>
+          <span className="tabular-nums">{todos.length}</span>
         </h3>
       )}
       <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
-        {items.map((item, i) => (
-          <PlanRow key={i} item={item} />
+        {todos.map((todo) => (
+          <TodoItem key={todo.id} todo={todo} />
         ))}
       </ul>
     </section>
   )
 }
 
-/** A task in two lines at most: what it is, with where its conversation
- * stands and a way into it on the right; then its project and its note. An
- * archived one reads quieter; a dropped one is struck through. */
-function PlanRow({ item }: { item: PlanItem }) {
-  const t = useT().conversation.todos
-  const archived = item.state !== 'open'
+/** A todo in two lines at most: its checkbox and what it is, with its
+ * actions on the right when it is pointed at or focused; then its project,
+ * its note, what it came to and the conversation working on it. A finished
+ * one reads quieter; a dropped one is struck through. */
+function TodoItem({ todo }: { todo: TodoRow }) {
+  const m = useT()
+  const t = m.conversation.todos
+  const finished = ended(todo)
+  const detail = todo.workspaceId || todo.notes || todo.result || todo.threadId
   return (
-    <li className="flex min-w-0 flex-col gap-1 py-2.5 pr-2.5 pl-4">
-      <div className="flex min-h-6 min-w-0 items-center gap-2">
-        <span className={cn('line-clamp-2 min-w-0 flex-1 text-ui break-words', archived ? 'text-fg-muted' : 'font-medium text-fg', item.state === 'dropped' && 'line-through')}>{item.task}</span>
-        {item.state === 'dropped' && <span className="shrink-0 text-small text-fg-subtle">{t.dropped}</span>}
-        {item.thread && <Conversation id={item.thread.id} title={item.thread.title} live={!archived} />}
+    <li className="group relative flex min-w-0 flex-col gap-1 py-2.5 pr-2.5 pl-2">
+      <div className="flex min-h-6 min-w-0 items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={finished ? t.reopen : t.done}
+          onClick={() => void (finished ? reopenTodo(todo) : completeTodo(todo))}
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-fg-subtle transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        >
+          {finished ? (
+            <CircleCheck size={15} aria-hidden />
+          ) : todo.status === 'handed' ? (
+            <CircleDot size={15} className="text-fg" aria-hidden />
+          ) : (
+            <Circle size={15} aria-hidden />
+          )}
+        </button>
+        <span className={cn('line-clamp-2 min-w-0 flex-1 text-ui break-words', finished ? 'text-fg-muted' : 'font-medium text-fg', todo.status === 'dropped' && 'line-through')}>
+          {todo.title}
+        </span>
+        {todo.status === 'dropped' && <span className="shrink-0 text-small text-fg-subtle">{t.dropped}</span>}
+        {/* Over the row rather than in it, so the text does not shift; kept
+            while the assign picker is open, whose trigger lives here. */}
+        <div className="absolute top-2.5 right-2.5 hidden h-6 items-center rounded-full bg-surface pl-1 group-focus-within:flex group-hover:flex has-[[aria-expanded=true]]:flex">
+          {finished ? (
+            <IconButton label={t.reopen} size="sm" onClick={() => void reopenTodo(todo)}>
+              <RotateCcw size={13} />
+            </IconButton>
+          ) : (
+            <>
+              <IconButton label={t.done} size="sm" onClick={() => void completeTodo(todo)}>
+                <Check size={13} />
+              </IconButton>
+              <IconButton label={t.drop} size="sm" onClick={() => void dropTodo(todo)}>
+                <X size={13} />
+              </IconButton>
+              <Assign todo={todo} />
+            </>
+          )}
+        </div>
       </div>
-      {(item.project || item.note) && (
-        <div className="flex min-w-0 items-start gap-2">
-          {item.project && <Project name={item.project} />}
-          {item.note && <p className="line-clamp-2 min-w-0 flex-1 text-small break-words text-fg-muted">{item.note}</p>}
+      {detail && (
+        <div className="flex min-w-0 items-start gap-2 pl-9.5">
+          {todo.workspaceId && <Project id={todo.workspaceId} />}
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            {todo.notes && <p className="line-clamp-2 text-small break-words text-fg-muted">{todo.notes}</p>}
+            {todo.result && <p className="line-clamp-2 text-small break-words text-fg-subtle">{t.resultOf(todo.result)}</p>}
+          </div>
+          {todo.threadId && <Conversation id={todo.threadId} />}
         </div>
       )}
     </li>
   )
 }
 
-/** The project by name, in its workspace's colour when it is one. */
-function Project({ name }: { name: string }) {
-  const workspace = useWorkspaces((s) => s.list.find((w) => !w.archivedAt && w.name.toLowerCase() === name.toLowerCase()))
+/** The project a todo belongs to, in its workspace's colour. */
+function Project({ id }: { id: string }) {
+  const m = useT()
+  const workspace = useWorkspace(id)
+  if (!workspace) return null
   return (
-    <span className={cn('flex h-5 max-w-28 shrink-0 items-center rounded-full px-2 text-caption text-fg', workspace ? areaClass(workspace.id) : 'bg-canvas')}>
-      <span className="truncate">{name}</span>
+    <span className={cn('flex h-5 max-w-28 shrink-0 items-center rounded-full px-2 text-caption text-fg', areaClass(workspace.id))}>
+      <span className="truncate">{workspaceName(m, workspace)}</span>
     </span>
   )
 }
 
-/** Where the conversation working on a task stands, as its sidebar row
- * says it (waiting for you, working, new since read), while the task is
- * open; and a button into it, named by the conversation's title. */
-function Conversation({ id, title, live }: { id: string; title: string; live: boolean }) {
+/** Hands a todo to a conversation, or back to nobody, from a list of the
+ * conversations there are. */
+function Assign({ todo }: { todo: TodoRow }) {
+  const m = useT()
+  const t = m.conversation.todos
+  const threads = useThreads((s) => s.list)
+  const workspaces = useWorkspaces((s) => s.list)
+  const options = useMemo(() => {
+    const active = threads.filter((thread) => !thread.archivedAt)
+    const names = new Map(workspaces.map((w) => [w.id, workspaceName(m, w)]))
+    const options: PickerOption<string>[] = [
+      { value: '', label: t.noConversation, description: active.length === 0 ? t.noThreads : undefined },
+    ]
+    for (const thread of active) {
+      const project = thread.workspaceId ? names.get(thread.workspaceId) : undefined
+      options.push({
+        value: thread.id,
+        label: threadTitle(m, thread),
+        group: project,
+        search: `${thread.title} ${project ?? ''}`,
+      })
+    }
+    return options
+  }, [threads, workspaces, m, t])
+
+  return (
+    <Picker
+      label={t.assign}
+      value={todo.threadId ?? ''}
+      options={options}
+      onChange={(id) => void assignTodo(todo, id)}
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-fg-muted transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+      filter={options.length > 1 ? { placeholder: t.filterThreads, empty: t.noMatch } : undefined}
+    >
+      <MessagesSquare size={13} aria-hidden />
+    </Picker>
+  )
+}
+
+/** Where the conversation working on a todo stands, as its sidebar row says
+ * it (waiting for you, working, new since read); and a button into it. */
+function Conversation({ id }: { id: string }) {
   const m = useT()
   const s = m.shell.sidebar
   const row = useThreadRow(id)
-  const name = row ? threadTitle(m, row) : title || m.conversation.tool.openSubagent
+  const name = row ? threadTitle(m, row) : m.conversation.tool.openSubagent
   return (
     <span className="flex shrink-0 items-center gap-1">
-      {live &&
-        row &&
+      {row &&
         (needsUser(row.status) ? (
           <span className="rounded-full bg-accent px-2 text-caption leading-5 font-semibold text-accent-fg">{s.yours}</span>
         ) : isWorking(row.status) ? (
@@ -174,22 +214,15 @@ function Conversation({ id, title, live }: { id: string; title: string; live: bo
 }
 
 /** The archive, a month at a time: the months as capsules, and the one
- * picked under them, drawn as the plan is. None is open at first. */
-function Archive({ hub, months, version }: { hub: WorkspaceRow; months: string[]; version: number }) {
+ * picked under them, drawn as the todos are. None is open at first. */
+function Archive({ todos }: { todos: TodoRow[] }) {
   const t = useT().conversation.todos
   const locale = useLocale((s) => s.locale)
   const [month, setMonth] = useState<string>()
-  const [text, setText] = useState<string>()
-  useEffect(() => {
-    if (!month) return setText(undefined)
-    let current = true
-    void readDoneMonth(hub.rootPath, month).then((read) => current && setText(read))
-    return () => {
-      current = false
-    }
-  }, [hub.rootPath, month, version])
-  const done = useMemo(() => parsePlan(text ?? ''), [text])
-  const file = useMemo(() => ({ root: hub.rootPath, path: `${HUB_DONE_FOLDER}/${month}.md`, version }), [hub.rootPath, month, version])
+  // The list comes newest ended first, so the months do too.
+  const months = useMemo(() => [...new Set(todos.map(monthOf))], [todos])
+  if (months.length === 0) return null
+  const shown = month ? todos.filter((todo) => monthOf(todo) === month) : []
   return (
     <section className="flex flex-col gap-1.5">
       <h3 className="px-1 text-small font-medium text-fg-subtle">{t.archive}</h3>
@@ -209,20 +242,15 @@ function Archive({ hub, months, version }: { hub: WorkspaceRow; months: string[]
           </button>
         ))}
       </div>
-      {month &&
-        text !== undefined &&
-        (done.items.length > 0 ? (
-          <div className="flex flex-col gap-1.5 pt-1">
-            <PlanGroup items={done.items} />
-            {done.rest && <Other hub={hub} text={text} file={file} />}
-          </div>
-        ) : done.rest ? (
-          <Written hub={hub} text={text} file={file} />
-        ) : (
-          <p className="px-1 pt-1 text-small text-fg-subtle">{t.noTasks}</p>
-        ))}
+      {month && (shown.length > 0 ? <Group todos={shown} /> : <p className="px-1 pt-1 text-small text-fg-subtle">{t.noTasks}</p>)}
     </section>
   )
+}
+
+/** The month a todo was ended in, YYYY-MM; one still open falls back to when
+ * it last moved. */
+function monthOf(todo: TodoRow): string {
+  return (todo.endedAt ?? todo.updatedAt).slice(0, 7)
 }
 
 /** 2026-11 as the locale says a month: 2026年11月, Nov 2026. */

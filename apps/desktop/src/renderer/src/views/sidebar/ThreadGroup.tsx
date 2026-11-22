@@ -1,4 +1,4 @@
-import { isWorking, needsUser, openPlanItems, unread } from '@ollupi/core'
+import { isWorking, needsUser, unread } from '@ollupi/core'
 import type { ThreadRow, WorkspaceRow } from '@ollupi/protocol'
 import { Button, cn, IconButton, useTooltip } from '@ollupi/ui'
 import { Archive, ChevronRight, Ellipsis, Plus, Waypoints } from 'lucide-react'
@@ -7,7 +7,7 @@ import { openThread } from '../../domains/conversation'
 import { openPath } from '../../domains/files'
 import { go, useOpenThreadId } from '../../domains/navigation'
 import { archiveThread, deleteThread, loadMoreThreads, renameThread, threadMenu, useThreads, workspaceMenu } from '../../domains/threads'
-import { usePlan } from '../../domains/plan'
+import { ended, useTodos } from '../../domains/todos'
 import { setArchived, startSuperAgent } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { relativeTime, threadTitle, workspaceName } from '../../i18n/format'
@@ -42,7 +42,7 @@ export function SuperAgentStart() {
  * workspace's colour holding its name, how many things are in it, and a
  * row for each. Threads outside any workspace sit on the bare ground. The
  * hub is the Super Agent's area, on the paper, first on the map, saying
- * how many tasks its plan has not finished. */
+ * how many of the user's todos are not finished yet. */
 export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadRow[] }) {
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
@@ -51,7 +51,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
   const t = useT()
   const m = t.shell.sidebar
   const hub = workspace?.kind === 'hub'
-  const left = usePlan((s) => (hub && s.text ? openPlanItems(s.text) : 0))
+  const left = useTodos((s) => (hub ? (s.list ?? []).filter((todo) => !ended(todo)).length : 0))
   const rootTip = useTooltip({ label: hub ? '' : (workspace?.rootPath ?? '') })
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)

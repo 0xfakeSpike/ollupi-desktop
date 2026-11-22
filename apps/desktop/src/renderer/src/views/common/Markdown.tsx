@@ -9,7 +9,7 @@
 // marked, for .markdown to shade. A workspace file's links and images
 // are relative to its folder, and its images are read from the workspace.
 
-import { planThreadLink } from '@ollupi/core'
+import { threadLink } from '@ollupi/core'
 import { Block, IconButton } from '@ollupi/ui'
 import { Check, Copy } from 'lucide-react'
 import { createContext, createElement, memo, useContext, useEffect, useMemo, useState, type ComponentProps, type MouseEvent, type ReactNode } from 'react'
@@ -175,8 +175,8 @@ const InFile = createContext<{ root: string; folder: string; version: number } |
 /** Footnote links keep their ids and labels, which screen readers follow. */
 function Link({ href, children, node: _node, className: _className, ...props }: ComponentProps<'a'> & ExtraProps) {
   const file = useContext(InFile)
-  // A conversation a plan line names (#thread-<id>) opens in the app.
-  const thread = planThreadLink(href)
+  // A conversation a message names (#thread-<id>) opens in the app.
+  const thread = threadLink(href)
   if (thread) {
     return (
       <a {...props} href={href} target={undefined} rel={undefined} onClick={(e) => (e.preventDefault(), void openThread(thread))}>

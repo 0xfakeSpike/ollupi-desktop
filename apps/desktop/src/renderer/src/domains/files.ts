@@ -4,19 +4,6 @@ import type { FileEntry, FilePreview } from '../../../shared/ipc'
 import { run } from '../gateway/run'
 import { desktop } from '../platform/desktop'
 
-/** A text file of the workspace, read quietly: undefined when it is not
- * there (yet) or cannot be read, as a file the agent has still to write is
- * no failure. */
-export async function readTextQuietly(root: string, path: string): Promise<string | undefined> {
-  try {
-    if ((await desktop.files.kind(root, path)) !== 'file') return undefined
-    const file = await desktop.files.read(root, path)
-    return file.kind === 'text' ? file.text : undefined
-  } catch {
-    return undefined
-  }
-}
-
 /** Opens a path in the app the system gives it. */
 export function openPath(path: string): Promise<void | undefined> {
   return run((e) => e.files.open, () => desktop.openPath(path))

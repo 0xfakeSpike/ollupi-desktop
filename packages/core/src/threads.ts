@@ -40,6 +40,11 @@ export function removeThread(list: readonly ThreadRow[], threadId: string): Thre
   return list.filter((t) => t.id !== threadId)
 }
 
+/** The conversation a link in a message names: #thread-<conversation id>. */
+export function threadLink(href: string | undefined): string | undefined {
+  return href?.startsWith('#thread-') ? href.slice('#thread-'.length) || undefined : undefined
+}
+
 /** ollupi stores a title only when the app gives one (thread/start,
  * thread/rename), up to this many characters. */
 export const MAX_TITLE_LENGTH = 120

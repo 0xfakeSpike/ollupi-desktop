@@ -41,6 +41,9 @@ export const en = {
     list: 'Could not list more threads',
   },
   search: 'Could not search',
+  todos: {
+    update: 'Could not change the todo',
+  },
   cron: {
     create: 'Could not create the task',
     pause: 'Could not pause the task',
@@ -149,6 +152,9 @@ export const zh: typeof en = {
     list: '无法列出更多会话',
   },
   search: '无法搜索',
+  todos: {
+    update: '无法修改待办',
+  },
   cron: {
     create: '无法创建任务',
     pause: '无法暂停任务',
