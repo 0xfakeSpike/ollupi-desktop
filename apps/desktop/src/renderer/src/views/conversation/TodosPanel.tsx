@@ -1,10 +1,11 @@
 // The Super Agent's todos beside its conversations, kept by ollupi
-// (domains/todos) and drawn as a list: the ones nobody has taken yet, then
-// those a conversation is working on, each with its project, where its
-// conversation stands and a way into it; under them the archive, a month at
-// a time. A todo is changed here: its checkbox ends it, and a row's actions
-// drop it, put it back or hand it to another conversation. What a todo came
-// to (its result) is the Super Agent's to write when it checks the work.
+// (domains/todos) and drawn as a list: those a conversation is working on
+// first, then the ones nobody has taken yet, each with its project, where
+// its conversation stands and a way into it; under them the archive, a month
+// at a time. A todo is changed here: its checkbox ends it, and a row's
+// actions drop it, put it back or hand it to another conversation. What a
+// todo came to (its result) is the Super Agent's to write when it checks
+// the work.
 
 import { isWorking, needsUser, unread } from '@ollupi/core'
 import type { TodoRow } from '@ollupi/protocol'
@@ -43,8 +44,8 @@ export function TodosPanel() {
           </EmptyState>
         ) : (
           <>
-            <Group title={t.unassigned} todos={open} />
             <Group title={t.inProgress} todos={handed} />
+            <Group title={t.unassigned} todos={open} />
             {more && <p className="px-1 text-small text-fg-subtle">{t.moreShown}</p>}
           </>
         )}
