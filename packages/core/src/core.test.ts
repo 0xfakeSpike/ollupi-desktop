@@ -166,8 +166,6 @@ describe('timeline', () => {
     expect(awaitedReports(running([launch, item('c', 2, { type: 'toolCall', status: 'inProgress' })]))).toBeUndefined()
     expect(awaitedReports(running([launch, item('r', 2, { type: 'agentReport', launchItemId: 's' })]))).toBeUndefined()
     expect(awaitedReports(timelineFromPage(page([launch], [turn('u1')])))).toBeUndefined()
-    const delegate = item('d', 3, { type: 'toolCall', tool: 'delegate-sub-agent', childThreadId: 'other', detached: true })
-    expect(awaitedReports(running([delegate]))).toBeUndefined()
   })
 
   it('drops a reply a newer user message overtook, and what its call streams after', () => {
@@ -232,9 +230,9 @@ describe('threads', () => {
     expect(threadCursor(list[1]!)).toEqual({ updatedAt: list[1]!.updatedAt, createdAt: list[1]!.createdAt, id: 'a' })
   })
 
-  it('keeps reporting subagents out of the list, and lists delegates', () => {
+  it('keeps subagents out of the list', () => {
     expect(upsertThread([], thread({ id: 'child', parentThreadId: 'th', role: 'general-sub-agent' }))).toEqual([])
-    expect(upsertThread([], thread({ id: 'delegate', parentThreadId: 'th', role: 'delegate-sub-agent' })).map((t) => t.id)).toEqual(['delegate'])
+    expect(upsertThread([], thread({ id: 'researcher', parentThreadId: 'th', role: 'research-sub-agent' }))).toEqual([])
   })
 
   it('keeps the hub out of the project groups', () => {
@@ -376,6 +374,14 @@ describe('calls', () => {
     expect(callOf(design)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'design-sub-agent', threadId: undefined } })
     const codebase = call({ tool: 'codebase-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
     expect(callOf(codebase)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'codebase-sub-agent', threadId: undefined } })
+    const frontend = call({ tool: 'frontend-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(frontend)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'frontend-sub-agent', threadId: undefined } })
+    const backend = call({ tool: 'backend-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(backend)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'backend-sub-agent', threadId: undefined } })
+    const writing = call({ tool: 'writing-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(writing)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'writing-sub-agent', threadId: undefined } })
+    const research = call({ tool: 'research-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(research)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'research-sub-agent', threadId: undefined } })
   })
 
   it('finds a subagent’s report by the call that launched it', () => {

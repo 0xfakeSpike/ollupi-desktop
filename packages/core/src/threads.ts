@@ -1,16 +1,16 @@
 // The sidebar's thread list follows thread/list (store.Threads): the
-// top-level threads and the delegates that are not archived, ordered by
-// updated_at, then created_at, then id, newest first, a page at a time. Live
-// updates must keep that, since thread/changed also announces the threads
-// reporting subagents run in, and the threads archived or deleted.
+// top-level threads that are not archived, ordered by updated_at, then
+// created_at, then id, newest first, a page at a time. Live updates must keep
+// that, since thread/changed also announces the threads subagents run in, and
+// the threads archived or deleted.
 
 import type { ThreadCursor, ThreadRow, ThreadStatus, WorkspaceRow } from '@ollupi/protocol'
 
-/** A conversation the user started, or a delegate: one a conversation handed
- * work to that never reports back, whose replies are the user's to read. A
- * subagent that reports is part of the turn that launched it instead. */
-export function isListed(thread: Pick<ThreadRow, 'parentThreadId' | 'role'>): boolean {
-  return !thread.parentThreadId || thread.role === 'delegate-sub-agent'
+/** A conversation the user started. A subagent's thread, whatever its role,
+ * is part of the turn that launched it: it reports there and is not the
+ * user's to read on its own. */
+export function isListed(thread: Pick<ThreadRow, 'parentThreadId'>): boolean {
+  return !thread.parentThreadId
 }
 
 /** The user's hub: the one workspace whose conversations hand work out to

@@ -139,8 +139,7 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobRow; workspace: Wo
 }
 
 /** A new task goes to an existing top-level thread of an active workspace
- * (or of none): ollupi skips runs in archived workspaces, and a delegate,
- * the one kind of child the sidebar lists, keeps no cron jobs. The workspace is picked first, starting from the
+ * (or of none): ollupi skips runs in archived workspaces. The workspace is picked first, starting from the
  * one shown on the left, then one of its threads; those offered are the ones
  * the sidebar loaded. */
 function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow[] }) {

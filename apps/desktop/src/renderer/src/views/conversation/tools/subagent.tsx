@@ -1,17 +1,14 @@
 // The subagents: the task one was given, the role it runs as, and a way
-// into its thread. The launch returns at once. general-sub-agent,
-// browser-sub-agent, design-sub-agent and codebase-sub-agent work beside the
-// conversation until they write their report back as an agentReport item
-// (AgentReport), so the launch shows them working until then, and their
-// thread's requests are answered here, since this thread reports their wait
-// as its own status. A delegate (delegate-sub-agent) never reports: it is the
-// user's own conversation from then on, listed in the sidebar, where its
-// requests wait too.
+// into its thread. The launch returns at once. Every subagent works beside
+// the conversation until it writes its report back as an agentReport item
+// (AgentReport), so the launch shows it working until then, and its thread's
+// requests are answered here, since this thread reports their wait as its own
+// status.
 
 import { type SubagentRole, reportOf, turnActive, type ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { Button, Spinner } from '@ollupi/ui'
-import { ArrowUpRight, Bot, FolderTree, Forward, Globe, Palette, type LucideIcon } from 'lucide-react'
+import { ArrowUpRight, Bot, FolderTree, Globe, LayoutTemplate, Palette, PenLine, Search, Server, type LucideIcon } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRequests } from '../../../domains/requests'
 import { useT } from '../../../i18n'
@@ -28,7 +25,10 @@ const looks: Record<SubagentRole, { icon: LucideIcon; note?: 'browserSubagent' |
   'browser-sub-agent': { icon: Globe, note: 'browserSubagent' },
   'design-sub-agent': { icon: Palette, note: 'designSubagent' },
   'codebase-sub-agent': { icon: FolderTree, note: 'codebaseSubagent' },
-  'delegate-sub-agent': { icon: Forward },
+  'frontend-sub-agent': { icon: LayoutTemplate },
+  'backend-sub-agent': { icon: Server },
+  'writing-sub-agent': { icon: PenLine },
+  'research-sub-agent': { icon: Search },
 }
 
 export const subagent: ToolView<Subagent> = {
@@ -40,26 +40,22 @@ export const subagent: ToolView<Subagent> = {
 
 function SubagentCall({ item, call }: { item: ItemRow; call: Subagent }) {
   const { task } = call
-  // ollupi says whether the launch reports back: a detached one (a
-  // delegate) never does.
-  const reports = !item.detached
-  const childRequests = useThreadRequests(reports ? task.threadId : undefined)
+  const childRequests = useThreadRequests(task.threadId)
   const timeline = useCurrentTimeline()
   const m = useT()
   // Launched and not reported, while the turn that launched it goes on: a
   // turn that ends stops its subagents, and one ended gets no report.
   const turn = timeline?.turns.find((t) => t.id === item.turnId)
-  const working = reports && item.status === 'completed' && !!timeline && !reportOf(timeline.items, item) && !!turn && turnActive(turn.status)
+  const working = item.status === 'completed' && !!timeline && !reportOf(timeline.items, item) && !!turn && turnActive(turn.status)
   const look = looks[task.role]
   return (
     <CallRow
       item={item}
-      icon={reports ? look.icon : Forward}
+      icon={look.icon}
       title={subagent.title(m, call)}
       badge={
         <>
           {look.note && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool[look.note]}</span>}
-          {!reports && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.tool.delegated}</span>}
           {working && (
             <span className="flex shrink-0 items-center gap-1 text-small text-fg-subtle">
               <Spinner size={14} /> {m.conversation.tool.subagentWorking}

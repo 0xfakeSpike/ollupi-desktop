@@ -199,7 +199,10 @@ function classify(c: CallFacts): ToolCall {
     case 'browser-sub-agent':
     case 'design-sub-agent':
     case 'codebase-sub-agent':
-    case 'delegate-sub-agent':
+    case 'frontend-sub-agent':
+    case 'backend-sub-agent':
+    case 'writing-sub-agent':
+    case 'research-sub-agent':
       if (!isToolPart(builtin, 'arguments', c.arguments)) break
       // The launch completes once the subagent's conversation is started.
       return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: c.child } }
@@ -286,7 +289,14 @@ export function commandFailed(output: CommandOutput): boolean {
 /** The tools that launch a subagent, each named after the role it runs as. */
 export type SubagentRole = Extract<
   BuiltinToolName,
-  'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'delegate-sub-agent'
+  | 'general-sub-agent'
+  | 'browser-sub-agent'
+  | 'design-sub-agent'
+  | 'codebase-sub-agent'
+  | 'frontend-sub-agent'
+  | 'backend-sub-agent'
+  | 'writing-sub-agent'
+  | 'research-sub-agent'
 >
 
 /** Work the hub hands to a project: a new conversation there with its first

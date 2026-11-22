@@ -173,14 +173,14 @@ export function queuedTurns(t: Timeline): TurnRow[] {
 
 /** What the turn in progress waits on once it has answered: the subagents
  * it launched and the calls it ran in the background that have not
- * reported yet, with nothing else of its own under way. A delegate
- * (detached) never reports, so the turn does not wait on it. Undefined
- * while it is not waiting on any. */
+ * reported yet, with nothing else of its own under way. Every subagent
+ * reports back to the turn that launched it, so the turn waits on each.
+ * Undefined while it is not waiting on any. */
 export function awaitedReports(t: Timeline): { subagents: number; tasks: number } | undefined {
   const turn = activeTurn(t)
   if (!turn) return undefined
   const own = t.items.filter((it) => it.turnId === turn.id)
-  const awaited = own.filter((it) => it.type === 'toolCall' && !it.detached && (it.childThreadId || it.taskId) && !own.some((r) => r.type === 'agentReport' && r.launchItemId === it.id))
+  const awaited = own.filter((it) => it.type === 'toolCall' && (it.childThreadId || it.taskId) && !own.some((r) => r.type === 'agentReport' && r.launchItemId === it.id))
   if (!awaited.length || own.some((it) => streaming(it) || it.status === 'pending' || it.status === 'inProgress')) return undefined
   const subagents = awaited.filter((it) => it.childThreadId).length
   return { subagents, tasks: awaited.length - subagents }

@@ -38,11 +38,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const fallback = useEnvironments((s) => defaultEnvironment(s.list))
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
-  // A delegate is handed over for good: the user's to read and write to,
-  // like a conversation they started. A subagent that reports back works on
-  // its parent's task, and its later turns would report nowhere.
-  const delegate = thread?.role === 'delegate-sub-agent'
-  const reporting = !!parent && !delegate
+  // A subagent works on its parent's task, so its later turns would report
+  // nowhere: it is read-only here, and talk goes through the parent.
+  const reporting = !!parent
   const hub = workspace?.kind === 'hub'
   // ollupi takes no messages in an archived thread (threadArchived).
   const archived = !!thread?.archivedAt
@@ -67,7 +65,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             right only what waits for you and the one Tools capsule. */}
         <header className="drag @container flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
           {parent && (
-            <IconButton label={delegate ? m.conversation.screen.backToDelegator : m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
+            <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
               <ArrowLeft size={14} />
             </IconButton>
           )}
@@ -107,7 +105,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           ) : (
             <h1 className="min-w-0 truncate px-1.5 text-title text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
           )}
-          {parent && <Badge>{delegate ? m.conversation.screen.delegate : m.conversation.screen.subagent}</Badge>}
+          {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
           {environment && environment.kind !== 'local' && (
             <>
               <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" {...machineTip.trigger}>

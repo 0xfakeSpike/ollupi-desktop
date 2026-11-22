@@ -2,11 +2,11 @@
 // backend can be driven without a model (record-session.mjs, manual UI
 // testing). The last user message picks the reply: "run ..." asks for an
 // escalated run_command (needs approval), "ask" calls request_user_input,
-// "plan" calls update_plan, "schedule" creates a scheduled task, "delegate"
+// "plan" calls update_plan, "schedule" creates a scheduled task, "subagent"
 // starts a subagent, "mcp" calls the mock MCP server's echo tool
 // (mock-mcp.mjs), "search memory" calls memory_search, "write notes" calls
 // write_file (notes.md), "fetch page" calls web_fetch (example.com), "hand
-// over" starts a delegate, "hand out" (as the hub) lists the workspaces and,
+// out" (as the hub) lists the workspaces and,
 // once they come back, starts a conversation in the first project, and once
 // that is started writes the plan (TODO.md, linking the conversation) and a
 // done task to this month's file; anything else streams markdown. After a tool result it streams a
@@ -115,10 +115,7 @@ http
     } else if (/^hand out/i.test(userText) && tools.includes('list_workspaces')) {
       await stream('content', 'Looking at your projects.')
       await call('list_workspaces', {})
-    } else if (/^hand over/i.test(userText)) {
-      await stream('content', 'Handing this over.')
-      await call('delegate-sub-agent', { description: 'Draft the weekly update', prompt: 'Draft this week’s update and send it to me when it is ready.' })
-    } else if (/delegate/i.test(userText)) {
+    } else if (/subagent/i.test(userText)) {
       await stream('content', 'Handing this to a subagent.')
       await call('general-sub-agent', { description: 'Check the weather', prompt: 'Report the weather in one sentence.' })
     } else if (/^write notes/i.test(userText)) {
