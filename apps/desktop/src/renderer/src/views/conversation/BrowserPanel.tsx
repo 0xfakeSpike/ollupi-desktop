@@ -18,9 +18,9 @@
 // the panel then says where it went, with a way to show it in Finder.
 
 import { Button, cn, IconButton, Input, useDialogOpen } from '@ollupi/ui'
-import { ArrowLeft, ArrowRight, BookMarked, CircleAlert, Download, Globe, History, Plus, RotateCw, Star, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookMarked, CircleAlert, Download, Globe, History, Plus, RotateCw, ShieldAlert, Star, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import type { Bookmark, BookmarkList, BrowserDownload, BrowserState, BrowserTab, Suggestions, Visit } from '../../../../shared/ipc'
+import type { Bookmark, BookmarkList, BrowserDownload, BrowserPermission, BrowserState, BrowserTab, Suggestions, Visit } from '../../../../shared/ipc'
 import { addBookmark, clearHistory, openPage, removeBookmark, removeVisit } from '../../domains/browser'
 import { useLocale, useT } from '../../i18n'
 import { clockTime } from '../../i18n/format'
@@ -43,6 +43,10 @@ export function BrowserPanel({ thread }: { thread: string }) {
   const [pick, setPick] = useState(-1)
   // The last download the page made: where it went, or that it failed.
   const [saved, setSaved] = useState<BrowserDownload>()
+  // What pages asked to use of the Mac, the oldest first: the person answers
+  // them one at a time, and the page waits for its answer.
+  const [questions, setQuestions] = useState<BrowserPermission[]>([])
+  const question = questions[0]
 
   useEffect(() => {
     // The browser opened: with no tab yet, it starts at Google.
@@ -51,9 +55,13 @@ export function BrowserPanel({ thread }: { thread: string }) {
     void desktop.browser.bookmarks.list().then((l) => setOwn(l.own))
     const offState = desktop.browser.onState((t, s) => t === thread && setState(s))
     const offDownload = desktop.browser.onDownloaded((t, d) => t === thread && setSaved(d))
+    const offPermission = desktop.browser.onPermissionAsked((t, q) => t === thread && setQuestions((all) => [...all, q]))
+    const offClosed = desktop.browser.onPermissionClosed((t, id) => t === thread && setQuestions((all) => all.filter((q) => q.id !== id)))
     return () => {
       offState()
       offDownload()
+      offPermission()
+      offClosed()
     }
   }, [thread])
 
@@ -244,6 +252,15 @@ export function BrowserPanel({ thread }: { thread: string }) {
     >
       {/* Above the page's view, which covers the area below. */}
       {saved && <DownloadNotice download={saved} onDismiss={() => setSaved(undefined)} />}
+      {question && (
+        <PermissionNotice
+          question={question}
+          onAnswer={(allow) => {
+            setQuestions((all) => all.slice(1))
+            void desktop.browser.answerPermission(question.id, allow)
+          }}
+        />
+      )}
       <div ref={area} className={cn('relative min-h-0 flex-1', CLEAR_OF_EDGE)}>
         {!open && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
@@ -254,6 +271,31 @@ export function BrowserPanel({ thread }: { thread: string }) {
         )}
       </div>
     </SidePanel>
+  )
+}
+
+/** A page asked to use something of the Mac; the person allows or refuses it
+ * here, and the page waits for it. It sits above the page's view, which would
+ * cover it. */
+function PermissionNotice({ question, onAnswer }: { question: BrowserPermission; onAnswer(allow: boolean): void }) {
+  const t = useT().conversation.browser
+  const what = t.permissionNames[question.permission] ?? question.permission
+  return (
+    <div role="alertdialog" aria-label={t.permissionAsk(question.host, what)} className="flex shrink-0 items-center gap-2 border-b border-line bg-raised py-1.5 pr-1 pl-3 text-small">
+      <ShieldAlert size={13} className="shrink-0 text-fg-subtle" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="truncate" title={t.permissionAsk(question.host, what)}>
+          {t.permissionAsk(question.host, what)}
+        </p>
+        <p className="truncate text-fg-subtle">{question.keep ? t.permissionRemember(question.host) : t.permissionEachTime}</p>
+      </div>
+      <Button size="sm" variant="ghost" onClick={() => onAnswer(false)}>
+        {t.permissionDeny}
+      </Button>
+      <Button size="sm" onClick={() => onAnswer(true)}>
+        {t.permissionAllow}
+      </Button>
+    </div>
   )
 }
 

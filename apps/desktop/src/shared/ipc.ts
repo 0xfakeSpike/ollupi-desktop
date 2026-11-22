@@ -67,8 +67,8 @@ export type Skill = NonNullable<NonNullable<NonNullable<SkillsCheck['roles']>[nu
  * ollupi runs as one of two roles by the size of the model (its skill is in
  * both roles' folders, so a conversation that changes model keeps it), the
  * Super Agent (the hub's role), or one kind of subagent. */
-export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'delegate-sub-agent'
-export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'design-sub-agent', 'codebase-sub-agent', 'delegate-sub-agent']
+export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'frontend-sub-agent' | 'backend-sub-agent' | 'writing-sub-agent' | 'research-sub-agent'
+export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'design-sub-agent', 'codebase-sub-agent', 'frontend-sub-agent', 'backend-sub-agent', 'writing-sub-agent', 'research-sub-agent']
 /** The roles whose directories hold an agent's skills (skills_dir/<role>/<skill>). */
 export function rolesOf(agent: SkillAgent): AgentRole[] {
   return agent === 'main' ? ['full-main-agent', 'compact-main-agent'] : [agent]
@@ -152,6 +152,19 @@ export interface BrowserTab {
 export interface BrowserDownload {
   name: string
   path?: string
+}
+
+/** A page asking to use something of the Mac, as the panel shows it. */
+export interface BrowserPermission {
+  /** Names the question while it is open. */
+  id: number
+  /** The site asking it, by its host. */
+  host: string
+  /** Electron's name for what it asks: 'notifications', 'geolocation'… */
+  permission: string
+  /** Whether the person's answer is kept for the site, or asked again by the
+   * next page that wants it. */
+  keep: boolean
 }
 
 /** A thread's browser tabs as its panel shows them, and the active one's
@@ -389,6 +402,14 @@ export interface DesktopApi {
     onUsed(listener: (thread: string) => void): () => void
     /** A page's download ended, saved or not. */
     onDownloaded(listener: (thread: string, download: BrowserDownload) => void): () => void
+    /** A page asked to use something of the Mac; the person answers it in the
+     * panel, and the page waits for that answer. */
+    onPermissionAsked(listener: (thread: string, permission: BrowserPermission) => void): () => void
+    /** The person's answer to the question that id names. */
+    answerPermission(id: number, allow: boolean): Promise<void>
+    /** The question that id names was withdrawn unanswered, so the panel takes
+     * it away: it waited a minute, or its conversation closed. */
+    onPermissionClosed(listener: (thread: string, id: number) => void): () => void
   }
   /** Asks a provider's API which models it serves. The main process asks,
    * as the API would not answer the renderer's origin. An empty base URL is
@@ -493,6 +514,9 @@ export const IpcChannel = {
   BrowserChanged: 'browser:changed',
   BrowserUsed: 'browser:used',
   BrowserDownloaded: 'browser:downloaded',
+  BrowserPermissionAsked: 'browser:permissionAsked',
+  BrowserPermissionAnswer: 'browser:permissionAnswer',
+  BrowserPermissionClosed: 'browser:permissionClosed',
   ListModels: 'models:list',
   Balance: 'models:balance',
   UpdateState: 'update:state',

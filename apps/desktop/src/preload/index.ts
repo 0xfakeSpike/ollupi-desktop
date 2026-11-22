@@ -2,7 +2,7 @@
 // Electron crosses the bridge.
 
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import { IpcChannel, type BackendState, type BrowserDownload, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
+import { IpcChannel, type BackendState, type BrowserDownload, type BrowserPermission, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
 
 const api: DesktopApi = {
   info: () => ipcRenderer.invoke(IpcChannel.Info),
@@ -103,6 +103,17 @@ const api: DesktopApi = {
       const wrapped = (_e: IpcRendererEvent, thread: string, download: BrowserDownload) => listener(thread, download)
       ipcRenderer.on(IpcChannel.BrowserDownloaded, wrapped)
       return () => ipcRenderer.off(IpcChannel.BrowserDownloaded, wrapped)
+    },
+    onPermissionAsked: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, thread: string, permission: BrowserPermission) => listener(thread, permission)
+      ipcRenderer.on(IpcChannel.BrowserPermissionAsked, wrapped)
+      return () => ipcRenderer.off(IpcChannel.BrowserPermissionAsked, wrapped)
+    },
+    answerPermission: (id, allow) => ipcRenderer.invoke(IpcChannel.BrowserPermissionAnswer, id, allow),
+    onPermissionClosed: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, thread: string, id: number) => listener(thread, id)
+      ipcRenderer.on(IpcChannel.BrowserPermissionClosed, wrapped)
+      return () => ipcRenderer.off(IpcChannel.BrowserPermissionClosed, wrapped)
     },
   },
   listModels: (type, baseUrl, apiKey) => ipcRenderer.invoke(IpcChannel.ListModels, type, baseUrl, apiKey),

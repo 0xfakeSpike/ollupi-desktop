@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
@@ -115,6 +115,7 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BrowserBack, (_event, thread: unknown) => browser.back(text(thread)))
   ipcMain.handle(IpcChannel.BrowserForward, (_event, thread: unknown) => browser.forward(text(thread)))
   ipcMain.handle(IpcChannel.BrowserReload, (_event, thread: unknown) => browser.reload(text(thread)))
+  ipcMain.handle(IpcChannel.BrowserPermissionAnswer, (_event, id: unknown, allow: unknown) => browser.answer(askId(id), allow === true))
   ipcMain.handle(IpcChannel.ListModels, (_event, type: unknown, baseUrl: unknown, apiKey: unknown) => {
     if (!apiTypes.includes(type as ApiType)) throw new Error('expected an API type')
     if (typeof baseUrl !== 'string' || typeof apiKey !== 'string') throw new Error('expected a base URL and an API key')
@@ -160,6 +161,8 @@ export function registerIpc(
   browser.on('state', (thread: string, state: BrowserState) => send(IpcChannel.BrowserChanged, thread, state))
   browser.on('used', (thread: string) => send(IpcChannel.BrowserUsed, thread))
   browser.on('downloaded', (thread: string, download: BrowserDownload) => send(IpcChannel.BrowserDownloaded, thread, download))
+  browser.on('permission', (thread: string, permission: BrowserPermission) => send(IpcChannel.BrowserPermissionAsked, thread, permission))
+  browser.on('permissionClosed', (thread: string, id: number) => send(IpcChannel.BrowserPermissionClosed, thread, id))
   terminals.on('data', (key: string, data: string) => send(IpcChannel.TerminalData, key, data))
   terminals.on('exit', (key: string, code: number) => send(IpcChannel.TerminalExit, key, code))
   updater.on('state', (state: UpdateState) => send(IpcChannel.UpdateChanged, state))
@@ -204,6 +207,12 @@ function size(value: unknown): number {
 
 function tabId(value: unknown): number {
   if (!Number.isInteger(value)) throw new Error('expected a tab id')
+  return value as number
+}
+
+/** The id of a page's question, as the panel answers it. */
+function askId(value: unknown): number {
+  if (!Number.isInteger(value)) throw new Error('expected a question id')
   return value as number
 }
 

@@ -1,14 +1,33 @@
 // A thread's screen, its timeline and items, the composer, the context
 // panel, and the draft screen of a new thread.
 
+/** What a page asks to use of the Mac, as the browser's notice names it. */
+const permissionNames: Record<string, string> = {
+  'clipboard-read': 'the clipboard',
+  'clipboard-sanitized-write': 'the clipboard',
+  notifications: 'notifications',
+  fullscreen: 'full screen',
+  pointerLock: 'your pointer',
+  mediaKeySystem: 'protected content',
+  geolocation: 'your location',
+  media: 'the camera and microphone',
+  'display-capture': 'your screen',
+  midi: 'MIDI devices',
+  midiSysex: 'MIDI devices',
+  hid: 'HID devices',
+  serial: 'serial ports',
+  usb: 'USB devices',
+  'idle-detection': 'whether you are at the Mac',
+  openExternal: 'an app outside the browser',
+  'speaker-selection': 'which speaker to play on',
+}
+
 export const en = {
   screen: {
     resizePanel: 'Resize the panel; double-click for its own width',
     back: 'Back to the parent thread',
     untitled: 'Thread',
     subagent: 'Subagent',
-    delegate: 'Handed over',
-    backToDelegator: 'Back to the conversation that handed this over',
     waiting: 'Waiting for you',
     waitingCount: (n: number) => (n === 1 ? '1 waiting for you' : `${n} waiting for you`),
     permissions: 'Thread permissions',
@@ -210,6 +229,12 @@ export const en = {
     downloadFailed: (name: string) => `Could not download ${name}`,
     showInFinder: 'Show in Finder',
     dismissDownload: 'Dismiss',
+    permissionAsk: (host: string, what: string) => `${host} wants to use ${what}.`,
+    permissionRemember: (host: string) => `Your answer is kept for ${host}.`,
+    permissionEachTime: 'You will be asked again next time.',
+    permissionAllow: 'Allow',
+    permissionDeny: 'Don’t allow',
+    permissionNames,
   },
   files: {
     loadingFolder: 'Reading the folder…',
@@ -346,7 +371,6 @@ export const en = {
     browserSubagent: 'in the browser',
     designSubagent: 'drawing',
     codebaseSubagent: 'reading the project',
-    delegated: 'handed over',
     background: 'in the background',
     declined: 'declined',
     allowed: { accept: 'you said yes', acceptForSession: 'yes for this thread', acceptAlways: 'always yes' },
@@ -400,14 +424,33 @@ export const en = {
   },
 }
 
+/** What a page asks to use of the Mac, as the browser's notice names it. */
+const permissionNamesZh: Record<string, string> = {
+  'clipboard-read': '剪贴板',
+  'clipboard-sanitized-write': '剪贴板',
+  notifications: '通知',
+  fullscreen: '全屏',
+  pointerLock: '鼠标指针',
+  mediaKeySystem: '受保护的内容',
+  geolocation: '你的位置',
+  media: '摄像头和麦克风',
+  'display-capture': '你的屏幕',
+  midi: 'MIDI 设备',
+  midiSysex: 'MIDI 设备',
+  hid: 'HID 设备',
+  serial: '串口',
+  usb: 'USB 设备',
+  'idle-detection': '你是否在用这台 Mac',
+  openExternal: '浏览器以外的应用',
+  'speaker-selection': '播放用的扬声器',
+}
+
 export const zh: typeof en = {
   screen: {
     resizePanel: '拖动调整面板宽度；双击恢复默认宽度',
     back: '返回父会话',
     untitled: '会话',
     subagent: '子 agent',
-    delegate: '委派',
-    backToDelegator: '回到交出它的会话',
     waiting: '等你处理',
     waitingCount: (n) => `${n} 件等你`,
     permissions: '会话权限',
@@ -606,6 +649,12 @@ export const zh: typeof en = {
     downloadFailed: (name) => `${name} 下载失败`,
     showInFinder: '在访达中显示',
     dismissDownload: '关闭提示',
+    permissionAsk: (host, what) => `${host} 想使用${what}。`,
+    permissionRemember: (host) => `你的选择会记在 ${host} 上。`,
+    permissionEachTime: '下次会再问你。',
+    permissionAllow: '允许',
+    permissionDeny: '拒绝',
+    permissionNames: permissionNamesZh,
   },
   files: {
     loadingFolder: '正在读取文件夹…',
@@ -740,7 +789,6 @@ export const zh: typeof en = {
     browserSubagent: '在浏览器里',
     designSubagent: '在作图',
     codebaseSubagent: '在读项目',
-    delegated: '已委派',
     background: '在后台',
     declined: '已拒绝',
     allowed: { accept: '你同意了', acceptForSession: '这件事里都可以', acceptAlways: '以后都可以' },

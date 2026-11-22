@@ -58,6 +58,10 @@ function browserShim(): DesktopApi | undefined {
       onUsed: () => () => {},
       // No page here downloads.
       onDownloaded: () => () => {},
+      // No page here asks for anything.
+      onPermissionAsked: () => () => {},
+      answerPermission: unavailable,
+      onPermissionClosed: () => () => {},
     },
     listModels: unavailable,
     balance: async () => undefined,
@@ -112,6 +116,9 @@ export const desktop: DesktopApi = window.desktop ??
       onState: () => () => {},
       onUsed: () => () => {},
       onDownloaded: () => () => {},
+      onPermissionAsked: () => () => {},
+      answerPermission: unavailable,
+      onPermissionClosed: () => () => {},
     },
     listModels: unavailable,
     balance: async () => undefined,

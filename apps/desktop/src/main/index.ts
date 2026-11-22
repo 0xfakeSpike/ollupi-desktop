@@ -12,6 +12,7 @@ import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
 import { History } from './browser/history'
+import { Permissions } from './browser/permissions'
 import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
@@ -27,7 +28,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   const home = backendHome()
-  const browser = new AgentBrowser()
+  const browser = new AgentBrowser(new Permissions(join(app.getPath('userData'), 'browser-permissions.json')))
   const browserEndpoint = new BrowserEndpoint(browser)
   const bookmarks = new Bookmarks(join(app.getPath('userData'), 'bookmarks.json'), join(app.getPath('appData'), 'Google', 'Chrome'))
   const history = new History(join(app.getPath('userData'), 'history.json'))

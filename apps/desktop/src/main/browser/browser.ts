@@ -1,12 +1,13 @@
 // The app's own browser: each thread has its tabs, which the person and
 // that thread's agent share; the agent acts in the one the panel shows. A
 // draft's tabs are kept as the draft's until its thread starts and takes
-// them. The
-// active tab is a view laid over its conversation's browser panel when that
-// is open, and every tab keeps running when it is not. The tabs share one
-// session, apart from the app's and persisted, so sites stay signed in; it
-// tells sites it is Chrome, grants no device permissions, and asks where a
-// page's download goes, as a browser does.
+// them. The active tab is a view laid over its conversation's browser panel
+// when that is open, and every tab keeps running when it is not. The tabs
+// share one session, apart from the app's and persisted, so sites stay signed
+// in; it tells sites it is Chrome, asks the person in the panel before a page
+// uses a permission of the Mac, keeping the answer for that site apart from
+// the device permissions, and asks where a page's download goes, as a browser
+// does.
 //
 // The sidecar's browser provider asks for two things, by thread: what an
 // action would do (its description and the tab's host, which permissions
@@ -17,15 +18,19 @@ import { errorMessage } from '@ollupi/client'
 import { app, BrowserWindow, session, WebContentsView, type Rectangle } from 'electron'
 import { EventEmitter, once } from 'node:events'
 import { join } from 'node:path'
-import type { Locator, Page } from 'playwright-core'
-import type { BrowserDownload, BrowserState, BrowserTab } from '../../shared/ipc'
+import type { ElementHandle, Locator, Page } from 'playwright-core'
+import type { BrowserDownload, BrowserPermission, BrowserState, BrowserTab } from '../../shared/ipc'
 import { isWebPage, normalize, START_PAGE } from './address'
+import { asking, type Permissions } from './permissions'
 import { Pages, playwright, type Size } from './playwright'
 
 const PARTITION = 'persist:browser'
 /** About 10k tokens of page: a snapshot longer than this is read by pages. */
 const SNAPSHOT_PAGE = 40_000
 const LOAD_TIMEOUT = 15_000
+/** How long a page waits for the person to answer a permission: no answer is
+ * no, as a browser's notice that is left alone. */
+const ASK_TIMEOUT = 60_000
 /** The size a tab off screen is laid out at when no panel has been shown. */
 const PANEL_SIZE: Size = { width: 1280, height: 800 }
 
@@ -52,8 +57,11 @@ interface Strip {
 /** Emits 'state' (thread, BrowserState) as a thread's tabs change, 'used'
  * (thread) when the agent acts in one, 'visited' (url, title) when a tab
  * opens a page, its title '' until it names itself, 'titled' (url, title)
- * when it does, and 'downloaded' (thread, BrowserDownload) when a page's
- * download ends, with where it went or that it did not finish. */
+ * when it does, 'downloaded' (thread, BrowserDownload) when a page's
+ * download ends, with where it went or that it did not finish, and
+ * 'permission' (thread, BrowserPermission) when a page asks to use something
+ * of the Mac, which the panel answers with answer(), and 'permissionClosed'
+ * (thread, id) when that question is withdrawn unanswered. */
 export class AgentBrowser extends EventEmitter {
   private readonly strips = new Map<string, Strip>()
   /** The thread whose active tab the panel shows, and where. */
@@ -66,6 +74,16 @@ export class AgentBrowser extends EventEmitter {
   private readonly pages = new Pages()
   /** Each tab's latest snapshot, in the pages it is read by. */
   private readonly snapshots = new WeakMap<Electron.WebContents, string[]>()
+  /** The questions the panel is showing: its answer resolves the page's. */
+  private readonly pending = new Map<number, { thread: string; answer(allow: boolean): void }>()
+  /** The number of the next question, which only names it. */
+  private asked = 1
+  /** Whether the tabs' session is told how to ask and where downloads go. */
+  private configured = false
+
+  constructor(private readonly permissions: Permissions) {
+    super()
+  }
 
   state(thread: string): BrowserState {
     const strip = this.strips.get(thread)
@@ -155,6 +173,13 @@ export class AgentBrowser extends EventEmitter {
   forget(thread: string): void {
     const strip = this.strips.get(thread)
     if (!strip) return
+    // A question about a page that is going away is answered no.
+    for (const [id, question] of this.pending) {
+      if (question.thread !== thread) continue
+      this.pending.delete(id)
+      question.answer(false)
+      this.emit('permissionClosed', thread, id)
+    }
     this.strips.delete(thread)
     if (this.shown?.thread === thread) this.shown = undefined
     const win = BrowserWindow.getAllWindows()[0]
@@ -199,6 +224,11 @@ export class AgentBrowser extends EventEmitter {
     this.changed(to)
   }
 
+  /** The person's answer to a question about a page, as the panel sends it. */
+  answer(id: number, allow: boolean): void {
+    this.pending.get(id)?.answer(allow)
+  }
+
   /** What an action would do in the thread's active tab. */
   async describe(thread: string, action: string, args: Record<string, unknown>): Promise<Description> {
     if (action === 'navigate') {
@@ -217,6 +247,11 @@ export class AgentBrowser extends EventEmitter {
       }
       case 'press_key':
         return { host, text: `Press ${text(args, 'key')} on ${host}` }
+      case 'paste': {
+        const pasted = typeof args.text === 'string' ? args.text : ''
+        const into = args.ref === undefined ? 'the focused field' : this.element(wc, ref(args))
+        return { host, text: `Paste "${excerpt(pasted)}" into ${into} on ${host}` }
+      }
       case 'back':
         if (!wc.navigationHistory.canGoBack()) throw new Refusal('there is no earlier page in this tab')
         return { host, text: `Go back from ${host}` }
@@ -254,6 +289,18 @@ export class AgentBrowser extends EventEmitter {
       case 'press_key': {
         const key = text(args, 'key')
         await this.act(thread, (page) => page.keyboard.press(key))
+        break
+      }
+      case 'paste': {
+        const value = args.text
+        if (typeof value !== 'string' || !value) throw new Refusal('text is required')
+        const r = args.ref === undefined ? undefined : ref(args)
+        await this.act(thread, async (page) => {
+          const field = r ? await located(page, r) : page.locator(':focus')
+          const handle = await field.elementHandle()
+          if (!handle) throw new Refusal('there is no field to paste into; click it first')
+          await pasted(page, handle, value)
+        })
         break
       }
       case 'scroll':
@@ -353,6 +400,64 @@ export class AgentBrowser extends EventEmitter {
     this.emit('state', thread, this.state(thread))
   }
 
+  /** Tells the tabs' session how a page's questions are answered, once. The
+   * request handler is the only permission handler set: the check handler
+   * grants a permission without asking, which is not what a browser does. */
+  private configure(): void {
+    if (this.configured) return
+    this.configured = true
+    const s = session.fromPartition(PARTITION)
+    s.setUserAgent(chromeAgent(s.getUserAgent()))
+    s.setPermissionRequestHandler((wc, permission, callback, details) => {
+      // Every path answers once: a page whose question is dropped waits
+      // forever on it.
+      void this.permission(wc, permission, details.requestingUrl).then(callback, () => callback(false))
+    })
+  }
+
+  /** Whether a page may use a permission: the person's answer for its site,
+   * if they gave one, or their answer now. A question can only be shown about
+   * the tab the panel shows, so a page elsewhere is refused; an answer kept
+   * for its site needs no question and holds wherever the page is. */
+  private async permission(wc: Electron.WebContents, permission: string, url: string): Promise<boolean> {
+    const how = asking(permission)
+    if (how === 'never') return false
+    const host = hostOf(url || wc.getURL())
+    if (!host) return false
+    if (how === 'once') {
+      // An answer that cannot be read is none, and the person is asked.
+      const before = await this.permissions.answered(host, permission).catch(() => undefined)
+      if (before !== undefined) return before
+    }
+    const strip = [...this.strips.values()].find((s) => s.tabs.some((v) => v.webContents === wc))
+    const view = strip?.tabs.find((v) => v.webContents === wc)
+    if (!strip || !view || strip.active !== view || this.shown?.thread !== strip.thread) return false
+    const allow = await this.question(strip.thread, host, permission, how === 'once')
+    // Kept for next time, when it is a permission that is kept; a question
+    // not kept is put again by the next page that asks.
+    if (how === 'once') await this.permissions.answer(host, permission, allow).catch(() => {})
+    return allow
+  }
+
+  /** Asks the person in the panel and answers with what they said: no answer
+   * within the minute is no, as a notice left alone. */
+  private question(thread: string, host: string, permission: string, keep: boolean): Promise<boolean> {
+    const id = this.asked++
+    return new Promise<boolean>((resolve) => {
+      const answer = (allow: boolean) => {
+        clearTimeout(timer)
+        this.pending.delete(id)
+        resolve(allow)
+      }
+      const timer = setTimeout(() => {
+        answer(false)
+        this.emit('permissionClosed', thread, id)
+      }, ASK_TIMEOUT)
+      this.pending.set(id, { thread, answer })
+      this.emit('permission', thread, { id, host, permission, keep })
+    })
+  }
+
   /** Watches the tabs' session for downloads, once: a page's download asks
    * where to save it, as a browser does, and the strip whose tab started it
    * hears where it went, or that it did not finish. */
@@ -391,7 +496,7 @@ export class AgentBrowser extends EventEmitter {
   private add(thread: string): WebContentsView {
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) throw new Refusal('the app window is closed, so the browser cannot be used')
-    configure()
+    this.configure()
     let strip = this.strips.get(thread)
     if (!strip) {
       const created: Strip = { thread, tabs: [], active: undefined }
@@ -449,16 +554,6 @@ export class AgentBrowser extends EventEmitter {
   }
 }
 
-let configured = false
-
-function configure(): void {
-  if (configured) return
-  configured = true
-  const s = session.fromPartition(PARTITION)
-  s.setUserAgent(chromeAgent(s.getUserAgent()))
-  s.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
-}
-
 /** The page's bounds in the window's own coordinates. The interface measures
  * in its pixels, and a zoomed interface's pixel is worth more than the
  * window's: placed as they come, the page sits too small and too far left. */
@@ -473,6 +568,16 @@ function inWindow(r: Rectangle): Rectangle {
  * browser, and this one is the person's to sign in with. */
 function chromeAgent(agent: string): string {
   return agent.replace(new RegExp(` (Electron|${app.getName()})/\\S+`, 'g'), '')
+}
+
+/** The host a permission question is about, port included; '' when the
+ * address is not one. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return ''
+  }
 }
 
 /** The page's own title; '' when it has none and the address stands in. */
@@ -515,6 +620,65 @@ async function located(page: Page, r: string): Promise<Locator> {
   const element = page.getByRef(r)
   if ((await element.count()) === 0) throw new Refusal(`no element ${r} on the page now; take a new snapshot`)
   return element
+}
+
+/** Puts text into a field as a paste does, in one go: the page's own paste
+ * handler first, as a rich-text editor takes the clipboard, then the
+ * browser's insertion, for a field that handles no paste event. A field
+ * that takes none of it is refused, as the agent's to read. */
+async function pasted(page: Page, field: ElementHandle<Element>, value: string): Promise<void> {
+  const before = await fieldText(field)
+  await field.evaluate((el, text) => {
+    const data = new DataTransfer()
+    data.setData('text/plain', text)
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+  }, value)
+  if (await settles(field, before)) return
+  await field.evaluate(putCaretAtEnd)
+  await page.keyboard.insertText(value)
+  if (await settles(field, before)) return
+  throw new Refusal('the field did not take the text; click it first, or name its ref in the snapshot')
+}
+
+/** A field's text as a person would read it: an input's value, or an
+ * editable's text. */
+function fieldText(field: ElementHandle<Element>): Promise<string> {
+  return field.evaluate((el) => ('value' in el && typeof el.value === 'string' ? el.value : ((el as HTMLElement).innerText ?? '')))
+}
+
+/** Whether the field's text changed within a moment: a page that takes the
+ * text may tell its editor so asynchronously. */
+async function settles(field: ElementHandle<Element>, before: string): Promise<boolean> {
+  const deadline = Date.now() + 2_000
+  for (;;) {
+    if ((await fieldText(field)) !== before) return true
+    if (Date.now() >= deadline) return false
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+}
+
+/** The caret at the field's end, where a paste puts its text. */
+function putCaretAtEnd(el: Element): void {
+  if (!(el instanceof HTMLElement)) return
+  el.focus()
+  const input = el as HTMLInputElement | HTMLTextAreaElement
+  if (typeof input.value === 'string' && typeof input.setSelectionRange === 'function') {
+    input.setSelectionRange(input.value.length, input.value.length)
+    return
+  }
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(false)
+  const selection = document.getSelection()
+  if (!selection) return
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+/** The start of a text for a permission notice, in one line. */
+function excerpt(text: string, length = 80): string {
+  const line = text.replace(/\s+/g, ' ').trim()
+  return line.length > length ? `${line.slice(0, length)}…` : line
 }
 
 /** What went wrong in an action, for the agent: Playwright's message and

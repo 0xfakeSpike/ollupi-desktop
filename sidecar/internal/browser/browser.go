@@ -103,6 +103,16 @@ var catalog = []action{
 		described:   true,
 	},
 	{
+		action: "paste",
+		description: "Paste text into the page's focused field, or into the field a ref names, in one go, as pasting from the clipboard does: use it for a rich-text editor that ignores typed text, such as a post or comment box. The text goes in at the caret; nothing is submitted.",
+		schema: object(map[string]any{
+			"text": map[string]any{"type": "string", "description": "The text to paste, newlines kept."},
+			"ref":  map[string]any{"type": "string", "description": "The field to paste into, from the latest snapshot; the focused field when left out."},
+		}, "text"),
+		annotations: tool.Annotations{Title: "Paste", DestructiveHint: new(true), OpenWorldHint: new(true)},
+		described:   true,
+	},
+	{
 		action:      "press_key",
 		description: "Press a key on the focused element: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, PageUp, PageDown, Home, End, or one character; a combination such as Control+A.",
 		schema:      object(map[string]any{"key": map[string]any{"type": "string"}}, "key"),

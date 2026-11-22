@@ -109,7 +109,7 @@ func TestReadingToolsNameNoSite(t *testing.T) {
 			t.Fatalf("%s: content %v, serial %v", name, s.Content != nil, s.Serial)
 		}
 	}
-	for _, name := range []string{"browser_navigate", "browser_click", "browser_type", "browser_press_key", "browser_back"} {
+	for _, name := range []string{"browser_navigate", "browser_click", "browser_type", "browser_paste", "browser_press_key", "browser_back"} {
 		if spec(t, p, name).Content == nil {
 			t.Fatalf("%s names no site", name)
 		}
