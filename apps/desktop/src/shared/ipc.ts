@@ -67,8 +67,8 @@ export type Skill = NonNullable<NonNullable<NonNullable<SkillsCheck['roles']>[nu
  * ollupi runs as one of two roles by the size of the model (its skill is in
  * both roles' folders, so a conversation that changes model keeps it), the
  * Super Agent (the hub's role), or one kind of subagent. */
-export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'delegate-sub-agent'
-export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'delegate-sub-agent']
+export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'delegate-sub-agent'
+export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'design-sub-agent', 'codebase-sub-agent', 'delegate-sub-agent']
 /** The roles whose directories hold an agent's skills (skills_dir/<role>/<skill>). */
 export function rolesOf(agent: SkillAgent): AgentRole[] {
   return agent === 'main' ? ['full-main-agent', 'compact-main-agent'] : [agent]

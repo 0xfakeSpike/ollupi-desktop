@@ -197,6 +197,8 @@ function classify(c: CallFacts): ToolCall {
     }
     case 'general-sub-agent':
     case 'browser-sub-agent':
+    case 'design-sub-agent':
+    case 'codebase-sub-agent':
     case 'delegate-sub-agent':
       if (!isToolPart(builtin, 'arguments', c.arguments)) break
       // The launch completes once the subagent's conversation is started.
@@ -282,7 +284,10 @@ export function commandFailed(output: CommandOutput): boolean {
 }
 
 /** The tools that launch a subagent, each named after the role it runs as. */
-export type SubagentRole = Extract<BuiltinToolName, 'general-sub-agent' | 'browser-sub-agent' | 'delegate-sub-agent'>
+export type SubagentRole = Extract<
+  BuiltinToolName,
+  'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'delegate-sub-agent'
+>
 
 /** Work the hub hands to a project: a new conversation there with its first
  * message, or a message to one that is there already. */

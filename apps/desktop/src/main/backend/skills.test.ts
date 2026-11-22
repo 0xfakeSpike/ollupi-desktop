@@ -48,6 +48,8 @@ describe('BackendSkills', () => {
         { agent: 'hub-main-agent', skills: [] },
         { agent: 'general-sub-agent', skills: [] },
         { agent: 'browser-sub-agent', skills: [] },
+        { agent: 'design-sub-agent', skills: [] },
+        { agent: 'codebase-sub-agent', skills: [] },
         { agent: 'delegate-sub-agent', skills: [] },
       ],
     })
@@ -57,7 +59,7 @@ describe('BackendSkills', () => {
     const result = await skills.create('main', { name: 'say-hello', description: 'Says hello: when greeted.', instructions: 'Say hello.' })
     expect(result).toEqual({ ok: true })
     expect((await readdir(join(home, 'skills'))).sort()).toEqual([...main].sort())
-    expect(names(await skills.list())).toEqual({ main: ['say-hello'], 'hub-main-agent': [], 'general-sub-agent': [], 'browser-sub-agent': [], 'delegate-sub-agent': [] })
+    expect(names(await skills.list())).toEqual({ main: ['say-hello'], 'hub-main-agent': [], 'general-sub-agent': [], 'browser-sub-agent': [], 'design-sub-agent': [], 'codebase-sub-agent': [], 'delegate-sub-agent': [] })
     expect(await skills.read('main', 'say-hello')).toContain('Say hello.')
   })
 
@@ -92,14 +94,14 @@ describe('BackendSkills', () => {
     await writeFile(join(source, 'SKILL.md'), skillFile('say-hello'))
     expect(await skills.import('general-sub-agent', source)).toEqual({ ok: true })
     expect(await skills.import('general-sub-agent', source)).toEqual({ ok: false, error: `${join(home, 'skills', 'general-sub-agent', 'say-hello')} already exists` })
-    expect(names(await skills.list())).toEqual({ main: [], 'hub-main-agent': [], 'general-sub-agent': ['say-hello'], 'browser-sub-agent': [], 'delegate-sub-agent': [] })
+    expect(names(await skills.list())).toEqual({ main: [], 'hub-main-agent': [], 'general-sub-agent': ['say-hello'], 'browser-sub-agent': [], 'design-sub-agent': [], 'codebase-sub-agent': [], 'delegate-sub-agent': [] })
     await rm(join(source, '..'), { recursive: true })
   })
 
   it('gives another agent a copy of its own', async () => {
     for (const role of main) await install(role, 'say-hello')
     expect(await skills.copy('main', 'say-hello', 'browser-sub-agent')).toEqual({ ok: true })
-    expect(names(await skills.list())).toEqual({ main: ['say-hello'], 'hub-main-agent': [], 'general-sub-agent': [], 'browser-sub-agent': ['say-hello'], 'delegate-sub-agent': [] })
+    expect(names(await skills.list())).toEqual({ main: ['say-hello'], 'hub-main-agent': [], 'general-sub-agent': [], 'browser-sub-agent': ['say-hello'], 'design-sub-agent': [], 'codebase-sub-agent': [], 'delegate-sub-agent': [] })
   })
 
   it('removes one agent’s copy of a skill', async () => {
@@ -107,7 +109,7 @@ describe('BackendSkills', () => {
     await install('general-sub-agent', 'say-hello')
     await skills.remove('main', 'say-hello')
     for (const role of main) expect(await readdir(join(home, 'skills', role))).toEqual([])
-    expect(names(await skills.list())).toEqual({ main: [], 'hub-main-agent': [], 'general-sub-agent': ['say-hello'], 'browser-sub-agent': [], 'delegate-sub-agent': [] })
+    expect(names(await skills.list())).toEqual({ main: [], 'hub-main-agent': [], 'general-sub-agent': ['say-hello'], 'browser-sub-agent': [], 'design-sub-agent': [], 'codebase-sub-agent': [], 'delegate-sub-agent': [] })
     await expect(skills.remove('main', '../config.yaml')).rejects.toThrow('not a skill folder name')
   })
 

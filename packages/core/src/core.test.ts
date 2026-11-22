@@ -372,6 +372,10 @@ describe('calls', () => {
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'general-sub-agent', threadId: 'child' } })
     const b = call({ tool: 'browser-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
     expect(callOf(b)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'browser-sub-agent', threadId: undefined } })
+    const design = call({ tool: 'design-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(design)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'design-sub-agent', threadId: undefined } })
+    const codebase = call({ tool: 'codebase-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(codebase)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'codebase-sub-agent', threadId: undefined } })
   })
 
   it('finds a subagent’s report by the call that launched it', () => {
