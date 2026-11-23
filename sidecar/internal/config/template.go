@@ -91,6 +91,7 @@ skills_dir: skills
 #   app_secret: xxx
 #   profile: default # the user the bot's sessions belong to
 #   users: [ou_xxx]
+#   profiles: {ou_xxx: default} # optional: whose open_id acts as which profile
 #   workspace: ~/projects/app # new sessions' workspace; ~ is your home and a
 #                             # relative path this file's folder; leave out for none
 `

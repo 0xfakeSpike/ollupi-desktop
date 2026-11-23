@@ -80,6 +80,9 @@ type Feishu struct {
 	// Users are the open_ids the bot acts for. Anyone else who writes to it
 	// is told their open_id and nothing else happens.
 	Users []string `json:"users,omitempty"`
+	// Profiles names the profile an open_id acts as; one not named acts as
+	// Profile. Its keys must be users and its values profiles of this file.
+	Profiles map[string]string `json:"profiles,omitempty"`
 	// Workspace is the folder of the workspace sessions started from Feishu
 	// belong to; empty starts them in no workspace.
 	Workspace string `json:"workspace,omitempty"`
@@ -364,6 +367,14 @@ func (c Config) Validate() error {
 		}
 		if f.Domain != "" && f.Domain != FeishuDomainFeishu && f.Domain != FeishuDomainLark {
 			return fmt.Errorf("feishu: domain must be %s or %s, got %q", FeishuDomainFeishu, FeishuDomainLark, f.Domain)
+		}
+		for open, profile := range f.Profiles {
+			if !slices.Contains(f.Users, open) {
+				return fmt.Errorf("feishu: profiles names %q, which is not one of users", open)
+			}
+			if profile != FirstProfile && !seen[profile] {
+				return fmt.Errorf("feishu: profiles: %q is not a profile of this file", profile)
+			}
 		}
 	}
 	return nil

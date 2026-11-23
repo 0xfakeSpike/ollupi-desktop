@@ -166,8 +166,16 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	if err := ensureProfile(ctx, st, h.ollupi.App); err != nil {
 		return nil, err
 	}
-	if cfg.Feishu != nil && !slices.Contains(profiles(ctx, st), cfg.Feishu.Profile) {
-		return nil, fmt.Errorf("feishu.profile %q is not a profile of this home", cfg.Feishu.Profile)
+	if cfg.Feishu != nil {
+		home := profiles(ctx, st)
+		if !slices.Contains(home, cfg.Feishu.Profile) {
+			return nil, fmt.Errorf("feishu.profile %q is not a profile of this home", cfg.Feishu.Profile)
+		}
+		for open, profile := range cfg.Feishu.Profiles {
+			if !slices.Contains(home, profile) {
+				return nil, fmt.Errorf("feishu.profiles: %s acts as %q, which is not a profile of this home", open, profile)
+			}
+		}
 	}
 
 	if cfg.Feishu != nil {

@@ -103,6 +103,8 @@ func TestValidateRejects(t *testing.T) {
 		"feishu no secret":    "name: x\n" + one + "feishu: {app_id: cli_x}\n",
 		"feishu bad domain":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, domain: slack}\n",
 		"feishu no profile":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s}\n",
+		"feishu stranger":     "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_b: default}}\n",
+		"feishu unknown user": "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_a: work}}\n",
 		"user named default":  "name: x\n" + one + "users: [{id: default, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
 		"user without models": "name: x\n" + one + "users: [{id: work}]\n",
 		"user twice":          "name: x\n" + one + "users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}, {id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
@@ -167,5 +169,19 @@ func TestUsersCarryTheirOwnModels(t *testing.T) {
 	}
 	if id := ID(u.Models[0].Provider, u.Models[0].Names[0].Name); id != "w/wm" {
 		t.Fatalf("model id = %s", id)
+	}
+}
+
+func TestFeishuNamesEachHolderAProfile(t *testing.T) {
+	raw := "name: x\n" +
+		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
+		"users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n" +
+		"feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a, ou_b], profiles: {ou_a: default, ou_b: work}}\n"
+	cfg, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Feishu.Profiles["ou_b"] != "work" || cfg.Feishu.Profiles["ou_a"] != "default" {
+		t.Fatalf("profiles = %v", cfg.Feishu.Profiles)
 	}
 }

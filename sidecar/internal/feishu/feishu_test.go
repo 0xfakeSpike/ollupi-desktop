@@ -117,7 +117,7 @@ func (r fakeReader) View(id string) (conversation.View, error) {
 }
 
 func thread(id, parent, workspace, title string) store.Thread {
-	return store.Thread{Thread: account.Thread{ID: id, Parent: parent, Workspace: workspace, Title: title}}
+	return store.Thread{User: owner, Thread: account.Thread{ID: id, Parent: parent, Workspace: workspace, Title: title}}
 }
 
 // sent is a message the bot sent or a card it updated.

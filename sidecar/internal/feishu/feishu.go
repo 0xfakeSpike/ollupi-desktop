@@ -69,14 +69,15 @@ type chat interface {
 }
 
 type Bridge struct {
-	cfg     config.Feishu
-	profile string
-	app     App
-	store   Store
-	chat    chat
-	topics  *topics
-	users   map[string]bool
-	queue   *queue
+	cfg      config.Feishu
+	profile  string
+	app      App
+	store    Store
+	chat     chat
+	topics   *topics
+	users    map[string]bool
+	profiles map[string]string
+	queue    *queue
 
 	// Read and written only by Run's goroutine, which runs the queue.
 	ctx      context.Context
@@ -114,6 +115,27 @@ type request struct {
 	question *ask.Request
 }
 
+// owner is the profile an open_id acts as: the one the mapping names, or the
+// configured one for an open_id it does not.
+func (b *Bridge) owner(openID string) string {
+	if p, ok := b.profiles[openID]; ok {
+		return p
+	}
+	return b.cfg.Profile
+}
+
+// threadOwner is the profile a thread belongs to: a card's press names its
+// thread, not the person who sent it.
+func (b *Bridge) threadOwner(ctx context.Context, threadID string) (string, error) {
+	var th store.Thread
+	err := b.store.Read(ctx, func(r store.Reader) error {
+		var err error
+		th, err = r.Thread(threadID)
+		return err
+	})
+	return th.User, err
+}
+
 func newBridge(cfg config.Feishu, a App, st Store, chat chat, topicsPath string) (*Bridge, error) {
 	t, err := loadTopics(topicsPath)
 	if err != nil {
@@ -124,7 +146,7 @@ func newBridge(cfg config.Feishu, a App, st Store, chat chat, topicsPath string)
 		users[u] = true
 	}
 	return &Bridge{
-		cfg: cfg, profile: cfg.Profile, app: a, store: st, chat: chat, topics: t, users: users, queue: newQueue(),
+		cfg: cfg, profile: cfg.Profile, app: a, store: st, chat: chat, topics: t, users: users, profiles: cfg.Profiles, queue: newQueue(),
 		turns: map[string]*turn{}, inputs: map[string]string{}, requests: map[string]*request{}, ours: map[string]bool{},
 		decided: map[string]bool{}, seen: newRecent(512),
 	}, nil
@@ -142,8 +164,14 @@ func (b *Bridge) hear(e store.Event) {
 // meanwhile.
 func (b *Bridge) work(ctx context.Context) {
 	b.ctx = ctx
-	sub := b.store.Feed().Subscribe(b.profile, b.hear)
-	defer sub.Close()
+	owners := map[string]bool{b.cfg.Profile: true}
+	for id := range b.users {
+		owners[b.owner(id)] = true
+	}
+	for owner := range owners {
+		sub := b.store.Feed().Subscribe(owner, b.hear)
+		defer sub.Close()
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -170,13 +198,14 @@ func (b *Bridge) message(m incoming) {
 		b.replyText(m.id, strangerText(m.sender, len(b.users) == 0))
 		return
 	}
+	owner := b.owner(m.sender)
 	text, ok := messageText(m.msgType, m.content)
 	if !ok {
 		b.replyText(m.id, "目前只能发文字。")
 		return
 	}
 	if m.root == "" {
-		b.startSession(m.id, text)
+		b.startSession(owner, m.id, text)
 		return
 	}
 	threadID, ok := b.topics.thread(m.root)
@@ -190,7 +219,7 @@ func (b *Bridge) message(m incoming) {
 		}
 		return
 	}
-	b.send(m.id, threadID, text)
+	b.send(owner, m.id, threadID, text)
 }
 
 // stop interrupts the turn in progress, whichever it is.
@@ -209,16 +238,20 @@ func (b *Bridge) stop(threadID string) error {
 	if active == "" {
 		return app.ErrNoActiveTurn
 	}
-	return b.app.Interrupt(b.ctx, b.profile, threadID, active)
+	owner, err := b.threadOwner(b.ctx, threadID)
+	if err != nil {
+		return err
+	}
+	return b.app.Interrupt(b.ctx, owner, threadID, active)
 }
 
-func (b *Bridge) startSession(messageID, text string) {
-	workspaceID, err := b.workspace()
+func (b *Bridge) startSession(owner, messageID, text string) {
+	workspaceID, err := b.workspace(owner)
 	if err != nil {
 		b.replyText(messageID, errorText(err))
 		return
 	}
-	t, err := b.app.StartThread(b.ctx, b.profile, workspaceID, "", titleFromMessage(text))
+	t, err := b.app.StartThread(b.ctx, owner, workspaceID, "", titleFromMessage(text))
 	if err != nil {
 		b.replyText(messageID, "没能开始会话："+errorText(err))
 		return
@@ -227,11 +260,11 @@ func (b *Bridge) startSession(messageID, text string) {
 	if err := b.topics.put(t.ID, messageID); err != nil {
 		slog.Error("feishu: topic not recorded", "thread", t.ID, "err", err)
 	}
-	b.send(messageID, t.ID, text)
+	b.send(owner, messageID, t.ID, text)
 }
 
-func (b *Bridge) send(messageID, threadID, text string) {
-	t, inProgress, err := b.app.Send(b.ctx, b.profile, threadID, app.Input{Text: text})
+func (b *Bridge) send(owner, messageID, threadID, text string) {
+	t, inProgress, err := b.app.Send(b.ctx, owner, threadID, app.Input{Text: text})
 	if err != nil {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
@@ -244,11 +277,11 @@ func (b *Bridge) send(messageID, threadID, text string) {
 
 // workspace is the ID of the workspace new sessions belong to, the one at
 // the configured folder.
-func (b *Bridge) workspace() (string, error) {
+func (b *Bridge) workspace(owner string) (string, error) {
 	if b.cfg.Workspace == "" {
 		return "", nil
 	}
-	list, err := b.app.Workspaces(b.ctx, b.profile)
+	list, err := b.app.Workspaces(b.ctx, owner)
 	if err != nil {
 		return "", err
 	}
@@ -389,7 +422,7 @@ func (b *Bridge) openTopic(t store.Thread) (string, bool) {
 	if name == "" {
 		name = "新会话"
 	}
-	if ws := b.workspaceName(t.Workspace); ws != "" {
+	if ws := b.workspaceName(t.User, t.Workspace); ws != "" {
 		name = ws + " · " + name
 	}
 	content, _ := json.Marshal(map[string]string{"text": name})
@@ -404,11 +437,11 @@ func (b *Bridge) openTopic(t store.Thread) (string, bool) {
 	return id, true
 }
 
-func (b *Bridge) workspaceName(id string) string {
+func (b *Bridge) workspaceName(owner, id string) string {
 	if id == "" {
 		return ""
 	}
-	list, err := b.app.Workspaces(b.ctx, b.profile)
+	list, err := b.app.Workspaces(b.ctx, owner)
 	if err != nil {
 		return ""
 	}
@@ -540,17 +573,20 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 	}
 	str := func(k string) string { s, _ := value[k].(string); return s }
 	ctx := context.Background()
-	var err error
+	owner, err := b.threadOwner(ctx, str("thread"))
+	if err != nil {
+		return errorText(err), false
+	}
 	switch str("action") {
 	case actionStop:
-		err = b.app.Interrupt(ctx, b.profile, str("thread"), str("turn"))
+		err = b.app.Interrupt(ctx, owner, str("thread"), str("turn"))
 		toast = "已停止"
 	case actionApprove:
 		approval := str("approval")
 		// Marked before the decision commits, so the card it settles says
 		// it was decided here.
 		b.queue.push(func() { b.decided[approval] = true })
-		if err = b.app.Decide(ctx, b.profile, str("thread"), approval, conversation.Decision(str("decision"))); err != nil {
+		if err = b.app.Decide(ctx, owner, str("thread"), approval, conversation.Decision(str("decision"))); err != nil {
 			b.queue.push(func() { delete(b.decided, approval) })
 		}
 		toast = "已提交"
@@ -559,7 +595,7 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 		if missing {
 			return "还有问题没回答", false
 		}
-		err = b.app.Answer(ctx, b.profile, str("thread"), str("item"), answers)
+		err = b.app.Answer(ctx, owner, str("thread"), str("item"), answers)
 		toast = "已提交"
 	default:
 		return "这个按钮已失效", false
