@@ -7,8 +7,9 @@ import { formatTokens } from '@ollupi/core'
 import { Badge, Button, Callout, Checkbox, cn, Details, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
+import { apiTypes, FIRST_PROFILE, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
 import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { useProfile } from '../../domains/profile'
 import {
   addModels,
   addProvider,
@@ -50,10 +51,15 @@ export function ModelsSection() {
   const running = useModels((s) => s.list)
   const connected = useConnection((s) => s.gateway === 'connected')
 
+  const current = useProfile((s) => s.current)
+
   useEffect(() => {
     void readConfig().then((r) => (r?.ok ? setChecked(r) : setError(r?.error)))
   }, [])
 
+  // Another profile's models are its own, under users in the file; the editor
+  // still writes the first profile's, so it says so rather than edit them.
+  if (current && current !== FIRST_PROFILE) return <p className="text-small text-fg-muted">{m.settings.models.profileModels}</p>
   if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
   if (!checked) return null
 

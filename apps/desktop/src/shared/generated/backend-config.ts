@@ -53,10 +53,40 @@ export interface ConfigCheck {
     feishu?: null | {
       app_id: string;
       app_secret: string;
+      profile: string;
       domain?: string;
       users?: null | string[];
       workspace?: string;
     };
+    users?:
+      | null
+      | {
+          id: string;
+          models:
+            | null
+            | {
+                provider: string;
+                type: string;
+                base_url?: string;
+                api_key?: string;
+                names:
+                  | null
+                  | {
+                      name: string;
+                      calls?: number;
+                      thinking?: null | boolean;
+                      images?: boolean;
+                      limits: {
+                        context: number;
+                        output: number;
+                        input?: number;
+                      };
+                    }[];
+              }[];
+          memory?: {
+            model?: string;
+          };
+        }[];
   };
   models?:
     | null

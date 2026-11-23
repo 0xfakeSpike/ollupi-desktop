@@ -5,6 +5,8 @@ import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { createProfile, currentProfile, profileName, recolorProfile, renameProfile, switchProfile, useProfile } from '../../domains/profile'
 import { useT } from '../../i18n'
+import { readConfig, applyConfig } from '../../domains/backendConfig'
+import { FIRST_PROFILE } from '../../../../shared/ipc'
 import { PROFILE_COLORS, profileColor } from './profileColors'
 
 /** The profile the window acts as, at the sidebar's foot: its dot and name,
@@ -76,7 +78,17 @@ function ProfileDialog({ profile, onClose }: { profile?: UserRow; onClose(): voi
         if (rename) await renameProfile(profile.id, name.trim())
         if (recolour) await recolorProfile(profile.id, color)
       } else {
-        await createProfile(name.trim(), color)
+        const created = await createProfile(name.trim(), color)
+        // Its models are the caller's, copied into config.yaml under users:
+        // a profile without its own has none to run.
+        const checked = await readConfig()
+        if (!checked?.ok) throw new Error(checked ? checked.error : m.needsModels)
+        const from = currentProfile()
+        const source = from && from.id !== FIRST_PROFILE ? checked.config.users?.find((u) => u.id === from.id)?.models : checked.config.models
+        if (!source?.length) throw new Error(m.needsModels)
+        const applied = await applyConfig([{ kind: 'set', path: ['users', checked.config.users?.length ?? 0], value: { id: created.id, models: source } }])
+        if (!applied) throw new Error(m.needsModels)
+        await switchProfile(created.id)
       }
       onClose()
     } catch (err) {

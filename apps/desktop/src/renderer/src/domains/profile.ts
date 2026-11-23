@@ -64,9 +64,12 @@ async function sync(): Promise<void> {
   useProfile.setState({ list: data, current })
 }
 
-export async function createProfile(name: string, color: string): Promise<void> {
-  await gateway().call('user/create', { name, color })
+/** Makes a profile in the store and returns it. Its models are written to
+ * config.yaml by whoever makes it, since only there can they be its own. */
+export async function createProfile(name: string, color: string): Promise<UserRow> {
+  const { user } = await gateway().call('user/create', { name, color })
   await sync()
+  return user
 }
 
 export async function renameProfile(id: string, name: string): Promise<void> {
