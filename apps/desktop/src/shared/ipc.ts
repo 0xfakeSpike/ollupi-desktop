@@ -334,9 +334,11 @@ export interface DesktopApi {
      * skills_dir value that names it. */
     defaultFolder(): Promise<string>
   }
-  /** Creates the Super Agent's folder in the backend's home, the one its
-   * hub workspace is added at, and gives its path. */
-  superAgentFolder(): Promise<string>
+  /** Creates the Super Agent's folder of a profile in the backend's home,
+   * the one its hub workspace is added at, and gives its path. The first
+   * profile keeps the home's own `super-agent`; later ones have one under
+   * `users/<id>`, so two hubs never write the same files. */
+  superAgentFolder(profile: string): Promise<string>
   /** Files sent with a message. ollupi takes a file by its path and copies
    * it while it takes the message. */
   attachments: {
@@ -582,3 +584,7 @@ export const IpcChannel = {
  * to allow that origin. */
 export const APP_SCHEME = 'app'
 export const APP_HOST = 'ollupi'
+
+/** The profile a home is made with (the sidecar's firstProfile): the app names
+ * every connection by a profile, so a fresh home starts as this one. */
+export const FIRST_PROFILE = 'default'

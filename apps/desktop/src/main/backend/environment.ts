@@ -19,10 +19,6 @@ export function backendHome(): string {
   return process.env.OLLUPI_HOME || join(homedir(), '.ollupi')
 }
 
-/** The profile a home is made with (the sidecar's firstProfile): the app
- * names every connection by a profile, so a fresh home starts as this one. */
-export const FIRST_PROFILE = 'default'
-
 export async function backendEnv(): Promise<NodeJS.ProcessEnv> {
   const shell = await loginShellEnv()
   return { ...shell, ...process.env, PATH: shell.PATH ?? process.env.PATH }

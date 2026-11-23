@@ -55,7 +55,7 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 - 迁移 0017：`users` 加 `name`（显示名）和 `color`（侧栏小圆点/首字母底色），
   `created_at` 已有。
-- 现有的 `default` 变成第一个身份，显示名取“我”（可改）。
+- 现有的 `default` 变成第一个身份；它还没有名字时界面显示本地化的“我”，改名后用它。
 - 新增网关接口：`user/list`、`user/create`、`user/rename`。`user/create` 由调用者创建，
   默认复制调用者的模型配置（含 key），建完即可用。
 - v1 不做删除（删除要级联 threads → entries/items/turns、memories、attachments 目录、
@@ -137,7 +137,7 @@ users:
 
 | 阶段 | 内容 | 可验收的结果 |
 |---|---|---|
-| P1 | （认证部分已完成）网关强制身份、token 带身份、启动建第一个身份、飞书 `profile` 必填；余下：`users` 加列与迁移、`user/list/create/rename`、hub 目录按身份 | 库里能有两个身份；第二个人有独立的会话、记忆、待办、工作区；hub 目录不撞 |
+| P1 | （已完成）网关强制身份、token 带身份、启动建第一个身份、飞书 `profile` 必填、`users` 加 `name`/`color`（迁移 0017）、`user/list/create/rename/color`、hub 目录按身份 | 接口层能建出第二个身份，各有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | 身份菜单（新建/改名/切换）、切换即重连、状态重置、草稿键按身份、`user/*` 接口接进 UI | 界面上能切身份，切完看到的是对方的数据；刷新后仍停在原身份 |
 | P3 | `config.yaml` 的 `users[]`、引擎按用户解析模型、设置页编辑当前身份、新建复制配置 | 两个身份用不同 provider/key，互不影响；记忆用各自的模型 |
 | P4 | 飞书映射、通知标注、presence 收尾、身份删除/归档、导出导入 | 手机端按人分；删身份能把数据收干净 |

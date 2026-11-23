@@ -70,7 +70,8 @@ export function setArchived(workspaceId: string, archived: boolean): Promise<voi
  * draft opens in it either way. */
 export function startSuperAgent(name: string): Promise<void | undefined> {
   return run((e) => e.workspace.superAgent, async () => {
-    const path = await desktop.superAgentFolder()
+    const { current } = await gateway().call('user/list', {})
+    const path = await desktop.superAgentFolder(current)
     const { workspace } = await gateway().call('workspace/add', { path, name })
     if (workspace.kind !== 'hub') await gateway().call('workspace/setKind', { workspaceId: workspace.id, kind: 'hub' })
     go({ kind: 'draft', workspaceId: workspace.id })

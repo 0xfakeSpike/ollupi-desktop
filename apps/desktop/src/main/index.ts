@@ -3,8 +3,8 @@
 
 import { app, net, shell } from 'electron'
 import { join } from 'node:path'
-import { APP_HOST, IpcChannel } from '../shared/ipc'
-import { backendBinary, backendEnv, backendHome, FIRST_PROFILE } from './backend/environment'
+import { APP_HOST, FIRST_PROFILE, IpcChannel } from '../shared/ipc'
+import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'

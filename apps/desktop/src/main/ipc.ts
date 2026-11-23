@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, FIRST_PROFILE, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
@@ -62,9 +62,12 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SkillsRemove, (_event, agent: unknown, name: unknown) => skills.remove(skillAgent(agent), text(name)))
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   // The hub keeps nothing of the projects in it; a folder of its own in the
-  // backend's home keeps the user's folders out of it.
-  ipcMain.handle(IpcChannel.SuperAgentFolder, async () => {
-    const folder = join(home, 'super-agent')
+  // backend's home keeps the user's folders out of it. The first profile keeps
+  // the home's folder, as it was before there were profiles; a later one gets
+  // one of its own, so two hubs never write the same files.
+  ipcMain.handle(IpcChannel.SuperAgentFolder, async (_event, profile: unknown) => {
+    const id = profileID(profile)
+    const folder = id === FIRST_PROFILE ? join(home, 'super-agent') : join(home, 'users', id, 'super-agent')
     await mkdir(folder, { recursive: true })
     return folder
   })
@@ -237,6 +240,14 @@ function skillAgent(value: unknown): SkillAgent {
 function texts(value: unknown): string[] {
   if (!Array.isArray(value)) throw new Error('expected a list of strings')
   return value.map(text)
+}
+
+/** A profile id, as the backend names one: its hub folder is a folder of
+ * this name, so it holds no separator and no dot-dot. */
+function profileID(value: unknown): string {
+  const id = text(value)
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error('not a profile id')
+  return id
 }
 
 function text(value: unknown): string {
