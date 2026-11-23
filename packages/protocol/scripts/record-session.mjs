@@ -28,6 +28,9 @@ const out = join(here, '../fixtures/session.json')
 const tmp = mkdtempSync(join(tmpdir(), 'ollupi-record-'))
 const PORT = 18000 + Math.floor(Math.random() * 1000)
 const TOKEN = 'record'
+/** The secret and the profile the one recorded session acts as: every
+ * connection is named by a profile the home holds. */
+const CONNECTION = `${TOKEN}.default`
 
 const children = []
 process.on('exit', () => {
@@ -79,7 +82,7 @@ const url = await new Promise((resolve, reject) => {
 // --- a minimal JSON-RPC client that records everything ---
 
 const messages = []
-const ws = new WebSocket(url, ['ollupi.token', TOKEN])
+const ws = new WebSocket(url, ['ollupi.token', CONNECTION])
 await new Promise((r, e) => {
   ws.addEventListener('open', r)
   ws.addEventListener('error', e)
