@@ -76,5 +76,6 @@ skills_dir: skills
 #   app_id: cli_xxx
 #   app_secret: xxx
 #   users: [ou_xxx]
-#   workspace: /path/to/project # new sessions' workspace; leave out for none
+#   workspace: ~/projects/app # new sessions' workspace; ~ is your home and a
+#                             # relative path this file's folder; leave out for none
 `

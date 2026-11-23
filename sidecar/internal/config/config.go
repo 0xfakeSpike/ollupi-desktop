@@ -216,10 +216,57 @@ func LoadFile(path, home string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
-	if cfg.SkillsDir != "" && !filepath.IsAbs(cfg.SkillsDir) {
-		cfg.SkillsDir = filepath.Join(home, cfg.SkillsDir)
-	}
+	cfg.expandPaths(home)
 	return cfg, nil
+}
+
+// expandPaths resolves the paths the file names: ~ is the user's home and a
+// relative path is the file's own folder, as skills_dir has always been. A
+// config and the folders it names then travel to another machine, whose user
+// may be called something else.
+func (c *Config) expandPaths(home string) {
+	c.SkillsDir = expandPath(c.SkillsDir, home)
+	if f := c.Feishu; f != nil {
+		f.Workspace = expandPath(f.Workspace, home)
+	}
+	w := &c.Workspace
+	w.WorkspaceDirs = expandPaths(w.WorkspaceDirs, home)
+	w.DenyRead = expandPaths(w.DenyRead, home)
+	w.ReadOnly = expandPaths(w.ReadOnly, home)
+	w.ExtraWritable = expandPaths(w.ExtraWritable, home)
+	w.UnixSockets = expandPaths(w.UnixSockets, home)
+}
+
+// expandPath resolves one path of the file; empty stays empty and an absolute
+// path that names no home is left as it is.
+func expandPath(path, home string) string {
+	switch {
+	case path == "":
+		return ""
+	case path == "~" || strings.HasPrefix(path, "~/"):
+		user, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		if path == "~" {
+			return user
+		}
+		return filepath.Join(user, filepath.FromSlash(path[2:]))
+	case filepath.IsAbs(path):
+		return path
+	}
+	return filepath.Join(home, path)
+}
+
+func expandPaths(paths []string, home string) []string {
+	if len(paths) == 0 {
+		return paths
+	}
+	out := make([]string, len(paths))
+	for i, path := range paths {
+		out[i] = expandPath(path, home)
+	}
+	return out
 }
 
 // Parse decodes YAML by way of JSON so the file uses the json tags ollupi

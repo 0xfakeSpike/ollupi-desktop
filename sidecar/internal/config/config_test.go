@@ -109,3 +109,34 @@ func TestValidateRejects(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadFileResolvesPaths(t *testing.T) {
+	home := t.TempDir()
+	raw := "name: x\n" +
+		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
+		"skills_dir: skills\n" +
+		"workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}\n" +
+		"feishu: {app_id: cli_x, app_secret: s, workspace: super-agent}\n"
+	path := filepath.Join(home, FileName)
+	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFile(path, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(home, "skills"); cfg.SkillsDir != want {
+		t.Errorf("skills_dir = %s, want %s", cfg.SkillsDir, want)
+	}
+	if want := filepath.Join(home, "super-agent"); cfg.Feishu.Workspace != want {
+		t.Errorf("feishu.workspace = %s, want %s", cfg.Feishu.Workspace, want)
+	}
+	dirs := cfg.Workspace.WorkspaceDirs
+	if len(dirs) != 2 || dirs[0] != filepath.Join(user, ".ollupi", "scratch") || dirs[1] != filepath.Join(home, "scratch") {
+		t.Errorf("workspace_dirs = %v", dirs)
+	}
+}

@@ -29,7 +29,7 @@ xattr -dr com.apple.quarantine /Applications/Ollupi.app
 
 想在手机上操作，可以接一个飞书机器人：在机器人的单聊里发消息就会开始一个会话，在它回复的话题里接着聊，审批和提问用卡片处理。设置步骤见[文档站](https://0xfakespike.github.io/ollupi-docs/zh/app/feishu)。
 
-配置和数据都在 `~/.ollupi`，配置文件是 `~/.ollupi/config.yaml`，可在 **设置 → 通用** 里打开。后端起不来时，界面会显示原因和后端日志。
+配置和数据都在 `~/.ollupi`，配置文件是 `~/.ollupi/config.yaml`，可在 **设置 → 通用** 里打开。工作区的文件夹以 `~/` 的形式保存在库里，整个 `~/.ollupi` 可以直接拷到另一台机器继续用，只要项目放在相同的相对位置；`config.yaml` 里的路径同样支持 `~` 和相对于该文件的写法。后端起不来时，界面会显示原因和后端日志。
 
 ## 文档
 
