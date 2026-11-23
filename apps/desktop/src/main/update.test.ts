@@ -20,9 +20,20 @@ describe('newer', () => {
     expect(newer('0.1.9', '0.2.0')).toBe(false)
   })
 
+  it('orders a prerelease before the release it is of', () => {
+    expect(newer('0.3.0-beta.1', '0.2.0')).toBe(true)
+    expect(newer('0.3.0', '0.3.0-beta.2')).toBe(true)
+    expect(newer('0.3.0-beta.2', '0.3.0')).toBe(false)
+    expect(newer('0.3.0-beta.2', '0.3.0-beta.1')).toBe(true)
+    expect(newer('0.3.0-beta.10', '0.3.0-beta.9')).toBe(true)
+    expect(newer('0.3.0-alpha.1', '0.3.0-beta.1')).toBe(false)
+    expect(newer('0.3.0-alpha', '0.3.0-1')).toBe(true)
+    expect(newer('0.3.0-1', '0.3.0-alpha')).toBe(false)
+  })
+
   it('never takes a version of another form as later', () => {
-    expect(newer('0.3.0-beta.1', '0.2.0')).toBe(false)
     expect(newer('v0.3.0', '0.2.0')).toBe(false)
+    expect(newer('0.3', '0.2.0')).toBe(false)
   })
 })
 
@@ -94,8 +105,8 @@ describe('AppUpdater', () => {
     return { fetch, asked }
   }
 
-  function updater(fetch: (url: string) => Promise<Response>, opts: { bundle?: string | undefined } = { bundle: installed }) {
-    const u = new AppUpdater({ fetch, version: '0.2.0', arch: 'arm64', bundle: opts.bundle, staging, quit: () => {} })
+  function updater(fetch: (url: string) => Promise<Response>, opts: { bundle?: string | undefined; version?: string } = { bundle: installed }) {
+    const u = new AppUpdater({ fetch, version: opts.version ?? '0.2.0', arch: 'arm64', bundle: opts.bundle, staging, quit: () => {} })
     const states: UpdateState[] = []
     u.on('state', (s) => states.push(s))
     return { u, states }
@@ -126,6 +137,63 @@ describe('AppUpdater', () => {
     const { u } = updater(async () => new Response('', { status: 404 }))
     await u.check()
     expect(u.state).toEqual({ status: 'failed', version: undefined, failure: { kind: 'error', message: 'latest-mac.yml: HTTP 404' } })
+  })
+
+  it('offers a prerelease when the person asks for one', async () => {
+    const manifest = stringify({ version: '0.3.0-beta.2', files: [{ url: 'Ollupi-0.3.0-beta.2-arm64.zip', sha512: 'a', size: 1 }] })
+    const asked: string[] = []
+    const fetch = async (url: string) => {
+      asked.push(url)
+      if (url.endsWith('/releases?per_page=30')) {
+        return Response.json([
+          { tag_name: 'v0.3.0-beta.2', draft: false, prerelease: true, assets: [] },
+          { tag_name: 'v0.2.0', draft: false, prerelease: false, assets: [] },
+        ])
+      }
+      if (url.endsWith('/download/v0.3.0-beta.2/latest-mac.yml')) return new Response(manifest)
+      return new Response('not found', { status: 404 })
+    }
+
+    const { u } = updater(fetch)
+    await u.check({ prerelease: true })
+
+    expect(u.state).toEqual({ status: 'available', version: '0.3.0-beta.2' })
+    expect(asked[0]).toContain('api.github.com')
+  })
+
+  it('checks stable releases only on its own', async () => {
+    const stable = stringify({ version: '0.2.0', files: [{ url: 'Ollupi-0.2.0-arm64.zip', sha512: 'a', size: 1 }] })
+    const asked: string[] = []
+    const fetch = async (url: string) => {
+      asked.push(url)
+      if (url.endsWith('/latest/download/latest-mac.yml')) return new Response(stable)
+      return Response.json([{ tag_name: 'v0.3.0-beta.2', draft: false, prerelease: true, assets: [] }])
+    }
+
+    const { u } = updater(fetch)
+    await u.check()
+
+    expect(u.state).toEqual({ status: 'latest', current: '0.2.0' })
+    expect(asked).toEqual(['https://github.com/0xfakeSpike/ollupi-desktop/releases/latest/download/latest-mac.yml'])
+  })
+
+  it('still checks stable releases when the release list cannot be read', async () => {
+    const { fetch } = await release('0.3.0')
+    const failing = async (url: string) => (url.includes('api.github.com') ? new Response('', { status: 403 }) : fetch(url))
+
+    const { u } = updater(failing)
+    await u.check({ prerelease: true })
+
+    expect(u.state).toEqual({ status: 'available', version: '0.3.0' })
+  })
+
+  it('moves someone on a beta to the release it is of', async () => {
+    const { fetch } = await release('0.3.0')
+    const { u } = updater(fetch, { bundle: installed, version: '0.3.0-beta.2' })
+
+    await u.check()
+
+    expect(u.state).toEqual({ status: 'available', version: '0.3.0' })
   })
 
   it('refuses a download that does not match its checksum', async () => {

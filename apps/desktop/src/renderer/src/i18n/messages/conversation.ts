@@ -52,6 +52,11 @@ export const en = {
     waitingApproval: 'Waiting for your nod above',
     waitingAnswer: 'Waiting for your answer above',
     loading: 'Loading the conversation…',
+    spent: (minutes: number): string =>
+      minutes < 60 ? `${minutes}m` : minutes % 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${Math.floor(minutes / 60)}h`,
+    spentUnderMinute: 'under a minute',
+    spentHint:
+      'Time with this conversation in front and you at the computer. Locked, asleep, over 3 minutes idle, or in another app is not counted.',
   },
   terminal: {
     title: 'Terminal',
@@ -476,6 +481,10 @@ export const zh: typeof en = {
     waitingApproval: '等你在上方点个头',
     waitingAnswer: '等你在上方回答一下',
     loading: '正在加载对话…',
+    spent: (minutes: number): string =>
+      minutes < 60 ? `${minutes} 分钟` : minutes % 60 ? `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分` : `${Math.floor(minutes / 60)} 小时`,
+    spentUnderMinute: '不到 1 分钟',
+    spentHint: '只算这个会话在前台、且你在电脑前的时间。锁屏、休眠、空闲超过 3 分钟、切到别的应用都不算。',
   },
   terminal: {
     title: '终端',

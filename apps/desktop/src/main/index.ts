@@ -3,7 +3,7 @@
 
 import { app, net, shell } from 'electron'
 import { join } from 'node:path'
-import { APP_HOST } from '../shared/ipc'
+import { APP_HOST, IpcChannel } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
@@ -18,8 +18,9 @@ import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
 import { registerAppScheme, serveRenderer } from './protocol'
+import { Presence } from './presence/presence'
 import { AppUpdater, bundleOf } from './update'
-import { createMainWindow, showMainWindow } from './window'
+import { broadcast, createMainWindow, showMainWindow } from './window'
 import { setAppIcon } from './appIcon'
 
 registerAppScheme()
@@ -52,6 +53,10 @@ if (!app.requestSingleInstanceLock()) {
     staging: join(app.getPath('userData'), 'update'),
     quit: () => app.quit(),
   })
+  // Counts the time the person spends with a conversation on screen, and keeps
+  // it in the backend's database beside the threads it belongs to. It writes
+  // through a window's connection rather than holding one of its own.
+  const presence = new Presence(backend, { send: (batch) => broadcast(IpcChannel.PresenceRows, batch) })
 
   app.on('second-instance', () => showMainWindow())
   // Closing the window hides it on macOS, until the app quits.
@@ -64,7 +69,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!app.isPackaged) setAppIcon('stone')
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, home, backendLog)
+    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.
     const newWindow = () => {
@@ -74,6 +79,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     newWindow()
     updater.start()
+    presence.start()
     // The backend's browser tools reach the endpoint from its start.
     void browserEndpoint.listen().then(() => backend.start())
     app.on('activate', () => {
@@ -96,9 +102,13 @@ if (!app.requestSingleInstanceLock()) {
     // Quit again from a fresh task: re-quitting from a microtask while this
     // quit unwinds hangs Electron when a window-all-closed listener exists.
     terminals.closeAll()
-    void Promise.allSettled([backend.stop(), history.flush()]).finally(() => {
-      updater.install()
-      setTimeout(() => app.quit(), 0)
-    })
+    // The last stretches go to the backend before it stops, so the quit order
+    // matters: presence first, then the backend and the history.
+    void presence.stop().finally(() =>
+      Promise.allSettled([backend.stop(), history.flush()]).finally(() => {
+        updater.install()
+        setTimeout(() => app.quit(), 0)
+      }),
+    )
   })
 }

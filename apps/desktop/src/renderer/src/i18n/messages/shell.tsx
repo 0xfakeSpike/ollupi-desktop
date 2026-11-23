@@ -71,6 +71,7 @@ export const en = {
   update: {
     unsupported: 'Updates apply to the installed app.',
     idle: 'Ollupi checks for a new version on its own.',
+    channels: 'Checks on its own look at releases; “Check for updates” also lists betas.',
     checking: 'Checking for a new version…',
     latest: (version: string) => `Ollupi ${version} is up to date.`,
     available: (version: string) => `Ollupi ${version} is available.`,
@@ -158,6 +159,7 @@ export const zh: typeof en = {
   update: {
     unsupported: '更新只对安装好的应用生效。',
     idle: 'Ollupi 会自动检查新版本。',
+    channels: '自动检查只看正式版；点「检查更新」时也会列出测试版。',
     checking: '正在检查新版本…',
     latest: (version) => `Ollupi ${version} 已是最新版本。`,
     available: (version) => `Ollupi ${version} 可以更新了。`,

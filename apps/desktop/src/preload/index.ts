@@ -2,7 +2,7 @@
 // Electron crosses the bridge.
 
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import { IpcChannel, type BackendState, type BrowserDownload, type BrowserPermission, type BrowserState, type DesktopApi, type UpdateState } from '../shared/ipc'
+import { IpcChannel, type BackendState, type BrowserDownload, type BrowserPermission, type BrowserState, type DesktopApi, type PresenceBatch, type UpdateState } from '../shared/ipc'
 
 const api: DesktopApi = {
   info: () => ipcRenderer.invoke(IpcChannel.Info),
@@ -136,6 +136,15 @@ const api: DesktopApi = {
     return () => ipcRenderer.off(IpcChannel.NoticeClicked, wrapped)
   },
   setBadge: (count) => ipcRenderer.invoke(IpcChannel.SetBadge, count),
+  presence: {
+    context: (context) => ipcRenderer.send(IpcChannel.PresenceContext, context),
+    onRows: (listener) => {
+      const wrapped = (_e: IpcRendererEvent, batch: PresenceBatch) => listener(batch)
+      ipcRenderer.on(IpcChannel.PresenceRows, wrapped)
+      return () => ipcRenderer.off(IpcChannel.PresenceRows, wrapped)
+    },
+    ack: (ack) => ipcRenderer.send(IpcChannel.PresenceAck, ack),
+  },
   pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   saveFile: (name, text) => ipcRenderer.invoke(IpcChannel.SaveFile, name, text),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),

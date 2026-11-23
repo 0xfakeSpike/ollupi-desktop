@@ -49,6 +49,13 @@ export function duration(m: Messages, startIso: string, endIso: string | null | 
   return m.common.span.m(d.m, d.s)
 }
 
+/** Time spent with a conversation, to the minute, as a person reading over
+ * their own pace needs it: "2h 41m", "41m", "under a minute". */
+export function spentTime(m: Messages, seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  return minutes < 1 ? m.conversation.screen.spentUnderMinute : m.conversation.screen.spent(minutes)
+}
+
 /** Input counts the cached part and the part written to the cache; each
  * is named only when there is some. */
 export function usageLine(m: Messages, u: Usage): string {

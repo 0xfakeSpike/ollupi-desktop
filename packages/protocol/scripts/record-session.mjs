@@ -8,9 +8,9 @@
 // read_file alone and with glob and grep in one answer, messages sent while
 // a turn runs (each a turn behind it), the cron, workspace, memory,
 // settings, MCP, permission and hub methods, token usage grouped each way,
-// and an error response. Server requests are answered as a user would (approve,
-// pick the first option). Every JSON-RPC message is kept raw, in order,
-// with its direction.
+// presence stretches and their totals, and an error response. Server requests
+// are answered as a user would (approve, pick the first option). Every JSON-RPC
+// message is kept raw, in order, with its direction.
 //
 //   node scripts/record-session.mjs   (re-run after ollupi changes the contract)
 
@@ -228,6 +228,21 @@ await call('mcpServer/delete', { name: 'broken' })
 const usageFrom = new Date(Date.now() - 86_400_000).toISOString()
 const usageTo = new Date(Date.now() + 86_400_000).toISOString()
 for (const groupBy of ['day', 'workspace', 'model']) await call('usage/query', { from: usageFrom, to: usageTo, groupBy, offsetMinutes: 0 })
+// Time the desktop counted with a thread on screen: a stretch written, then the
+// thread totals it lands in.
+await call('presence/record', {
+  rows: [
+    {
+      id: '6b1f0a1e-0000-4000-8000-000000000001',
+      threadId: thread.id,
+      workspaceId: ws1.id,
+      state: 'seen',
+      start: new Date(Date.now() - 120_000).toISOString(),
+      end: new Date(Date.now() - 60_000).toISOString(),
+    },
+  ],
+})
+await call('presence/summary', { from: usageFrom, to: usageTo, groupBy: 'thread', offsetMinutes: 0 })
 
 ws.close()
 writeFileSync(

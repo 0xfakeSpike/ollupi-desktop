@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
@@ -21,6 +21,7 @@ import { kindOf, listFolder, readFile } from './files'
 import { providerBalance } from './balance'
 import { listModels } from './models'
 import { setBadge, showNotice } from './notices'
+import type { Presence } from './presence/presence'
 import type { Terminals } from './terminal'
 import type { AppUpdater } from './update'
 
@@ -35,6 +36,7 @@ export function registerIpc(
   terminals: Terminals,
   attachments: TempAttachments,
   updater: AppUpdater,
+  presence: Presence,
   home: string,
   backendLog: string,
 ): void {
@@ -123,7 +125,9 @@ export function registerIpc(
   })
   ipcMain.handle(IpcChannel.Balance, (_event, baseUrl: unknown, apiKey: unknown) => providerBalance(net.fetch, text(baseUrl), text(apiKey)))
   ipcMain.handle(IpcChannel.UpdateState, () => updater.state)
-  ipcMain.handle(IpcChannel.UpdateCheck, () => updater.check())
+  // A check the person asks for also lists betas; the automatic ones in the
+  // updater look at stable releases only.
+  ipcMain.handle(IpcChannel.UpdateCheck, () => updater.check({ prerelease: true }))
   ipcMain.handle(IpcChannel.UpdateDownload, () => updater.download())
   ipcMain.handle(IpcChannel.UpdateRestart, () => updater.restart())
   ipcMain.handle(IpcChannel.Notify, (_event, notice: unknown) => {
@@ -133,6 +137,13 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SetBadge, (_event, count: unknown) => {
     if (!Number.isInteger(count) || (count as number) < 0) throw new Error('expected a count')
     setBadge(count as number)
+  })
+  // The renderer says what is on screen; the main process watches the window
+  // and the idle clock itself and keeps the time in the backend's database.
+  ipcMain.on(IpcChannel.PresenceContext, (_event, context: unknown) => presence.setContext(presenceContext(context)))
+  ipcMain.on(IpcChannel.PresenceAck, (_event, ack: unknown) => {
+    const answer = presenceAck(ack)
+    if (answer) presence.onAck(answer)
   })
   ipcMain.handle(IpcChannel.PickDirectory, (event) => pickDirectory(event.sender, true))
   ipcMain.handle(IpcChannel.SaveFile, (event, name: unknown, content: unknown) => saveFile(event.sender, basename(text(name)), text(content)))
@@ -231,6 +242,26 @@ function texts(value: unknown): string[] {
 function text(value: unknown): string {
   if (typeof value !== 'string') throw new Error('expected a string')
   return value
+}
+
+/** The conversation on screen, or null when the window shows none. A payload
+ * that is not one is read as none: the window saying what it shows must not be
+ * able to throw inside the main process. */
+function presenceContext(value: unknown): PresenceContext | null {
+  if (value === null || typeof value !== 'object') return null
+  const context = value as Partial<PresenceContext>
+  if (typeof context.threadId !== 'string' || typeof context.workspaceId !== 'string') return null
+  if (!context.threadId) return null
+  return { threadId: context.threadId, workspaceId: context.workspaceId }
+}
+
+/** The renderer's answer to one batch of stretches. */
+function presenceAck(value: unknown): PresenceAck | null {
+  const ack = value as Partial<PresenceAck> | null
+  if (!ack || typeof ack.batch !== 'string') return null
+  const outcome = ack.outcome
+  if (outcome !== 'wrote' && outcome !== 'refused' && outcome !== 'failed') return null
+  return { batch: ack.batch, outcome }
 }
 
 /** Changes come from the renderer: only key paths of strings and numbers,

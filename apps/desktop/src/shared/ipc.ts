@@ -4,7 +4,7 @@
 
 import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 import type { SkillsCheck } from './generated/backend-skills'
-import type { AgentRole } from '@ollupi/protocol'
+import type { AgentRole, PresenceInput } from '@ollupi/protocol'
 
 /** config.yaml as the backend decodes it. */
 export type BackendConfig = NonNullable<CheckOutput['config']>
@@ -253,6 +253,11 @@ export type UpdateState =
 /** The app's GitHub releases, which it updates from. */
 export const RELEASES_URL = 'https://github.com/0xfakeSpike/ollupi-desktop/releases'
 
+/** Its release list. A check the person asks for reads this, because
+ * /releases/latest never names a prerelease: betas stay out of the automatic
+ * checks and appear only when someone looks. */
+export const RELEASES_API = 'https://api.github.com/repos/0xfakeSpike/ollupi-desktop/releases?per_page=30'
+
 /** Why an update failed. location: the app's folder cannot be written, so
  * the app cannot be replaced where it is (e.g. run from the dmg). */
 export type UpdateFailure = { kind: 'location'; path: string } | { kind: 'error'; message: string }
@@ -271,6 +276,29 @@ export interface ThreadNotice {
   threadId: string
   title: string
   body: string
+}
+
+/** What the window shows, as the presence recorder needs it: the conversation
+ * on screen and the workspace it belongs to. */
+export interface PresenceContext {
+  threadId: string
+  workspaceId: string
+}
+
+/** Stretches the main process decided on, handed to a window to write. The
+ * window already holds the one gateway connection, and the backend takes a row
+ * twice without harm, so every window gets the batch and the first answer is
+ * enough. */
+export interface PresenceBatch {
+  id: string
+  rows: PresenceInput[]
+}
+
+/** A window's answer to one batch: the rows reached the backend, or it refused
+ * them as impossible to store, or the window could not reach it at all. */
+export interface PresenceAck {
+  batch: string
+  outcome: 'wrote' | 'refused' | 'failed'
 }
 
 export interface DesktopApi {
@@ -435,6 +463,17 @@ export interface DesktopApi {
   onNoticeClicked(listener: (threadId: string) => void): () => void
   /** The Dock's badge: how many threads wait on the person; 0 clears it. */
   setBadge(count: number): Promise<void>
+  /** Time the person spent with each conversation, kept in the local backend's
+   * database. The main process watches the window and the machine's idle clock
+   * itself; the renderer only says which conversation is on screen. */
+  presence: {
+    /** The conversation the window shows; null when it shows none. */
+    context(context: PresenceContext | null): void
+    /** Stretches to write through this window's connection; answer with
+     * `ack`, and the main process keeps them until someone does. */
+    onRows(listener: (batch: PresenceBatch) => void): () => void
+    ack(ack: PresenceAck): void
+  }
   pickDirectory(): Promise<string | undefined>
   /** Asks where to save text, suggesting a file name in Documents, and
    * writes it there; undefined when the person cancelled. */
@@ -527,6 +566,9 @@ export const IpcChannel = {
   Notify: 'app:notify',
   NoticeClicked: 'app:noticeClicked',
   SetBadge: 'app:setBadge',
+  PresenceContext: 'presence:context',
+  PresenceRows: 'presence:rows',
+  PresenceAck: 'presence:ack',
   PickDirectory: 'dialog:pickDirectory',
   SaveFile: 'dialog:saveFile',
   OpenPath: 'shell:openPath',

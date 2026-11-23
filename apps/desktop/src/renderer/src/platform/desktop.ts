@@ -71,6 +71,9 @@ function browserShim(): DesktopApi | undefined {
     notify: async () => {},
     onNoticeClicked: () => () => {},
     setBadge: async () => {},
+    // A tab in a browser shows a conversation but records no presence: the
+    // main process is not there to see the window.
+    presence: { context: () => {}, onRows: () => () => {}, ack: () => {} },
     pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
     saveFile: unavailable,
     openPath: async () => {},
@@ -126,6 +129,7 @@ export const desktop: DesktopApi = window.desktop ??
     notify: unavailable,
     onNoticeClicked: () => () => {},
     setBadge: unavailable,
+    presence: { context: unavailable, onRows: () => () => {}, ack: unavailable },
     pickDirectory: unavailable,
     saveFile: unavailable,
     openPath: unavailable,

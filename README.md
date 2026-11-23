@@ -15,6 +15,7 @@ xattr -dr com.apple.quarantine /Applications/Ollupi.app
 ```
 
 之后不用再手动下载：有新版本时侧边栏会提示，点 **下载并安装**，下载完点 **立即重启**（或者下次退出时自动装上）。也可以在 **设置 → 通用 → 更新** 里手动检查。
+自动检查只看正式版；想试测试版，在同一处点「检查更新」，它会列出标了 pre-release 的版本（发版规则见 [docs/releases.md](docs/releases.md)）。
 
 ## 使用
 

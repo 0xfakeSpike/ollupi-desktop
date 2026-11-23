@@ -1,15 +1,16 @@
 import { activeTurn, awaitedReports, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
 import { Badge, Button, cn, IconButton, Loader, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud } from 'lucide-react'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Timer } from 'lucide-react'
 import { useUserPolicy } from '../../domains/settings'
 import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
 import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
 import { openPanel, usePanel } from '../../domains/navigation'
+import { usePresenceContext, useSpent } from '../../domains/presence'
 import { archiveThread, renameThread, useThreadRow } from '../../domains/threads'
 import { useWorkspace } from '../../domains/workspaces'
 import { useEffect, useState } from 'react'
 import { useT } from '../../i18n'
-import { threadTitle, workspaceName } from '../../i18n/format'
+import { spentTime, threadTitle, workspaceName } from '../../i18n/format'
 import { areaClass } from '../common/areas'
 import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
@@ -53,6 +54,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const renameTip = useTooltip({ label: m.conversation.screen.rename })
   const rootTip = useTooltip({ label: workspace?.rootPath ?? '' })
   const machineTip = useTooltip({ label: m.conversation.environments.machine })
+  const spentTip = useTooltip({ label: m.conversation.screen.spentHint })
+  // The main process counts the time this conversation is in front with someone
+  // at the computer; the figure is read from the backend it writes to.
+  usePresenceContext(thread ? { threadId, workspaceId: thread.workspaceId ?? '' } : null)
+  const spent = useSpent(threadId, summary?.createdAt)
   const waiting = useWaitingOutOfView(ref, threadId)
   useEscapeStops(threadId, !!running && waiting.count === 0)
 
@@ -62,7 +68,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           tooltips and notices stay out of the panels beside it. */}
       <div data-region className="relative flex min-w-0 flex-1 flex-col">
         {/* Where you are first: the area's colour and name, then the title; on the
-            right only what waits for you and the one Tools capsule. */}
+            right the time spent here, what waits for you and the one Tools capsule. */}
         <header className="drag @container flex h-16 shrink-0 items-center gap-2.5 pr-4 pl-5">
           {parent && (
             <IconButton label={m.conversation.screen.back} size="sm" onClick={() => void openThread(parent)}>
@@ -113,6 +119,15 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
                 <span className="truncate">{environment.name}</span>
               </span>
               {machineTip.tooltip}
+            </>
+          )}
+          {spent !== undefined && spent > 0 && (
+            <>
+              <span className="flex shrink-0 items-center gap-1 text-small text-fg-subtle tabular-nums" {...spentTip.trigger}>
+                <Timer size={14} className="shrink-0" />
+                {spentTime(m, spent)}
+              </span>
+              {spentTip.tooltip}
             </>
           )}
           <div className="flex-1" />

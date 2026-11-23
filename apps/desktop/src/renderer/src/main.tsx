@@ -5,6 +5,7 @@ import { startAppearance } from './domains/appearance'
 import { startDrafts } from './domains/drafts'
 import { showBrowser, startNavigation } from './domains/navigation'
 import { startNotifications } from './domains/notifications'
+import { startPresenceWriter } from './domains/presence'
 import { startUpdate } from './domains/update'
 import { startSession } from './gateway/session'
 import { startLocale } from './i18n/locale'
@@ -17,6 +18,7 @@ startAppearance()
 startNavigation()
 startDrafts()
 void startSession()
+startPresenceWriter()
 desktop.browser.onUsed(showBrowser)
 startUpdate()
 startNotifications()

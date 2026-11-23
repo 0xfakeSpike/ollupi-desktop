@@ -17,7 +17,7 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 import { parse } from 'yaml'
-import { RELEASES_URL, type UpdateFailure, type UpdateState } from '../shared/ipc'
+import { RELEASES_API, RELEASES_URL, type UpdateFailure, type UpdateState } from '../shared/ipc'
 
 const run = promisify(execFile)
 
@@ -47,6 +47,12 @@ export interface UpdaterOptions {
   quit(): void
 }
 
+/** How a check looks for releases: the automatic ones watch stable releases
+ * only, and the one the person asks for also lists betas. */
+export interface CheckOptions {
+  prerelease?: boolean
+}
+
 export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
   private current: UpdateState
   private release: ReleaseFile | undefined
@@ -63,21 +69,20 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
     return this.current
   }
 
-  /** Checks now and every few hours after. */
+  /** Checks now and every few hours after. Both look at stable releases only:
+   * a beta is offered when the person checks, never on their behalf. */
   start(): void {
     if (!this.opts.bundle) return
     void rm(this.opts.staging, { recursive: true, force: true }).then(() => this.check())
     setInterval(() => void this.check(), CHECK_EVERY_MS).unref()
   }
 
-  async check(): Promise<void> {
+  async check(options: CheckOptions = {}): Promise<void> {
     const s = this.current.status
     if (!this.opts.bundle || s === 'checking' || s === 'downloading' || s === 'ready') return
     this.set({ status: 'checking' })
     try {
-      const res = await this.opts.fetch(`${RELEASES_URL}/latest/download/latest-mac.yml`, { signal: AbortSignal.timeout(15_000) })
-      if (!res.ok) throw new Error(`latest-mac.yml: HTTP ${res.status}`)
-      const latest = releaseFile(parse(await res.text()), this.opts.arch)
+      const latest = options.prerelease ? await this.anyRelease() : await this.stableRelease()
       if (!newer(latest.version, this.opts.version)) {
         this.release = undefined
         this.set({ status: 'latest', current: this.opts.version })
@@ -89,6 +94,34 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
       this.release = undefined
       this.set({ status: 'failed', version: undefined, failure: reported(err) })
     }
+  }
+
+  /** The latest-mac.yml of the newest stable release. */
+  private async stableRelease(): Promise<ReleaseFile> {
+    return this.manifest(`${RELEASES_URL}/latest/download/latest-mac.yml`)
+  }
+
+  /** The newest release of any kind, read from the list and then from that
+   * release's own latest-mac.yml. A beta is published as a prerelease of the
+   * repository, which /releases/latest never points at; falling back to the
+   * stable release keeps the check working when the list cannot be read. */
+  private async anyRelease(): Promise<ReleaseFile> {
+    const listed = await this.opts
+      .fetch(RELEASES_API, { headers: { accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15_000) })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`releases: HTTP ${res.status}`)
+        return releasesOf(await res.json())
+      })
+      .catch(() => [])
+    const newest = listed.reduce<Release | undefined>((best, one) => (best && !newer(one.version, best.version) ? best : one), undefined)
+    if (!newest) return this.stableRelease()
+    return this.manifest(newest.manifest ?? `${RELEASES_URL}/download/v${newest.version}/latest-mac.yml`)
+  }
+
+  private async manifest(url: string): Promise<ReleaseFile> {
+    const res = await this.opts.fetch(url, { signal: AbortSignal.timeout(15_000) })
+    if (!res.ok) throw new Error(`latest-mac.yml: HTTP ${res.status}`)
+    return releaseFile(parse(await res.text()), this.opts.arch)
   }
 
   /** Downloads the release found and unpacks it; it is installed at quit. */
@@ -190,19 +223,68 @@ export function releaseFile(manifest: unknown, arch: string): ReleaseFile {
   return { version: m.version, url: file.url as string, sha512: file.sha512, size: file.size as number }
 }
 
-/** Whether version a is later than b; both x.y.z. A version of any other
- * form, such as a prerelease, is never later. */
+/** One release in GitHub's list: its version, and where its latest-mac.yml
+ * can be downloaded when the list names it. */
+export interface Release {
+  version: string
+  manifest?: string
+}
+
+/** The published releases in that list. Drafts are not published, and a tag
+ * that is not a version is not one of ours. */
+export function releasesOf(list: unknown): Release[] {
+  if (!Array.isArray(list)) throw new Error('the release list is not a list')
+  const out: Release[] = []
+  for (const item of list as { draft?: unknown; tag_name?: unknown; assets?: unknown }[]) {
+    if (item?.draft === true || typeof item.tag_name !== 'string') continue
+    const version = item.tag_name.replace(/^v/, '')
+    if (!semver(version)) continue
+    const assets = Array.isArray(item.assets) ? (item.assets as { name?: unknown; browser_download_url?: unknown }[]) : []
+    const manifest = assets.find((asset) => asset?.name === 'latest-mac.yml')
+    out.push({
+      version,
+      manifest: typeof manifest?.browser_download_url === 'string' ? manifest.browser_download_url : undefined,
+    })
+  }
+  return out
+}
+
+/** Whether version a is later than b. Both are x.y.z, or x.y.z-beta.1: a
+ * prerelease comes before the release it is of, and its numbered parts compare
+ * as numbers, so beta.10 is later than beta.9. A version of any other form is
+ * never later. */
 export function newer(a: string, b: string): boolean {
   const pa = semver(a)
   const pb = semver(b)
   if (!pa || !pb) return false
-  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i]! > pb[i]!
+  for (let i = 0; i < 3; i++) if (pa.core[i] !== pb.core[i]) return pa.core[i]! > pb.core[i]!
+  if (!pa.pre.length !== !pb.pre.length) return pa.pre.length === 0
+  for (let i = 0; i < Math.max(pa.pre.length, pb.pre.length); i++) {
+    const x = pa.pre[i]
+    const y = pb.pre[i]
+    if (x === undefined) return false
+    if (y === undefined) return true
+    if (x === y) continue
+    const nx = /^\d+$/.test(x)
+    const ny = /^\d+$/.test(y)
+    if (nx && ny) return Number(x) > Number(y)
+    // A numeric identifier sorts before a word, as semver orders identifiers:
+    // 1.0.0-1 is before 1.0.0-alpha.
+    if (nx !== ny) return ny
+    return x > y
+  }
   return false
 }
 
-function semver(v: string): number[] | undefined {
-  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v)
-  return m ? m.slice(1).map(Number) : undefined
+interface Parsed {
+  core: number[]
+  pre: string[]
+}
+
+function semver(v: string): Parsed | undefined {
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(v)
+  if (!m) return undefined
+  return { core: [Number(m[1]), Number(m[2]), Number(m[3])], pre: m[4] ? m[4].split('.') : [] }
 }
 
 /** The one .app the zip unpacked, checked to be this app at the release's

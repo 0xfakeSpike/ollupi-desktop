@@ -126,3 +126,9 @@ export function showMainWindow(): boolean {
   win.focus()
   return true
 }
+
+/** One message to every window's interface. No windows: nobody hears it, and
+ * the caller keeps what it was holding. */
+export function broadcast<T>(channel: string, payload: T): void {
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload)
+}

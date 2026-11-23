@@ -44,15 +44,17 @@ export function UpdatePrompt() {
 
 /** Settings' version row, in three parts: what the updater is doing (nothing
  * while it waits for its own check), the next step, and the download's
- * progress. */
+ * progress. The note also says which releases a check looks at. */
 export function UpdateNote() {
   const state = useUpdate((s) => s.state)
   const m = useT().shell.update
-  if (state.status === 'idle') return null
+  if (state.status === 'idle') return <div className="mt-0.5 text-small text-fg-muted">{m.channels}</div>
+  const quiet = state.status === 'latest'
   return (
     <div className="selectable mt-0.5 text-small break-words text-fg-muted">
       {headline(state, m)}
       {detail(state, m) && <div>{detail(state, m)}</div>}
+      {quiet && <div>{m.channels}</div>}
     </div>
   )
 }
