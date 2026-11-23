@@ -122,3 +122,11 @@ describe('limitsOf', () => {
     expect(limitsOf(typed('3'))).toBeUndefined()
   })
 })
+
+import { scoped } from './modelConfig'
+
+it('puts a profile’s changes under its users entry', () => {
+  const changes = [{ kind: 'set' as const, path: ['models', 0, 'api_key'], value: 'x' }]
+  expect(scoped(changes, ['users', 1])).toEqual([{ kind: 'set', path: ['users', 1, 'models', 0, 'api_key'], value: 'x' }])
+  expect(scoped(changes, [])).toBe(changes)
+})

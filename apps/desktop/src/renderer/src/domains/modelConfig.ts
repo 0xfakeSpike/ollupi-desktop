@@ -90,6 +90,13 @@ function setOrDelete(path: (string | number)[], value: unknown): ConfigChange {
 }
 
 /** A provider serves at least one model, so it comes with its models. */
+/** The changes a profile's own section takes: its models live under users[i]
+ * in the file, while the first profile's are the top-level ones. */
+export function scoped(changes: ConfigChange[], base: readonly (string | number)[]): ConfigChange[] {
+  if (base.length === 0) return changes
+  return changes.map((c) => ({ ...c, path: [...base, ...c.path] }))
+}
+
 export function addProvider(config: BackendConfig, p: ProviderFields, models: ModelFields[]): ConfigChange[] {
   const value = {
     provider: p.provider,

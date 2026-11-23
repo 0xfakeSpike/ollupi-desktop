@@ -9,6 +9,7 @@ import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Tras
 import { useEffect, useId, useState } from 'react'
 import { apiTypes, FIRST_PROFILE, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
 import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { scoped } from '../../domains/modelConfig'
 import { useProfile } from '../../domains/profile'
 import {
   addModels,
@@ -57,17 +58,22 @@ export function ModelsSection() {
     void readConfig().then((r) => (r?.ok ? setChecked(r) : setError(r?.error)))
   }, [])
 
-  // Another profile's models are its own, under users in the file; the editor
-  // still writes the first profile's, so it says so rather than edit them.
-  if (current && current !== FIRST_PROFILE) return <p className="text-small text-fg-muted">{m.settings.models.profileModels}</p>
   if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
   if (!checked) return null
 
-  const { config, models } = checked
+  // The models on screen are the current profile's: the first profile's are
+  // the file's top-level ones, every other's are under users.
+  const index = current && current !== FIRST_PROFILE ? (checked.config.users ?? []).findIndex((u) => u.id === current) : -1
+  const own = index >= 0 ? checked.config.users?.[index] : undefined
+  const config = own ? { ...checked.config, models: own.models, memory: own.memory } : checked.config
+  const models = own
+    ? (own.models ?? []).flatMap((p) => (p.names ?? []).map((n) => ({ id: `${p.provider}/${n.name}`, provider: p.provider, name: n.name })))
+    : checked.models
+  const base = own ? ['users', index] : []
   const providers = config.models ?? []
   /** Applies changes; true when the backend accepted them. */
   const apply = async (changes: ConfigChange[]): Promise<boolean> => {
-    const applied = await applyConfig(changes)
+    const applied = await applyConfig(scoped(changes, base))
     if (applied) setChecked(applied)
     return !!applied
   }
