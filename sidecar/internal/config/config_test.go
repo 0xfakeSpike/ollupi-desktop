@@ -102,6 +102,7 @@ func TestValidateRejects(t *testing.T) {
 		"negative slots":      "name: x\n" + one + "slots: -1\n",
 		"feishu no secret":    "name: x\n" + one + "feishu: {app_id: cli_x}\n",
 		"feishu bad domain":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, domain: slack}\n",
+		"feishu no profile":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s}\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {
@@ -116,7 +117,7 @@ func TestLoadFileResolvesPaths(t *testing.T) {
 		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
 		"skills_dir: skills\n" +
 		"workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}\n" +
-		"feishu: {app_id: cli_x, app_secret: s, workspace: super-agent}\n"
+		"feishu: {app_id: cli_x, app_secret: s, profile: default, workspace: super-agent}\n"
 	path := filepath.Join(home, FileName)
 	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
 		t.Fatal(err)

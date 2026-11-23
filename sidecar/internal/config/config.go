@@ -51,6 +51,9 @@ type Feishu struct {
 	AppID string `json:"app_id"`
 	// AppSecret is written in the file, like a provider's api_key.
 	AppSecret string `json:"app_secret"`
+	// Profile is the user the bot acts as: the sessions it starts are that
+	// profile's. There is no default one.
+	Profile string `json:"profile"`
 	// Domain is feishu (open.feishu.cn, the default) or lark
 	// (open.larksuite.com).
 	Domain FeishuDomain `json:"domain,omitempty"`
@@ -341,6 +344,9 @@ func (c Config) Validate() error {
 	if f := c.Feishu; f != nil {
 		if strings.TrimSpace(f.AppID) == "" || strings.TrimSpace(f.AppSecret) == "" {
 			return errors.New("feishu: app_id and app_secret are required")
+		}
+		if strings.TrimSpace(f.Profile) == "" {
+			return errors.New("feishu: profile is required: the bot acts as a user, never none")
 		}
 		if f.Domain != "" && f.Domain != FeishuDomainFeishu && f.Domain != FeishuDomainLark {
 			return fmt.Errorf("feishu: domain must be %s or %s, got %q", FeishuDomainFeishu, FeishuDomainLark, f.Domain)

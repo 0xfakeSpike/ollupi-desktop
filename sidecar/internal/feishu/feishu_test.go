@@ -17,7 +17,10 @@ import (
 	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 )
 
-const me = "ou_me"
+const (
+	me    = "ou_me"
+	owner = "default"
+)
 
 type fakeApp struct {
 	threads    []string // workspaceID + " " + title
@@ -156,7 +159,7 @@ func newTest(t *testing.T) (*Bridge, *fakeApp, *fakeChat, string) {
 		active: map[string]string{"thread-1": "turn-1"},
 		feed:   store.NewFeed(),
 	}
-	b, err := newBridge(config.Feishu{AppID: "cli", AppSecret: "s", Users: []string{me}, Workspace: "/code/app"}, a, st, chat, path)
+	b, err := newBridge(config.Feishu{AppID: "cli", AppSecret: "s", Profile: owner, Users: []string{me}, Workspace: "/code/app"}, a, st, chat, path)
 	if err != nil {
 		t.Fatal(err)
 	}

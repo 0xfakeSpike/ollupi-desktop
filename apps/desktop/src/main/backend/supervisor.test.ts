@@ -17,7 +17,7 @@ describe('BackendSupervisor', () => {
     const starts = join(dir, 'starts')
     await writeFile(binary, `#!/bin/sh\necho started >> "${starts}"\necho '{"type":"ready","url":"ws://127.0.0.1:1/"}'\nexec cat >/dev/null\n`)
     await chmod(binary, 0o755)
-    const backend = new BackendSupervisor({ binary, home: dir, allowOrigins: [], env: async () => process.env, logFile: join(dir, 'backend.log') })
+    const backend = new BackendSupervisor({ binary, home: dir, profile: 'default', allowOrigins: [], env: async () => process.env, logFile: join(dir, 'backend.log') })
 
     const ready = once(backend, 'state').then(async function wait([state]): Promise<void> {
       if ((state as { status: string }).status !== 'ready') return wait(await once(backend, 'state'))

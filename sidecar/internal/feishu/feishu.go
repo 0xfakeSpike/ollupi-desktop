@@ -12,9 +12,9 @@
 // users are acted for.
 //
 // The bridge is another client of ollupi's app beside the gateway: it calls
-// the app's commands as the gateway's one user, so the desktop's sessions
-// and the bot's are the same ones, and learns what changed from the
-// store's feed, as the gateway does.
+// the app's commands as the profile the config names, so the desktop's
+// sessions and the bot's are that profile's ones, and learns what changed
+// from the store's feed, as the gateway does.
 package feishu
 
 import (
@@ -32,13 +32,8 @@ import (
 	"github.com/0xfakeSpike/ollupi/app"
 	"github.com/0xfakeSpike/ollupi/ask"
 	"github.com/0xfakeSpike/ollupi/conversation"
-	"github.com/0xfakeSpike/ollupi/gateway"
 	"github.com/0xfakeSpike/ollupi/store"
 )
-
-// owner is the user the bridge acts as: the gateway's one user, whose token
-// the desktop holds.
-const owner = gateway.DefaultUser
 
 // flushEvery spaces a turn card's updates: Feishu allows a message a few
 // updates a second, and a phone needs fewer.
@@ -74,13 +69,14 @@ type chat interface {
 }
 
 type Bridge struct {
-	cfg    config.Feishu
-	app    App
-	store  Store
-	chat   chat
-	topics *topics
-	users  map[string]bool
-	queue  *queue
+	cfg     config.Feishu
+	profile string
+	app     App
+	store   Store
+	chat    chat
+	topics  *topics
+	users   map[string]bool
+	queue   *queue
 
 	// Read and written only by Run's goroutine, which runs the queue.
 	ctx      context.Context
@@ -128,7 +124,7 @@ func newBridge(cfg config.Feishu, a App, st Store, chat chat, topicsPath string)
 		users[u] = true
 	}
 	return &Bridge{
-		cfg: cfg, app: a, store: st, chat: chat, topics: t, users: users, queue: newQueue(),
+		cfg: cfg, profile: cfg.Profile, app: a, store: st, chat: chat, topics: t, users: users, queue: newQueue(),
 		turns: map[string]*turn{}, inputs: map[string]string{}, requests: map[string]*request{}, ours: map[string]bool{},
 		decided: map[string]bool{}, seen: newRecent(512),
 	}, nil
@@ -142,11 +138,11 @@ func (b *Bridge) hear(e store.Event) {
 	}
 }
 
-// work runs what is queued until ctx ends, hearing the owner's changes
+// work runs what is queued until ctx ends, hearing the profile's changes
 // meanwhile.
 func (b *Bridge) work(ctx context.Context) {
 	b.ctx = ctx
-	sub := b.store.Feed().Subscribe(owner, b.hear)
+	sub := b.store.Feed().Subscribe(b.profile, b.hear)
 	defer sub.Close()
 	for {
 		select {
@@ -213,7 +209,7 @@ func (b *Bridge) stop(threadID string) error {
 	if active == "" {
 		return app.ErrNoActiveTurn
 	}
-	return b.app.Interrupt(b.ctx, owner, threadID, active)
+	return b.app.Interrupt(b.ctx, b.profile, threadID, active)
 }
 
 func (b *Bridge) startSession(messageID, text string) {
@@ -222,7 +218,7 @@ func (b *Bridge) startSession(messageID, text string) {
 		b.replyText(messageID, errorText(err))
 		return
 	}
-	t, err := b.app.StartThread(b.ctx, owner, workspaceID, "", titleFromMessage(text))
+	t, err := b.app.StartThread(b.ctx, b.profile, workspaceID, "", titleFromMessage(text))
 	if err != nil {
 		b.replyText(messageID, "没能开始会话："+errorText(err))
 		return
@@ -235,7 +231,7 @@ func (b *Bridge) startSession(messageID, text string) {
 }
 
 func (b *Bridge) send(messageID, threadID, text string) {
-	t, inProgress, err := b.app.Send(b.ctx, owner, threadID, app.Input{Text: text})
+	t, inProgress, err := b.app.Send(b.ctx, b.profile, threadID, app.Input{Text: text})
 	if err != nil {
 		b.replyText(messageID, "没能发送："+errorText(err))
 		return
@@ -252,7 +248,7 @@ func (b *Bridge) workspace() (string, error) {
 	if b.cfg.Workspace == "" {
 		return "", nil
 	}
-	list, err := b.app.Workspaces(b.ctx, owner)
+	list, err := b.app.Workspaces(b.ctx, b.profile)
 	if err != nil {
 		return "", err
 	}
@@ -412,7 +408,7 @@ func (b *Bridge) workspaceName(id string) string {
 	if id == "" {
 		return ""
 	}
-	list, err := b.app.Workspaces(b.ctx, owner)
+	list, err := b.app.Workspaces(b.ctx, b.profile)
 	if err != nil {
 		return ""
 	}
@@ -547,14 +543,14 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 	var err error
 	switch str("action") {
 	case actionStop:
-		err = b.app.Interrupt(ctx, owner, str("thread"), str("turn"))
+		err = b.app.Interrupt(ctx, b.profile, str("thread"), str("turn"))
 		toast = "已停止"
 	case actionApprove:
 		approval := str("approval")
 		// Marked before the decision commits, so the card it settles says
 		// it was decided here.
 		b.queue.push(func() { b.decided[approval] = true })
-		if err = b.app.Decide(ctx, owner, str("thread"), approval, conversation.Decision(str("decision"))); err != nil {
+		if err = b.app.Decide(ctx, b.profile, str("thread"), approval, conversation.Decision(str("decision"))); err != nil {
 			b.queue.push(func() { delete(b.decided, approval) })
 		}
 		toast = "已提交"
@@ -563,7 +559,7 @@ func (b *Bridge) press(operator string, value, form map[string]any) (toast strin
 		if missing {
 			return "还有问题没回答", false
 		}
-		err = b.app.Answer(ctx, owner, str("thread"), str("item"), answers)
+		err = b.app.Answer(ctx, b.profile, str("thread"), str("item"), answers)
 		toast = "已提交"
 	default:
 		return "这个按钮已失效", false

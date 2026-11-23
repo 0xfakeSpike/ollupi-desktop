@@ -75,6 +75,7 @@ skills_dir: skills
 # feishu:
 #   app_id: cli_xxx
 #   app_secret: xxx
+#   profile: default # the user the bot's sessions belong to
 #   users: [ou_xxx]
 #   workspace: ~/projects/app # new sessions' workspace; ~ is your home and a
 #                             # relative path this file's folder; leave out for none

@@ -12,7 +12,6 @@ import (
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi/account"
-	"github.com/0xfakeSpike/ollupi/gateway"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 )
 
@@ -103,13 +102,13 @@ func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
 	}
 	defer h.close()
 	a := h.ollupi.App
-	if err := a.EnsureUser(ctx, gateway.DefaultUser); err != nil {
+	if err := a.EnsureUser(ctx, "default"); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.SetMCPServer(ctx, gateway.DefaultUser, account.MCPServer{Name: "mock", Command: node, Args: []string{mock}}); err != nil {
+	if err := a.SetMCPServer(ctx, "default", account.MCPServer{Name: "mock", Command: node, Args: []string{mock}}); err != nil {
 		t.Fatal(err)
 	}
-	set, err := h.ollupi.Users.Tools(ctx, gateway.DefaultUser)
+	set, err := h.ollupi.Users.Tools(ctx, "default")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,5 +118,29 @@ func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
 	}
 	if !slices.Contains(providers, "mock") {
 		t.Fatalf("providers = %v, unavailable %v", providers, set.Unavailable())
+	}
+}
+
+func TestATokenNamesAProfileTheHomeHolds(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	home := t.TempDir()
+	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, minimal)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.close()
+	cases := []struct{ token, want string }{
+		{"secret.default", "default"}, // the profile a fresh home is made with
+		{"secret.nobody", ""},         // a profile the store does not hold
+		{"default", ""},               // no secret, so no profile
+		{"other.default", ""},         // the wrong secret
+		{"secret.", ""},               // no profile named
+	}
+	for _, c := range cases {
+		got, err := profileOf(ctx, c.token, "secret", h.ollupi.Store)
+		if got != c.want || (c.want == "" && err == nil) {
+			t.Errorf("profileOf(%q) = %q, %v; want %q", c.token, got, err, c.want)
+		}
 	}
 }

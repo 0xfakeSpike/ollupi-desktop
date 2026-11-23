@@ -4,7 +4,7 @@
 import { app, net, shell } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST, IpcChannel } from '../shared/ipc'
-import { backendBinary, backendEnv, backendHome } from './backend/environment'
+import { backendBinary, backendEnv, backendHome, FIRST_PROFILE } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
@@ -42,7 +42,7 @@ if (!app.requestSingleInstanceLock()) {
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
-  const backend = new BackendSupervisor({ binary: backendBinary(), home, allowOrigins: [APP_HOST], env, logFile: backendLog })
+  const backend = new BackendSupervisor({ binary: backendBinary(), home, profile: FIRST_PROFILE, allowOrigins: [APP_HOST], env, logFile: backendLog })
   const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
   const skills = new BackendSkills({ binary: backendBinary(), home, trash: (path) => shell.trashItem(path) })
   const updater = new AppUpdater({

@@ -9,17 +9,21 @@ package host
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
 	"github.com/0xfakeSpike/ollupi/account"
+	"github.com/0xfakeSpike/ollupi/app"
+	"github.com/0xfakeSpike/ollupi/auth"
 	"github.com/0xfakeSpike/ollupi/gateway"
 	ollupi "github.com/0xfakeSpike/ollupi/host"
 	"github.com/0xfakeSpike/ollupi/pkg/llm"
@@ -97,6 +101,13 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	// The store is the host's, made below; a call reaches this only once
 	// it is.
 	var st store.Store
+	// Every connection names its profile: the token is the secret the app
+	// started the backend with and the profile, joined by a dot, and only a
+	// profile that exists works. There is no anonymous connection and none is
+	// made up for it.
+	authenticate := func(ctx context.Context, token string) (string, error) {
+		return profileOf(ctx, token, opts.Token, st)
+	}
 	// web_fetch is ollupi's own, made from the Boxes below.
 	var tools []kit.Provider
 	if cfg.Workspace.Enabled {
@@ -152,13 +163,21 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
 		Hub:     true,
-		Gateway: &gateway.Options{Token: opts.Token, AllowedOrigins: opts.AllowedOrigins},
+		Gateway: &gateway.Options{Authenticate: authenticate, AllowedOrigins: opts.AllowedOrigins},
 	})
 	if err != nil {
 		return nil, err
 	}
 	h.closers = append(h.closers, h.ollupi.Close)
 	st = h.ollupi.Store
+	// A home starts with the one profile its data is already under; later
+	// ones are made by user/create. Nothing here decides it per connection.
+	if err := ensureProfile(ctx, st, h.ollupi.App); err != nil {
+		return nil, err
+	}
+	if cfg.Feishu != nil && !slices.Contains(profiles(ctx, st), cfg.Feishu.Profile) {
+		return nil, fmt.Errorf("feishu.profile %q is not a profile of this home", cfg.Feishu.Profile)
+	}
 
 	if cfg.Feishu != nil {
 		// Which topic holds which session is kept beside the store.
@@ -175,13 +194,18 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 // until ctx ends or one of them fails, then releases the store.
 func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	defer h.close()
-	// The user's MCP servers connect and list their tools now rather than
-	// in the first turn; one that cannot is skipped, and mcpServer/list
-	// says why.
-	go h.ollupi.Users.Tools(ctx, gateway.DefaultUser)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return h.ollupi.Run(ctx) })
 	g.Go(func() error { return h.ollupi.Gateway.Serve(ctx, ln) })
+	// Each profile's MCP servers connect and list their tools now rather
+	// than in the first turn; one that cannot is skipped, and mcpServer/list
+	// says why.
+	for _, user := range profiles(ctx, h.ollupi.Store) {
+		g.Go(func() error {
+			h.ollupi.Users.Tools(ctx, user)
+			return nil
+		})
+	}
 	for _, c := range h.clients {
 		g.Go(func() error {
 			c.Run(ctx)
@@ -270,4 +294,51 @@ func userBox(home string) (*sandbox.Sandbox, error) {
 		}
 	}
 	return sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{home}, EnvPassthrough: env})
+}
+
+// firstProfile is the profile a home is created with: the data of a fresh
+// install belongs to someone from the first write, so nothing is anonymous.
+const firstProfile = "default"
+
+// profileOf names the profile a connection's token acts as: the secret the
+// backend was started with, a dot, the profile. Only a profile the store
+// holds works; nothing is created for an unknown one.
+func profileOf(ctx context.Context, token, secret string, st store.Store) (string, error) {
+	given, profile, ok := strings.Cut(token, ".")
+	if !ok || profile == "" || st == nil || subtle.ConstantTimeCompare([]byte(given), []byte(secret)) != 1 {
+		return "", auth.ErrUnknownToken
+	}
+	var known bool
+	err := st.Read(ctx, func(r store.Reader) error {
+		users, err := r.Users()
+		known = slices.Contains(users, profile)
+		return err
+	})
+	if err != nil || !known {
+		return "", auth.ErrUnknownToken
+	}
+	return profile, nil
+}
+
+// profiles lists the users the store holds.
+func profiles(ctx context.Context, st store.Store) []string {
+	var users []string
+	_ = st.Read(ctx, func(r store.Reader) error {
+		var err error
+		users, err = r.Users()
+		return err
+	})
+	return users
+}
+
+// ensureProfile makes the first profile of a home that has none: the data a
+// fresh install writes belongs to someone, and there is no anonymous one.
+func ensureProfile(ctx context.Context, st store.Store, a *app.App) error {
+	if len(profiles(ctx, st)) > 0 {
+		return nil
+	}
+	if err := a.EnsureUser(ctx, firstProfile); err != nil {
+		return fmt.Errorf("the first profile: %w", err)
+	}
+	return nil
 }

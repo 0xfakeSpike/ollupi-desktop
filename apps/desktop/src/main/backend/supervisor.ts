@@ -16,6 +16,10 @@ import type { BackendFailure, BackendState } from '../../shared/ipc'
 export interface SupervisorOptions {
   binary: string
   home: string
+  /** The profile the window acts as. The token the renderer is handed is
+   * the secret and this id: the backend names every connection by a profile
+   * it holds, and refuses one it does not. */
+  profile: string
   allowOrigins: string[]
   env(): Promise<NodeJS.ProcessEnv>
   /** Where the backend's log lines go (ollupi logs ids and numbers, never
@@ -65,9 +69,11 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     if (this.child) return
     this.log = []
     this.set({ status: 'starting' })
-    const token = randomBytes(32).toString('hex')
-    // The token goes in the environment, not argv, which other users can read.
-    const env = { ...(await this.opts.env()), OLLUPI_GATEWAY_TOKEN: token }
+    const secret = randomBytes(32).toString('hex')
+    // The secret goes in the environment, not argv, which other users can
+    // read; the renderer is handed the secret and its profile together.
+    const env = { ...(await this.opts.env()), OLLUPI_GATEWAY_TOKEN: secret }
+    const token = `${secret}.${this.opts.profile}`
     const args = ['--home', this.opts.home, '--watch-stdin']
     if (this.opts.allowOrigins.length) args.push('--allow-origin', this.opts.allowOrigins.join(','))
 
