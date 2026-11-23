@@ -8,6 +8,7 @@ import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { UpdatePrompt } from '../common/Update'
 import { ConnectionStatus } from './ConnectionStatus'
+import { ProfileMenu } from './ProfileMenu'
 import { ArchivedThreads } from './ArchivedThreads'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { SuperAgentStart, ThreadGroup } from './ThreadGroup'
@@ -97,6 +98,7 @@ export function Sidebar() {
       )}
       </div>
       <div className="flex flex-col gap-1 px-3.5 pt-2 pb-3">
+        <ProfileMenu />
         <UpdatePrompt />
         <div className="flex flex-wrap gap-1">
           <NavButton icon={<Bookmark size={14} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>

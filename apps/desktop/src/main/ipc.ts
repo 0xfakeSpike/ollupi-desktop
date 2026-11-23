@@ -7,6 +7,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
 import { apiTypes, appThemes, colorSchemes, FIRST_PROFILE, IpcChannel, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
+import { rememberProfile } from './profile'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
@@ -61,6 +62,13 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SkillsCopy, (_event, agent: unknown, name: unknown, to: unknown) => skills.copy(skillAgent(agent), text(name), skillAgent(to)))
   ipcMain.handle(IpcChannel.SkillsRemove, (_event, agent: unknown, name: unknown) => skills.remove(skillAgent(agent), text(name)))
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
+  // The profile the window acts as: the choice is kept for the next start,
+  // and the backend's next connection is named by it.
+  ipcMain.handle(IpcChannel.ProfileSelect, (_event, profile: unknown) => {
+    const id = profileID(profile)
+    rememberProfile(id)
+    backend.selectProfile(id)
+  })
   // The hub keeps nothing of the projects in it; a folder of its own in the
   // backend's home keeps the user's folders out of it. The first profile keeps
   // the home's folder, as it was before there were profiles; a later one gets

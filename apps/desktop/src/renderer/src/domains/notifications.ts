@@ -12,6 +12,7 @@ import { t } from '../i18n'
 import { threadTitle } from '../i18n/format'
 import { desktop } from '../platform/desktop'
 import { openThread } from './conversation'
+import { currentProfile, profileName } from './profile'
 import { onRequest, type PendingRequest } from './requests'
 import { useThreads } from './threads'
 
@@ -43,6 +44,12 @@ const told = new Set<string>()
 /** The turns whose end was told: a turn ends once, told once. */
 const ended = new Set<string>()
 
+/** A notice's title names the profile whose thread it is: with more than one
+ * profile, the thread's name alone would not say whose. */
+function titled(title: string): string {
+  return `${profileName(currentProfile(), t().shell.profiles.unnamed)} · ${title}`
+}
+
 function titleOf(threadId: string): string {
   const thread = useThreads.getState().list.find((x) => x.id === threadId)
   // A subagent's thread is not in the list; its request is the parent's wait.
@@ -55,7 +62,7 @@ function tellRequest(r: PendingRequest): void {
   if (!useNotificationPrefs.getState()[r.kind]) return
   const m = t().notifications
   const body = r.kind === 'approval' ? m.approval(r.params.tool) : m.question(r.params.questions[0]?.question ?? '')
-  void desktop.notify({ threadId: r.params.threadId, title: titleOf(r.params.threadId), body })
+  void desktop.notify({ threadId: r.params.threadId, title: titled(titleOf(r.params.threadId)), body })
 }
 
 export const notificationsDomain: Domain = {
@@ -70,7 +77,7 @@ export const notificationsDomain: Domain = {
         if (!thread || !kind || ended.has(turn.id) || !useNotificationPrefs.getState()[kind]) return
         ended.add(turn.id)
         const m = t().notifications
-        void desktop.notify({ threadId: thread.id, title: threadTitle(t(), thread), body: kind === 'completed' ? m.completed : m.failed(turn.error ?? '') })
+        void desktop.notify({ threadId: thread.id, title: titled(threadTitle(t(), thread)), body: kind === 'completed' ? m.completed : m.failed(turn.error ?? '') })
       }),
     ]
     return () => offs.forEach((off) => off())

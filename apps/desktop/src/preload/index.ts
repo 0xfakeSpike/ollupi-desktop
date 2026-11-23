@@ -29,6 +29,7 @@ const api: DesktopApi = {
     remove: (agent, name) => ipcRenderer.invoke(IpcChannel.SkillsRemove, agent, name),
     defaultFolder: () => ipcRenderer.invoke(IpcChannel.SkillsDefaultFolder),
   },
+  profile: { select: (id) => ipcRenderer.invoke(IpcChannel.ProfileSelect, id) },
   superAgentFolder: (profile) => ipcRenderer.invoke(IpcChannel.SuperAgentFolder, profile),
   attachments: {
     pathOf: (file) => webUtils.getPathForFile(file) || undefined,

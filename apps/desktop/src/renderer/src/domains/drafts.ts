@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 import { draftAttachment, releaseDraft, type DraftAttachment } from './attachments'
+import { useProfile } from './profile'
 
 /** A message before it is sent: its text and the files that go with it. */
 export interface Draft {
@@ -23,6 +24,13 @@ const NOTHING: Draft = { text: '', attachments: [] }
 
 /** Draft text as sessionStorage keeps it: by key, text only. */
 const STORE_KEY = 'ollupi.drafts'
+
+/** A box's key, inside the profile the window acts as: two profiles' boxes
+ * never meet, and a draft typed under one is not shown under another. */
+function scoped(key: string): string {
+  const profile = useProfile.getState().current
+  return profile ? `${profile}:${key}` : key
+}
 
 /** The boxes' drafts, by key, and how many times each box was given a sent
  * message back to edit (reopenDraft), which is the box's cue to take the
@@ -62,12 +70,13 @@ export function startDrafts(): void {
 
 /** A box's draft, empty until something is typed in it. */
 export function draftOf(key: string): Draft {
-  return useDrafts.getState().drafts[key] ?? NOTHING
+  return useDrafts.getState().drafts[scoped(key)] ?? NOTHING
 }
 
 /** A box's draft, followed as it changes. */
 export function useDraft(key: string): Draft {
-  return useDrafts((s) => s.drafts[key]) ?? NOTHING
+  const k = scoped(key)
+  return useDrafts((s) => s.drafts[k]) ?? NOTHING
 }
 
 function update(key: string, fn: (draft: Draft) => Draft): void {
@@ -81,27 +90,29 @@ function update(key: string, fn: (draft: Draft) => Draft): void {
 }
 
 export function setDraftText(key: string, text: string): void {
-  update(key, (d) => ({ ...d, text }))
+  update(scoped(key), (d) => ({ ...d, text }))
 }
 
 export function addDraftFiles(key: string, files: Iterable<File>): void {
   const added = Array.from(files, draftAttachment)
-  if (added.length) update(key, (d) => ({ ...d, attachments: [...d.attachments, ...added] }))
+  if (added.length) update(scoped(key), (d) => ({ ...d, attachments: [...d.attachments, ...added] }))
 }
 
 export function removeDraftAttachment(key: string, id: string): void {
-  const gone = draftOf(key).attachments.filter((a) => a.id === id)
+  const k = scoped(key)
+  const gone = (useDrafts.getState().drafts[k] ?? NOTHING).attachments.filter((a) => a.id === id)
   gone.forEach(releaseDraft)
-  if (gone.length) update(key, (d) => ({ ...d, attachments: d.attachments.filter((a) => a.id !== id) }))
+  if (gone.length) update(k, (d) => ({ ...d, attachments: d.attachments.filter((a) => a.id !== id) }))
 }
 
 /** The box was sent: what went leaves it, and anything typed or attached
  * while it went stays for the next message. The text stays too if it has
  * changed since it was sent. */
 export function sentDraft(key: string, sent: Pick<Draft, 'text' | 'attachments'>): void {
-  const gone = draftOf(key).attachments.filter((a) => sent.attachments.includes(a))
+  const k = scoped(key)
+  const gone = (useDrafts.getState().drafts[k] ?? NOTHING).attachments.filter((a) => sent.attachments.includes(a))
   gone.forEach(releaseDraft)
-  update(key, (d) => ({
+  update(k, (d) => ({
     text: d.text === sent.text ? '' : d.text,
     attachments: d.attachments.filter((a) => !sent.attachments.includes(a)),
   }))
@@ -111,8 +122,9 @@ export function sentDraft(key: string, sent: Pick<Draft, 'text' | 'attachments'>
  * before whatever the box held and its files after the box's, so nothing
  * typed there meanwhile is lost. */
 export function reopenDraft(key: string, text: string, files: readonly File[]): void {
+  const k = scoped(key)
   const added = files.map(draftAttachment)
-  update(key, (d) => ({
+  update(k, (d) => ({
     text: [text, d.text].filter(Boolean).join('\n\n'),
     attachments: [...d.attachments, ...added],
   }))
@@ -123,18 +135,20 @@ export function reopenDraft(key: string, text: string, files: readonly File[]): 
 /** A suggested start written into an empty box, which is then focused with
  * the cursor at its end, ready to be finished or changed before sending. */
 export function suggestDraft(key: string, text: string): void {
-  update(key, (d) => ({ ...d, text }))
+  const k = scoped(key)
+  update(k, (d) => ({ ...d, text }))
   const { reopened } = useDrafts.getState()
-  useDrafts.setState({ reopened: { ...reopened, [key]: (reopened[key] ?? 0) + 1 } })
+  useDrafts.setState({ reopened: { ...reopened, [k]: (reopened[k] ?? 0) + 1 } })
 }
 
 /** Drops a box's draft and its previews: the conversation it was for is
  * gone. An archived conversation keeps its draft, for its return. */
 export function forgetDraft(key: string): void {
-  const draft = useDrafts.getState().drafts[key]
+  const k = scoped(key)
+  const draft = useDrafts.getState().drafts[k]
   if (!draft) return
   draft.attachments.forEach(releaseDraft)
-  const { [key]: _gone, ...rest } = useDrafts.getState().drafts
+  const { [k]: _gone, ...rest } = useDrafts.getState().drafts
   useDrafts.setState({ drafts: rest })
   remember(rest)
 }

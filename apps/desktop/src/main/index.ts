@@ -17,6 +17,7 @@ import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
+import { activeProfile } from './profile'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { Presence } from './presence/presence'
 import { AppUpdater, bundleOf } from './update'
@@ -42,7 +43,7 @@ if (!app.requestSingleInstanceLock()) {
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
-  const backend = new BackendSupervisor({ binary: backendBinary(), home, profile: FIRST_PROFILE, allowOrigins: [APP_HOST], env, logFile: backendLog })
+  const backend = new BackendSupervisor({ binary: backendBinary(), home, profile: activeProfile(), allowOrigins: [APP_HOST], env, logFile: backendLog })
   const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
   const skills = new BackendSkills({ binary: backendBinary(), home, trash: (path) => shell.trashItem(path) })
   const updater = new AppUpdater({

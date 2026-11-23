@@ -48,8 +48,14 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
   private log: string[] = []
   private starting: Promise<void> | undefined
 
+  /** The secret this start was given, which every token is made from. */
+  private secret: string | undefined
+  /** The profile new connections act as; the choice may change while it runs. */
+  private profile: string
+
   constructor(private readonly opts: SupervisorOptions) {
     super()
+    this.profile = opts.profile
   }
 
   get state(): BackendState {
@@ -70,10 +76,11 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     this.log = []
     this.set({ status: 'starting' })
     const secret = randomBytes(32).toString('hex')
+    this.secret = secret
     // The secret goes in the environment, not argv, which other users can
     // read; the renderer is handed the secret and its profile together.
     const env = { ...(await this.opts.env()), OLLUPI_GATEWAY_TOKEN: secret }
-    const token = `${secret}.${this.opts.profile}`
+    const token = this.tokenFor(this.profile)
     const args = ['--home', this.opts.home, '--watch-stdin']
     if (this.opts.allowOrigins.length) args.push('--allow-origin', this.opts.allowOrigins.join(','))
 
@@ -114,11 +121,27 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     })
   }
 
+  /** The token for a profile of this backend: its secret and the profile, as
+   * a connection is named. */
+  tokenFor(profile: string): string {
+    if (!this.secret) throw new Error('the backend is not running')
+    return `${this.secret}.${profile}`
+  }
+
+  /** Makes the next connection another profile: the app's token changes with
+   * it, and the renderer reconnects under the new one. */
+  selectProfile(profile: string): void {
+    this.profile = profile
+    if (this.current.status !== 'ready') return
+    this.set({ ...this.current, token: this.tokenFor(profile) })
+  }
+
   /** SIGTERM lets the backend finish its writes; SIGKILL if it hangs. */
   async stop(): Promise<void> {
     const child = this.child
     if (!child) return
     this.child = undefined
+    this.secret = undefined
     this.set({ status: 'stopped' })
     await new Promise<void>((resolve) => {
       const force = setTimeout(() => child.kill('SIGKILL'), STOP_TIMEOUT_MS)

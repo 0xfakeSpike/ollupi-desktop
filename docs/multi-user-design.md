@@ -70,6 +70,9 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 - 渲染层拿到的 token 是 `S + "." + profileID`，主进程通过 IPC `user/token` 现算。
 - sidecar 给 `gateway.Options.Authenticate` 传一个函数：常数时间比较 `S`，然后查
   `users` 表确认 profile 存在，返回它。网关以下（app、store、run）一行不用改。
+- 主进程把上次选的身份记在 `userData/profile.json`，启动按它签 token；切换身份时
+  `BackendSupervisor.selectProfile` 用同一个 secret 换一个 profile 重新签发，渲染层收到
+  新的 ready 状态就重连——不需要重启后端。
 - 威胁模型和现在一致：防的是本机浏览器/别的 origin 连上 loopback 端口，不防同机进程。
   所以“无密码”是诚实的：知道 `S` 的人可以选任何身份，而他本来就能直接读库。
 
@@ -114,7 +117,7 @@ users:
 
 ### 5. 渲染层
 
-- 侧栏顶部一个身份菜单：切换、新建（起名 + 选颜色）、改名。当前身份在标题栏也看得出来。
+- 侧栏底部一个身份菜单（现在这样实现）：列出所有身份、切换、新建（起名 + 选颜色）、编辑当前身份的名字和颜色。
 - **切换 = 重连**：断开 WebSocket → 用新 token 连接 → 把每个 domain 的 store 重置
   （threads、workspaces、todos、memory、usage、models、read state）。
   需要在 `domains/` 里加一个统一的 `resetForProfile()`，避免漏掉某个缓存。
@@ -138,7 +141,7 @@ users:
 | 阶段 | 内容 | 可验收的结果 |
 |---|---|---|
 | P1 | （已完成）网关强制身份、token 带身份、启动建第一个身份、飞书 `profile` 必填、`users` 加 `name`/`color`（迁移 0017）、`user/list/create/rename/color`、hub 目录按身份 | 接口层能建出第二个身份，各有独立的会话、记忆、待办、工作区；hub 目录不撞 |
-| P2 | 身份菜单（新建/改名/切换）、切换即重连、状态重置、草稿键按身份、`user/*` 接口接进 UI | 界面上能切身份，切完看到的是对方的数据；刷新后仍停在原身份 |
+| P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
 | P3 | `config.yaml` 的 `users[]`、引擎按用户解析模型、设置页编辑当前身份、新建复制配置 | 两个身份用不同 provider/key，互不影响；记忆用各自的模型 |
 | P4 | 飞书映射、通知标注、presence 收尾、身份删除/归档、导出导入 | 手机端按人分；删身份能把数据收干净 |
 

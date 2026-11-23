@@ -334,6 +334,13 @@ export interface DesktopApi {
      * skills_dir value that names it. */
     defaultFolder(): Promise<string>
   }
+  /** The profile the window acts as. A connection is always one: there is
+   * no anonymous one to fall back to. */
+  profile: {
+    /** Makes a profile the window's: its connection reconnects as it, and a
+     * restart opens as it. */
+    select(id: string): Promise<void>
+  }
   /** Creates the Super Agent's folder of a profile in the backend's home,
    * the one its hub workspace is added at, and gives its path. The first
    * profile keeps the home's own `super-agent`; later ones have one under
@@ -514,6 +521,7 @@ export const IpcChannel = {
   SkillsCopy: 'skills:copy',
   SkillsRemove: 'skills:remove',
   SkillsDefaultFolder: 'skills:defaultFolder',
+  ProfileSelect: 'profile:select',
   SuperAgentFolder: 'superAgent:folder',
   AttachmentsWrite: 'attachments:write',
   AttachmentsRemove: 'attachments:remove',

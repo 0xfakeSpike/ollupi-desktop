@@ -21,6 +21,9 @@ function browserShim(): DesktopApi | undefined {
   return {
     info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '' }),
     backend: { state: async () => state, restart: async () => {}, onState: () => () => {} },
+    // The token is the one the browser was opened with; nothing can mint
+    // another here.
+    profile: { select: unavailable },
     // A sidecar started by hand: the browser cannot reach its config file.
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
@@ -95,6 +98,7 @@ export const desktop: DesktopApi = window.desktop ??
     backend: { state: unavailable, restart: unavailable, onState: unavailable },
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
+    profile: { select: unavailable },
     superAgentFolder: unavailable,
     attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
     files: { list: unavailable, read: unavailable, kind: unavailable },
