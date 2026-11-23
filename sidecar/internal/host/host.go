@@ -77,7 +77,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		dataHome = opts.Home
 	}
 
-	users, memory, err := userModels(cfg)
+	users, memories, err := userModels(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Name:      cfg.Name,
 		Prompt:    cfg.Prompt,
 		Users:     users,
-		Memory:    memory,
+		MemoryOf:  memories,
 		Tools:     tools,
 		Allowlist: cfg.Tools,
 		Boxes:     func(string) (sandbox.Box, error) { return box, nil },
@@ -334,19 +334,17 @@ func ensureProfile(ctx context.Context, st store.Store, a *app.App) error {
 // them: the first profile's are the file's top-level ones, and each entry
 // under users is another profile's own. A profile with none has none, rather
 // than borrowing another's. The learning model is the first profile's.
-func userModels(cfg config.Config) ([]ollupi.UserModels, *llm.Model, error) {
+func userModels(cfg config.Config) ([]ollupi.UserModels, map[string]llm.Model, error) {
 	models, connections, err := modelClients(cfg.Models)
 	if err != nil {
 		return nil, nil, err
 	}
 	sets := []ollupi.UserModels{{User: config.FirstProfile, Models: models, Connections: connections}}
-	var memory *llm.Model
-	if cfg.Memory.Model != "" {
-		for _, m := range models {
-			if m.Connection == cfg.Memory.Model {
-				memory = &m
-			}
-		}
+	// Each profile learns with the model its own section names; one that
+	// names none learns nothing.
+	memories := map[string]llm.Model{}
+	if m, ok := connectionOf(models, cfg.Memory.Model); ok {
+		memories[config.FirstProfile] = m
 	}
 	for _, u := range cfg.Users {
 		models, connections, err := modelClients(u.Models)
@@ -354,6 +352,22 @@ func userModels(cfg config.Config) ([]ollupi.UserModels, *llm.Model, error) {
 			return nil, nil, fmt.Errorf("users: %s: %w", u.ID, err)
 		}
 		sets = append(sets, ollupi.UserModels{User: u.ID, Models: models, Connections: connections})
+		if m, ok := connectionOf(models, u.Memory.Model); ok {
+			memories[u.ID] = m
+		}
 	}
-	return sets, memory, nil
+	return sets, memories, nil
+}
+
+// connectionOf finds a model by its provider/name among a set's models.
+func connectionOf(models []llm.Model, connection string) (llm.Model, bool) {
+	if connection == "" {
+		return llm.Model{}, false
+	}
+	for _, m := range models {
+		if m.Connection == connection {
+			return m, true
+		}
+	}
+	return llm.Model{}, false
 }
