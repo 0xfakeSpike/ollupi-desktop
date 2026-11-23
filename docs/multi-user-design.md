@@ -92,16 +92,23 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 name: ollupi
 workspace: { enabled: true, sandbox_mode: workspace-write, ... }
 skills_dir: skills
-feishu: { app_id: ..., users: { ou_x: default, ou_y: work } }
+feishu: { app_id: ..., profile: default, users: [ou_x] }
 
+# The first profile's models are the top-level ones (as they have always
+# been), with its own keys and learning model.
+models: [ { provider: openai, type: openai, base_url: ..., api_key: ..., names: [...] } ]
+memory: { model: openai/gpt-5.2 }
+
+# Every other profile lists its own, keys included.
 users:
-  - id: default
-    models: [ { provider: openai, type: openai, base_url: ..., api_key: ..., names: [...] } ]
-    memory: { model: openai/gpt-5.2 }
   - id: work
-    models: [ ... ]
+    models: [ { provider: ..., api_key: ..., names: [...] } ]
     memory: { model: ... }
 ```
+
+一个身份没有自己的模型（配置里没有它）就没有模型可用：能看历史，不能开新回合，
+而不是借用别的身份的。记忆用的模型目前还是第一个身份的（`memory.model`），
+按身份各自记忆模型留到 P3b。
 
 引擎要改的地方：
 
@@ -142,7 +149,8 @@ users:
 |---|---|---|
 | P1 | （已完成）网关强制身份、token 带身份、启动建第一个身份、飞书 `profile` 必填、`users` 加 `name`/`color`（迁移 0017）、`user/list/create/rename/color`、hub 目录按身份 | 接口层能建出第二个身份，各有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
-| P3 | `config.yaml` 的 `users[]`、引擎按用户解析模型、设置页编辑当前身份、新建复制配置 | 两个身份用不同 provider/key，互不影响；记忆用各自的模型 |
+| P3a | （已完成）引擎按身份解析模型、`config.yaml` 的 `users[]`、sidecar 按身份装配客户端 | 配置里写第二个身份的 provider/key，它跑的就是这一套 |
+| P3b | 设置页按当前身份编辑模型、新建身份把当前身份的模型写进配置（含复制 key）、记忆模型按身份 | 图形界面里能改每个身份的模型，不必手写 YAML |
 | P4 | 飞书映射、通知标注、presence 收尾、身份删除/归档、导出导入 | 手机端按人分；删身份能把数据收干净 |
 
 P1+P2 之后“多身份”就能日常用（模型仍共用）；P3 才是“每人一套模型和额度”。P3 动的是引擎的 `host`/`app`/`run`/`gateway`/`extract`，要发新 tag 并在桌面端 bump

@@ -77,17 +77,9 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		dataHome = opts.Home
 	}
 
-	models, connections, err := modelClients(cfg.Models)
+	users, memory, err := userModels(cfg)
 	if err != nil {
 		return nil, err
-	}
-	var memory *llm.Model
-	if cfg.Memory.Model != "" {
-		for _, m := range models {
-			if m.Connection == cfg.Memory.Model {
-				memory = &m
-			}
-		}
 	}
 
 	// The one user's box: their workspaces' folders and attachments are this
@@ -149,17 +141,16 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	}
 
 	h.ollupi, err = ollupi.New(ctx, ollupi.Config{
-		Home:        dataHome,
-		Name:        cfg.Name,
-		Prompt:      cfg.Prompt,
-		Models:      models,
-		Connections: connections,
-		Memory:      memory,
-		Tools:       tools,
-		Allowlist:   cfg.Tools,
-		Boxes:       func(string) (sandbox.Box, error) { return box, nil },
-		SkillsDir:   cfg.SkillsDir,
-		Slots:       cfg.Slots,
+		Home:      dataHome,
+		Name:      cfg.Name,
+		Prompt:    cfg.Prompt,
+		Users:     users,
+		Memory:    memory,
+		Tools:     tools,
+		Allowlist: cfg.Tools,
+		Boxes:     func(string) (sandbox.Box, error) { return box, nil },
+		SkillsDir: cfg.SkillsDir,
+		Slots:     cfg.Slots,
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
 		Hub:     true,
@@ -296,10 +287,6 @@ func userBox(home string) (*sandbox.Sandbox, error) {
 	return sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{home}, EnvPassthrough: env})
 }
 
-// firstProfile is the profile a home is created with: the data of a fresh
-// install belongs to someone from the first write, so nothing is anonymous.
-const firstProfile = "default"
-
 // profileOf names the profile a connection's token acts as: the secret the
 // backend was started with, a dot, the profile. Only a profile the store
 // holds works; nothing is created for an unknown one.
@@ -337,8 +324,36 @@ func ensureProfile(ctx context.Context, st store.Store, a *app.App) error {
 	if len(profiles(ctx, st)) > 0 {
 		return nil
 	}
-	if err := a.EnsureUser(ctx, firstProfile); err != nil {
+	if err := a.EnsureUser(ctx, config.FirstProfile); err != nil {
 		return fmt.Errorf("the first profile: %w", err)
 	}
 	return nil
+}
+
+// userModels gives every profile the models it runs and the clients that call
+// them: the first profile's are the file's top-level ones, and each entry
+// under users is another profile's own. A profile with none has none, rather
+// than borrowing another's. The learning model is the first profile's.
+func userModels(cfg config.Config) ([]ollupi.UserModels, *llm.Model, error) {
+	models, connections, err := modelClients(cfg.Models)
+	if err != nil {
+		return nil, nil, err
+	}
+	sets := []ollupi.UserModels{{User: config.FirstProfile, Models: models, Connections: connections}}
+	var memory *llm.Model
+	if cfg.Memory.Model != "" {
+		for _, m := range models {
+			if m.Connection == cfg.Memory.Model {
+				memory = &m
+			}
+		}
+	}
+	for _, u := range cfg.Users {
+		models, connections, err := modelClients(u.Models)
+		if err != nil {
+			return nil, nil, fmt.Errorf("users: %s: %w", u.ID, err)
+		}
+		sets = append(sets, ollupi.UserModels{User: u.ID, Models: models, Connections: connections})
+	}
+	return sets, memory, nil
 }

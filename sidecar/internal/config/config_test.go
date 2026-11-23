@@ -103,6 +103,11 @@ func TestValidateRejects(t *testing.T) {
 		"feishu no secret":    "name: x\n" + one + "feishu: {app_id: cli_x}\n",
 		"feishu bad domain":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, domain: slack}\n",
 		"feishu no profile":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s}\n",
+		"user named default":  "name: x\n" + one + "users: [{id: default, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
+		"user without models": "name: x\n" + one + "users: [{id: work}]\n",
+		"user twice":          "name: x\n" + one + "users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}, {id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
+		"user bad memory":     "name: x\n" + one + "users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}], memory: {model: p/m}}]\n",
+		"user bad id":         "name: x\n" + one + "users: [{id: work/one, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {
@@ -139,5 +144,28 @@ func TestLoadFileResolvesPaths(t *testing.T) {
 	dirs := cfg.Workspace.WorkspaceDirs
 	if len(dirs) != 2 || dirs[0] != filepath.Join(user, ".ollupi", "scratch") || dirs[1] != filepath.Join(home, "scratch") {
 		t.Errorf("workspace_dirs = %v", dirs)
+	}
+}
+
+func TestUsersCarryTheirOwnModels(t *testing.T) {
+	raw := "name: x\n" +
+		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
+		"users:\n" +
+		"  - id: work\n" +
+		"    models: [{provider: w, type: openai, api_key: sk-work, names: [{name: wm, limits: {context: 2000, output: 200}}]}]\n" +
+		"    memory: {model: w/wm}\n"
+	cfg, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Users) != 1 {
+		t.Fatalf("users = %+v", cfg.Users)
+	}
+	u := cfg.Users[0]
+	if u.ID != "work" || u.Memory.Model != "w/wm" || u.Models[0].APIKey != "sk-work" {
+		t.Fatalf("user = %+v", u)
+	}
+	if id := ID(u.Models[0].Provider, u.Models[0].Names[0].Name); id != "w/wm" {
+		t.Fatalf("model id = %s", id)
 	}
 }

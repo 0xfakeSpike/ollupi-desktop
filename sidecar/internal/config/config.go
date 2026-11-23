@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -43,7 +44,26 @@ type Config struct {
 	// Feishu is the Feishu (Lark) bot that sessions are driven through from
 	// a phone; leave it out to run without one.
 	Feishu *Feishu `json:"feishu,omitempty"`
+	// Users are the profiles after the first: each its own models and the
+	// API keys that serve them. The first profile's are Models above.
+	Users []User `json:"users,omitempty"`
 }
+
+// FirstProfile is the id of the profile a home is made with: its models are
+// the file's top-level ones, and every other profile lists its own under
+// users.
+const FirstProfile = "default"
+
+// User is one profile's models, and the model that learns its memory.
+type User struct {
+	ID     string     `json:"id"`
+	Models []Provider `json:"models"`
+	Memory Memory     `json:"memory,omitzero"`
+}
+
+// profileID is what a profile's id may be: it names folders under the home
+// and is the segment a connection's token carries, so it holds no separator.
+var profileID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // Feishu is a self-built Feishu app whose bot receives events over a long
 // connection, so the Mac needs no public address.
@@ -299,44 +319,38 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.Name) == "" {
 		return errors.New("name is required")
 	}
-	providers := map[string]bool{}
-	ids := map[string]bool{}
-	for _, p := range c.Models {
-		if strings.TrimSpace(p.Provider) == "" || strings.Contains(p.Provider, "/") {
-			return fmt.Errorf("models: every provider needs a name without /, got %q", p.Provider)
-		}
-		if providers[p.Provider] {
-			return fmt.Errorf("models: provider %q is listed twice", p.Provider)
-		}
-		providers[p.Provider] = true
-		if !slices.Contains(APITypes, p.Type) {
-			return fmt.Errorf("models: provider %s: type must be one of %q, got %q", p.Provider, APITypes, p.Type)
-		}
-		if len(p.Names) == 0 {
-			return fmt.Errorf("models: provider %s lists no models", p.Provider)
-		}
-		for _, m := range p.Names {
-			if strings.TrimSpace(m.Name) == "" {
-				return fmt.Errorf("models: provider %s has a model without a name", p.Provider)
-			}
-			id := ID(p.Provider, m.Name)
-			if ids[id] {
-				return fmt.Errorf("models: provider %s lists %s twice", p.Provider, m.Name)
-			}
-			ids[id] = true
-			if m.Calls < 0 {
-				return fmt.Errorf("models: %s: calls must not be negative", id)
-			}
-			if m.Limits == (llm.Limits{}) {
-				return fmt.Errorf("models: %s: limits is required: { context: <window tokens>, output: <answer tokens>, input: <optional input cap> }", id)
-			}
-		}
+	ids, err := validateModels("models", c.Models)
+	if err != nil {
+		return err
 	}
 	if len(ids) == 0 {
 		return errors.New("models: at least one model is required; the first is the default")
 	}
-	if c.Memory.Model != "" && !ids[c.Memory.Model] {
-		return fmt.Errorf("memory.model %q is not a model listed under models (provider/name)", c.Memory.Model)
+	if err := checkMemory("memory", c.Memory, ids); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for _, u := range c.Users {
+		if !profileID.MatchString(u.ID) {
+			return fmt.Errorf("users: %q is not a profile id: letters, digits, '-' or '_', at most 64", u.ID)
+		}
+		if u.ID == FirstProfile {
+			return fmt.Errorf("users: %q is the first profile, whose models are the top-level models", u.ID)
+		}
+		if seen[u.ID] {
+			return fmt.Errorf("users: %q is listed twice", u.ID)
+		}
+		seen[u.ID] = true
+		uids, err := validateModels("users: "+u.ID, u.Models)
+		if err != nil {
+			return err
+		}
+		if len(uids) == 0 {
+			return fmt.Errorf("users: %s lists no models", u.ID)
+		}
+		if err := checkMemory("users: "+u.ID+": memory", u.Memory, uids); err != nil {
+			return err
+		}
 	}
 	if c.Slots < 0 {
 		return errors.New("slots must not be negative")
@@ -351,6 +365,53 @@ func (c Config) Validate() error {
 		if f.Domain != "" && f.Domain != FeishuDomainFeishu && f.Domain != FeishuDomainLark {
 			return fmt.Errorf("feishu: domain must be %s or %s, got %q", FeishuDomainFeishu, FeishuDomainLark, f.Domain)
 		}
+	}
+	return nil
+}
+
+// validateModels checks one set of models -- the top-level ones or a profile's
+// -- and returns the ids it lists.
+func validateModels(what string, providers []Provider) (map[string]bool, error) {
+	seen := map[string]bool{}
+	ids := map[string]bool{}
+	for _, p := range providers {
+		if strings.TrimSpace(p.Provider) == "" || strings.Contains(p.Provider, "/") {
+			return nil, fmt.Errorf("%s: every provider needs a name without /, got %q", what, p.Provider)
+		}
+		if seen[p.Provider] {
+			return nil, fmt.Errorf("%s: provider %q is listed twice", what, p.Provider)
+		}
+		seen[p.Provider] = true
+		if !slices.Contains(APITypes, p.Type) {
+			return nil, fmt.Errorf("%s: provider %s: type must be one of %q, got %q", what, p.Provider, APITypes, p.Type)
+		}
+		if len(p.Names) == 0 {
+			return nil, fmt.Errorf("%s: provider %s lists no models", what, p.Provider)
+		}
+		for _, m := range p.Names {
+			if strings.TrimSpace(m.Name) == "" {
+				return nil, fmt.Errorf("%s: provider %s has a model without a name", what, p.Provider)
+			}
+			id := ID(p.Provider, m.Name)
+			if ids[id] {
+				return nil, fmt.Errorf("%s: provider %s lists %s twice", what, p.Provider, m.Name)
+			}
+			ids[id] = true
+			if m.Calls < 0 {
+				return nil, fmt.Errorf("%s: %s: calls must not be negative", what, id)
+			}
+			if m.Limits == (llm.Limits{}) {
+				return nil, fmt.Errorf("%s: %s: limits is required: { context: <window tokens>, output: <answer tokens>, input: <optional input cap> }", what, id)
+			}
+		}
+	}
+	return ids, nil
+}
+
+// checkMemory says whether a learning model names one of the set's models.
+func checkMemory(what string, m Memory, ids map[string]bool) error {
+	if m.Model != "" && !ids[m.Model] {
+		return fmt.Errorf("%s.model %q is not a model listed here (provider/name)", what, m.Model)
 	}
 	return nil
 }

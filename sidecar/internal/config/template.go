@@ -49,6 +49,20 @@ models:
   #     - name: qwen3:32b
   #       limits: { context: 40960, output: 8192 }
 
+# A second profile's models, and the model that learns its memory. The first
+# profile's models are the ones above; every profile's API keys are its own.
+# users:
+#   - id: work
+#     models:
+#       - provider: openai
+#         type: openai
+#         api_key: sk-...
+#         names:
+#           - name: gpt-5.2
+#             limits: { context: 400000, output: 128000 }
+#     memory:
+#       model: openai/gpt-5.2
+
 # How many threads may run at once (default 32).
 # slots: 32
 
