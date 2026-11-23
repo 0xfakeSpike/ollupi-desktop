@@ -41,6 +41,23 @@
 - 不要给同一个 `v` tag 重传产物：客户端按版本号比较，重传不会被再下载一次，但会让 `latest-mac.yml` 与旧 dmg 对不上。
 - 设置里版本行会写明这一点：「自动检查只看正式版；点『检查更新』时也会列出测试版。」
 
+## 发布了新的引擎功能时
+
+桌面打包会从 `sidecar/go.mod` 钉住的**已发布引擎版本**编译 sidecar（`GOWORK=off`），不是本地工作区。
+所以引擎侧的新方法、新迁移必须先出去，否则装上去的功能是死的（调用会得到 `-32603`，客户端把它当暂时失败重试）。
+
+顺序：
+
+1. 引擎：提交、`git tag vX.Y.Z`、推 `main` 与 tag。
+2. 桌面 `sidecar/`：`GOWORK=off go get github.com/0xfakeSpike/ollupi@vX.Y.Z`，提交 `go.mod` 与 `go.sum`。
+   模块代理不可达时用 `GOPROXY=https://goproxy.cn`（本机直连 GitHub 会报 HTTP2 framing error）。
+3. 确认拉到的模块真的包含新东西：`ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@vX.Y.Z/store/sqlite/migrations/`。
+4. 重新 `pnpm release`，打包后对 binary 再确认一次：
+   `grep -ac 'presence/record' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid`
+   （换成你要验的方法名，0 就是没进去）。
+
+不要把 `replace` 指到本地目录：CI 和别人的构建都会拿不到那个路径。
+
 ## 发布后确认
 
 ```bash
