@@ -2,21 +2,24 @@
 // user's, in ollupi, and apply from the next call or turn. Off, memory is
 // neither recalled nor searched and nothing is learned; learning off keeps
 // using the memories kept and learns nothing from the turns that end
-// meanwhile. The model that learns is the deployment's, config.yaml's
-// memory.model, read at the backend's start: choosing one changes the file
-// and restarts the backend with it. Each applies as it is changed: a choice
-// that only changed a draft until a save button was pressed looked done and
-// was lost on leaving the page.
+// meanwhile. The model that learns is this profile's config.yaml entry, read
+// at the backend's start: choosing one changes the file and restarts the
+// backend with it. Each applies as it is changed: a choice that only changed
+// a draft until a save button was pressed looked done and was lost on leaving
+// the page.
 
 import { Callout, Field, Select, Switch } from '@ollupi/ui'
 import { useState, type ReactNode } from 'react'
 import { applyConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { profileConfig, scoped } from '../../domains/modelConfig'
+import { useProfile } from '../../domains/profile'
 import { setLearn, setMemory, useSettings } from '../../domains/settings'
 import { useT } from '../../i18n'
 
 export function MemorySettings({ config }: { config: { checked: CheckedConfig | undefined; error: string | undefined; set(c: CheckedConfig): void } }) {
   const m = useT()
   const settings = useSettings((s) => s.settings)
+  const current = useProfile((s) => s.current)
   const [saving, setSaving] = useState(false)
 
   if (config.error) {
@@ -30,11 +33,12 @@ export function MemorySettings({ config }: { config: { checked: CheckedConfig | 
   if (!checked || !settings) return null
   const t = m.memory.settings
 
-  // The backend only accepts a memory model that is one of the models.
-  const model = checked.models.find((x) => x.id === checked.config.memory?.model)
+  // The backend only accepts a memory model that is one of this profile's.
+  const scope = profileConfig(checked.config, current)
+  const model = scope.models.find((x) => x.id === scope.config.memory?.model)
   const setModel = async (id: string) => {
     setSaving(true)
-    const applied = await applyConfig([{ kind: 'set', path: ['memory', 'model'], value: id }])
+    const applied = await applyConfig(scoped([{ kind: 'set', path: ['memory', 'model'], value: id }], scope.base))
     if (applied) config.set(applied)
     setSaving(false)
   }
@@ -52,7 +56,7 @@ export function MemorySettings({ config }: { config: { checked: CheckedConfig | 
                   {t.chooseModel}
                 </option>
               )}
-              {checked.models.map((x) => (
+              {scope.models.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.id}
                 </option>

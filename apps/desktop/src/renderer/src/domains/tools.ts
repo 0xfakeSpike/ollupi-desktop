@@ -12,5 +12,6 @@ export const toolsDomain: Domain = {
     const { data } = await client.call('tool/list', {})
     useTools.setState({ list: data })
   },
+  disconnect: () => useTools.setState({ list: [] }),
 }
 

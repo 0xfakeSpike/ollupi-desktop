@@ -9,24 +9,28 @@ import {
   editProvider,
   limitsOf,
   makeDefault,
+  profileConfig,
   removeModel,
   removeProvider,
+  type EditableConfig,
   type ModelFields,
 } from './modelConfig'
 
 const limits = { context: 128_000, output: 16_384 }
 const listed = (name: string): ModelFields => ({ name, calls: undefined, thinking: undefined, images: false, limits })
 
-const config = (memory: BackendConfig['memory']): BackendConfig =>
-  ({
-    name: 'ollupi',
-    models: [
-      { provider: 'deepseek', type: 'openai', api_key: 'sk-test', names: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
-      { provider: 'local', type: 'openai', names: [{ name: 'qwen3:32b', limits }] },
-    ],
-    workspace: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
-    memory,
-  }) as BackendConfig
+const models = [
+  { provider: 'deepseek', type: 'openai', api_key: 'sk-test', names: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
+  { provider: 'local', type: 'openai', names: [{ name: 'qwen3:32b', limits }] },
+]
+
+const config = (memory: NonNullable<BackendConfig['profiles']>[number]['memory']): EditableConfig => ({
+  name: 'ollupi',
+  profiles: [{ id: 'default', models, memory }],
+  models,
+  memory,
+  workspace: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
+})
 
 const learning = config({ model: 'deepseek/deepseek-flash' })
 const notLearning = config(undefined)
@@ -125,8 +129,24 @@ describe('limitsOf', () => {
 
 import { scoped } from './modelConfig'
 
-it('puts a profile’s changes under its users entry', () => {
+it('puts a profile’s changes under its profiles entry', () => {
   const changes = [{ kind: 'set' as const, path: ['models', 0, 'api_key'], value: 'x' }]
-  expect(scoped(changes, ['users', 1])).toEqual([{ kind: 'set', path: ['users', 1, 'models', 0, 'api_key'], value: 'x' }])
+  expect(scoped(changes, ['profiles', 1])).toEqual([{ kind: 'set', path: ['profiles', 1, 'models', 0, 'api_key'], value: 'x' }])
   expect(scoped(changes, [])).toBe(changes)
+})
+
+it('shows each profile its own models and memory setting', () => {
+  const work = {
+    ...config({ model: 'deepseek/deepseek-flash' }),
+    profiles: [
+      { id: 'default', models, memory: { model: 'deepseek/deepseek-flash' } },
+      { id: 'work', models: [models[1]!], memory: { model: 'local/qwen3:32b' } },
+    ],
+  }
+  expect(profileConfig(work, 'default')).toMatchObject({ base: ['profiles', 0], config: { memory: { model: 'deepseek/deepseek-flash' } } })
+  expect(profileConfig(work, 'work')).toEqual({
+    base: ['profiles', 1],
+    config: { ...work, models: [models[1]!], memory: { model: 'local/qwen3:32b' } },
+    models: [{ id: 'local/qwen3:32b', provider: 'local', name: 'qwen3:32b' }],
+  })
 })

@@ -51,13 +51,16 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 渲染层拿到的是拼上身份的版本。没有身份、身份不存在、secret 不对，一律
 `auth.ErrUnknownToken`。
 
-### 1. 身份就是 `users` 表的一行
+### 1. 身份是数据边界，Profile 是 desktop 的展示
 
-- 迁移 0017：`users` 加 `name`（显示名）和 `color`（侧栏小圆点/首字母底色），
-  `created_at` 已有。
-- 现有的 `default` 变成第一个身份；它还没有名字时界面显示本地化的“我”，改名后用它。
-- 新增网关接口：`user/list`、`user/create`、`user/rename`。`user/create` 由调用者创建，
-  默认复制调用者的模型配置（含 key），建完即可用。
+- `users` 表只保留 `id` 和 `created_at`。名称、颜色、当前选择和顺序都是 desktop 的
+  `profiles.json` / `profile.json` 内容，不进入 Ollupi 协议。
+- `config.yaml` 的 `profiles[].id` 声明这个 home 有哪些 Profile；后端启动时
+  为缺少的 id 调 `EnsureUser`。因此配置、数据库和凭据在启动时对齐。
+- desktop 的 Profile 创建先在本地生成 id 和显示元数据，再把同一个 id 连同调用者的
+  模型、记忆模型写入 config；配置校验或重启失败时撤回本地元数据。
+- 网关不提供跨用户的 `user/list/create/rename/color`。当前连接已经由 token 命名，
+  普通客户端没有理由枚举或管理同一 shard 的其他用户。
 - v1 不做删除（删除要级联 threads → entries/items/turns、memories、attachments 目录、
   hub 文件夹，还要处理正在跑的任务）；先支持归档/改名。删除留到 P4。
 
@@ -67,9 +70,9 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 - `BackendSupervisor` 仍然每次启动生成一个 secret `S`（`randomBytes(32)`），传给后端
   `OLLUPI_GATEWAY_TOKEN`。
-- 渲染层拿到的 token 是 `S + "." + profileID`，主进程通过 IPC `user/token` 现算。
+- 渲染层拿到的 token 是 `S + "." + profileID`，主进程从当前选择现算。
 - sidecar 给 `gateway.Options.Authenticate` 传一个函数：常数时间比较 `S`，然后查
-  `users` 表确认 profile 存在，返回它。网关以下（app、store、run）一行不用改。
+  `users` 表确认 profile 存在，返回它；config 声明的用户已由后端启动过程建好。
 - 主进程把上次选的身份记在 `userData/profile.json`，启动按它签 token；切换身份时
   `BackendSupervisor.selectProfile` 用同一个 secret 换一个 profile 重新签发，渲染层收到
   新的 ready 状态就重连——不需要重启后端。
@@ -78,15 +81,15 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 ### 3. 目录
 
-- hub 工作区：`default` 继续用 `<home>/super-agent`（不动现有数据）；其他身份用
-  `<home>/users/<id>/super-agent`。`superAgentFolder(profile)` 决定返回哪个。
+- hub 工作区：每个身份用 `<home>/users/<id>/super-agent`。`superAgentFolder(profile)`
+  决定返回哪个。
 - `attachments/` 共享：键是 `threadID/附件ID.ext`，thread id 全局唯一，不会撞。
 - `skills/` 共享（配置级）。按身份分技能是另一个功能，v1 不做。
 - `scratch/` 共享：不在工作区里跑命令的默认目录，谁都能看到内容——文档里要写明。
 
 ### 4. 模型与 key 按身份（最贵的一块）
 
-`config.yaml` 增加按身份的分节；顶层的 `models`/`memory` 继续作为 `default` 的兼容写法：
+`config.yaml` 只有一套按身份组织的配置：
 
 ```yaml
 name: ollupi
@@ -94,21 +97,17 @@ workspace: { enabled: true, sandbox_mode: workspace-write, ... }
 skills_dir: skills
 feishu: { app_id: ..., profile: default, users: [ou_x] }
 
-# The first profile's models are the top-level ones (as they have always
-# been), with its own keys and learning model.
-models: [ { provider: openai, type: openai, base_url: ..., api_key: ..., names: [...] } ]
-memory: { model: openai/gpt-5.2 }
-
-# Every other profile lists its own, keys included.
-users:
+profiles:
+  - id: default
+    models: [ { provider: openai, type: openai, base_url: ..., api_key: ..., names: [...] } ]
+    memory: { model: openai/gpt-5.2 }
   - id: work
     models: [ { provider: ..., api_key: ..., names: [...] } ]
     memory: { model: ... }
 ```
 
 一个身份没有自己的模型（配置里没有它）就没有模型可用：能看历史，不能开新回合，
-而不是借用别的身份的。记忆用的模型目前还是第一个身份的（`memory.model`），
-按身份各自记忆模型留到 P3b。
+而不是借用别的身份的。记忆模型也来自该身份自己的 `memory.model`。
 
 引擎要改的地方：
 
@@ -118,16 +117,16 @@ users:
   列表里找，线程里记的 `connection` 不属于它就报“在设置里恢复或换一个模型”（现有文案）。
 - `gateway/models` 用连接用户的列表（`gateway/owned.go` 现在调 `app.Models()`）。
 - 记忆提取（`extract.New`）现在是一个全局模型，要改成按用户解析。
-- `--check-config` 的输出带上 `users[]`；设置 → 模型的编辑路径变成
-  `users[i].models...`，`config/apply` 的 path 由渲染层按当前身份拼。
-- 新身份创建时复制调用者的 `models`（key 一起），否则新身份没有模型，后端起不来。
+- `--check-config` 的输出带上 `profiles[]`；设置 → 模型的编辑路径变成
+  `profiles[i].models...`，`config/apply` 的 path 由渲染层按当前身份拼。
+- 新身份创建时复制调用者的 `models`（key 一起）和 `memory`。
 
 ### 5. 渲染层
 
 - 侧栏底部一个身份菜单（现在这样实现）：列出所有身份、切换、新建（起名 + 选颜色）、编辑当前身份的名字和颜色。
-- **切换 = 重连**：断开 WebSocket → 用新 token 连接 → 把每个 domain 的 store 重置
+- **切换 = 重连**：先清空每个 profile-scoped domain 的 store，再用新 token 连接
   （threads、workspaces、todos、memory、usage、models、read state）。
-  需要在 `domains/` 里加一个统一的 `resetForProfile()`，避免漏掉某个缓存。
+  `resetForProfile()` 同时清掉当前 conversation、panel、model、environment 和 approval。
 - 草稿：`domains/drafts.ts` 的键从 `threadId` 改成 `${profileId}:${threadId}`，
   `NEW_CONVERSATION` 同理；否则 A 的草稿会出现在 B 的输入框里。
 - presence：切换时先结束当前 stretch（`presence/record` 的 id 换掉），新连接自动带新 user。
@@ -137,20 +136,19 @@ users:
 
 ### 6. 飞书
 
-- `feishu.users` 从 `[open_id]` 改成 `{open_id: profileID}`；旧写法仍按 `default` 处理。
+- `feishu.users` 是允许使用的 `open_id`，`feishu.profiles` 把它们映射到各自的 profile。
 - `owner` 从 `gateway.DefaultUser` 改成按发送者 open_id 查到的身份；不在映射里的照旧
   回复 open_id 并忽略。
-- `feishu.workspace` 是全局的：新身份从飞书发起的会话落在哪个工作区，要么全局一个，
-  要么进 `users[]` 分节。v1 先保持全局。
+- `feishu.workspace` 是全局的：新身份从飞书发起的会话都落在同一个工作区。
 
 ## 分阶段
 
 | 阶段 | 内容 | 可验收的结果 |
 |---|---|---|
-| P1 | （已完成）网关强制身份、token 带身份、启动建第一个身份、飞书 `profile` 必填、`users` 加 `name`/`color`（迁移 0017）、`user/list/create/rename/color`、hub 目录按身份 | 接口层能建出第二个身份，各有独立的会话、记忆、待办、工作区；hub 目录不撞 |
+| P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、飞书 `profile` 必填、Profile 元数据留在 desktop、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
-| P3a | （已完成）引擎按身份解析模型、`config.yaml` 的 `users[]`、sidecar 按身份装配客户端 | 配置里写第二个身份的 provider/key，它跑的就是这一套 |
-| P3b | （已完成）新建身份把当前身份的模型写进配置（含复制 key）；设置页按当前身份编辑模型（`users[i]` 路径）；记忆模型按身份 | 图形界面里能改每个身份的模型和 key；每个身份用自己的模型学记忆 |
+| P3a | （已完成）引擎按身份解析模型、`config.yaml` 的 `profiles[]`、sidecar 按身份装配客户端 | 配置里写第二个身份的 provider/key，它跑的就是这一套 |
+| P3b | （已完成）新建身份把当前身份的模型和记忆模型写进配置（含复制 key）；设置页按当前身份编辑模型（`profiles[i]` 路径）；记忆模型按身份 | 图形界面里能改每个身份的模型和 key；每个身份用自己的模型学记忆 |
 | P4 | （已完成）`feishu.profiles` 把 open_id 映射到身份，回调按线程归属 | 手机端按人分 |
 
 P1+P2 之后“多身份”就能日常用（模型仍共用）；P3 才是“每人一套模型和额度”。P3 动的是引擎的 `host`/`app`/`run`/`gateway`/`extract`，要发新 tag 并在桌面端 bump
@@ -160,7 +158,6 @@ P1+P2 之后“多身份”就能日常用（模型仍共用）；P3 才是“�
 
 - **引擎接口变化大**：`Models()` 变成 `Models(user)` 会碰到 `app`、`run`、`gateway` 的
   所有调用点和测试；分阶段做可以把 P1/P2 先发出去。
-- **schema 升到 0017**：旧版 app 打不开新库（`user_version` 检查），升级前照例备份。
 - **资源**：每个身份一套 MCP 进程、一份 MCP 工具表；后台定时任务对所有身份照跑，
   配额 `slots` 是全局的。
 - **共享目录**：`scratch/`、`attachments/`、`skills/` 是共享的；身份之间能互相看到

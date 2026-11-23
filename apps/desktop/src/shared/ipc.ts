@@ -8,11 +8,9 @@ import type { AgentRole, PresenceInput } from '@ollupi/protocol'
 
 /** config.yaml as the backend decodes it. */
 export type BackendConfig = NonNullable<CheckOutput['config']>
-/** One model as the app selects it: id is provider/name. */
-export type ConfigModel = NonNullable<CheckOutput['models']>[number]
 /** ollupid --check-config's result: the config with its models in order, or
  * why the backend would not start with it. */
-export type ConfigCheck = { ok: true; config: BackendConfig; models: ConfigModel[] } | { ok: false; error: string }
+export type ConfigCheck = { ok: true; config: BackendConfig } | { ok: false; error: string }
 
 /** The backend process as the supervisor sees it. */
 export type BackendState =
@@ -51,6 +49,23 @@ export type ConfigChange =
  * backend's client for it. */
 export const apiTypes = ['openai', 'anthropic', 'gemini'] as const
 export type ApiType = (typeof apiTypes)[number]
+
+/** A profile as the desktop presents it. The id scopes Ollupi's data and is
+ * declared in config.yaml; the name and colour belong only to this app. */
+export interface Profile {
+  id: string
+  name: string
+  color: string
+}
+
+export const profileColorNames = ['stone', 'amber', 'teal', 'violet', 'rose', 'sky'] as const
+export type ProfileColor = (typeof profileColorNames)[number]
+
+/** The profiles the app knows and the one this window acts as. */
+export interface ProfileSnapshot {
+  data: Profile[]
+  current: string
+}
 
 /** One model an API lists, with those of its limits the API says. */
 export interface ListedModel {
@@ -337,6 +352,14 @@ export interface DesktopApi {
   /** The profile the window acts as. A connection is always one: there is
    * no anonymous one to fall back to. */
   profile: {
+    /** Every profile declared by the backend config, with the app's local
+     * display metadata. */
+    list(): Promise<ProfileSnapshot>
+    /** Creates a profile from the current one's models and memory setting.
+     * The backend restarts with the new users entry. */
+    create(name: string, color: ProfileColor): Promise<Profile>
+    /** Changes only this app's display metadata; nothing restarts. */
+    update(id: string, name: string, color: ProfileColor): Promise<Profile>
     /** Makes a profile the window's: its connection reconnects as it, and a
      * restart opens as it. */
     select(id: string): Promise<void>
@@ -521,6 +544,9 @@ export const IpcChannel = {
   SkillsCopy: 'skills:copy',
   SkillsRemove: 'skills:remove',
   SkillsDefaultFolder: 'skills:defaultFolder',
+  ProfileList: 'profile:list',
+  ProfileCreate: 'profile:create',
+  ProfileUpdate: 'profile:update',
   ProfileSelect: 'profile:select',
   SuperAgentFolder: 'superAgent:folder',
   AttachmentsWrite: 'attachments:write',

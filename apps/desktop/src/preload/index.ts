@@ -29,7 +29,12 @@ const api: DesktopApi = {
     remove: (agent, name) => ipcRenderer.invoke(IpcChannel.SkillsRemove, agent, name),
     defaultFolder: () => ipcRenderer.invoke(IpcChannel.SkillsDefaultFolder),
   },
-  profile: { select: (id) => ipcRenderer.invoke(IpcChannel.ProfileSelect, id) },
+  profile: {
+    list: () => ipcRenderer.invoke(IpcChannel.ProfileList),
+    create: (name, color) => ipcRenderer.invoke(IpcChannel.ProfileCreate, name, color),
+    update: (id, name, color) => ipcRenderer.invoke(IpcChannel.ProfileUpdate, id, name, color),
+    select: (id) => ipcRenderer.invoke(IpcChannel.ProfileSelect, id),
+  },
   superAgentFolder: (profile) => ipcRenderer.invoke(IpcChannel.SuperAgentFolder, profile),
   attachments: {
     pathOf: (file) => webUtils.getPathForFile(file) || undefined,

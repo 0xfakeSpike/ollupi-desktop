@@ -1,7 +1,7 @@
 // Package config is the backend's configuration file, <home>/config.yaml:
-// what ollupi takes once at start as the deployment's (models and the APIs
-// that serve them, the workspace tools, the model memory is learned with,
-// slots). What the user sets while it runs (permissions, MCP servers,
+// what ollupi takes once at start as the deployment's profiles (each with its
+// models, API clients and learning model, the workspace tools, and slots).
+// What the user sets while it runs (permissions, MCP servers,
 // whether memory is on) is theirs in ollupi's store, set through the
 // gateway. It only describes; host turns it into running components.
 package config
@@ -28,34 +28,23 @@ import (
 const FileName = "config.yaml"
 
 type Config struct {
-	Name   string `json:"name"`
-	Prompt string `json:"prompt,omitempty"`
-	// Models are grouped by the API that serves them. Order matters: the
-	// first model of the first provider is the default.
-	Models []Provider `json:"models"`
+	Name     string    `json:"name"`
+	Prompt   string    `json:"prompt,omitempty"`
+	Profiles []Profile `json:"profiles"`
 	// Tools is ollupi's tool allow-list; empty allows every tool.
 	Tools []string `json:"tools,omitempty"`
 	// Slots caps how many threads run at once; 0 uses ollupi's default.
 	Slots int `json:"slots,omitempty"`
 	// Workspace turns on run_command, edit_file and write_file.
 	Workspace Workspace `json:"workspace"`
-	Memory    Memory    `json:"memory,omitzero"`
 	SkillsDir string    `json:"skills_dir,omitempty"`
 	// Feishu is the Feishu (Lark) bot that sessions are driven through from
 	// a phone; leave it out to run without one.
 	Feishu *Feishu `json:"feishu,omitempty"`
-	// Users are the profiles after the first: each its own models and the
-	// API keys that serve them. The first profile's are Models above.
-	Users []User `json:"users,omitempty"`
 }
 
-// FirstProfile is the id of the profile a home is made with: its models are
-// the file's top-level ones, and every other profile lists its own under
-// users.
-const FirstProfile = "default"
-
-// User is one profile's models, and the model that learns its memory.
-type User struct {
+// Profile is one profile's models and the model that learns its memory.
+type Profile struct {
 	ID     string     `json:"id"`
 	Models []Provider `json:"models"`
 	Memory Memory     `json:"memory,omitzero"`
@@ -139,24 +128,6 @@ var APITypes = []APIType{APIOpenAI, APIAnthropic, APIGemini}
 // provider's model names are unique and provider names are unique, so the
 // pair is.
 func ID(provider, model string) string { return provider + "/" + model }
-
-// ModelRef is one model as the app selects it.
-type ModelRef struct {
-	ID       string `json:"id"`
-	Provider string `json:"provider"`
-	Name     string `json:"name"`
-}
-
-// ModelRefs lists every model in order, the first being the default.
-func (c Config) ModelRefs() []ModelRef {
-	var out []ModelRef
-	for _, p := range c.Models {
-		for _, m := range p.Names {
-			out = append(out, ModelRef{ID: ID(p.Provider, m.Name), Provider: p.Provider, Name: m.Name})
-		}
-	}
-	return out
-}
 
 type Workspace struct {
 	Enabled bool `json:"enabled"`
@@ -322,36 +293,26 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.Name) == "" {
 		return errors.New("name is required")
 	}
-	ids, err := validateModels("models", c.Models)
-	if err != nil {
-		return err
-	}
-	if len(ids) == 0 {
-		return errors.New("models: at least one model is required; the first is the default")
-	}
-	if err := checkMemory("memory", c.Memory, ids); err != nil {
-		return err
+	if len(c.Profiles) == 0 {
+		return errors.New("profiles: at least one profile is required")
 	}
 	seen := map[string]bool{}
-	for _, u := range c.Users {
-		if !profileID.MatchString(u.ID) {
-			return fmt.Errorf("users: %q is not a profile id: letters, digits, '-' or '_', at most 64", u.ID)
+	for _, p := range c.Profiles {
+		if !profileID.MatchString(p.ID) {
+			return fmt.Errorf("profiles: %q is not a profile id: letters, digits, '-' or '_', at most 64", p.ID)
 		}
-		if u.ID == FirstProfile {
-			return fmt.Errorf("users: %q is the first profile, whose models are the top-level models", u.ID)
+		if seen[p.ID] {
+			return fmt.Errorf("profiles: %q is listed twice", p.ID)
 		}
-		if seen[u.ID] {
-			return fmt.Errorf("users: %q is listed twice", u.ID)
-		}
-		seen[u.ID] = true
-		uids, err := validateModels("users: "+u.ID, u.Models)
+		seen[p.ID] = true
+		ids, err := validateModels("profiles: "+p.ID, p.Models)
 		if err != nil {
 			return err
 		}
-		if len(uids) == 0 {
-			return fmt.Errorf("users: %s lists no models", u.ID)
+		if len(ids) == 0 {
+			return fmt.Errorf("profiles: %s lists no models", p.ID)
 		}
-		if err := checkMemory("users: "+u.ID+": memory", u.Memory, uids); err != nil {
+		if err := checkMemory("profiles: "+p.ID+": memory", p.Memory, ids); err != nil {
 			return err
 		}
 	}
@@ -372,16 +333,18 @@ func (c Config) Validate() error {
 			if !slices.Contains(f.Users, open) {
 				return fmt.Errorf("feishu: profiles names %q, which is not one of users", open)
 			}
-			if profile != FirstProfile && !seen[profile] {
+			if !seen[profile] {
 				return fmt.Errorf("feishu: profiles: %q is not a profile of this file", profile)
 			}
+		}
+		if !seen[f.Profile] {
+			return fmt.Errorf("feishu.profile %q is not a profile of this file", f.Profile)
 		}
 	}
 	return nil
 }
 
-// validateModels checks one set of models -- the top-level ones or a profile's
-// -- and returns the ids it lists.
+// validateModels checks one profile's models and returns the ids it lists.
 func validateModels(what string, providers []Provider) (map[string]bool, error) {
 	seen := map[string]bool{}
 	ids := map[string]bool{}

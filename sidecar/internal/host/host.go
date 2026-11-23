@@ -77,7 +77,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		dataHome = opts.Home
 	}
 
-	users, memories, err := userModels(cfg)
+	users, err := userModels(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Name:      cfg.Name,
 		Prompt:    cfg.Prompt,
 		Users:     users,
-		MemoryOf:  memories,
 		Tools:     tools,
 		Allowlist: cfg.Tools,
 		Boxes:     func(string) (sandbox.Box, error) { return box, nil },
@@ -161,9 +160,9 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	}
 	h.closers = append(h.closers, h.ollupi.Close)
 	st = h.ollupi.Store
-	// A home starts with the one profile its data is already under; later
-	// ones are made by user/create. Nothing here decides it per connection.
-	if err := ensureProfile(ctx, st, h.ollupi.App); err != nil {
+	// config.yaml declares the profiles this home serves. Create the missing
+	// user rows here, before a token or the Feishu client names one.
+	if err := ensureProfiles(ctx, st, h.ollupi.App, cfg); err != nil {
 		return nil, err
 	}
 	if cfg.Feishu != nil {
@@ -326,45 +325,37 @@ func profiles(ctx context.Context, st store.Store) []string {
 	return users
 }
 
-// ensureProfile makes the first profile of a home that has none: the data a
-// fresh install writes belongs to someone, and there is no anonymous one.
-func ensureProfile(ctx context.Context, st store.Store, a *app.App) error {
-	if len(profiles(ctx, st)) > 0 {
-		return nil
-	}
-	if err := a.EnsureUser(ctx, config.FirstProfile); err != nil {
-		return fmt.Errorf("the first profile: %w", err)
+// ensureProfiles makes every profile the config declares. The first profile
+// always exists, even in a fresh home with an otherwise empty users list.
+func ensureProfiles(ctx context.Context, st store.Store, a *app.App, cfg config.Config) error {
+	known := profiles(ctx, st)
+	for _, p := range cfg.Profiles {
+		if slices.Contains(known, p.ID) {
+			continue
+		}
+		if err := a.EnsureUser(ctx, p.ID); err != nil {
+			return fmt.Errorf("profile %q: %w", p.ID, err)
+		}
 	}
 	return nil
 }
 
-// userModels gives every profile the models it runs and the clients that call
-// them: the first profile's are the file's top-level ones, and each entry
-// under users is another profile's own. A profile with none has none, rather
-// than borrowing another's. The learning model is the first profile's.
-func userModels(cfg config.Config) ([]ollupi.UserModels, map[string]llm.Model, error) {
-	models, connections, err := modelClients(cfg.Models)
-	if err != nil {
-		return nil, nil, err
-	}
-	sets := []ollupi.UserModels{{User: config.FirstProfile, Models: models, Connections: connections}}
-	// Each profile learns with the model its own section names; one that
-	// names none learns nothing.
-	memories := map[string]llm.Model{}
-	if m, ok := connectionOf(models, cfg.Memory.Model); ok {
-		memories[config.FirstProfile] = m
-	}
-	for _, u := range cfg.Users {
-		models, connections, err := modelClients(u.Models)
+// userModels gives every configured profile the models it runs and the clients
+// that call them. A profile's learning model comes from the same section.
+func userModels(cfg config.Config) ([]ollupi.UserModels, error) {
+	sets := make([]ollupi.UserModels, 0, len(cfg.Profiles))
+	for _, p := range cfg.Profiles {
+		models, connections, err := modelClients(p.Models)
 		if err != nil {
-			return nil, nil, fmt.Errorf("users: %s: %w", u.ID, err)
+			return nil, fmt.Errorf("profile %s: %w", p.ID, err)
 		}
-		sets = append(sets, ollupi.UserModels{User: u.ID, Models: models, Connections: connections})
-		if m, ok := connectionOf(models, u.Memory.Model); ok {
-			memories[u.ID] = m
+		var memory *llm.Model
+		if m, ok := connectionOf(models, p.Memory.Model); ok {
+			memory = &m
 		}
+		sets = append(sets, ollupi.UserModels{User: p.ID, Models: models, Connections: connections, Memory: memory})
 	}
-	return sets, memories, nil
+	return sets, nil
 }
 
 // connectionOf finds a model by its provider/name among a set's models.

@@ -6,59 +6,7 @@ export interface ConfigCheck {
   config?: null | {
     name: string;
     prompt?: string;
-    models:
-      | null
-      | {
-          provider: string;
-          type: string;
-          base_url?: string;
-          api_key?: string;
-          names:
-            | null
-            | {
-                name: string;
-                calls?: number;
-                thinking?: null | boolean;
-                images?: boolean;
-                limits: {
-                  context: number;
-                  output: number;
-                  input?: number;
-                };
-              }[];
-        }[];
-    tools?: null | string[];
-    slots?: number;
-    workspace: {
-      enabled: boolean;
-      workspace_dirs: null | string[];
-      command_timeout_sec: number;
-      max_command_timeout_sec?: number;
-      command_blacklist: null | string[];
-      sandbox_mode?: string;
-      network?: boolean;
-      allowed_domains?: null | string[];
-      denied_domains?: null | string[];
-      deny_read?: null | string[];
-      read_only?: null | string[];
-      extra_writable?: null | string[];
-      unix_sockets?: null | string[];
-      env_passthrough?: null | string[];
-      max_output_bytes?: number;
-    };
-    memory?: {
-      model?: string;
-    };
-    skills_dir?: string;
-    feishu?: null | {
-      app_id: string;
-      app_secret: string;
-      profile: string;
-      domain?: string;
-      users?: null | string[];
-      workspace?: string;
-    };
-    users?:
+    profiles:
       | null
       | {
           id: string;
@@ -87,13 +35,37 @@ export interface ConfigCheck {
             model?: string;
           };
         }[];
+    tools?: null | string[];
+    slots?: number;
+    workspace: {
+      enabled: boolean;
+      workspace_dirs: null | string[];
+      command_timeout_sec: number;
+      max_command_timeout_sec?: number;
+      command_blacklist: null | string[];
+      sandbox_mode?: string;
+      network?: boolean;
+      allowed_domains?: null | string[];
+      denied_domains?: null | string[];
+      deny_read?: null | string[];
+      read_only?: null | string[];
+      extra_writable?: null | string[];
+      unix_sockets?: null | string[];
+      env_passthrough?: null | string[];
+      max_output_bytes?: number;
+    };
+    skills_dir?: string;
+    feishu?: null | {
+      app_id: string;
+      app_secret: string;
+      profile: string;
+      domain?: string;
+      users?: null | string[];
+      profiles?: {
+        [k: string]: string | undefined;
+      };
+      workspace?: string;
+    };
   };
-  models?:
-    | null
-    | {
-        id: string;
-        provider: string;
-        name: string;
-      }[];
   error?: string;
 }

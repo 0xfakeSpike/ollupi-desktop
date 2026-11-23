@@ -1,7 +1,7 @@
 // The only module that touches window.desktop, so the rest of the renderer
 // depends on the typed DesktopApi rather than a global.
 
-import { FIRST_PROFILE, type BackendState, type DesktopApi } from '../../../shared/ipc'
+import type { BackendState, DesktopApi } from '../../../shared/ipc'
 
 declare global {
   interface Window {
@@ -23,7 +23,7 @@ function browserShim(): DesktopApi | undefined {
     backend: { state: async () => state, restart: async () => {}, onState: () => () => {} },
     // The token is the one the browser was opened with; nothing can mint
     // another here.
-    profile: { select: unavailable },
+    profile: { list: unavailable, create: unavailable, update: unavailable, select: unavailable },
     // A sidecar started by hand: the browser cannot reach its config file.
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
@@ -32,7 +32,7 @@ function browserShim(): DesktopApi | undefined {
     superAgentFolder: async (profile: string) => {
       const home = q.get('home')
       if (!home) throw new Error('no home given (?home=)')
-      return profile === FIRST_PROFILE ? `${home}/super-agent` : `${home}/users/${profile}/super-agent`
+      return `${home}/users/${profile}/super-agent`
     },
     // A browser gives a file no path.
     attachments: { pathOf: () => undefined, writeTemp: unavailable, removeTemp: unavailable },
@@ -98,7 +98,7 @@ export const desktop: DesktopApi = window.desktop ??
     backend: { state: unavailable, restart: unavailable, onState: unavailable },
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
-    profile: { select: unavailable },
+    profile: { list: unavailable, create: unavailable, update: unavailable, select: unavailable },
     superAgentFolder: unavailable,
     attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
     files: { list: unavailable, read: unavailable, kind: unavailable },

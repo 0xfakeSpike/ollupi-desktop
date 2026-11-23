@@ -37,14 +37,16 @@ func TestTheUsersBoxKeepsTheBackendsEnvironment(t *testing.T) {
 }
 
 const minimal = `name: ollupi
-models:
-  - provider: mock
-    type: openai
-    base_url: http://127.0.0.1:1/v1
-    api_key: test
-    names:
-      - name: mock-model
-        limits: { context: 128000, output: 8000 }
+profiles:
+  - id: default
+    models:
+      - provider: mock
+        type: openai
+        base_url: http://127.0.0.1:1/v1
+        api_key: test
+        names:
+          - name: mock-model
+            limits: { context: 128000, output: 8000 }
 `
 
 func load(t *testing.T, home, yaml string) config.Config {
@@ -142,5 +144,73 @@ func TestATokenNamesAProfileTheHomeHolds(t *testing.T) {
 		if got != c.want || (c.want == "" && err == nil) {
 			t.Errorf("profileOf(%q) = %q, %v; want %q", c.token, got, err, c.want)
 		}
+	}
+}
+
+func TestConfiguredProfilesExistWhenTheBackendStarts(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	home := t.TempDir()
+	cfg := load(t, home, `
+name: ollupi
+profiles:
+  - id: default
+    models:
+      - provider: mock
+        type: openai
+        base_url: http://127.0.0.1:1/v1
+        names:
+          - name: mock-model
+            limits: { context: 128000, output: 8000 }
+  - id: work
+    models:
+      - provider: work
+        type: openai
+        base_url: http://127.0.0.1:1/v1
+        names:
+          - name: work-model
+            limits: { context: 128000, output: 8000 }
+`)
+	h, err := New(ctx, Options{Home: home, Token: "secret", Config: cfg})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.close()
+	for _, id := range []string{"default", "work"} {
+		got, err := profileOf(ctx, "secret."+id, "secret", h.ollupi.Store)
+		if err != nil || got != id {
+			t.Errorf("profileOf(%q) = %q, %v", id, got, err)
+		}
+	}
+}
+
+func TestEachProfileKeepsItsOwnLearningModel(t *testing.T) {
+	home := t.TempDir()
+	cfg := load(t, home, `name: ollupi
+profiles:
+  - id: a
+    models:
+      - provider: pa
+        type: openai
+        names:
+          - name: ma
+            limits: { context: 1000, output: 100 }
+    memory: { model: pa/ma }
+  - id: b
+    models:
+      - provider: pb
+        type: openai
+        names:
+          - name: mb
+            limits: { context: 1000, output: 100 }
+    memory: { model: pb/mb }
+`)
+	sets, err := userModels(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sets) != 2 || sets[0].Memory == nil || sets[0].Memory.Connection != "pa/ma" ||
+		sets[1].Memory == nil || sets[1].Memory.Connection != "pb/mb" {
+		t.Fatalf("profile models = %+v", sets)
 	}
 }

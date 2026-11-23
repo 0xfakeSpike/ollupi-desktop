@@ -80,7 +80,6 @@ export const en = {
   models: {
     renamed: 'Threads whose last turn used the old id need another model chosen for their next turn.',
     stale: 'config.yaml lists different models than the backend is using.',
-    profileModels: "This profile's models are its own, listed under users in config.yaml. Editing them here comes next; until then, change the file.",
     confirmRemoveProvider: (provider: string, renamed: string) => `Remove ${provider} and its models? ${renamed}`,
     confirmRemoveModel: (id: string, renamed: string) => `Remove ${id}? ${renamed}`,
     addProvider: 'Add provider',
@@ -391,7 +390,6 @@ export const zh: typeof en = {
   models: {
     renamed: '上一轮使用旧 ID 的会话，需要为下一轮另选模型。',
     stale: 'config.yaml 中的模型与后端正在使用的不同。',
-    profileModels: '这个身份的模型是它自己的，写在 config.yaml 的 users 里。界面编辑还没接上，先在配置文件里改。',
     confirmRemoveProvider: (provider, renamed) => `删除 ${provider} 及其模型？${renamed}`,
     confirmRemoveModel: (id, renamed) => `删除 ${id}？${renamed}`,
     addProvider: '添加提供方',

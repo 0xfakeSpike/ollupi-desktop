@@ -31,6 +31,7 @@ export const environmentsDomain: Domain = {
     const { data } = await client.call('environment/list', {})
     useEnvironments.setState({ list: order(data) })
   },
+  disconnect: () => useEnvironments.setState({ list: [] }),
 }
 
 export function useEnvironment(id: string | undefined): EnvironmentRow | undefined {

@@ -84,6 +84,7 @@ export const conversationDomain: Domain = {
       go({ kind: 'draft', workspaceId: undefined })
     }
   },
+  disconnect: () => useTimelines.setState({ byThread: {} }),
 }
 
 export function useTimeline(threadId: string | undefined): Timeline | undefined {

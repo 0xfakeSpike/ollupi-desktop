@@ -15,11 +15,11 @@ func TestTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := cfg.Models[0]
+	p := cfg.Profiles[0].Models[0]
 	if ID(p.Provider, p.Names[0].Name) != "openai/gpt-5.2" {
 		t.Fatalf("default model = %s/%s", p.Provider, p.Names[0].Name)
 	}
-	if !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Memory.Model != "" {
+	if !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Profiles[0].Memory.Model != "" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }
@@ -66,32 +66,39 @@ func skillNames(all []skill.Skill) []string {
 }
 
 func TestSameModelAtTwoProviders(t *testing.T) {
-	raw := "name: x\nmodels:\n" +
-		"  - {provider: a, type: openai, names: [{name: deepseek-flash, calls: 2, limits: {context: 1000, output: 100}}]}\n" +
-		"  - {provider: b, type: openai, names: [{name: deepseek-flash, calls: 8, limits: {context: 1000, output: 100}}]}\n" +
-		"memory: {model: b/deepseek-flash}\n"
+	raw := `name: x
+profiles:
+  - id: default
+    models:
+      - {provider: a, type: openai, names: [{name: deepseek-flash, calls: 2, limits: {context: 1000, output: 100}}]}
+      - {provider: b, type: openai, names: [{name: deepseek-flash, calls: 8, limits: {context: 1000, output: 100}}]}
+    memory: {model: b/deepseek-flash}
+`
 	cfg, err := Parse([]byte(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Models[1].Names[0].Calls != 8 || cfg.Memory.Model != "b/deepseek-flash" {
+	p := cfg.Profiles[0]
+	if p.Models[1].Names[0].Calls != 8 || p.Memory.Model != "b/deepseek-flash" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }
 
 func TestValidateRejects(t *testing.T) {
-	one := "models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n"
+	models := "models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]"
+	one := "profiles: [{id: default, " + models + "}]\n"
 	cases := map[string]string{
-		"no models":           "name: x\nmodels: []\n",
-		"provider no models":  "name: x\nmodels: [{provider: p, type: openai, names: []}]\n",
-		"provider no name":    "name: x\nmodels: [{names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"provider with /":     "name: x\nmodels: [{provider: a/b, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"provider twice":      "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}, {provider: p, type: openai, names: [{name: n, limits: {context: 1000, output: 100}}]}]\n",
-		"model twice":         "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}, {name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"no limits":           "name: x\nmodels: [{provider: p, type: openai, names: [{name: m}]}]\n",
-		"provider no type":    "name: x\nmodels: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"provider bad type":   "name: x\nmodels: [{provider: p, type: claude, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"negative calls":      "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, calls: -1, limits: {context: 1000, output: 100}}]}]\n",
+		"no profiles":         "name: x\nprofiles: []\n",
+		"profile no models":   "name: x\nprofiles: [{id: default}]\n",
+		"provider no models":  "name: x\nprofiles: [{id: default, models: [{provider: p, type: openai, names: []}]}]\n",
+		"provider no name":    "name: x\nprofiles: [{id: default, models: [{names: [{name: m, limits: {context: 1000, output: 100}}]}]}]\n",
+		"provider with /":     "name: x\nprofiles: [{id: default, models: [{provider: a/b, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]}]\n",
+		"provider twice":      "name: x\nprofiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}, {provider: p, type: openai, names: [{name: n, limits: {context: 1000, output: 100}}]}]}]\n",
+		"model twice":         "name: x\nprofiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}, {name: m, limits: {context: 1000, output: 100}}]}]}]\n",
+		"no limits":           "name: x\nprofiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m}]}]}]\n",
+		"provider no type":    "name: x\nprofiles: [{id: default, models: [{provider: p, names: [{name: m, limits: {context: 1000, output: 100}}]}]}]\n",
+		"provider bad type":   "name: x\nprofiles: [{id: default, models: [{provider: p, type: claude, names: [{name: m, limits: {context: 1000, output: 100}}]}]}]\n",
+		"negative calls":      "name: x\nprofiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m, calls: -1, limits: {context: 1000, output: 100}}]}]}]\n",
 		"memory on in file":   "name: x\n" + one + "memory: {use: true}\n",
 		"permissions in file": "name: x\n" + one + "permissions: {approval: never}\n",
 		"mcp in file":         "name: x\n" + one + "mcp: [{name: fs, command: npx}]\n",
@@ -105,11 +112,10 @@ func TestValidateRejects(t *testing.T) {
 		"feishu no profile":   "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s}\n",
 		"feishu stranger":     "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_b: default}}\n",
 		"feishu unknown user": "name: x\n" + one + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_a: work}}\n",
-		"user named default":  "name: x\n" + one + "users: [{id: default, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
-		"user without models": "name: x\n" + one + "users: [{id: work}]\n",
-		"user twice":          "name: x\n" + one + "users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}, {id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
-		"user bad memory":     "name: x\n" + one + "users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}], memory: {model: p/m}}]\n",
-		"user bad id":         "name: x\n" + one + "users: [{id: work/one, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
+		"profile no id":       "name: x\nprofiles: [{models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
+		"profile twice":       "name: x\nprofiles: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}, {id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
+		"profile bad memory":  "name: x\nprofiles: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}], memory: {model: p/m}}]\n",
+		"profile bad id":      "name: x\nprofiles: [{id: work/one, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {
@@ -121,7 +127,7 @@ func TestValidateRejects(t *testing.T) {
 func TestLoadFileResolvesPaths(t *testing.T) {
 	home := t.TempDir()
 	raw := "name: x\n" +
-		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
+		"profiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]}]\n" +
 		"skills_dir: skills\n" +
 		"workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}\n" +
 		"feishu: {app_id: cli_x, app_secret: s, profile: default, workspace: super-agent}\n"
@@ -149,10 +155,11 @@ func TestLoadFileResolvesPaths(t *testing.T) {
 	}
 }
 
-func TestUsersCarryTheirOwnModels(t *testing.T) {
+func TestProfilesCarryTheirOwnModels(t *testing.T) {
 	raw := "name: x\n" +
-		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
-		"users:\n" +
+		"profiles:\n" +
+		"  - id: default\n" +
+		"    models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
 		"  - id: work\n" +
 		"    models: [{provider: w, type: openai, api_key: sk-work, names: [{name: wm, limits: {context: 2000, output: 200}}]}]\n" +
 		"    memory: {model: w/wm}\n"
@@ -160,10 +167,10 @@ func TestUsersCarryTheirOwnModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Users) != 1 {
-		t.Fatalf("users = %+v", cfg.Users)
+	if len(cfg.Profiles) != 2 {
+		t.Fatalf("profiles = %+v", cfg.Profiles)
 	}
-	u := cfg.Users[0]
+	u := cfg.Profiles[1]
 	if u.ID != "work" || u.Memory.Model != "w/wm" || u.Models[0].APIKey != "sk-work" {
 		t.Fatalf("user = %+v", u)
 	}
@@ -174,8 +181,7 @@ func TestUsersCarryTheirOwnModels(t *testing.T) {
 
 func TestFeishuNamesEachHolderAProfile(t *testing.T) {
 	raw := "name: x\n" +
-		"models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n" +
-		"users: [{id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n" +
+		"profiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]}, {id: work, models: [{provider: w, type: openai, names: [{name: wm, limits: {context: 1000, output: 100}}]}]}]\n" +
 		"feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a, ou_b], profiles: {ou_a: default, ou_b: work}}\n"
 	cfg, err := Parse([]byte(raw))
 	if err != nil {

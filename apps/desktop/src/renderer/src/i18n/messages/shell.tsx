@@ -58,7 +58,6 @@ export const en = {
     name: 'Name',
     namePlaceholder: 'e.g. Work',
     color: 'Colour',
-    needsModels: 'The profile was made, but its models could not be written to config.yaml, so it cannot run a turn yet.',
   },
   connection: {
     connected: 'Connected',
@@ -160,7 +159,6 @@ export const zh: typeof en = {
     name: '名字',
     namePlaceholder: '例如：工作',
     color: '颜色',
-    needsModels: '身份已经建好，但它的模型没能写进 config.yaml，现在还跑不了回合。',
   },
   connection: {
     connected: '已连接',

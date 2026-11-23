@@ -3,7 +3,7 @@
 
 import { app, net, shell } from 'electron'
 import { join } from 'node:path'
-import { APP_HOST, FIRST_PROFILE, IpcChannel } from '../shared/ipc'
+import { APP_HOST, IpcChannel } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
@@ -17,7 +17,7 @@ import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
-import { activeProfile } from './profile'
+import { activeProfile, finishProfileCreate, listProfiles, pendingProfile, putProfile, rollbackProfileCreate } from './profile'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { Presence } from './presence/presence'
 import { AppUpdater, bundleOf } from './update'
@@ -63,13 +63,28 @@ if (!app.requestSingleInstanceLock()) {
   // Closing the window hides it on macOS, until the app quits.
   const keepOnClose = () => process.platform === 'darwin' && !stopping
 
-  void app.whenReady().then(() => {
+	  void app.whenReady().then(async () => {
     // A packaged app takes its icon from the bundle; in development the Dock
     // would show Electron's until the interface sets its theme's, so it takes
     // the brand's from the start.
     if (!app.isPackaged) setAppIcon('stone')
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
+	    // The first token names the profile the config actually serves. Fix a
+	    // stale saved choice before the backend accepts any connection.
+	    const checked = await config.read()
+	    if (checked.ok) {
+	      const pending = pendingProfile()
+	      if (pending) {
+	        if ((checked.config.profiles ?? []).some((p) => p.id === pending.id)) {
+	          putProfile(pending)
+	          finishProfileCreate()
+	        } else {
+	          rollbackProfileCreate(pending.id)
+	        }
+	      }
+	      backend.selectProfile(listProfiles((checked.config.profiles ?? []).map((p) => p.id)).current)
+	    }
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.

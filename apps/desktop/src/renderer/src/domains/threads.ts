@@ -119,7 +119,10 @@ export const threadsDomain: Domain = {
     })
     if (useArchivedThreads.getState().list) await loadArchivedThreads('start')
   },
-  disconnect: () => useArchivedThreads.setState({ list: undefined, more: false }),
+  disconnect: () => {
+    useThreads.setState({ list: [], more: {} })
+    useArchivedThreads.setState({ list: undefined, more: false })
+  },
 }
 
 /** The next page of a group: a workspace's threads, or those outside any. */

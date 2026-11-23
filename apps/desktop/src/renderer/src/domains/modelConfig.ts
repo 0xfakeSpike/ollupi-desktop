@@ -7,8 +7,41 @@
 
 import type { ApiType, BackendConfig, ConfigChange } from '../../../shared/ipc'
 
-export type Provider = NonNullable<BackendConfig['models']>[number]
+export type Provider = NonNullable<NonNullable<BackendConfig['profiles']>[number]['models']>[number]
 export type ProviderModel = NonNullable<Provider['names']>[number]
+export interface ConfigModel {
+  id: string
+  provider: string
+  name: string
+}
+
+/** The config as the model and memory editors see it: the selected
+ * profile's models and memory lifted to the top level. */
+export type EditableConfig = BackendConfig & {
+  models: Provider[]
+  memory?: NonNullable<BackendConfig['profiles']>[number]['memory']
+}
+
+export interface ProfileConfig {
+  config: EditableConfig
+  models: ConfigModel[]
+  /** Where this profile's models and memory live in config.yaml. */
+  base: (string | number)[]
+}
+
+/** The config section of the profile the window acts as. Every profile has
+ * its own entry under profiles. */
+export function profileConfig(config: BackendConfig, current: string | undefined): ProfileConfig {
+  const found = (config.profiles ?? []).findIndex((p) => p.id === current)
+  const index = found >= 0 ? found : 0
+  const own = config.profiles?.[index]
+  if (!own) throw new Error('the config has no profile')
+  return {
+    config: { ...config, models: own.models ?? [], memory: own.memory },
+    models: (own.models ?? []).flatMap((p) => (p.names ?? []).map((n) => ({ id: `${p.provider}/${n.name}`, provider: p.provider, name: n.name }))),
+    base: ['profiles', index],
+  }
+}
 
 /** The sidecar's config.ID. */
 export const modelId = (provider: string, name: string): string => `${provider}/${name}`
@@ -61,7 +94,7 @@ export function limitsOf({ context, input, output }: TypedLimits): ModelFields['
   return { context: c, output: o, ...(i && { input: i }) }
 }
 
-const providers = (c: BackendConfig): Provider[] => c.models ?? []
+const providers = (c: EditableConfig): Provider[] => c.models ?? []
 
 function modelValue(m: ModelFields): ProviderModel {
   return {
@@ -90,14 +123,14 @@ function setOrDelete(path: (string | number)[], value: unknown): ConfigChange {
 }
 
 /** A provider serves at least one model, so it comes with its models. */
-/** The changes a profile's own section takes: its models live under users[i]
- * in the file, while the first profile's are the top-level ones. */
+/** The changes a profile's own section takes: its models and memory live
+ * under profiles[i] in the file. */
 export function scoped(changes: ConfigChange[], base: readonly (string | number)[]): ConfigChange[] {
   if (base.length === 0) return changes
   return changes.map((c) => ({ ...c, path: [...base, ...c.path] }))
 }
 
-export function addProvider(config: BackendConfig, p: ProviderFields, models: ModelFields[]): ConfigChange[] {
+export function addProvider(config: EditableConfig, p: ProviderFields, models: ModelFields[]): ConfigChange[] {
   const value = {
     provider: p.provider,
     type: p.type,
@@ -110,7 +143,7 @@ export function addProvider(config: BackendConfig, p: ProviderFields, models: Mo
 
 /** Renaming a provider changes its models' ids, so memory.model follows when
  * it names one of them. */
-export function editProvider(config: BackendConfig, index: number, p: ProviderFields): ConfigChange[] {
+export function editProvider(config: EditableConfig, index: number, p: ProviderFields): ConfigChange[] {
   const old = providers(config)[index]!
   const changes: ConfigChange[] = [
     { kind: 'set', path: ['models', index, 'provider'], value: p.provider },
@@ -126,20 +159,20 @@ export function editProvider(config: BackendConfig, index: number, p: ProviderFi
   return changes
 }
 
-export function removeProvider(config: BackendConfig, index: number): ConfigChange[] {
+export function removeProvider(config: EditableConfig, index: number): ConfigChange[] {
   const p = providers(config)[index]!
   const ids = (p.names ?? []).map((m) => modelId(p.provider, m.name))
   return [{ kind: 'delete', path: ['models', index] }]
 }
 
 /** Appends models to a provider, after the ones it serves. */
-export function addModels(config: BackendConfig, provider: number, models: ModelFields[]): ConfigChange[] {
+export function addModels(config: EditableConfig, provider: number, models: ModelFields[]): ConfigChange[] {
   const names = providers(config)[provider]!.names ?? []
   return models.map((m, i) => ({ kind: 'set', path: ['models', provider, 'names', names.length + i], value: modelValue(m) }))
 }
 
 /** Renaming a model changes its id, so memory.model follows when it names it. */
-export function editModel(config: BackendConfig, provider: number, index: number, m: ModelFields): ConfigChange[] {
+export function editModel(config: EditableConfig, provider: number, index: number, m: ModelFields): ConfigChange[] {
   const p = providers(config)[provider]!
   const old = p.names![index]!
   const path = ['models', provider, 'names', index]
@@ -157,7 +190,7 @@ export function editModel(config: BackendConfig, provider: number, index: number
 }
 
 /** A provider serves at least one model, so removing its last removes it. */
-export function removeModel(config: BackendConfig, provider: number, index: number): ConfigChange[] {
+export function removeModel(config: EditableConfig, provider: number, index: number): ConfigChange[] {
   const p = providers(config)[provider]!
   if ((p.names ?? []).length === 1) return removeProvider(config, provider)
   return [{ kind: 'delete', path: ['models', provider, 'names', index] }]
@@ -174,7 +207,7 @@ export function makeDefault(provider: number, index: number): ConfigChange[] {
 /** Why a model cannot be removed, if it cannot: the backend requires at
  * least one model (lastModel), and memory.model, the model memory learns
  * with, must be one (memoryModel). */
-export function cannotRemove(config: BackendConfig, provider: number, index: number): 'lastModel' | 'memoryModel' | undefined {
+export function cannotRemove(config: EditableConfig, provider: number, index: number): 'lastModel' | 'memoryModel' | undefined {
   const p = providers(config)[provider]!
   if (providers(config).reduce((n, q) => n + (q.names ?? []).length, 0) === 1) return 'lastModel'
   if (config.memory?.model === modelId(p.provider, p.names![index]!.name)) return 'memoryModel'
@@ -182,7 +215,7 @@ export function cannotRemove(config: BackendConfig, provider: number, index: num
 }
 
 /** cannotRemove for every model of a provider. */
-export function cannotRemoveProvider(config: BackendConfig, provider: number): 'lastModel' | 'memoryModels' | undefined {
+export function cannotRemoveProvider(config: EditableConfig, provider: number): 'lastModel' | 'memoryModels' | undefined {
   const p = providers(config)[provider]!
   const others = providers(config).reduce((n, q, i) => n + (i === provider ? 0 : (q.names ?? []).length), 0)
   if (others === 0) return 'lastModel'

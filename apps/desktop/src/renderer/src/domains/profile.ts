@@ -1,18 +1,16 @@
-// The profiles of this home: every one the backend holds, and the one this
-// connection acts as. There is always one — the backend names every
-// connection by a profile it holds. Switching asks the main process, which
-// keeps the choice and hands the renderer a token for it; the session then
-// reconnects under that name and every domain syncs from scratch.
+// The profiles this app presents: their ids come from the backend config,
+// while names and colours live in the main process. Switching asks the main
+// process for a token named by the profile; the session then reconnects and
+// every profile-scoped domain starts from nothing.
 
-import type { UserRow } from '@ollupi/protocol'
+import type { Profile, ProfileColor } from '../../../shared/ipc'
 import { create } from 'zustand'
-import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { desktop } from '../platform/desktop'
-import { go } from './navigation'
+import { resetForProfile } from './navigation'
 
 interface ProfileStore {
-  list: UserRow[]
+  list: Profile[]
   current: string | undefined
 }
 
@@ -40,45 +38,45 @@ function keep(id: string | undefined): void {
 export const useProfile = create<ProfileStore>()(() => ({ list: [], current: kept() }))
 
 export const profileDomain: Domain = {
-  sync: async (client) => {
-    const { data, current } = await client.call('user/list', {})
+  sync: async () => {
+    const before = useProfile.getState().current
+    const { data, current } = await desktop.profile.list()
     keep(current)
     useProfile.setState({ list: data, current })
+    if (before && before !== current) {
+      await desktop.profile.select(current)
+      throw new Error('profile changed')
+    }
   },
 }
 
 /** The profile this connection acts as. */
-export function currentProfile(): UserRow | undefined {
+export function currentProfile(): Profile | undefined {
   const { list, current } = useProfile.getState()
   return list.find((p) => p.id === current)
 }
 
 /** What to call a profile: its name, or what the interface calls one that
  * has none yet. */
-export function profileName(profile: UserRow | undefined, unnamed: string): string {
+export function profileName(profile: Profile | undefined, unnamed: string): string {
   return profile?.name.trim() || unnamed
 }
 
 async function sync(): Promise<void> {
-  const { data, current } = await gateway().call('user/list', {})
+  const { data, current } = await desktop.profile.list()
   useProfile.setState({ list: data, current })
 }
 
-/** Makes a profile in the store and returns it. Its models are written to
- * config.yaml by whoever makes it, since only there can they be its own. */
-export async function createProfile(name: string, color: string): Promise<UserRow> {
-  const { user } = await gateway().call('user/create', { name, color })
+/** Adds a profile to the app and config.yaml, with the current profile's
+ * models and memory setting. */
+export async function createProfile(name: string, color: ProfileColor): Promise<Profile> {
+  const user = await desktop.profile.create(name, color)
   await sync()
   return user
 }
 
-export async function renameProfile(id: string, name: string): Promise<void> {
-  await gateway().call('user/rename', { userId: id, name })
-  await sync()
-}
-
-export async function recolorProfile(id: string, color: string): Promise<void> {
-  await gateway().call('user/color', { userId: id, color })
+export async function updateProfile(profile: Profile, name: string, color: ProfileColor): Promise<void> {
+  await desktop.profile.update(profile.id, name, color)
   await sync()
 }
 
@@ -90,6 +88,7 @@ export async function switchProfile(id: string): Promise<void> {
   // reconnect has nothing of the old one's on screen.
   keep(id)
   useProfile.setState({ current: id })
-  go({ kind: 'draft', workspaceId: undefined })
+  resetForProfile()
+  desktop.presence.context(null)
   await desktop.profile.select(id)
 }

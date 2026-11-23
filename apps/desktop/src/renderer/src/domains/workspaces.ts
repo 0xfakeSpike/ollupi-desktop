@@ -10,6 +10,7 @@ import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { desktop } from '../platform/desktop'
 import { go } from './navigation'
+import { useProfile } from './profile'
 
 export const useWorkspaces = create<{ list: WorkspaceRow[] }>()(() => ({ list: [] }))
 
@@ -21,6 +22,7 @@ export const workspacesDomain: Domain = {
     const { data } = await client.call('workspace/list', {})
     useWorkspaces.setState({ list: data.slice().sort(compareWorkspaces) })
   },
+  disconnect: () => useWorkspaces.setState({ list: [] }),
 }
 
 export function useWorkspace(id: string | undefined): WorkspaceRow | undefined {
@@ -70,7 +72,8 @@ export function setArchived(workspaceId: string, archived: boolean): Promise<voi
  * draft opens in it either way. */
 export function startSuperAgent(name: string): Promise<void | undefined> {
   return run((e) => e.workspace.superAgent, async () => {
-    const { current } = await gateway().call('user/list', {})
+    const { current } = useProfile.getState()
+    if (!current) throw new Error('no profile is selected')
     const path = await desktop.superAgentFolder(current)
     const { workspace } = await gateway().call('workspace/add', { path, name })
     if (workspace.kind !== 'hub') await gateway().call('workspace/setKind', { workspaceId: workspace.id, kind: 'hub' })

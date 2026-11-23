@@ -1,12 +1,11 @@
 import { errorMessage } from '@ollupi/client'
-import type { UserRow } from '@ollupi/protocol'
 import { Button, cn, Dialog, Field, Input, Picker } from '@ollupi/ui'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
-import { createProfile, currentProfile, profileName, recolorProfile, renameProfile, switchProfile, useProfile } from '../../domains/profile'
+import type { Profile, ProfileColor } from '../../../../shared/ipc'
+import { createProfile, currentProfile, profileName, switchProfile, updateProfile, useProfile } from '../../domains/profile'
 import { useT } from '../../i18n'
-import { readConfig, applyConfig } from '../../domains/backendConfig'
-import { FIRST_PROFILE } from '../../../../shared/ipc'
+import { confirmRestart } from '../../domains/backendConfig'
 import { PROFILE_COLORS, profileColor } from './profileColors'
 
 /** The profile the window acts as, at the sidebar's foot: its dot and name,
@@ -59,35 +58,26 @@ function Dot({ color }: { color: string }) {
 }
 
 /** What a profile is named and coloured: a new one, or the one being edited. */
-function ProfileDialog({ profile, onClose }: { profile?: UserRow; onClose(): void }) {
+function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): void }) {
   const t = useT()
   const m = t.shell.profiles
   const [name, setName] = useState(profile?.name ?? '')
-  const [color, setColor] = useState(profile?.color || Object.keys(PROFILE_COLORS)[0]!)
+  const [color, setColor] = useState<ProfileColor>((profile?.color as ProfileColor | undefined) ?? (Object.keys(PROFILE_COLORS)[0] as ProfileColor))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
   const rename = !!profile && name.trim() !== profile.name.trim()
   const recolour = !!profile && color !== profile.color
 
   const save = async (): Promise<void> => {
-    if (!name.trim()) return
+    if (!profile && !name.trim()) return
     setSaving(true)
     setError(undefined)
     try {
       if (profile) {
-        if (rename) await renameProfile(profile.id, name.trim())
-        if (recolour) await recolorProfile(profile.id, color)
+        if (rename || recolour) await updateProfile(profile, name.trim(), color)
       } else {
+        if (!confirmRestart()) return
         const created = await createProfile(name.trim(), color)
-        // Its models are the caller's, copied into config.yaml under users:
-        // a profile without its own has none to run.
-        const checked = await readConfig()
-        if (!checked?.ok) throw new Error(checked ? checked.error : m.needsModels)
-        const from = currentProfile()
-        const source = from && from.id !== FIRST_PROFILE ? checked.config.users?.find((u) => u.id === from.id)?.models : checked.config.models
-        if (!source?.length) throw new Error(m.needsModels)
-        const applied = await applyConfig([{ kind: 'set', path: ['users', checked.config.users?.length ?? 0], value: { id: created.id, models: source } }])
-        if (!applied) throw new Error(m.needsModels)
         await switchProfile(created.id)
       }
       onClose()
@@ -109,7 +99,7 @@ function ProfileDialog({ profile, onClose }: { profile?: UserRow; onClose(): voi
           <Button size="lg" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button size="lg" variant="primary" loading={saving} disabled={!name.trim()} onClick={() => void save()}>
+          <Button size="lg" variant="primary" loading={saving} disabled={!profile && !name.trim()} onClick={() => void save()}>
             {t.common.save}
           </Button>
         </>
@@ -129,7 +119,7 @@ function ProfileDialog({ profile, onClose }: { profile?: UserRow; onClose(): voi
 }
 
 /** The colours a profile may wear, each a dot to pick. */
-function Swatches({ value, onChange }: { value: string; onChange(color: string): void }) {
+function Swatches({ value, onChange }: { value: ProfileColor; onChange(color: ProfileColor): void }) {
   return (
     <div className="flex gap-2">
       {Object.entries(PROFILE_COLORS).map(([name, hex]) => (
@@ -138,7 +128,7 @@ function Swatches({ value, onChange }: { value: string; onChange(color: string):
           type="button"
           aria-label={name}
           aria-pressed={value === name}
-          onClick={() => onChange(name)}
+          onClick={() => onChange(name as ProfileColor)}
           className={cn(
             'size-7 rounded-full ring-offset-2 ring-offset-canvas transition duration-100 ease-standard',
             'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',

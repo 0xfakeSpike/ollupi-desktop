@@ -10,7 +10,8 @@ git push origin main
 git tag v0.26.6 && git push origin v0.26.6
 ```
 
-这一版引擎有 5 个提交：身份强制与网关接口（13cba49、a08e9c5、f11eac0）、按身份模型（5000956）、按身份学习（2bc2382）。
+这一版引擎收紧身份边界：每个连接必须由一个已有 user id 认证，模型和记忆按 user 解析；
+Profile 的名称、颜色和 CRUD 留在 desktop，不进入 gateway。
 
 ## 2. 桌面端钉到新引擎
 
@@ -21,7 +22,7 @@ GOWORK=off go get github.com/0xfakeSpike/ollupi@v0.26.6
 git add go.mod go.sum && git commit -m "Follow ollupi v0.26.6"
 ```
 
-确认模块真的带上了新东西（应能看到 0017_user_profile.sql）：
+确认模块真的带上了新东西（应能看到最新的 0016_usage_provider.sql）：
 
 ```bash
 ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.26.6/store/sqlite/migrations/
@@ -37,7 +38,6 @@ pnpm release
 打完确认二进制里有新方法（0 就是没进去）：
 
 ```bash
-grep -ac 'user/create' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 grep -ac 'profile:select' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/ollupid 2>/dev/null || true
 ```
 
@@ -50,7 +50,7 @@ gh release create v0.8.17-beta.3 --prerelease --title "0.8.17-beta.3" --notes-fi
 每个身份有自己的模型与 API key：新建时继承一份，之后在设置 → 模型里各改各的。
 记忆按身份用自己的模型学习。
 飞书：不同 open_id 可以用 feishu.profiles 映射到不同身份。
-升级提示：首次启动会把数据库迁到 schema 17（备份在 ~/.ollupi/backups/）。
+升级提示：这一版 config.yaml 统一使用 `profiles[]`；旧配置需要重写。
 NOTE
 ```
 
@@ -65,5 +65,5 @@ NOTE
 
 - 身份不是安全边界：同一 macOS 账户下，数据文件互相可读；真隔离用系统账户。
 - 没有「删除身份」「导出/导入」——需求里没有，别当成漏做。
-- 给某个身份「选记忆模型」的界面入口还没做：配置里写 `users[].memory.model` 有效，引擎会用。
+- Profile 的显示名和颜色只保存在 desktop；引擎协议里不会出现 `user/color`。
 - 只发 P1–P3 与飞书映射；`docs/multi-user-design.md` 里有分期记录。

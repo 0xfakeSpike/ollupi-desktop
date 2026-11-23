@@ -46,6 +46,7 @@ export const cronDomain: Domain = {
   sync: async (client) => {
     useCron.setState({ jobs: (await client.call('cron/list', {})).data })
   },
+  disconnect: () => useCron.setState({ jobs: undefined }),
 }
 
 /** times: how many runs before the task ends; undefined repeats until it

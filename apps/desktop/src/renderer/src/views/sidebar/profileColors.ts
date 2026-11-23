@@ -1,6 +1,9 @@
-/** The colours a profile may wear, as the backend names them, and the dot
- * that shows one. The values sit on either scheme, so a dot needs no theme. */
-export const PROFILE_COLORS: Record<string, string> = {
+import type { ProfileColor } from '../../../../shared/ipc'
+
+/** The colours a profile may wear, and the dot that shows one. They are the
+ * app's presentation values; Ollupi stores only the profile id. The values
+ * sit on either scheme, so a dot needs no theme. */
+export const PROFILE_COLORS: Record<ProfileColor, string> = {
   stone: '#8b8577',
   amber: '#c08a2e',
   teal: '#2f9385',
@@ -10,5 +13,5 @@ export const PROFILE_COLORS: Record<string, string> = {
 }
 
 export function profileColor(name: string): string {
-  return PROFILE_COLORS[name] ?? PROFILE_COLORS.stone!
+  return (PROFILE_COLORS as Record<string, string>)[name] ?? PROFILE_COLORS.stone
 }

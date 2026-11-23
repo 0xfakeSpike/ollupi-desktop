@@ -181,6 +181,21 @@ export function focusItem(focus: NavigationStore['focus']): void {
   useNavigation.setState({ focus })
 }
 
+/** Drops everything that belonged to the profile the window was showing.
+ * The next profile starts on a new conversation with no panels, model,
+ * environment or approval inherited from the last one. */
+export function resetForProfile(): void {
+  sessionStorage.removeItem(OPEN_KEY)
+  useNavigation.setState({
+    screen: { kind: 'draft', workspaceId: undefined },
+    environment: undefined,
+    model: undefined,
+    approval: undefined,
+    panels: {},
+    focus: undefined,
+  })
+}
+
 export function chooseModel(model: string | undefined): void {
   useNavigation.setState({ model })
 }

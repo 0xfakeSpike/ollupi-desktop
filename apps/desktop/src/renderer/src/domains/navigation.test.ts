@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DRAFT_BROWSER } from '../../../shared/ipc'
-import { forgetPanel, go, handOverPanel, openPanel, showFile, shownFile, shownPanel, startNavigation, togglePanel, useNavigation } from './navigation'
+import { forgetPanel, go, handOverPanel, openPanel, resetForProfile, showFile, shownFile, shownPanel, startNavigation, togglePanel, useNavigation } from './navigation'
 
 // A window's sessionStorage: kept across a reload, gone with the window.
 const kept = new Map<string, string>()
@@ -38,6 +38,22 @@ describe('navigation', () => {
     kept.clear()
     startNavigation()
     expect(useNavigation.getState().screen).toEqual({ kind: 'draft', workspaceId: undefined })
+  })
+
+  it('drops every conversation-level choice when the profile changes', () => {
+    go({ kind: 'thread', threadId: 'th1' })
+    openPanel('files')
+    useNavigation.setState({ environment: 'env1', model: 'openai/gpt', approval: 'never', focus: { threadId: 'th1', itemId: 'it1' } })
+    resetForProfile()
+    expect(useNavigation.getState()).toMatchObject({
+      screen: { kind: 'draft', workspaceId: undefined },
+      environment: undefined,
+      model: undefined,
+      approval: undefined,
+      panels: {},
+      focus: undefined,
+    })
+    expect(kept.has('ollupi.openThread')).toBe(false)
   })
 })
 

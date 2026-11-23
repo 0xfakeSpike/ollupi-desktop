@@ -120,14 +120,12 @@ func browserEndpoint() *browser.Endpoint {
 }
 
 // checkResult is --check-config's output: the config as the backend decodes
-// it (defaults applied, paths resolved) with its models as the app selects
-// them, or why it would not start. API keys stay in: the app edits them like
-// the base URL.
+// it (defaults applied, paths resolved), or why it would not start. API keys
+// stay in: the app edits them like the base URL.
 type checkResult struct {
-	OK     bool              `json:"ok"`
-	Config *config.Config    `json:"config,omitempty"`
-	Models []config.ModelRef `json:"models,omitempty"`
-	Error  string            `json:"error,omitempty"`
+	OK     bool           `json:"ok"`
+	Config *config.Config `json:"config,omitempty"`
+	Error  string         `json:"error,omitempty"`
 }
 
 func check(path, home string) int {
@@ -137,7 +135,7 @@ func check(path, home string) int {
 	}
 	out := checkResult{Error: errorText(err)}
 	if err == nil {
-		out = checkResult{OK: true, Config: &cfg, Models: cfg.ModelRefs()}
+		out = checkResult{OK: true, Config: &cfg}
 	}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))

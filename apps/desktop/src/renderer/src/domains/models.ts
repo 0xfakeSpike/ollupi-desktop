@@ -18,4 +18,5 @@ export const modelsDomain: Domain = {
     const { data, default: fallback } = await client.call('model/list', {})
     useModels.setState({ list: data, fallback })
   },
+  disconnect: () => useModels.setState({ list: [], fallback: '' }),
 }
