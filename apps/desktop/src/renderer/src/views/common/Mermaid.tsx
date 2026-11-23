@@ -6,12 +6,14 @@
 // first time one appears. While the block is still streaming its source is
 // shown as code; a diagram neither can parse stays code, with why. Both
 // escape labels (mermaid at its strict security level), so their SVG is
-// safe to insert.
+// safe to insert. A drawn diagram zooms in place: ⌘ with the wheel, or two
+// fingers pinching, scales it about the point under the pointer, and the
+// block scrolls the enlarged picture.
 
 import { errorMessage } from '@ollupi/client'
-import { Block } from '@ollupi/ui'
+import { Block, useTooltip } from '@ollupi/ui'
 import { parseMermaid, renderMermaidSVG } from 'beautiful-mermaid'
-import { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useIsCodeFenceIncomplete } from 'streamdown'
 import { useT } from '../../i18n'
 import { CodeBlock, CopyButton } from './Markdown'
@@ -256,10 +258,137 @@ export function MermaidBlock({ code }: { code: string }) {
   return <div ref={ref}>{content}</div>
 }
 
-function Diagram({ code, svg }: { code: string; svg: string }) {
+// How far a diagram may be scaled from its own size.
+const least = 0.5
+const most = 4
+
+/** The diagram's scale, and the way back to 100%. Always shown, also at
+ * 100%: it is how one finds out the picture can be scaled at all. */
+function ScaleReadout({ scale, onReset }: { scale: number; onReset: () => void }) {
+  const m = useT().conversation.markdown
+  const { trigger, tooltip } = useTooltip({ label: m.scaleReset, hint: m.scaleHint })
   return (
-    <Block label={<span className="font-mono">mermaid</span>} actions={<CopyButton text={code} />}>
-      <div className="mermaid-diagram overflow-x-auto" dangerouslySetInnerHTML={{ __html: svg }} />
+    <>
+      <button
+        type="button"
+        aria-label={m.scaleReset}
+        className="h-5 shrink-0 rounded-full px-2 text-caption font-semibold text-fg-muted tabular-nums transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+        onClick={onReset}
+        {...trigger}
+      >
+        {Math.round(scale * 100)}%
+      </button>
+      {tooltip}
+    </>
+  )
+}
+
+/** The picture at its own size, or scaled: it is the SVG's width and height
+ * that change, not a transform, so its lines stay sharp and the block's own
+ * scrollbars reach all of it. The scale is written to the SVG by hand: a
+ * new drawing replaces the element, and the effect below settles it back. */
+function Diagram({ code, svg }: { code: string; svg: string }) {
+  const frame = useRef<HTMLDivElement>(null)
+  const natural = useRef<{ width: number; height: number } | null>(null)
+  const scale = useRef(1)
+  const [shown, setShown] = useState(1)
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+
+  /** Draws the diagram `next` times its own size, keeping the point at `at`
+   * (in the window) where it is under the pointer; without one, the middle
+   * of what is in view. */
+  const paint = useCallback((next: number, at?: { x: number; y: number }) => {
+    const box = frame.current
+    const el = box?.firstElementChild as SVGSVGElement | null
+    const size = natural.current
+    if (!box || !el || !size) return
+    const rect = box.getBoundingClientRect()
+    const was = el.getBoundingClientRect()
+    if (!was.width || !was.height) return
+    // The point under the pointer as a fraction of the picture, so the
+    // picture's own edges (and the margins centring a small one) do not
+    // enter the arithmetic.
+    const fx = at ? (at.x - was.left) / was.width : 0.5
+    const fy = at ? (at.y - was.top) / was.height : 0.5
+    el.style.width = `${size.width * next}px`
+    el.style.height = `${size.height * next}px`
+    const now = el.getBoundingClientRect()
+    box.scrollLeft = now.left - rect.left + box.scrollLeft + fx * now.width - (at ? at.x - rect.left : box.clientWidth / 2)
+    box.scrollTop = now.top - rect.top + box.scrollTop + fy * now.height - (at ? at.y - rect.top : box.clientHeight / 2)
+    scale.current = next
+    setShown(next)
+  }, [])
+
+  const reset = useCallback(() => {
+    const box = frame.current
+    const el = box?.firstElementChild as SVGSVGElement | null
+    if (el) {
+      el.style.width = ''
+      el.style.height = ''
+    }
+    box?.scrollTo(0, 0)
+    scale.current = 1
+    setShown(1)
+  }, [])
+
+  // A new drawing is measured before it is sized again: the other scheme's
+  // colours redraw the same picture, and the scale it had is kept.
+  useEffect(() => {
+    const box = frame.current
+    const el = box?.firstElementChild as SVGSVGElement | null
+    if (!el) return
+    el.style.width = ''
+    el.style.height = ''
+    const rect = el.getBoundingClientRect()
+    natural.current = { width: rect.width, height: rect.height }
+    if (scale.current !== 1) paint(scale.current)
+  }, [svg, paint])
+
+  // ⌘ with the wheel and a trackpad's pinch both arrive as a wheel with
+  // ctrlKey set. A plain wheel is the page's and is left alone: an in-place
+  // zoom must not swallow scrolling.
+  useEffect(() => {
+    const box = frame.current
+    if (!box) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? box.clientHeight : 1
+      const next = Math.min(most, Math.max(least, scale.current * Math.exp(-e.deltaY * unit * 0.002)))
+      if (next !== scale.current) paint(next, { x: e.clientX, y: e.clientY })
+    }
+    box.addEventListener('wheel', onWheel, { passive: false })
+    return () => box.removeEventListener('wheel', onWheel)
+  }, [paint])
+
+  const zoomed = shown !== 1
+  return (
+    <Block label={<span className="font-mono">mermaid</span>} actions={<><ScaleReadout scale={shown} onReset={reset} /><CopyButton text={code} /></>}>
+      <div
+        ref={frame}
+        className={zoomed ? 'mermaid-diagram cursor-grab overflow-auto select-none active:cursor-grabbing' : 'mermaid-diagram overflow-x-auto'}
+        style={zoomed ? { maxHeight: '70vh' } : undefined}
+        onDoubleClick={reset}
+        // Only a scaled picture pans by dragging; at its own size the words
+        // in it still select as text.
+        onPointerDown={(e) => {
+          const box = frame.current
+          if (!zoomed || e.button !== 0 || !box) return
+          drag.current = { x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop }
+          e.currentTarget.setPointerCapture(e.pointerId)
+          e.preventDefault()
+        }}
+        onPointerMove={(e) => {
+          const box = frame.current
+          const from = drag.current
+          if (!box || !from) return
+          box.scrollLeft = from.left - (e.clientX - from.x)
+          box.scrollTop = from.top - (e.clientY - from.y)
+        }}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
     </Block>
   )
 }

@@ -421,6 +421,8 @@ export const en = {
     diagramError: (why: string) => `The diagram could not be drawn: ${why}`,
     footnotes: 'Footnotes',
     footnoteBack: 'Back to the text',
+    scaleHint: '⌘-scroll or two fingers pinching scales it; double-click resets',
+    scaleReset: 'Back to 100%',
   },
 }
 
@@ -835,5 +837,7 @@ export const zh: typeof en = {
     diagramError: (why) => `无法画出这张图：${why}`,
     footnotes: '脚注',
     footnoteBack: '回到正文',
+    scaleHint: '⌘+滚轮或双指捏合缩放；双击回到 100%',
+    scaleReset: '回到 100%',
   },
 }
