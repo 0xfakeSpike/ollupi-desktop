@@ -227,7 +227,7 @@ await call('mcpServer/delete', { name: 'broken' })
 // reads it.
 const usageFrom = new Date(Date.now() - 86_400_000).toISOString()
 const usageTo = new Date(Date.now() + 86_400_000).toISOString()
-for (const groupBy of ['day', 'workspace', 'model']) await call('usage/query', { from: usageFrom, to: usageTo, groupBy, offsetMinutes: 0 })
+for (const groupBy of ['day', 'workspace', 'provider', 'connection', 'model']) await call('usage/query', { from: usageFrom, to: usageTo, groupBy, offsetMinutes: 0 })
 // Time the desktop counted with a thread on screen: a stretch written, then the
 // thread totals it lands in.
 await call('presence/record', {

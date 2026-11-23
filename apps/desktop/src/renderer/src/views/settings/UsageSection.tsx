@@ -1,18 +1,19 @@
 // Token use over the last days: the total and what it is made of, a bar per
-// day, and where the tokens went by workspace and by model. The engine
+// day, and where the tokens went by workspace, by API and by model. The engine
 // counts each model call as it runs, so this page only reads.
 
 import { formatTokens } from '@ollupi/core'
 import type { UsageRow } from '@ollupi/protocol'
-import { Button, Callout, cn, EmptyState, IconButton, Loader, Tabs } from '@ollupi/ui'
+import { Button, Badge, Callout, cn, EmptyState, IconButton, Loader, Tabs } from '@ollupi/ui'
 import { ChartColumn, RotateCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { tokensOf, useUsage, type UsageTotals } from '../../domains/usage'
+import { useModels } from '../../domains/models'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { workspaceName } from '../../i18n/format'
 import { desktop } from '../../platform/desktop'
-import { modelName } from '../common/modelName'
+import { providerOf } from '../common/modelName'
 
 const periods = [
   { id: 'd7', days: 7 },
@@ -29,13 +30,22 @@ export function UsageSection() {
   const { usage, refresh } = useUsage(days)
   const shown = usage.status === 'ready' && usage.usage.days === days ? usage.usage : undefined
   const workspaces = useWorkspaces((s) => s.list)
+  // The APIs config serves now: a row of one no longer listed is still shown,
+  // marked, since its tokens were used all the same.
+  const served = new Set(useModels((s) => s.list).map((m) => providerOf(m.connection)))
 
   const workspaceLabel = (id: string) => {
     if (!id) return t.noWorkspace
     const found = workspaces.find((w) => w.id === id)
     return found ? workspaceName(m, found) : t.unknownWorkspace
   }
-  const modelLabel = (id: string) => (id ? modelName(id) : t.unknownModel)
+  const modelLabel = (row: UsageRow) => {
+    if (!row.key) return t.unknownModel
+    return row.provider ? `${row.provider} · ${row.key}` : row.key
+  }
+  const apiLabel = (row: UsageRow) => row.key || t.unknownProvider
+  // Nothing is marked while the model list has not arrived yet.
+  const removed = (api: string | undefined) => (api && served.size > 0 && !served.has(api) ? <Badge>{t.deletedApi}</Badge> : null)
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,7 +80,7 @@ export function UsageSection() {
         </Callout>
       ) : !shown ? (
         <Loader label={t.loading} />
-      ) : shown.totals.total === 0 ? (
+      ) : shown.provider.length === 0 ? (
         <EmptyState icon={<ChartColumn size={20} />} title={t.empty.title}>
           {t.empty.hint}
         </EmptyState>
@@ -81,10 +91,13 @@ export function UsageSection() {
             <DayChart rows={shown.day} />
           </Card>
           <Card title={t.byWorkspace}>
-            <Breakdown rows={shown.workspace} label={workspaceLabel} />
+            <Breakdown rows={shown.workspace} label={(row) => workspaceLabel(row.key)} />
+          </Card>
+          <Card title={t.byApi}>
+            <Breakdown rows={shown.provider} label={apiLabel} mark={(row) => removed(row.key)} />
           </Card>
           <Card title={t.byModel}>
-            <Breakdown rows={shown.model} label={modelLabel} />
+            <Breakdown rows={shown.model} label={modelLabel} mark={(row) => removed(row.provider)} />
           </Card>
           <p className="text-small text-fg-subtle">{t.note}</p>
         </>
@@ -184,26 +197,38 @@ function DayChart({ rows }: { rows: UsageRow[] }) {
   )
 }
 
-/** Rows of a grouping, busiest first: its name, its tokens, and a bar split
- * into input and output, each row against the busiest one. */
-function Breakdown({ rows, label }: { rows: UsageRow[]; label: (key: string) => string }) {
+/** Rows of a grouping, busiest first: its name, the tokens, and a bar split
+ * into input and output, each row against the busiest one. A row whose calls
+ * reported no tokens says so instead of a zero; mark adds what belongs beside
+ * the name. */
+function Breakdown({ rows, label, mark }: { rows: UsageRow[]; label: (row: UsageRow) => string; mark?: (row: UsageRow) => ReactNode }) {
+  const t = useT().settings.usage
   const busiest = Math.max(...rows.map(tokensOf), 1)
   return (
     <ul className="flex flex-col gap-2.5">
-      {rows.map((row) => (
-        <li key={row.key || 'none'} className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="min-w-0 truncate text-ui text-fg" title={label(row.key)}>
-              {label(row.key)}
-            </span>
-            <span className="shrink-0 text-small text-fg-muted tabular-nums">{formatTokens(tokensOf(row))}</span>
-          </div>
-          <div className="flex h-1.5 gap-0.5 overflow-hidden">
-            <div className="rounded-sm bg-chart-1" style={{ width: `${(row.inputTokens / busiest) * 100}%` }} />
-            <div className="rounded-sm bg-chart-2" style={{ width: `${(row.outputTokens / busiest) * 100}%` }} />
-          </div>
-        </li>
-      ))}
+      {rows.map((row) => {
+        const tokens = tokensOf(row)
+        const name = label(row)
+        return (
+          <li key={`${row.provider ?? ''}/${row.key}`} className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="flex min-w-0 items-baseline gap-1.5">
+                <span className="min-w-0 truncate text-ui text-fg" title={name}>
+                  {name}
+                </span>
+                {mark?.(row)}
+              </span>
+              <span className="shrink-0 text-small text-fg-muted tabular-nums" title={t.calls(row.calls)}>
+                {tokens === 0 && row.calls > 0 ? t.unreported : formatTokens(tokens)}
+              </span>
+            </div>
+            <div className="flex h-1.5 gap-0.5 overflow-hidden">
+              <div className="rounded-sm bg-chart-1" style={{ width: `${(row.inputTokens / busiest) * 100}%` }} />
+              <div className="rounded-sm bg-chart-2" style={{ width: `${(row.outputTokens / busiest) * 100}%` }} />
+            </div>
+          </li>
+        )
+      })}
     </ul>
   )
 }

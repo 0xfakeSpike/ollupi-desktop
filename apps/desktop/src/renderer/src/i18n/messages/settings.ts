@@ -194,15 +194,20 @@ export const en = {
     today: 'Today',
     byDay: 'By day',
     byWorkspace: 'By workspace',
+    byApi: 'By API',
     byModel: 'By model',
     noWorkspace: 'Outside any workspace',
     unknownWorkspace: 'Removed workspace',
     unknownModel: 'Model not recorded',
+    unknownProvider: 'API not recorded',
+    deletedApi: 'API removed',
+    unreported: 'not reported',
+    calls: (n: number) => `${n} ${n === 1 ? 'call' : 'calls'}`,
     empty: {
       title: 'No tokens used in these days',
       hint: 'Every model call in a conversation is counted here, context compaction included.',
     },
-    note: 'Input counts the cached and the cache-written part. Memory extraction is not counted, and rows stay after a thread or workspace is deleted.',
+    note: 'Input counts the cached and the cache-written part. Memory extraction is not counted, and rows stay after a thread, workspace or API is deleted.',
   },
 
   mcp: {
@@ -498,15 +503,20 @@ export const zh: typeof en = {
     today: '今天',
     byDay: '按天',
     byWorkspace: '按工作区',
+    byApi: '按 API',
     byModel: '按模型',
     noWorkspace: '不属于任何工作区',
     unknownWorkspace: '已删除的工作区',
     unknownModel: '未记录模型',
+    unknownProvider: '未记录来源',
+    deletedApi: 'API 已删除',
+    unreported: '未报告',
+    calls: (n) => `${n} 次调用`,
     empty: {
       title: '这段时间还没有用量',
       hint: '会话里每次调用模型都会记在这里，上下文压缩也算在内。',
     },
-    note: '输入包含缓存和写入缓存的部分。记忆抽取不计入；会话或工作区删除后，记录仍保留。',
+    note: '输入包含缓存和写入缓存的部分。记忆抽取不计入；会话、工作区或 API 删除后，记录仍保留。',
   },
 
   mcp: {

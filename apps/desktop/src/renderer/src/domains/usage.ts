@@ -1,8 +1,9 @@
 // Token use over a period, as ollupi recorded it: the engine derives a row
-// from every model call it makes, keeping the workspace, thread and model it
-// belonged to. This side only reads. A query counts one dimension at a time,
-// so the days, the workspaces and the models are three calls over the same
-// period; their sums agree because they cover the same rows.
+// from every model call it makes, keeping the API, workspace, thread and model
+// it belonged to. This side only reads. A query counts one dimension at a
+// time, so the days, the workspaces, the APIs and the connections are four
+// calls over the same period; their sums agree because they cover the same
+// rows.
 
 import { errorMessage } from '@ollupi/client'
 import type { UsageGroup, UsageRow } from '@ollupi/protocol'
@@ -33,8 +34,11 @@ export interface Usage {
   /** Most tokens first. Keys are workspace ids, the empty one for calls
    * outside any workspace. */
   workspace: UsageRow[]
-  /** Most tokens first. Keys are model ids, the empty one for calls that
-   * named none. */
+  /** Most tokens first. Keys are the APIs that served the calls, kept after
+   * one is removed from the configuration. */
+  provider: UsageRow[]
+  /** Most tokens first. Keys are model names; each row names the API that
+   * served it, so one model served by two APIs is two rows. */
   model: UsageRow[]
   totals: UsageTotals
 }
@@ -84,10 +88,10 @@ function query(groupBy: UsageGroup, period: Range): Promise<UsageRow[]> {
     .then((r) => r.data)
 }
 
-const EMPTY: Omit<UsageRow, 'key'> = { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 }
+const EMPTY: Omit<UsageRow, 'key' | 'provider'> = { calls: 0, inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 }
 
-export function buildUsage(days: number, keys: string[], rows: [UsageRow[], UsageRow[], UsageRow[]]): Usage {
-  const [day, workspace, model] = rows
+export function buildUsage(days: number, keys: string[], rows: [UsageRow[], UsageRow[], UsageRow[], UsageRow[]]): Usage {
+  const [day, workspace, provider, model] = rows
   const found = new Map(day.map((r) => [r.key, r]))
   const everyDay = keys.map((key) => found.get(key) ?? { key, ...EMPTY })
   const totals = everyDay.reduce<UsageTotals>(
@@ -101,7 +105,7 @@ export function buildUsage(days: number, keys: string[], rows: [UsageRow[], Usag
     { input: 0, cached: 0, cacheWrite: 0, output: 0, total: 0 },
   )
   const most = (list: UsageRow[]) => list.slice().sort((a, b) => tokensOf(b) - tokensOf(a) || a.key.localeCompare(b.key))
-  return { days, day: everyDay, workspace: most(workspace), model: most(model), totals }
+  return { days, day: everyDay, workspace: most(workspace), provider: most(provider), model: most(model), totals }
 }
 
 /** The last `days` days of token use, today included. Ready data carries the
@@ -120,7 +124,7 @@ export function useUsage(days: number): { usage: UsageState; refresh(): void } {
     }
     let current = true
     const period = usageRange(days)
-    Promise.all([query('day', period), query('workspace', period), query('model', period)])
+    Promise.all([query('day', period), query('workspace', period), query('provider', period), query('model', period)])
       .then((rows) => {
         if (current) setUsage({ status: 'ready', usage: buildUsage(days, period.keys, rows) })
       })

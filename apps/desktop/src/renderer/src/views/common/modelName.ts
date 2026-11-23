@@ -4,3 +4,10 @@ export function modelName(connection: string): string {
   const slash = connection.indexOf('/')
   return slash < 0 ? connection : connection.slice(slash + 1)
 }
+
+/** The provider in front of a connection ("deepseek/deepseek-flash" →
+ * "deepseek"), the empty string when it has none. */
+export function providerOf(connection: string): string {
+  const slash = connection.indexOf('/')
+  return slash < 0 ? '' : connection.slice(0, slash)
+}
