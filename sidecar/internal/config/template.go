@@ -37,16 +37,4 @@ workspace:
 # Agent Skills: a folder holding one folder per skill, each with a SKILL.md,
 # relative to this file's folder. Leave it out to turn skills off.
 skills_dir: skills
-
-# A Feishu bot to drive sessions from your phone: a self-built app with
-# events and card callbacks received over a long connection. Message it
-# once and it answers with your open_id, which goes under users.
-# feishu:
-#   app_id: cli_xxx
-#   app_secret: xxx
-#   profile: default # the profile the bot's sessions belong to
-#   users: [ou_xxx]
-#   profiles: {ou_xxx: default} # optional: whose open_id acts as which profile
-#   workspace: ~/projects/app # new sessions' workspace; ~ is your home and a
-#                             # relative path this file's folder; leave out for none
 `

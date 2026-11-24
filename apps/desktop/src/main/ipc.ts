@@ -72,10 +72,6 @@ export function registerIpc(
     const id = profileID(profile)
     if (id === activeProfile()) throw new Error('switch away from a profile before deleting it')
     if (listProfiles(home).data.length <= 1) throw new Error('the last profile cannot be deleted')
-    const checked = await config.read()
-    if (checked.ok && checked.config.feishu && [checked.config.feishu.profile, ...Object.values(checked.config.feishu.profiles ?? {})].includes(id)) {
-      throw new Error('the Feishu bot still acts as this profile')
-    }
     const threads = await config.deleteProfile(id)
     removeProfile(home, id)
     await Promise.all(threads.map((thread) => rm(join(home, 'attachments', thread), { recursive: true, force: true })))

@@ -30,11 +30,6 @@ export const en = {
         description: 'What the agent may do without asking you, in every conversation. A workspace and a conversation can set their own on top. Applies from its next call.',
       },
       redaction: { label: 'Redaction', description: '' },
-      feishu: {
-        label: 'Feishu bot',
-        description:
-          'Drive sessions from your phone through a Feishu (Lark) bot: message it to start a session, reply in its topic to continue, and approve or answer with the cards it sends. The bot connects out over a long connection, so this Mac needs no public address, but it must stay awake.',
-      },
     },
   },
 
@@ -57,23 +52,6 @@ export const en = {
 
   config: {
     unreadable: (error: string) => `config.yaml cannot be read: ${error}`,
-    saveAndRestart: 'Save and restart',
-  },
-
-  feishu: {
-    appId: 'App ID',
-    appSecret: 'App Secret',
-    showSecret: 'Show secret',
-    hideSecret: 'Hide secret',
-    domain: 'Platform',
-    domains: { feishu: 'Feishu (open.feishu.cn)', lark: 'Lark (open.larksuite.com)' },
-    users: 'Who it acts for',
-    usersHint: 'One open_id per line. Message the bot and it answers with yours; it ignores everyone not listed. Sessions begun on the desktop show in the first one’s chat.',
-    workspace: 'Workspace for new sessions',
-    workspaceHint: 'A message sent to the bot starts a session here.',
-    noWorkspace: 'No workspace',
-    remove: 'Turn off',
-    confirmRemove: 'Turn off the Feishu bot? Its settings are removed from config.yaml and the backend restarts.',
   },
 
   models: {
@@ -340,11 +318,6 @@ export const zh: typeof en = {
         description: 'agent 在所有会话里哪些事可以不问你就做。工作区和会话可以在它之上再设自己的。从下一次调用起生效。',
       },
       redaction: { label: '脱敏', description: '' },
-      feishu: {
-        label: '飞书机器人',
-        description:
-          '在手机上通过飞书机器人操作会话：给它发消息开始会话，在它回复的话题里接着说，用它发来的卡片审批和回答。机器人通过长连接向外连接，这台 Mac 不需要公网地址，但不能睡眠。',
-      },
     },
   },
 
@@ -366,23 +339,6 @@ export const zh: typeof en = {
 
   config: {
     unreadable: (error) => `无法读取 config.yaml：${error}`,
-    saveAndRestart: '保存并重启',
-  },
-
-  feishu: {
-    appId: 'App ID',
-    appSecret: 'App Secret',
-    showSecret: '显示密钥',
-    hideSecret: '隐藏密钥',
-    domain: '平台',
-    domains: { feishu: '飞书（open.feishu.cn）', lark: 'Lark（open.larksuite.com）' },
-    users: '为谁操作',
-    usersHint: '每行一个 open_id。给机器人发条消息，它会回复你的 open_id；不在名单里的人发来的消息一律不处理。桌面端开始的会话发到第一个人的单聊里。',
-    workspace: '新会话所在的工作区',
-    workspaceHint: '给机器人发消息时，在这个工作区里开始会话。',
-    noWorkspace: '不属于任何工作区',
-    remove: '停用',
-    confirmRemove: '停用飞书机器人？它的设置会从 config.yaml 删除，后端随即重启。',
   },
 
   models: {

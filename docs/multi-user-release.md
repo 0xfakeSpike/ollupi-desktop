@@ -52,4 +52,4 @@ gh release create v0.8.17-beta.7 --prerelease --title "0.8.17-beta.7" --notes-fi
 
 - 身份不是本机上的安全边界：同一 macOS 账户下，各身份的文件互相可读。
 - API key 仍明文写在 config.yaml（沙箱里的命令读不到它和数据库）；Keychain 以后再做。
-- 工作区、沙箱、skills、slots、飞书的改动仍然重启后端。
+- 工作区、沙箱、skills、slots 的改动仍然重启后端。

@@ -2,7 +2,7 @@
 // what the deployment is, the same for every user it serves. Its providers
 // are the platform's models, with their accounts and keys: every profile runs
 // on them and only chooses which. The rest is its name and prompt, the tool
-// allow-list, slots, the workspace tools, the skills and the Feishu bot. The
+// allow-list, slots, the workspace tools and the skills. The
 // backend reads it at start; a SIGHUP has it take the providers again, and
 // anything else takes a restart. Nothing in it belongs to one profile: which
 // model a profile starts and learns with, its permissions, MCP servers and
@@ -45,9 +45,6 @@ type Config struct {
 	// Workspace turns on run_command, edit_file and write_file.
 	Workspace Workspace `json:"workspace"`
 	SkillsDir string    `json:"skills_dir,omitempty"`
-	// Feishu is the Feishu (Lark) bot that sessions are driven through from
-	// a phone; leave it out to run without one.
-	Feishu *Feishu `json:"feishu,omitempty"`
 }
 
 // Provider is one API account of the deployment and the models it serves.
@@ -76,36 +73,6 @@ func (c Config) Catalog() []account.ModelProvider {
 // ProfileID is what a profile's id may be: it names folders under the home
 // and is the segment a connection's token carries, so it holds no separator.
 var ProfileID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
-
-// Feishu is a self-built Feishu app whose bot receives events over a long
-// connection, so the Mac needs no public address.
-type Feishu struct {
-	AppID string `json:"app_id"`
-	// AppSecret is written in the file, like a provider's api_key.
-	AppSecret string `json:"app_secret"`
-	// Profile is the user the bot acts as: the sessions it starts are that
-	// profile's. There is no default one.
-	Profile string `json:"profile"`
-	// Domain is feishu (open.feishu.cn, the default) or lark
-	// (open.larksuite.com).
-	Domain FeishuDomain `json:"domain,omitempty"`
-	// Users are the open_ids the bot acts for. Anyone else who writes to it
-	// is told their open_id and nothing else happens.
-	Users []string `json:"users,omitempty"`
-	// Profiles names the profile an open_id acts as; one not named acts as
-	// Profile. Its keys must be users and its values profiles of this file.
-	Profiles map[string]string `json:"profiles,omitempty"`
-	// Workspace is the folder of the workspace sessions started from Feishu
-	// belong to; empty starts them in no workspace.
-	Workspace string `json:"workspace,omitempty"`
-}
-
-type FeishuDomain string
-
-const (
-	FeishuDomainFeishu FeishuDomain = "feishu"
-	FeishuDomainLark   FeishuDomain = "lark"
-)
 
 type Workspace struct {
 	Enabled bool `json:"enabled"`
@@ -196,9 +163,6 @@ func LoadFile(path, home string) (Config, error) {
 // may be called something else.
 func (c *Config) expandPaths(home string) {
 	c.SkillsDir = expandPath(c.SkillsDir, home)
-	if f := c.Feishu; f != nil {
-		f.Workspace = expandPath(f.Workspace, home)
-	}
 	w := &c.Workspace
 	w.WorkspaceDirs = expandPaths(w.WorkspaceDirs, home)
 	w.DenyRead = expandPaths(w.DenyRead, home)
@@ -271,39 +235,5 @@ func (c Config) Validate() error {
 	if c.Slots < 0 {
 		return errors.New("slots must not be negative")
 	}
-	if f := c.Feishu; f != nil {
-		if strings.TrimSpace(f.AppID) == "" || strings.TrimSpace(f.AppSecret) == "" {
-			return errors.New("feishu: app_id and app_secret are required")
-		}
-		if !ProfileID.MatchString(f.Profile) {
-			return fmt.Errorf("feishu: profile %q is not a profile id: the bot acts as a user, never none", f.Profile)
-		}
-		if f.Domain != "" && f.Domain != FeishuDomainFeishu && f.Domain != FeishuDomainLark {
-			return fmt.Errorf("feishu: domain must be %s or %s, got %q", FeishuDomainFeishu, FeishuDomainLark, f.Domain)
-		}
-		for open, profile := range f.Profiles {
-			if !slices.Contains(f.Users, open) {
-				return fmt.Errorf("feishu: profiles names %q, which is not one of users", open)
-			}
-			if !ProfileID.MatchString(profile) {
-				return fmt.Errorf("feishu: profiles: %q is not a profile id", profile)
-			}
-		}
-	}
 	return nil
-}
-
-// Profiles are the users the deployment names: those the Feishu bot acts as.
-func (c Config) Profiles() []string {
-	f := c.Feishu
-	if f == nil {
-		return nil
-	}
-	out := []string{f.Profile}
-	for _, p := range f.Profiles {
-		if !slices.Contains(out, p) {
-			out = append(out, p)
-		}
-	}
-	return out
 }

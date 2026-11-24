@@ -18,7 +18,7 @@ func TestTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Providers) != 1 || cfg.Providers[0].ID != "openai" || !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Feishu != nil {
+	if len(cfg.Providers) != 1 || cfg.Providers[0].ID != "openai" || !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 	if _, _, found, _ := Legacy([]byte(Template)); found {
@@ -73,9 +73,6 @@ func TestValidateRejects(t *testing.T) {
 		"model no limits":     plain + "providers: [{id: p, type: openai, models: [{name: m}]}]\n",
 		"negative slots":      plain + "slots: -1\n",
 		"unknown key":         plain + "modle: 1\n",
-		"feishu no profile":   plain + "feishu: {app_id: cli_x, app_secret: s}\n",
-		"feishu bad profile":  plain + "feishu: {app_id: cli_x, app_secret: s, profile: a/b}\n",
-		"feishu unknown user": plain + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_b: work}}\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {
@@ -88,7 +85,6 @@ func TestLoadFileResolvesPaths(t *testing.T) {
 	home := t.TempDir()
 	raw := plain + `skills_dir: skills
 workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}
-feishu: {app_id: cli_x, app_secret: s, profile: default, workspace: super-agent}
 `
 	path := filepath.Join(home, FileName)
 	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
@@ -105,22 +101,9 @@ feishu: {app_id: cli_x, app_secret: s, profile: default, workspace: super-agent}
 	if want := filepath.Join(home, "skills"); cfg.SkillsDir != want {
 		t.Errorf("skills_dir = %s, want %s", cfg.SkillsDir, want)
 	}
-	if want := filepath.Join(home, "super-agent"); cfg.Feishu.Workspace != want {
-		t.Errorf("feishu.workspace = %s, want %s", cfg.Feishu.Workspace, want)
-	}
 	dirs := cfg.Workspace.WorkspaceDirs
 	if len(dirs) != 2 || dirs[0] != filepath.Join(user, ".ollupi", "scratch") || dirs[1] != filepath.Join(home, "scratch") {
 		t.Errorf("workspace_dirs = %v", dirs)
-	}
-}
-
-func TestFeishuNamesTheProfilesItActsAs(t *testing.T) {
-	cfg, err := Parse([]byte(plain + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a, ou_b], profiles: {ou_a: default, ou_b: work}}\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := cfg.Profiles(); len(got) != 2 || !slices.Contains(got, "default") || !slices.Contains(got, "work") {
-		t.Fatalf("profiles = %v", got)
 	}
 }
 

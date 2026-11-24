@@ -2,9 +2,8 @@
 // host (the store, the models, the flows that run turns, learn memory and
 // send scheduled tasks, the app and its gateway, web_fetch among its tools)
 // with the tools the desktop adds to it (the workspace's commands and files,
-// the app's browser) and the clients beside the gateway, such as the Feishu bot. New
-// builds everything without starting anything; Serve runs it all until the
-// context ends.
+// the app's browser). New builds everything without starting anything; Serve
+// runs it all until the context ends.
 package host
 
 import (
@@ -21,7 +20,6 @@ import (
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/feishu"
 	"github.com/0xfakeSpike/ollupi/account"
 	"github.com/0xfakeSpike/ollupi/app"
 	"github.com/0xfakeSpike/ollupi/auth"
@@ -51,15 +49,8 @@ type Options struct {
 	Browser *browser.Endpoint
 }
 
-// A Client is a front end of the agent beside the gateway, such as a chat
-// bot. It runs until the backend stops.
-type Client interface {
-	Run(ctx context.Context)
-}
-
 type Host struct {
 	ollupi  *ollupi.Host
-	clients []Client
 	closers []func() error
 }
 
@@ -156,21 +147,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	}
 	h.closers = append(h.closers, h.ollupi.Close)
 	st, users = h.ollupi.Store, h.ollupi.App
-	// The profiles the Feishu bot acts as are named by the deployment, as a
-	// token names one, so they exist before the bot reaches them.
-	for _, profile := range cfg.Profiles() {
-		if err := users.EnsureUser(ctx, profile); err != nil {
-			return nil, fmt.Errorf("feishu: profile %s: %w", profile, err)
-		}
-	}
-	if cfg.Feishu != nil {
-		// Which topic holds which session is kept beside the store.
-		bot, err := feishu.New(*cfg.Feishu, h.ollupi.App, h.ollupi.Store, filepath.Join(dataHome, "data", "feishu.json"))
-		if err != nil {
-			return nil, err
-		}
-		h.clients = append(h.clients, bot)
-	}
 	return h, nil
 }
 
@@ -181,8 +157,8 @@ func (h *Host) Reload(cfg config.Config) error {
 	return h.ollupi.SetModels(cfg.Catalog())
 }
 
-// Serve serves the gateway on ln and runs ollupi's flows and the clients
-// until ctx ends or one of them fails, then releases the store.
+// Serve serves the gateway on ln and runs ollupi's flows until ctx ends or
+// one of them fails, then releases the store.
 func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	defer h.close()
 	g, ctx := errgroup.WithContext(ctx)
@@ -194,12 +170,6 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	for _, user := range profiles(ctx, h.ollupi.Store) {
 		g.Go(func() error {
 			h.ollupi.Users.Tools(ctx, user)
-			return nil
-		})
-	}
-	for _, c := range h.clients {
-		g.Go(func() error {
-			c.Run(ctx)
 			return nil
 		})
 	}

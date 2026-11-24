@@ -47,17 +47,6 @@ export interface ConfigCheck {
       max_output_bytes?: number;
     };
     skills_dir?: string;
-    feishu?: null | {
-      app_id: string;
-      app_secret: string;
-      profile: string;
-      domain?: string;
-      users?: null | string[];
-      profiles?: {
-        [k: string]: string | undefined;
-      };
-      workspace?: string;
-    };
   };
   error?: string;
 }

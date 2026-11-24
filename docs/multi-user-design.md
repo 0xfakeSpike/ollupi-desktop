@@ -8,7 +8,7 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
 
 | 层 | 内容 | 放在哪 |
 |---|---|---|
-| 部署（运营者） | 模型目录（provider 的地址、key、模型和上限）、名称、prompt、slots、工具、沙箱、skills、飞书 | `config.yaml`，每个副本一样 |
+| 部署（运营者） | 模型目录（provider 的地址、key、模型和上限）、名称、prompt、slots、工具、沙箱、skills | `config.yaml`，每个副本一样 |
 | 身份提供方 | 有哪些身份、名称和颜色；给连接签 token | 桌面主进程，`<home>/profiles.json` |
 | 用户 | 新会话默认用哪个模型、学记忆用哪个模型、权限、MCP、记忆、会话 | ollupi 的库，经网关由本人的连接改 |
 | 设备 | 这台 Mac 上次选的身份、主题、语言 | `userData` |
@@ -42,7 +42,6 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
 | `gateway` 的认证 | 单个 token → `DefaultUser = "default"` |
 | `superAgentFolder()`（`apps/desktop/src/main/ipc.ts`） | 固定 `<home>/super-agent`，所有身份会写进同一个 hub 目录 |
 | `app.Models()` | 全局一份模型列表，`pickModel` 也只用这一份 |
-| 飞书桥接 | `owner = gateway.DefaultUser`，所有 open_id 都算同一个人 |
 | 渲染层 | 没有任何用户维度：连接、缓存、草稿、通知都是单份 |
 
 ## 设计
@@ -55,8 +54,6 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
   构造时没有就直接报错。
 - 网关不再替任何连接 `EnsureUser`：用户由身份提供方开，ollupi 不猜。
 - 后端启动时给 `DefaultUser` 预热 MCP：改成遍历库里所有身份。
-- 飞书桥接的 `owner = gateway.DefaultUser`：改成配置里必填的 `feishu.profile`。部署点名的
-  身份和 token 点名的一样可信，后端启动时为它们建好用户。
 - 全新 home 也有身份：`profiles.json` 不存在时主进程写入第一个身份（id `default`），
   第一个连接就以它的名义开户。
 
@@ -78,7 +75,7 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 - 删除 Profile：主进程先停后端，`ollupid --delete-profile` 在库里没有其他写者时
   删除 threads → entries/items/turns、memory、todo、cron、presence、usage、settings
   和用户行；之后主进程把它从 `profiles.json` 去掉，删 attachment 目录和 `users/<id>`，
-  重启后端。它若还有未结束的轮次、飞书还在以它的身份运行，或它是最后一个 Profile，
+  重启后端。它若还有未结束的轮次，或它是最后一个 Profile，
   都拒绝删除。
 
 ### 2. 认证：token 里带着身份
@@ -126,7 +123,6 @@ providers:
         limits: { context: 400000, output: 128000 }
 workspace: { enabled: true, sandbox_mode: workspace-write, ... }
 skills_dir: skills
-feishu: { app_id: ..., profile: default, users: [ou_x] }
 ```
 
 - ollupi 的 `host.Config.Models` 收这份目录，`host.SetModels` 原地替换；每个模型一个
@@ -138,7 +134,7 @@ feishu: { app_id: ..., profile: default, users: [ou_x] }
 - 设置 → 模型改的是目录：渲染层把增删改变成对 `providers` 的修改，主进程用后端的
   `--check-config` 校验后原子写入。只动 `providers` 的修改给后端发 SIGHUP，sidecar
   重读并 `SetModels`，正在调用模型的轮次用旧 client 跑完；后端不在运行或重载失败时退回
-  重启。其他修改（工作区、沙箱、skills、slots、飞书、手改文件）提示后重启。
+  重启。其他修改（工作区、沙箱、skills、slots、手改文件）提示后重启。
 - 模型卡片上的星标是“本身份的新会话默认用它”，记忆页的模型是“本身份用它学记忆”，
   都走网关，不碰文件。
 - 命令跑在沙箱里，读不到 `config.yaml`（key 在里面）也读不到 `<home>/data`（库）。
@@ -170,21 +166,13 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
 - 通知：标题带身份名（“工作 · 会话完成”），否则分不清是谁的。
 - 主题、语言、通知开关保持全局（设备级偏好），不按身份。
 
-### 6. 飞书
-
-- `feishu.users` 是允许使用的 `open_id`，`feishu.profiles` 把它们映射到各自的 profile。
-- `owner` 从 `gateway.DefaultUser` 改成按发送者 open_id 查到的身份；不在映射里的照旧
-  回复 open_id 并忽略。
-- `feishu.workspace` 是全局的：新身份从飞书发起的会话都落在同一个工作区。
-
 ## 分阶段
 
 | 阶段 | 内容 | 可验收的结果 |
 |---|---|---|
-| P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、飞书 `profile` 必填、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
+| P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
 | P3 | （已完成）模型目录归部署（`providers`、`host.Config.Models`、`SetModels` 热替换）；身份只在库里选默认模型和记忆模型；`profiles.json` 归主进程，token 首次使用即开户；旧配置一次性导入 | 所有身份用同一份模型目录，各自选默认和记忆模型；改目录不中断正在跑的轮次 |
-| P4 | （已完成）`feishu.profiles` 把 open_id 映射到身份，回调按线程归属 | 手机端按人分 |
 
 模型目录是部署的，每个 Profile 只在里面选。引擎 API 变化要发新 tag，并在桌面端 bump `go.mod`。
 

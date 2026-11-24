@@ -11,14 +11,11 @@ workspace:
   enabled: true
   sandbox_mode: workspace-write # read-only | workspace-write | full-access
   command_timeout_sec: 60
+  workspace_dirs:
+    - ~/a
 
-# A Feishu bot.
-feishu:
-  app_id: cli_x
-  app_secret: s
-  profile: default
-  users:
-    - ou_a
+# Agent Skills.
+skills_dir: skills
 
 # How many threads may run at once (default 32).
 # slots: 32
@@ -26,10 +23,10 @@ feishu:
 
 describe('editConfigText', () => {
   it('changes only what was asked, keeping every comment where it was', () => {
-    const edited = editConfigText(file, [{ kind: 'set', path: ['feishu', 'profile'], value: 'work' }])
+    const edited = editConfigText(file, [{ kind: 'set', path: ['workspace', 'command_timeout_sec'], value: 120 }])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
-    expect(edited.text).toBe(file.replace('  profile: default\n', '  profile: work\n'))
+    expect(edited.text).toBe(file.replace('  command_timeout_sec: 60\n', '  command_timeout_sec: 120\n'))
   })
 
   it('leaves the file unchanged when nothing changes', () => {
@@ -41,12 +38,12 @@ describe('editConfigText', () => {
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
     expect(edited.text).not.toContain('command_timeout_sec')
-    expect(edited.text).toContain('\n# A Feishu bot.\nfeishu:\n')
+    expect(edited.text).toContain('\n# Agent Skills.\nskills_dir: skills\n')
   })
 
   it('appends a list item', () => {
-    const edited = editConfigText(file, [{ kind: 'set', path: ['feishu', 'users', 1], value: 'ou_b' }])
-    expect(edited.ok && edited.text.includes('  users:\n    - ou_a\n    - ou_b\n')).toBe(true)
+    const edited = editConfigText(file, [{ kind: 'set', path: ['workspace', 'workspace_dirs', 1], value: '~/b' }])
+    expect(edited.ok && edited.text.includes('  workspace_dirs:\n    - ~/a\n    - ~/b\n')).toBe(true)
   })
 
   it('refuses text that is not YAML', () => {

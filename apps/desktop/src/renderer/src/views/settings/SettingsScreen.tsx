@@ -14,7 +14,6 @@ import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18
 import { locales, systemLocale } from '../../i18n/locale'
 import { desktop } from '../../platform/desktop'
 import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
-import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
 import { ProfilesSection } from './ProfilesSection'
@@ -31,7 +30,6 @@ const bodies: Record<SettingsTab, () => ReactNode> = {
   usage: UsageSection,
   permissions: Permissions,
   redaction: Redaction,
-  feishu: FeishuSection,
 }
 
 /** The settings one part at a time, as memory's scopes and the capabilities

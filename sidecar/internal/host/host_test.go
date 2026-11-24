@@ -158,21 +158,6 @@ func TestATokenMadeWithTheSecretVouchesForItsProfile(t *testing.T) {
 	}
 }
 
-func TestTheProfilesFeishuActsAsExistWhenTheBackendStarts(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	home := t.TempDir()
-	cfg := load(t, home, minimal+"feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_a: work}}\n")
-	h, err := New(ctx, Options{Home: home, Token: "secret", Config: cfg})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer h.close()
-	if users := profiles(ctx, h.ollupi.Store); !slices.Equal(users, []string{"default", "work"}) {
-		t.Fatalf("users = %v", users)
-	}
-}
-
 func TestReloadSwapsTheProvidersEveryProfileRunsOn(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
