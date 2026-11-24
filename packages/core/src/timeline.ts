@@ -111,18 +111,24 @@ export function upsertItem(t: Timeline, item: ItemRow): Timeline {
 }
 
 /** Text a model writes now, into the item it will be kept as: streamed
- * into one made for it until that item is kept, whole, by item/changed. */
-export function appendDelta(t: Timeline, d: { turnId: string; itemId: string; delta: string }, type: 'agentMessage' | 'reasoning'): Timeline {
+ * into one made for it until that item is kept, whole, by item/changed.
+ * A delta says where in the item's final text it starts (offset, in UTF-16
+ * code units, as a string's length counts), so one repeated or late takes
+ * the place of what it repeats; one past the text held follows a delta that
+ * was missed, and the text waits for item/changed instead. */
+export function appendDelta(t: Timeline, d: { turnId: string; itemId: string; delta: string; offset: number }, type: 'agentMessage' | 'reasoning'): Timeline {
   if (t.overtaken?.includes(d.itemId)) return t
   const i = t.items.findIndex((it) => it.id === d.itemId)
   const items = t.items.slice()
   if (i < 0) {
+    if (d.offset > 0) return t
     items.push({ id: d.itemId, turnId: d.turnId, seq: Number.MAX_SAFE_INTEGER, updated: 0, type, status: 'inProgress', text: d.delta, startedAt: new Date().toISOString() })
     return { ...t, items }
   }
   const it = items[i]!
-  if (!streaming(it)) return t
-  items[i] = { ...it, text: (it.text ?? '') + d.delta }
+  const held = it.text ?? ''
+  if (!streaming(it) || d.offset > held.length) return t
+  items[i] = { ...it, text: held.slice(0, d.offset) + d.delta }
   return { ...t, items }
 }
 

@@ -55,12 +55,12 @@ writeFileSync(join(workspace, 'README.md'), '# demo\n')
 writeFileSync(
   join(home, 'config.yaml'),
   `name: ollupi
-models:
-  - provider: mock
+providers:
+  - id: mock
     type: openai
     base_url: http://127.0.0.1:${PORT}/v1
     api_key: test
-    names:
+    models:
       - name: mock-model
         limits: { context: 128000, output: 8000 }
 workspace:
@@ -161,6 +161,7 @@ await call('settings/updatePermissions', { approvalPolicy: 'on-request', permiss
 // broken does not connect, so a rule naming its tool cannot be checked: refused.
 await call('settings/updatePermissions', { approvalPolicy: 'on-request', permissions: { deny: ['broken__delete_everything'] } }).catch(() => {})
 await call('settings/update', { memory: true })
+await call('settings/update', { model: 'mock/mock-model' })
 const { workspace: ws1 } = await call('workspace/add', { path: workspace })
 await call('workspace/rename', { workspaceId: ws1.id, name: 'Demo' })
 await call('workspace/list', {})

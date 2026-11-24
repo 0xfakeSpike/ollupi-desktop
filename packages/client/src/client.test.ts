@@ -71,7 +71,7 @@ describe('OllupiClient', () => {
     const client = await OllupiClient.over(gw.transport, info)
     const seen: string[] = []
     const off = client.on('item/agentMessage/delta', (p) => seen.push(p.delta))
-    const delta = (d: string) => ({ method: 'item/agentMessage/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', delta: d } })
+    const delta = (d: string) => ({ method: 'item/agentMessage/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', delta: d, offset: 0 } })
     gw.reply(delta('he'))
     off()
     gw.reply(delta('llo'))
