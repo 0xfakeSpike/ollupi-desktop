@@ -3,7 +3,7 @@
 // the call that made it, so the calls below leave the list to it.
 
 import { compareWorkspaces, upsertWorkspace } from '@ollupi/core'
-import type { PermissionSettings, WorkspaceRow } from '@ollupi/protocol'
+import type { PermissionSettings, WorkspaceChangedNotification, WorkspaceRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -14,15 +14,27 @@ import { useProfile } from './profile'
 
 export const useWorkspaces = create<{ list: WorkspaceRow[] }>()(() => ({ list: [] }))
 
-const apply = (ws: WorkspaceRow) => useWorkspaces.setState((s) => ({ list: upsertWorkspace(s.list, ws) }))
+/** The commit the list holds: a change at or before it is in it already. */
+let seen = 0
+
+function changed({ workspace, seq }: WorkspaceChangedNotification): void {
+  if (seq <= seen) return
+  seen = seq
+  useWorkspaces.setState((s) => ({ list: upsertWorkspace(s.list, workspace) }))
+}
 
 export const workspacesDomain: Domain = {
-  bind: (client) => client.on('workspace/changed', ({ workspace }) => apply(workspace)),
+  bind: (client) => client.on('workspace/changed', changed),
   sync: async (client) => {
-    const { data } = await client.call('workspace/list', {})
-    useWorkspaces.setState({ list: data.slice().sort(compareWorkspaces) })
+    const { result, newer } = await client.snapshot('workspace/list', {}, ['workspace/changed'])
+    seen = result.seq
+    useWorkspaces.setState({ list: result.data.slice().sort(compareWorkspaces) })
+    newer.forEach((e) => changed(e.params))
   },
-  disconnect: () => useWorkspaces.setState({ list: [] }),
+  disconnect: () => {
+    seen = 0
+    useWorkspaces.setState({ list: [] })
+  },
 }
 
 export function useWorkspace(id: string | undefined): WorkspaceRow | undefined {

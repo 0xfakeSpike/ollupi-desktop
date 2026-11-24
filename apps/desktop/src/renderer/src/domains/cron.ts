@@ -2,12 +2,12 @@
 // Every thread's tasks are listed once connected (cron/list without a
 // thread), and ollupi reports each change after that as cron/changed, with
 // the task as it is then: one the model or a cron/* call made, or the
-// scheduler moving its next run on. It holds a change back until the list
-// it follows is answered, so applying changes in order keeps the list
-// current. The cron/* calls below change tasks; their results are not
-// applied here, the notification is.
+// scheduler moving its next run on. A change can arrive before the list it
+// follows, so each is applied when it is newer than the list (seq). The
+// cron/* calls below change tasks; their results are not applied here, the
+// notification is.
 
-import type { CronJobRow, ThreadRow } from '@ollupi/protocol'
+import type { CronChangedNotification, CronJobRow, ThreadRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -16,7 +16,12 @@ import { run } from '../gateway/run'
 /** Undefined until the first list arrives. */
 export const useCron = create<{ jobs: CronJobRow[] | undefined }>()(() => ({ jobs: undefined }))
 
-function applyChange(id: string, job: CronJobRow | null): void {
+/** The commit the list holds: a change at or before it is in it already. */
+let seen = 0
+
+function applyChange({ id, job, seq }: CronChangedNotification): void {
+  if (seq <= seen) return
+  seen = seq
   useCron.setState((s) => {
     if (!s.jobs) return s
     const rest = s.jobs.filter((j) => j.id !== id)
@@ -38,15 +43,21 @@ function applyThread(thread: ThreadRow): void {
 export const cronDomain: Domain = {
   bind: (client) => {
     const offs = [
-      client.on('cron/changed', ({ id, job }) => applyChange(id, job)),
+      client.on('cron/changed', applyChange),
       client.on('thread/changed', ({ thread }) => thread && applyThread(thread)),
     ]
     return () => offs.forEach((off) => off())
   },
   sync: async (client) => {
-    useCron.setState({ jobs: (await client.call('cron/list', {})).data })
+    const { result, newer } = await client.snapshot('cron/list', {}, ['cron/changed'])
+    seen = result.seq
+    useCron.setState({ jobs: result.data })
+    newer.forEach((e) => applyChange(e.params))
   },
-  disconnect: () => useCron.setState({ jobs: undefined }),
+  disconnect: () => {
+    seen = 0
+    useCron.setState({ jobs: undefined })
+  },
 }
 
 /** times: how many runs before the task ends; undefined repeats until it

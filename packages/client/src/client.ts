@@ -35,6 +35,12 @@ type Method = keyof ClientMethods
 type Notification = keyof ServerNotifications
 type Request = keyof ServerRequests
 
+/** The reads whose result carries the commit they were read at. */
+type SnapshotMethod = { [M in Method]: ClientMethods[M]['result'] extends { seq: number } ? M : never }[Method]
+
+/** A notification with its method, so a union of them can be told apart. */
+export type NotificationEvent<N extends Notification = Notification> = { [K in N]: { method: K; params: ServerNotifications[K] } }[N]
+
 export class OllupiClient {
   private readonly listeners = new Map<string, Set<(params: any) => void>>()
   private readonly handlers = new Map<string, (params: any) => Promise<unknown>>()
@@ -90,6 +96,32 @@ export class OllupiClient {
     const result = (await this.peer.call(method, params)) as ClientMethods[M]['result']
     this.inspector?.received('result', method, result)
     return result
+  }
+
+  /** Calls a read whose result carries the seq of the commit it was read
+   * at, and gives with it the watched notifications that arrived while it
+   * was on its way and are newer than that: the gateway may send a later
+   * commit's change before an older read's reply. Whoever replaces what
+   * they hold with the result applies these after it. A notification
+   * without a seq (streamed text) is always given. */
+  async snapshot<M extends SnapshotMethod, N extends Notification>(
+    method: M,
+    params: ClientMethods[M]['params'],
+    watched: readonly N[],
+  ): Promise<{ result: ClientMethods[M]['result']; newer: NotificationEvent<N>[] }> {
+    const caught: NotificationEvent<N>[] = []
+    const offs = watched.map((n) => this.on(n, (params) => caught.push({ method: n, params } as NotificationEvent<N>)))
+    try {
+      const result = await this.call(method, params)
+      const { seq } = result as { seq: number }
+      const newer = caught.filter((e) => {
+        const at = (e.params as { seq?: number }).seq
+        return at === undefined || at > seq
+      })
+      return { result, newer }
+    } finally {
+      offs.forEach((off) => off())
+    }
   }
 
   private notify<N extends keyof ClientNotifications>(method: N, params: ClientNotifications[N]): void {

@@ -78,6 +78,22 @@ describe('OllupiClient', () => {
     expect(seen).toEqual(['he'])
   })
 
+  it('gives a read the changes that came on its way and are newer than it', async () => {
+    const todo = (id: number, seq: number) => ({ method: 'todo/changed', params: { todo: { id, title: `t${id}` }, seq } })
+    const gw = gateway((m, reply) => {
+      reply(todo(1, 4))
+      reply(todo(2, 6))
+      reply({ method: 'item/agentMessage/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', delta: 'x', offset: 0 } })
+      reply({ id: m.id, result: { data: [], seq: 5 } })
+      setTimeout(() => reply(todo(3, 7)), 0)
+    })
+    const client = await OllupiClient.over(gw.transport, info)
+    const { result, newer } = await client.snapshot('todo/list', {}, ['todo/changed'])
+    await settle()
+    expect(result.seq).toBe(5)
+    expect(newer.map((e) => [e.method, e.params.todo.id])).toEqual([['todo/changed', 2]])
+  })
+
   it('answers a server request with the handler result under its id', async () => {
     const gw = gateway()
     const client = await OllupiClient.over(gw.transport, info)

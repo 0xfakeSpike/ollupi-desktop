@@ -3,10 +3,10 @@
 // permissions every conversation starts from, beneath its workspace's and
 // its own. ollupi reads them as it needs them, so a change applies from the
 // next model call or tool call. Read once connected; every change, from this
-// client or another, arrives as settings/changed, which is what is applied,
-// not the update's result.
+// client or another, arrives as settings/changed, which is what is applied
+// when it is newer than what was read (seq), not the update's result.
 
-import type { ApprovalPolicy, PermissionSettings, SettingsRow } from '@ollupi/protocol'
+import type { ApprovalPolicy, PermissionSettings, SettingsChangedNotification, SettingsRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -15,12 +15,27 @@ import { run } from '../gateway/run'
 /** Undefined until read on a connection. */
 export const useSettings = create<{ settings: SettingsRow | undefined }>()(() => ({ settings: undefined }))
 
+/** The commit the settings were read at: a change at or before it is in them already. */
+let seen = 0
+
+function changed({ seq, ...settings }: SettingsChangedNotification): void {
+  if (seq <= seen) return
+  seen = seq
+  useSettings.setState({ settings })
+}
+
 export const settingsDomain: Domain = {
-  bind: (client) => client.on('settings/changed', (settings) => useSettings.setState({ settings })),
+  bind: (client) => client.on('settings/changed', changed),
   sync: async (client) => {
-    useSettings.setState({ settings: await client.call('settings/read', {}) })
+    const { result: { seq, ...settings }, newer } = await client.snapshot('settings/read', {}, ['settings/changed'])
+    seen = seq
+    useSettings.setState({ settings })
+    newer.forEach((e) => changed(e.params))
   },
-  disconnect: () => useSettings.setState({ settings: undefined }),
+  disconnect: () => {
+    seen = 0
+    useSettings.setState({ settings: undefined })
+  },
 }
 
 export function setRedaction(on: boolean): Promise<void | undefined> {

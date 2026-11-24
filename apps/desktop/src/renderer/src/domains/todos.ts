@@ -2,12 +2,12 @@
 // handed to a conversation, and those done or dropped. ollupi keeps them in
 // its todos table (todo/list), so the app holds a mirror of that list and
 // nothing else: no file stands behind them. Every change ollupi reports as
-// todo/changed, with the todo as it is then, so applying them in order keeps
-// the list current; the todo/* calls below change todos, and their results
+// todo/changed, with the todo as it is then, so applying those newer than
+// the list (seq) keeps it current, whichever arrives first; the todo/* calls below change todos, and their results
 // are not applied here, the notification is.
 
 import { errorMessage } from '@ollupi/client'
-import type { TodoRow, TodoStatus } from '@ollupi/protocol'
+import type { TodoChangedNotification, TodoRow, TodoStatus } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -45,20 +45,33 @@ function upsert(list: readonly TodoRow[] | undefined, todo: TodoRow): TodoRow[] 
   return [...(list ?? []).filter((t) => t.id !== todo.id), todo].sort(compare)
 }
 
+/** The commit the list holds: a change at or before it is in it already. */
+let seen = 0
+
+function changed({ todo, seq }: TodoChangedNotification): void {
+  if (seq <= seen) return
+  seen = seq
+  useTodos.setState((s) => ({ list: upsert(s.list, todo), error: undefined }))
+}
+
 export const todosDomain: Domain = {
-  bind: (client) =>
-    client.on('todo/changed', ({ todo }) => useTodos.setState((s) => ({ list: upsert(s.list, todo), error: undefined }))),
+  bind: (client) => client.on('todo/changed', changed),
   // A list that cannot be read is no reason to reconnect the session: the
   // panel says why, and the next connection (or todo/changed) reads it again.
   sync: async (client) => {
     try {
-      const page = await client.call('todo/list', { limit: LIMIT })
-      useTodos.setState({ list: page.data ?? [], more: !!page.more, error: undefined })
+      const { result, newer } = await client.snapshot('todo/list', { limit: LIMIT }, ['todo/changed'])
+      seen = result.seq
+      useTodos.setState({ list: result.data ?? [], more: !!result.more, error: undefined })
+      newer.forEach((e) => changed(e.params))
     } catch (err) {
       useTodos.setState({ error: errorMessage(err) })
     }
   },
-  disconnect: () => useTodos.setState({ list: undefined, more: false, error: undefined }),
+  disconnect: () => {
+    seen = 0
+    useTodos.setState({ list: undefined, more: false, error: undefined })
+  },
 }
 
 function setStatus(todo: TodoRow, status: TodoStatus): Promise<void | undefined> {

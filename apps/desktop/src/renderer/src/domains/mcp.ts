@@ -8,7 +8,7 @@
 // with the servers.
 
 import type { OllupiClient } from '@ollupi/client'
-import type { MCPServer, MCPServerConfig } from '@ollupi/protocol'
+import type { MCPServer, MCPServerChangedNotification, MCPServerConfig } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { BROWSER_PROVIDER } from '../../../shared/ipc'
 import { gateway } from '../gateway/connection'
@@ -19,25 +19,39 @@ import { useTools } from './tools'
 /** Undefined until read on a connection. */
 export const useMcpServers = create<{ list: MCPServer[] | undefined }>()(() => ({ list: undefined }))
 
+/** The commit the list holds: a change at or before it is in it already. */
+let seen = 0
+
+/** The server as now written, not started yet; reading again says how it does. */
+function changed({ name, server, seq }: MCPServerChangedNotification): void {
+  if (seq <= seen) return
+  seen = seq
+  useMcpServers.setState((s) => {
+    if (!s.list) return s
+    const rest = s.list.filter((x) => x.name !== name)
+    return { list: server ? [...rest, server].sort((a, b) => a.name.localeCompare(b.name)) : rest }
+  })
+}
+
 async function read(client: OllupiClient): Promise<void> {
-  const [servers, tools] = await Promise.all([client.call('mcpServer/list', {}), client.call('tool/list', {})])
-  useMcpServers.setState({ list: servers.data })
+  const [{ result, newer }, tools] = await Promise.all([client.snapshot('mcpServer/list', {}, ['mcpServer/changed']), client.call('tool/list', {})])
+  seen = result.seq
+  useMcpServers.setState({ list: result.data })
+  newer.forEach((e) => changed(e.params))
   useTools.setState({ list: tools.data })
 }
 
 export const mcpDomain: Domain = {
   bind: (client) =>
-    // The server as now written, not started yet; reading again says how it does.
-    client.on('mcpServer/changed', ({ name, server }) => {
-      useMcpServers.setState((s) => {
-        if (!s.list) return s
-        const rest = s.list.filter((x) => x.name !== name)
-        return { list: server ? [...rest, server].sort((a, b) => a.name.localeCompare(b.name)) : rest }
-      })
+    client.on('mcpServer/changed', (params) => {
+      changed(params)
       void read(client).catch(() => undefined)
     }),
   sync: (client) => read(client),
-  disconnect: () => useMcpServers.setState({ list: undefined }),
+  disconnect: () => {
+    seen = 0
+    useMcpServers.setState({ list: undefined })
+  },
 }
 
 /** Reads again how each server is doing. */

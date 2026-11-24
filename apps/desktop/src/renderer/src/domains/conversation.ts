@@ -2,7 +2,7 @@
 // the thread's, turns' and items' changes, and the user's intents on them
 // (start a thread, send, steer, queue, interrupt, page back).
 
-import { RpcError } from '@ollupi/client'
+import { RpcError, type OllupiClient } from '@ollupi/client'
 import {
   activeTurn,
   applyEvent,
@@ -12,11 +12,11 @@ import {
   refreshFromPage,
   timelineFromPage,
   titleFromMessage,
-  upsertTurn,
   type Timeline,
   type TimelineEvent,
+  type TimelineEventName,
 } from '@ollupi/core'
-import { ErrorCode, type ItemRow, type PermissionSettings, type TurnRow, type UserInput } from '@ollupi/protocol'
+import { ErrorCode, type ItemRow, type PermissionSettings, type ThreadPageResult, type UserInput } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { DRAFT_BROWSER } from '../../../shared/ipc'
 import { gateway } from '../gateway/connection'
@@ -47,6 +47,23 @@ function store(threadId: string, t: Timeline): void {
   useTimelines.setState((s) => ({ byThread: { ...s.byThread, [threadId]: t } }))
 }
 
+const TIMELINE_EVENTS: TimelineEventName[] = ['thread/changed', 'turn/changed', 'item/changed', 'item/agentMessage/delta', 'item/reasoning/textDelta']
+
+/** Reads a thread's latest page with what changed in it while the page was
+ * on its way, which the page does not have: nothing holds the thread until
+ * the page arrives, so those changes found no timeline to go to. replay
+ * applies them to the timeline made from the page, and gives undefined
+ * when one of them deleted the thread. */
+async function resume(client: OllupiClient, threadId: string): Promise<{ page: ThreadPageResult; replay: (t: Timeline) => Timeline | undefined }> {
+  const { result: page, newer } = await client.snapshot('thread/resume', { threadId, limit: PAGE_SIZE }, TIMELINE_EVENTS)
+  const mine = newer.filter((e) => e.params.threadId === threadId)
+  const replay = (t: Timeline) => {
+    if (mine.some((e) => e.method === 'thread/changed' && !e.params.thread)) return undefined
+    return mine.reduce((acc, e) => applyEvent(acc, e), t)
+  }
+  return { page, replay }
+}
+
 export const conversationDomain: Domain = {
   bind: (client) => {
     const apply = (e: TimelineEvent) => update(e.params.threadId, (t) => applyEvent(t, e))
@@ -75,8 +92,10 @@ export const conversationDomain: Domain = {
     useTimelines.setState({ byThread: {} })
     if (!open) return
     try {
-      const page = await client.call('thread/resume', { threadId: open, limit: PAGE_SIZE })
-      store(open, kept ? refreshFromPage(kept, page) : timelineFromPage(page))
+      const { page, replay } = await resume(client, open)
+      const t = replay(kept ? refreshFromPage(kept, page) : timelineFromPage(page))
+      if (t) store(open, t)
+      else go({ kind: 'draft', workspaceId: undefined })
     } catch (err) {
       // Gone since it was opened (deleted elsewhere, or a reload outlived
       // it): a new conversation, rather than a connection that never syncs.
@@ -97,7 +116,9 @@ export function openThread(threadId: string): Promise<void | undefined> {
   go({ kind: 'thread', threadId })
   return run((e) => e.thread.open, async () => {
     if (useTimelines.getState().byThread[threadId]) return
-    store(threadId, timelineFromPage(await gateway().call('thread/resume', { threadId, limit: PAGE_SIZE })))
+    const { page, replay } = await resume(gateway(), threadId)
+    const t = replay(timelineFromPage(page))
+    if (t) store(threadId, t)
   })
 }
 
@@ -192,8 +213,8 @@ export function sendMessage(threadId: string, { text, files }: Message, mode: Se
 
 async function startTurn(threadId: string, input: UserInput[]): Promise<void> {
   const connection = useNavigation.getState().model
-  const { turn } = await gateway().call('turn/start', { threadId, input, connection })
-  update(threadId, (t) => upsertTurn(t, turn))
+  // turn/changed has put the turn in the timeline already.
+  await gateway().call('turn/start', { threadId, input, connection })
 }
 
 export function interrupt(threadId: string): Promise<void | undefined> {

@@ -46,7 +46,7 @@ type App interface {
 	Interrupt(ctx context.Context, u, id, expected string) error
 	Decide(ctx context.Context, u, id, approval string, decision conversation.Decision) error
 	Answer(ctx context.Context, u, id, item string, answers ask.Answers) error
-	Workspaces(ctx context.Context, u string) ([]account.Workspace, error)
+	Workspaces(ctx context.Context, u string) ([]account.Workspace, int64, error)
 }
 
 // Store is where the bridge reads conversations and hears of their changes;
@@ -281,7 +281,7 @@ func (b *Bridge) workspace(owner string) (string, error) {
 	if b.cfg.Workspace == "" {
 		return "", nil
 	}
-	list, err := b.app.Workspaces(b.ctx, owner)
+	list, _, err := b.app.Workspaces(b.ctx, owner)
 	if err != nil {
 		return "", err
 	}
@@ -441,7 +441,7 @@ func (b *Bridge) workspaceName(owner, id string) string {
 	if id == "" {
 		return ""
 	}
-	list, err := b.app.Workspaces(b.ctx, owner)
+	list, _, err := b.app.Workspaces(b.ctx, owner)
 	if err != nil {
 		return ""
 	}

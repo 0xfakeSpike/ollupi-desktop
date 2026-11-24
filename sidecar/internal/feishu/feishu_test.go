@@ -75,11 +75,11 @@ func (f *fakeApp) Answer(_ context.Context, u, threadID, itemID string, answers 
 	return nil
 }
 
-func (*fakeApp) Workspaces(_ context.Context, u string) ([]account.Workspace, error) {
+func (*fakeApp) Workspaces(_ context.Context, u string) ([]account.Workspace, int64, error) {
 	if u != owner {
-		return nil, nil
+		return nil, 0, nil
 	}
-	return []account.Workspace{{ID: "ws-1", Name: "app", Root: "/code/app"}}, nil
+	return []account.Workspace{{ID: "ws-1", Name: "app", Root: "/code/app"}}, 1, nil
 }
 
 // fakeStore reads only what the bridge reads: conversations' headers and
