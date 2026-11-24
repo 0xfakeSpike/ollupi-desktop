@@ -1,24 +1,23 @@
 # 发布清单
 
-版本：app `0.8.17-beta.6`，引擎 `v0.28.0`。
+版本：app `0.8.17-beta.7`，引擎 `v0.28.0`（和 beta.6 相同）。
 
-## 1. 引擎先出去
+## 1. 这一版改了什么
 
-引擎 `v0.28.0` 已推送（tag 在 origin 上）。这一版引擎：
+只改桌面端界面，引擎和数据都不动：
 
-- 流式文本的 delta 带 `offset`（它在条目最终文本里的起点，按 UTF-16 计），客户端照它放，
-  重复、迟到的 delta 不再弄乱文本；之前一次回调同时有思考和正文时正文会丢，现在两条都发。
-- 存储读走只读连接池、写走单连接，写和事件排队，不再持锁通知。
-- 工作区搬家记在行里（迁移 0018，`WorkspaceRow.movingTo`），启动时收尾没搬完的。
-- 定时任务在任务变化和到点时醒，不再每分钟轮询。
+- 设置、能力、记忆三页同一种排法：标题、160px 的分类、紧挨着的内容列靠左，滚动时分类留在原处；设置一次显示一个分类。
+- 设置的第一个分类是「身份」，侧栏原来的身份菜单（切换、新建、编辑、删除不在用的）搬到这里；侧栏底部的设置胶囊带当前身份的圆点。
+- 通用：Ollupi、版本和更新合成一块，路径写成 `~/…`。
+- 工作区区域色按创建先后分配，六个以内两两不同。
+- 连上、就绪不着色；侧栏的连接状态只在没连上时出现；会话行的时间变短（20小时、3天）。
 
-## 2. 桌面端钉到新引擎
+## 2. 引擎
+
+不用动，sidecar 仍钉在 `v0.28.0`：
 
 ```bash
-cd ~/Desktop/yiming/ollupi-desktop/sidecar
-GOWORK=off go get github.com/0xfakeSpike/ollupi@v0.28.0
-GOWORK=off go test -tags sqlite_fts5 ./...
-cd .. && pnpm protocol:generate && node packages/protocol/scripts/record-session.mjs
+grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
 ```
 
 ## 3. 打包
@@ -38,16 +37,16 @@ grep -ac 'movingTo' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.6 --prerelease --title "0.8.17-beta.6" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.7 --prerelease --title "0.8.17-beta.7" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
-- 长回答流式显示时文字不重复、不缺字；带思考的模型，思考和正文都边写边出。
-- 断网重连后正在写的回答接着显示，没有重复的段落。
-- 搬一个工作区，搬的途中退出再打开：搬家完成，工作区指向新位置。
-- 定时任务到点照常跑。
-- 从 beta.5 升上来：模型、身份、设置都还在。
+- 从 beta.6 升上来：会话、工作区、身份、设置都在。
+- 侧栏底部只有记忆、能力、设置一行，设置前是当前身份的圆点；点进去先到「身份」。
+- 有两个以上身份时，在「身份」里切换到另一个：仍停在设置，侧栏换成那个身份的会话。
+- 设置、能力、记忆在宽窗口里靠左，分类和内容之间没有大片空白。
+- 六个以内的工作区颜色两两不同；重启后颜色不变。
 
 ## 这版的已知限制
 
