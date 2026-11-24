@@ -3,7 +3,7 @@ module github.com/0xfakeSpike/ollupi-desktop/sidecar
 go 1.26.0
 
 require (
-	github.com/0xfakeSpike/ollupi v0.27.0
+	github.com/0xfakeSpike/ollupi v0.27.1
 	github.com/google/jsonschema-go v0.4.2
 	github.com/larksuite/oapi-sdk-go/v3 v3.12.2
 	golang.org/x/sync v0.25.0
