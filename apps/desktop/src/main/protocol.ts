@@ -10,11 +10,12 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
+  // An attachment, from the bytes the gateway serves over HTTP.
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   // A PDF in the files panel, from its bytes.
   'frame-src blob:',
-  'connect-src ws://127.0.0.1:*',
+  'connect-src ws://127.0.0.1:* http://127.0.0.1:*',
 ].join('; ')
 
 /** Must run before the app is ready. */

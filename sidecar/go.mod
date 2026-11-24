@@ -3,7 +3,7 @@ module github.com/0xfakeSpike/ollupi-desktop/sidecar
 go 1.26.0
 
 require (
-	github.com/0xfakeSpike/ollupi v0.29.0
+	github.com/0xfakeSpike/ollupi v0.30.0
 	github.com/google/jsonschema-go v0.4.2
 	github.com/larksuite/oapi-sdk-go/v3 v3.12.2
 	golang.org/x/sync v0.25.0
@@ -46,6 +46,7 @@ require (
 	github.com/openai/openai-go v1.12.0 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/rs/cors v1.11.1 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1 // indirect

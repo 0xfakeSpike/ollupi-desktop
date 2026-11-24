@@ -6,7 +6,7 @@ import type { Attachment } from '@ollupi/protocol'
 import { cn, Dialog, Loader, Spinner } from '@ollupi/ui'
 import { FileText } from 'lucide-react'
 import { useState } from 'react'
-import { useAttachmentURL } from '../../../domains/attachments'
+import { useAttachment, useAttachmentText } from '../../../domains/attachments'
 import { useOpenThreadId } from '../../../domains/navigation'
 import { useLocale, useT } from '../../../i18n'
 import { fileSize } from '../../../i18n/format'
@@ -26,7 +26,7 @@ export function Attachments({ attachments, className }: { attachments: readonly 
 }
 
 function ImageAttachment({ threadId, attachment }: { threadId: string; attachment: Attachment }) {
-  const url = useAttachmentURL(threadId, attachment)
+  const url = useAttachment(threadId, attachment)?.url
   const [open, setOpen] = useState(false)
   const m = useT()
   return (
@@ -72,16 +72,11 @@ function FileAttachment({ threadId, attachment }: { threadId: string; attachment
 
 /** ollupi takes only text files, stored as they came. */
 function TextContent({ threadId, attachment, onClose }: { threadId: string; attachment: Attachment; onClose(): void }) {
-  const url = useAttachmentURL(threadId, attachment)
+  const text = useAttachmentText(threadId, attachment)
   const m = useT()
   return (
     <Dialog title={attachment.name} wide closeLabel={m.common.close} onClose={onClose}>
-      {url ? <CodeBlock code={decodeText(url)} label={attachment.mimeType} /> : <Loader label={m.common.reading} />}
+      {text !== undefined ? <CodeBlock code={text} label={attachment.mimeType} /> : <Loader label={m.common.reading} />}
     </Dialog>
   )
-}
-
-function decodeText(dataUrl: string): string {
-  const bytes = Uint8Array.from(atob(dataUrl.slice(dataUrl.indexOf(',') + 1)), (c) => c.charCodeAt(0))
-  return new TextDecoder().decode(bytes)
 }

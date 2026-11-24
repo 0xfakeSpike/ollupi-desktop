@@ -173,8 +173,6 @@ const notes = join(tmp, 'notes.txt')
 writeFileSync(notes, 'indent with two spaces\n')
 const attached = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'read the attached notes' }, { type: 'file', path: notes }] })
 await completed(attached.turn.id)
-// The file is on the turn's message, which item/started told of.
-await call('attachment/read', { threadId: thread.id, attachmentId: firstMessages.get(attached.turn.id).attachments[0].id })
 await turn(thread.id, 'run ls please')
 await turn(thread.id, 'please ask me which language')
 await turn(thread.id, 'make a plan')

@@ -2,14 +2,15 @@
 // this machine and copies it while it takes the message; it decides from
 // the content what it accepts (PNG, JPEG, GIF and WebP images, text files,
 // up to ten a message) and stores the copies with the thread. A message's
-// attachments come back on its item and turn, and their content through
-// attachment/read, which is kept here once read so a thumbnail is fetched
-// once.
+// attachments come back on its item and turn, and their content over plain
+// HTTP from the gateway's address, which is kept here once read so a
+// thumbnail is fetched once.
 
-import type { Attachment, UserInput } from '@ollupi/protocol'
-import { useEffect } from 'react'
+import { Paths, type Attachment, type UserInput } from '@ollupi/protocol'
+import { useEffect, useState } from 'react'
 import { create } from 'zustand'
-import { gateway } from '../gateway/connection'
+import { useConnection } from '../gateway/connection'
+import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
 
 /** A file the person picked, pasted or dropped, before it is sent. */
@@ -51,36 +52,62 @@ export async function withMessageInput<T>(text: string, files: readonly File[], 
   }
 }
 
-/** Data URLs of attachments read so far, by attachment id; null while one
- * is being read. One that could not be read is left out, for the next time
- * it shows to ask again. */
-const useRead = create<Record<string, string | null>>()(() => ({}))
+/** An attachment's content, and an object URL to show it by. */
+export interface AttachmentContent {
+  blob: Blob
+  url: string
+}
 
-/** An attachment's content as a data URL, read from the gateway the first
- * time it is asked for. */
-export function useAttachmentURL(threadId: string, attachment: Attachment): string | undefined {
-  const url = useRead((s) => s[attachment.id])
-  const { id, mimeType } = attachment
+/** Attachments read so far, by attachment id; null while one is being
+ * read. One that could not be read is left out, for the next time it shows
+ * to ask again. */
+const useRead = create<Record<string, AttachmentContent | null>>()(() => ({}))
+
+/** An attachment's content, read from the gateway the first time it is
+ * asked for. */
+export function useAttachment(threadId: string, attachment: Attachment): AttachmentContent | undefined {
+  const content = useRead((s) => s[attachment.id])
+  const { id } = attachment
   useEffect(() => {
     if (useRead.getState()[id] !== undefined) return
     useRead.setState({ [id]: null })
     void readAttachment(threadId, id).then(
-      (data) => useRead.setState({ [id]: `data:${mimeType};base64,${data}` }),
+      (blob) => useRead.setState({ [id]: { blob, url: URL.createObjectURL(blob) } }),
       () => useRead.setState(({ [id]: _failed, ...rest }) => rest, true),
     )
-  }, [threadId, id, mimeType])
-  return url ?? undefined
+  }, [threadId, id])
+  return content ?? undefined
+}
+
+/** A text attachment's content, decoded once read. */
+export function useAttachmentText(threadId: string, attachment: Attachment): string | undefined {
+  const content = useAttachment(threadId, attachment)
+  const [text, setText] = useState<string>()
+  useEffect(() => {
+    if (!content) return
+    let current = true
+    void content.blob.text().then((t) => current && setText(t))
+    return () => {
+      current = false
+    }
+  }, [content])
+  return text
 }
 
 /** A sent attachment as a file again, to go with a message once more. */
 export async function attachmentFile(threadId: string, attachment: Attachment): Promise<File> {
-  const data = await readAttachment(threadId, attachment.id)
-  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
-  return new File([bytes], attachment.name, { type: attachment.mimeType })
+  const blob = useRead.getState()[attachment.id]?.blob ?? (await readAttachment(threadId, attachment.id))
+  return new File([blob], attachment.name, { type: attachment.mimeType })
 }
 
-/** async so that gateway() throwing while offline rejects: thrown in an
- * Effect it would take the whole window down. */
-async function readAttachment(threadId: string, attachmentId: string): Promise<string> {
-  return (await gateway().call('attachment/read', { threadId, attachmentId })).data
+/** Reads an attachment from the gateway over HTTP, at the backend's address
+ * and with its token, as the WebSocket is opened. async so that being
+ * offline rejects: thrown in an Effect it would take the whole window down. */
+async function readAttachment(threadId: string, attachmentId: string): Promise<Blob> {
+  const backend = useConnection.getState().backend
+  if (backend.status !== 'ready') throw new Error(t().errors.notConnected)
+  const path = Paths.attachment.replace('{thread}', encodeURIComponent(threadId)).replace('{attachment}', encodeURIComponent(attachmentId))
+  const res = await fetch(new URL(path, backend.url.replace(/^ws/, 'http')), { headers: { Authorization: `Bearer ${backend.token}` } })
+  if (!res.ok) throw new Error(`attachment ${attachmentId}: ${res.status} ${await res.text()}`)
+  return res.blob()
 }

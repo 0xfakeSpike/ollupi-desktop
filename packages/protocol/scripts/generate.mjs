@@ -3,7 +3,8 @@
 // gateway dispatches from and verifies against real traffic. Nothing here
 // reads Go: the types come from the contract's JSON Schema
 // (json-schema-to-typescript), and the message maps, error codes, built-in
-// tools, providers and limits are read off the contract's other sections.
+// tools, providers, limits and HTTP paths are read off the contract's other
+// sections.
 //
 //   node scripts/generate.mjs           write src/generated/
 //   node scripts/generate.mjs --check   fail if src/generated/ is out of date
@@ -115,6 +116,10 @@ function messages() {
 
   out.push(`/** The bounds the gateway holds a request to, so that a client can keep within them before it asks. */`, `export const Limits = {`)
   for (const [name, value] of Object.entries(contract.limits)) out.push(`  ${name}: ${Number(value)},`)
+  out.push('} as const\n')
+
+  out.push(`/** What the gateway serves over plain HTTP beside the WebSocket: on the same address, with the same token as a Bearer header. */`, `export const Paths = {`)
+  for (const [name, value] of Object.entries(contract.paths)) out.push(`  ${name}: ${JSON.stringify(value)},`)
   out.push('} as const\n')
 
   out.push(`/** Built-in tools whose arguments or output the contract describes. */`, `export interface BuiltinTools {`)
