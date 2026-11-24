@@ -159,7 +159,7 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
 
 ### 5. 渲染层
 
-- 侧栏底部一个身份菜单（现在这样实现）：列出所有身份、切换、新建（起名 + 选颜色）、编辑当前身份的名字和颜色。
+- 设置的第一个分类"身份"（现在这样实现）：列出所有身份、切换、新建（起名 + 选颜色）、编辑名字和颜色、删除不在用的；侧栏底部的设置胶囊带当前身份的颜色圆点。
 - **切换 = 重连**：先清空每个 profile-scoped domain 的 store，再用新 token 连接
   （threads、workspaces、todos、memory、usage、models、read state）。
   `resetForProfile()` 同时清掉当前 conversation、panel、model、environment 和 approval。

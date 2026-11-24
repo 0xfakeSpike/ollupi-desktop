@@ -1,72 +1,72 @@
 import { errorMessage } from '@ollupi/client'
-import { Button, cn, Dialog, Field, Input, Picker } from '@ollupi/ui'
-import { ChevronDown } from 'lucide-react'
+import { Badge, Button, cn, Dialog, Field, Input } from '@ollupi/ui'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { Profile, ProfileColor } from '../../../../shared/ipc'
-import { createProfile, currentProfile, deleteProfile, profileName, switchProfile, updateProfile, useProfile } from '../../domains/profile'
-import { useT } from '../../i18n'
 import { confirmRestart } from '../../domains/backendConfig'
 import { notify } from '../../domains/notices'
-import { PROFILE_COLORS, profileColor } from './profileColors'
+import { createProfile, deleteProfile, profileName, switchProfile, updateProfile, useProfile } from '../../domains/profile'
+import { useT } from '../../i18n'
+import { ProfileDot } from '../common/ProfileDot'
+import { PROFILE_COLORS } from '../common/profileColors'
 
-/** The profile the window acts as, at the sidebar's foot: its dot and name,
- * every profile to switch to, and the way to make one or change this one. */
-export function ProfileMenu() {
+/** Every profile on this Mac, the one the window acts as first: switching to
+ * another, naming and colouring one, deleting one not in use, and making a
+ * new one. */
+export function ProfilesSection() {
   const t = useT()
   const m = t.shell.profiles
   const list = useProfile((s) => s.list)
   const currentId = useProfile((s) => s.current)
-  const current = currentProfile()
   const [making, setMaking] = useState(false)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState<Profile>()
+  const ordered = [...list.filter((p) => p.id === currentId), ...list.filter((p) => p.id !== currentId)]
+
+  const remove = (p: Profile) => {
+    // Deleting stops the backend while the store changes, so running turns
+    // of every profile are interrupted.
+    if (!confirm(m.deleteConfirm(profileName(p, m.unnamed))) || !confirmRestart()) return
+    deleteProfile(p).catch((err: unknown) => notify(errorMessage(err)))
+  }
 
   return (
     <>
-      <Picker
-        label={m.label}
-        value={currentId}
-        options={list.map((p) => ({
-          value: p.id,
-          label: (
-            <span className="flex min-w-0 items-center gap-2">
-              <Dot color={p.color} />
-              <span className="truncate">{profileName(p, m.unnamed)}</span>
-            </span>
-          ),
-          note: p.id === currentId ? m.current : undefined,
-        }))}
-        onChange={(id) => void switchProfile(id)}
-        actions={[
-          { label: m.create, onSelect: () => setMaking(true) },
-          ...(current ? [{ label: m.edit, onSelect: () => setEditing(true) }] : []),
-          ...(current && list.length > 1
-            ? [{
-                label: m.delete,
-                onSelect: () => {
-                  // Deleting stops the backend while the store changes, so
-                  // running turns of every profile are interrupted.
-                  if (!confirm(m.deleteConfirm(profileName(current, m.unnamed))) || !confirmRestart()) return
-                  deleteProfile(current).catch((err: unknown) => notify(errorMessage(err)))
-                },
-              }]
-            : []),
-        ]}
-        width={260}
-        className="flex h-8 w-full items-center gap-2 rounded-full px-3 text-small font-medium text-fg-muted transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
-      >
-        <Dot color={current?.color ?? ''} />
-        <span className="min-w-0 truncate text-fg">{profileName(current, m.unnamed)}</span>
-        <ChevronDown size={12} className="ml-auto shrink-0 opacity-60" aria-hidden />
-      </Picker>
+      <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+        {ordered.map((p) => {
+          const current = p.id === currentId
+          return (
+            <li key={p.id} className="flex min-h-12 items-center gap-3 px-5 py-2.5">
+              <ProfileDot color={p.color} />
+              <span className="min-w-0 truncate text-ui font-medium text-fg">{profileName(p, m.unnamed)}</span>
+              {current && <Badge>{m.current}</Badge>}
+              <span className="flex-1" />
+              {/* The one in use is not deleted: switch away first. */}
+              {!current && (
+                <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => remove(p)}>
+                  {m.delete}
+                </Button>
+              )}
+              <Button size="sm" onClick={() => setEditing(p)}>
+                {m.edit}
+              </Button>
+              {!current && (
+                <Button size="sm" onClick={() => void switchProfile(p.id)}>
+                  {m.switch}
+                </Button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      <div>
+        <Button icon={<Plus size={14} />} onClick={() => setMaking(true)}>
+          {m.create}
+        </Button>
+      </div>
       {making && <ProfileDialog onClose={() => setMaking(false)} />}
-      {editing && current && <ProfileDialog profile={current} onClose={() => setEditing(false)} />}
+      {editing && <ProfileDialog profile={editing} onClose={() => setEditing(undefined)} />}
     </>
   )
-}
-
-/** A profile's dot: its colour, or the first when it has none yet. */
-function Dot({ color }: { color: string }) {
-  return <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: profileColor(color) }} />
 }
 
 /** What a profile is named and coloured: a new one, or the one being edited. */

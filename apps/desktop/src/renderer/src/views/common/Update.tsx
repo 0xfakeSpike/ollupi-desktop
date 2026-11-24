@@ -1,4 +1,4 @@
-import { Button } from '@ollupi/ui'
+import { Button, useTooltip } from '@ollupi/ui'
 import { CircleAlert, Download, RotateCw } from 'lucide-react'
 import { RELEASES_URL, type UpdateState } from '../../../../shared/ipc'
 import { putOff, updateVersion, useUpdate } from '../../domains/update'
@@ -48,13 +48,12 @@ export function UpdatePrompt() {
 export function UpdateNote() {
   const state = useUpdate((s) => s.state)
   const m = useT().shell.update
-  if (state.status === 'idle') return <div className="mt-0.5 text-small text-fg-muted">{m.channels}</div>
-  const quiet = state.status === 'latest'
+  // Checking on its own says nothing; the button says which releases it looks at.
+  if (state.status === 'idle') return null
   return (
     <div className="selectable mt-0.5 text-small break-words text-fg-muted">
       {headline(state, m)}
       {detail(state, m) && <div>{detail(state, m)}</div>}
-      {quiet && <div>{m.channels}</div>}
     </div>
   )
 }
@@ -71,14 +70,18 @@ export function UpdateProgress() {
 /** The one step the state allows: check, download, restart or retry. */
 function Action({ state }: { state: UpdateState }) {
   const m = useT().shell.update
+  const channels = useTooltip({ label: m.channels })
   switch (state.status) {
     case 'idle':
     case 'latest':
     case 'checking':
       return (
-        <Button size="sm" icon={<RotateCw size={14} />} loading={state.status === 'checking'} onClick={() => void desktop.update.check()}>
-          {m.check}
-        </Button>
+        <>
+          <Button size="sm" icon={<RotateCw size={14} />} loading={state.status === 'checking'} onClick={() => void desktop.update.check()} {...channels.trigger}>
+            {m.check}
+          </Button>
+          {channels.tooltip}
+        </>
       )
     case 'available':
       return (
@@ -121,7 +124,7 @@ function headline(state: UpdateState, m: Messages['shell']['update']): string {
     case 'checking':
       return m.checking
     case 'latest':
-      return m.latest(state.current)
+      return m.latest
     case 'available':
       return m.available(state.version)
     case 'downloading':

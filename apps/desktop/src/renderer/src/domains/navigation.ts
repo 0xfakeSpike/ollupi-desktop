@@ -22,6 +22,12 @@ export interface PanelState {
 /** What the agent can do, from where. */
 export type CapabilityTab = 'skills' | 'mcp' | 'tools'
 
+/** The settings, one part at a time: who the window acts as first, as the
+ * sidebar's settings capsule wears that profile's dot; then General, with
+ * the version and the backend everything runs on. */
+export const settingsTabs = ['profiles', 'general', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'usage', 'feishu'] as const
+export type SettingsTab = (typeof settingsTabs)[number]
+
 export type Screen =
   | { kind: 'draft'; workspaceId: string | undefined }
   | { kind: 'thread'; threadId: string }
@@ -31,7 +37,7 @@ export type Screen =
   /** found: a task a search led to. */
   | { kind: 'cron'; found?: string }
   | { kind: 'capabilities'; tab: CapabilityTab }
-  | { kind: 'settings' }
+  | { kind: 'settings'; tab: SettingsTab }
 
 interface NavigationStore {
   screen: Screen
@@ -186,14 +192,16 @@ export function focusItem(focus: NavigationStore['focus']): void {
  * environment or approval inherited from the last one. */
 export function resetForProfile(): void {
   sessionStorage.removeItem(OPEN_KEY)
-  useNavigation.setState({
-    screen: { kind: 'draft', workspaceId: undefined },
+  useNavigation.setState((s) => ({
+    // Switched from the settings, the window stays there: they are no
+    // conversation's, and the profiles listed say which is now in use.
+    screen: s.screen.kind === 'settings' ? s.screen : { kind: 'draft', workspaceId: undefined },
     environment: undefined,
     model: undefined,
     approval: undefined,
     panels: {},
     focus: undefined,
-  })
+  }))
 }
 
 export function chooseModel(model: string | undefined): void {

@@ -17,6 +17,7 @@ import { useConnection } from '../../gateway/connection'
 import { useLocale, useT, type Messages } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
 import { useFound } from '../common/found'
+import { NavPage } from '../common/NavPage'
 import { MemorySettings } from './MemorySettings'
 import { useModels } from '../../domains/models'
 import { Wolf } from '../common/Wolf'
@@ -97,71 +98,61 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   const elsewhere = [...(data?.scopes.keys() ?? [])].some((k) => k !== scope && activeIn(k).length > 0)
 
   return (
-    <div className="@container/page flex h-full flex-col">
-      <header className="drag flex h-16 shrink-0 items-center gap-3 pr-4 pl-6">
-        <h1 className="text-title">{m.memory.screen.title}</h1>
-        <div className="flex-1" />
+    <NavPage
+      title={m.memory.screen.title}
+      actions={
         <IconButton label={m.common.reload} onClick={() => void reload()}>
           <RotateCw size={16} />
         </IconButton>
-      </header>
-      {/* A column of scopes beside the list; in a narrow window, a row above it. The
-          screen's root is the container it reads: an element cannot query its own width. */}
-      <div className="flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
-        {/* Its labels start under the header's title. */}
-        <nav className="shrink-0 overflow-x-auto px-3 py-2 [scrollbar-width:none] @3xl/page:w-56 @3xl/page:overflow-x-visible @3xl/page:overflow-y-auto">
-          <Tabs label={m.memory.screen.scope} orientation="auto" tabs={scopes} value={scope} onChange={setScope} />
-        </nav>
-        <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="scroll-centered flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
-            {/* The switches are the app's, not a scope's: shown once, on Global. */}
-            {scope === 'global' && <MemorySettings />}
-            {data && <StatusLine status={data.status} learning={learning} />}
-            <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
-              <Search size={14} className="shrink-0 text-fg-subtle" />
-              <input
-                value={query}
-                aria-label={m.memory.screen.search}
-                placeholder={m.memory.screen.search}
-                spellCheck={false}
-                onChange={(e) => setQuery(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-muted"
-              />
-            </label>
-            {searching && matches?.length === 0 ? (
-              <p className="text-small text-fg-subtle">{m.memory.screen.noMatch}</p>
-            ) : loading && !data ? (
-              <div className="flex justify-center py-12">
-                <Loader label={m.memory.screen.loading} />
-              </div>
-            ) : active.length === 0 ? (
-              elsewhere ? (
-                <EmptyState icon={<Wolf pose="sit" className="size-16" />} title={m.memory.screen.emptyHere}>
-                  {m.memory.screen.emptyHereHint}
-                </EmptyState>
-              ) : (
-                <EmptyState icon={<Wolf pose="listen" className="size-16" />} title={m.memory.screen.emptyYet}>
-                  {m.memory.screen.emptyYetHint}
-                </EmptyState>
-              )
-            ) : (
-              <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
-                {active.map((e) => (
-                  <Entry
-                    key={e.id}
-                    entry={e}
-                    origin={e.scope === 'global' ? placeLabel(e.originWorkspaceId || 'general') : undefined}
-                    onSaved={replace}
-                    onMoved={moved}
-                    onForgotten={() => remove(e.id)}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
+      }
+      nav={<Tabs label={m.memory.screen.scope} orientation="auto" tabs={scopes} value={scope} onChange={setScope} />}
+      panel={{ role: 'tabpanel', id: `panel-${scope}`, 'aria-labelledby': `tab-${scope}` }}
+    >
+      {/* The switches are the app's, not a scope's: shown once, on Global. */}
+      {scope === 'global' && <MemorySettings />}
+      {data && <StatusLine status={data.status} learning={learning} />}
+      <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
+        <Search size={14} className="shrink-0 text-fg-subtle" />
+        <input
+          value={query}
+          aria-label={m.memory.screen.search}
+          placeholder={m.memory.screen.search}
+          spellCheck={false}
+          onChange={(e) => setQuery(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-ui text-fg outline-none placeholder:text-fg-muted"
+        />
+      </label>
+      {searching && matches?.length === 0 ? (
+        <p className="text-small text-fg-subtle">{m.memory.screen.noMatch}</p>
+      ) : loading && !data ? (
+        <div className="flex justify-center py-12">
+          <Loader label={m.memory.screen.loading} />
         </div>
-      </div>
-    </div>
+      ) : active.length === 0 ? (
+        elsewhere ? (
+          <EmptyState icon={<Wolf pose="sit" className="size-16" />} title={m.memory.screen.emptyHere}>
+            {m.memory.screen.emptyHereHint}
+          </EmptyState>
+        ) : (
+          <EmptyState icon={<Wolf pose="listen" className="size-16" />} title={m.memory.screen.emptyYet}>
+            {m.memory.screen.emptyYetHint}
+          </EmptyState>
+        )
+      ) : (
+        <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+          {active.map((e) => (
+            <Entry
+              key={e.id}
+              entry={e}
+              origin={e.scope === 'global' ? placeLabel(e.originWorkspaceId || 'general') : undefined}
+              onSaved={replace}
+              onMoved={moved}
+              onForgotten={() => remove(e.id)}
+            />
+          ))}
+        </ul>
+      )}
+    </NavPage>
   )
 }
 

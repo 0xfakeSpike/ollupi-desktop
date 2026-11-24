@@ -20,6 +20,22 @@ export function relativeTime(m: Messages, locale: Locale, iso: string, now = Dat
   }
 }
 
+/** How long ago, in as few characters as say it, for a row with little
+ * room: "20小时" rather than "20 小时前", the month and day past a month. */
+export function shortTime(m: Messages, locale: Locale, iso: string, now = Date.now()): string {
+  const e = elapsed(iso, now)
+  if (!e) return ''
+  switch (e.unit) {
+    case 'now':
+    case 'soon':
+      return m.common.time.now
+    case 'date':
+      return new Date(e.at).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })
+    default:
+      return m.common.time.short[e.unit](e.n)
+  }
+}
+
 /** When a message was written, as a clock reads it: the time alone today,
  * "Yesterday" and the time, the day and the time this year, the full date
  * before. */

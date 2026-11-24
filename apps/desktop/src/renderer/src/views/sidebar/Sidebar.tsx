@@ -1,14 +1,15 @@
 import { groupByWorkspace, hubOf, waitingFirst } from '@ollupi/core'
 import { cn, useTooltip } from '@ollupi/ui'
-import { ArrowDown, Blocks, Bookmark, Clock, FolderPlus, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowDown, Blocks, Bookmark, Clock, FolderPlus, Plus, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { go, useNavigation } from '../../domains/navigation'
+import { profileName, useProfile } from '../../domains/profile'
+import { ProfileDot } from '../common/ProfileDot'
 import { useThreads } from '../../domains/threads'
 import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
 import { UpdatePrompt } from '../common/Update'
 import { ConnectionStatus } from './ConnectionStatus'
-import { ProfileMenu } from './ProfileMenu'
 import { ArchivedThreads } from './ArchivedThreads'
 import { ArchivedWorkspaces } from './ArchivedWorkspaces'
 import { SuperAgentStart, ThreadGroup } from './ThreadGroup'
@@ -21,7 +22,9 @@ export function Sidebar() {
   const workspaces = useWorkspaces((s) => s.list)
   const threads = useThreads((s) => s.list)
   const screen = useNavigation((s) => s.screen)
-  const m = useT().shell.sidebar
+  const t = useT()
+  const m = t.shell.sidebar
+  const profile = useProfile((s) => s.list.find((p) => p.id === s.current))
   const groups = useMemo(() => groupByWorkspace(workspaces, threads), [workspaces, threads])
   const hub = hubOf(workspaces)
   const hubThreads = useMemo(() => (hub ? waitingFirst(threads.filter((t) => t.workspaceId === hub.id)) : []), [hub, threads])
@@ -98,8 +101,8 @@ export function Sidebar() {
       )}
       </div>
       <div className="flex flex-col gap-1 px-3.5 pt-2 pb-3">
-        <ProfileMenu />
         <UpdatePrompt />
+        <ConnectionStatus />
         <div className="flex flex-wrap gap-1">
           <NavButton icon={<Bookmark size={14} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
             {m.memory}
@@ -107,11 +110,17 @@ export function Sidebar() {
           <NavButton icon={<Blocks size={14} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
             {m.capabilities}
           </NavButton>
-          <NavButton icon={<SlidersHorizontal size={14} />} active={screen.kind === 'settings'} onClick={() => go({ kind: 'settings' })}>
+          {/* The settings wear the dot of the profile the window acts as: who you
+              are is one of them, the first. */}
+          <NavButton
+            icon={<ProfileDot color={profile?.color ?? ''} />}
+            title={profileName(profile, t.shell.profiles.unnamed)}
+            active={screen.kind === 'settings'}
+            onClick={() => go({ kind: 'settings', tab: 'profiles' })}
+          >
             {m.settings}
           </NavButton>
         </div>
-        <ConnectionStatus />
       </div>
     </aside>
   )
@@ -119,10 +128,11 @@ export function Sidebar() {
 
 /** The places below the map: memory, capabilities, settings, as small
  * capsules in one row; the open one sits on the sheet's colour. */
-function NavButton({ icon, active, onClick, children }: { icon: ReactNode; active?: boolean; onClick(): void; children: ReactNode }) {
+function NavButton({ icon, title, active, onClick, children }: { icon: ReactNode; title?: string; active?: boolean; onClick(): void; children: ReactNode }) {
   return (
     <button
       type="button"
+      title={title}
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(

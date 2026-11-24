@@ -148,6 +148,9 @@
   }
 
   --container-thread: 808px;
+  /* A page with its own nav: the nav's 160 beside a 672 column (memory,
+     capabilities, settings), kept to the left as one. */
+  --container-page: 832px;
   --container-dialog: 480px;
   --container-dialog-wide: 640px;
 }

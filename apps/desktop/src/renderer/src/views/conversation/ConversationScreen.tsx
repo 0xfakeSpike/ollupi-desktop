@@ -11,7 +11,7 @@ import { useWorkspace } from '../../domains/workspaces'
 import { useEffect, useState } from 'react'
 import { useT } from '../../i18n'
 import { spentTime, threadTitle, workspaceName } from '../../i18n/format'
-import { areaClass } from '../common/areas'
+import { useAreaClass } from '../common/useAreaClass'
 import { TitleInput } from '../common/TitleInput'
 import { useStickToBottom } from '../common/useStickToBottom'
 import { ApprovalPicker } from './ApprovalPicker'
@@ -33,6 +33,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const summary = useThreadRow(threadId)
   const thread = timeline?.thread ?? summary
   const workspace = useWorkspace(thread?.workspaceId)
+  const area = useAreaClass(workspace?.id)
   // Where the thread runs: this machine keeps quiet, a cloud sandbox says so.
   const environment = useEnvironment(thread?.environmentId)
   // A thread that names none runs where ollupi starts conversations.
@@ -78,7 +79,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
           {workspace && (
             <>
               <span
-                className={cn('flex h-7 max-w-48 shrink-0 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-small font-semibold text-fg', areaClass(workspace.id))}
+                className={cn('flex h-7 max-w-48 shrink-0 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-small font-semibold text-fg', area)}
                 {...rootTip.trigger}
               >
                 <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-ink" />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Messages } from '.'
-import { clockTime } from './format'
+import { clockTime, shortTime } from './format'
 import * as common from './messages/common'
 
 // Only the common words are read; the rest of the catalog is not needed here.
@@ -24,5 +24,16 @@ describe('clockTime', () => {
   })
   it('says nothing for a time it cannot read', () => {
     expect(clockTime(en, 'en', 'not a time', now)).toBe('')
+  })
+})
+
+describe('shortTime', () => {
+  it('says how long ago in a few characters', () => {
+    expect(shortTime(zh, 'zh-CN', at(2026, 10, 12, 13, 30), now.getTime())).toBe('20小时')
+    expect(shortTime(en, 'en', at(2026, 10, 10, 9, 30), now.getTime())).toBe('3d')
+    expect(shortTime(zh, 'zh-CN', new Date(now.getTime() - 30_000).toISOString(), now.getTime())).toBe('刚刚')
+  })
+  it('says the month and day past a month', () => {
+    expect(shortTime(zh, 'zh-CN', at(2026, 8, 3, 9, 0), now.getTime())).toBe('9/3')
   })
 })

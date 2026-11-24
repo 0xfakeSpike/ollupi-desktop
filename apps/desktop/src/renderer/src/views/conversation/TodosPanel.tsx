@@ -18,7 +18,7 @@ import { assignTodo, completeTodo, dropTodo, ended, reopenTodo, useTodos } from 
 import { useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { threadTitle, workspaceName } from '../../i18n/format'
-import { areaClass } from '../common/areas'
+import { useAreaClass } from '../common/useAreaClass'
 import { SidePanel } from './SidePanel'
 
 export function TodosPanel() {
@@ -143,9 +143,10 @@ function TodoItem({ todo }: { todo: TodoRow }) {
 function Project({ id }: { id: string }) {
   const m = useT()
   const workspace = useWorkspace(id)
+  const area = useAreaClass(id)
   if (!workspace) return null
   return (
-    <span className={cn('flex h-5 max-w-28 shrink-0 items-center rounded-full px-2 text-caption text-fg', areaClass(workspace.id))}>
+    <span className={cn('flex h-5 max-w-28 shrink-0 items-center rounded-full px-2 text-caption text-fg', area)}>
       <span className="truncate">{workspaceName(m, workspace)}</span>
     </span>
   )

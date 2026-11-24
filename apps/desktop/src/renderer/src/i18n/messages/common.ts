@@ -21,6 +21,8 @@ export const en = {
     soon: 'in under a minute',
     ago: { minute: (n: number) => `${n}m`, hour: (n: number) => `${n}h`, day: (n: number) => `${n}d` },
     in: { minute: (n: number) => `in ${n}m`, hour: (n: number) => `in ${n}h`, day: (n: number) => `in ${n}d` },
+    /** How long ago, where a row has little room: the sidebar's. */
+    short: { minute: (n: number) => `${n}m`, hour: (n: number) => `${n}h`, day: (n: number) => `${n}d` },
     /** A clock time yesterday, as "Yesterday 14:32". */
     yesterday: (time: string) => `Yesterday ${time}`,
   },
@@ -77,6 +79,7 @@ export const zh: typeof en = {
     soon: '一分钟内',
     ago: { minute: (n) => `${n} 分钟前`, hour: (n) => `${n} 小时前`, day: (n) => `${n} 天前` },
     in: { minute: (n) => `${n} 分钟后`, hour: (n) => `${n} 小时后`, day: (n) => `${n} 天后` },
+    short: { minute: (n) => `${n}分钟`, hour: (n) => `${n}小时`, day: (n) => `${n}天` },
     yesterday: (time) => `昨天 ${time}`,
   },
   span: {

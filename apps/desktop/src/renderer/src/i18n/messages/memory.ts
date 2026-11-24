@@ -7,7 +7,8 @@ export const en = {
     loading: 'Loading memories…',
     title: 'Memory',
     scope: 'Scope',
-    global: 'All conversations in this profile',
+    // A tab's name: the page is the profile's already.
+    global: 'All conversations',
     general: 'No workspace',
     emptyHere: 'Nothing remembered in this scope',
     emptyHereHint:
@@ -69,7 +70,7 @@ export const zh: typeof en = {
     loading: '正在加载记忆…',
     title: '记忆',
     scope: '范围',
-    global: '此身份的所有会话',
+    global: '所有会话',
     general: '无工作区',
     emptyHere: '这个范围里还没有记忆',
     emptyHereHint: '记忆按此身份的所有会话、工作区之外的会话或各个工作区分别保存；其他范围里有记忆，可在左侧选择。',

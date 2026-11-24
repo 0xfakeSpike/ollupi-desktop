@@ -36,6 +36,8 @@ export interface AppInfo {
   configPath: string
   /** The backend's log file. */
   backendLog: string
+  /** The user's home folder, which paths shown to them start from as ~. */
+  userHome: string
 }
 
 /** One edit to config.yaml, by key path, e.g. ['feishu', 'users']. */

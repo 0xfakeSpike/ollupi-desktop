@@ -9,7 +9,8 @@ export const en = {
   screen: {
     title: 'Settings',
     sections: {
-      general: { label: 'General', description: 'The app’s version and updates, where its log, data and config.yaml live, the browser’s history, and the Ollupi backend it runs.' },
+      profiles: { label: 'Profiles', description: 'Each profile has its own conversations, memory, todos, workspaces and settings; switching needs no password and reconnects at once.' },
+      general: { label: 'General', description: '' },
       language: { label: 'Language', description: 'The language of the app itself. Conversations keep the language they are written in.' },
       appearance: { label: 'Appearance', description: '' },
       notifications: {
@@ -28,11 +29,7 @@ export const en = {
         label: 'Permissions',
         description: 'What the agent may do without asking you, in every conversation. A workspace and a conversation can set their own on top. Applies from its next call.',
       },
-      redaction: {
-        label: 'Redaction',
-        description:
-          'Phone numbers, ID and bank card numbers, email addresses and keys are replaced with placeholders before anything reaches a model; tools that need the real value still get it. Off, content goes to the model as it is. Applies from the next model call, in every thread.',
-      },
+      redaction: { label: 'Redaction', description: '' },
       feishu: {
         label: 'Feishu bot',
         description:
@@ -54,6 +51,8 @@ export const en = {
     backendStatus: { starting: 'starting', ready: 'ready', failed: 'failed', stopped: 'stopped' },
     open: 'Open',
     redactionSwitch: 'Redact before sending to models',
+    redactionNote:
+      'Phone numbers, ID and bank card numbers, email addresses and keys become placeholders before anything reaches a model; tools that need the real value still get it. Applies from the next model call, in every thread.',
   },
 
   config: {
@@ -323,7 +322,8 @@ export const zh: typeof en = {
   screen: {
     title: '设置',
     sections: {
-      general: { label: '通用', description: '应用的版本和更新，日志、数据和 config.yaml 的位置，浏览器历史，以及它运行的 Ollupi 后端。' },
+      profiles: { label: '身份', description: '每个身份的会话、记忆、待办、工作区和设置都是自己的；切换不要密码，立即重连。' },
+      general: { label: '通用', description: '' },
       language: { label: '语言', description: '应用界面的语言。会话内容保持原来的语言。' },
       appearance: { label: '外观', description: '' },
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
@@ -339,10 +339,7 @@ export const zh: typeof en = {
         label: '权限',
         description: 'agent 在所有会话里哪些事可以不问你就做。工作区和会话可以在它之上再设自己的。从下一次调用起生效。',
       },
-      redaction: {
-        label: '脱敏',
-        description: '手机号、身份证号、银行卡号、邮箱和密钥等在发给模型前替换成占位符；需要真实值的工具仍拿到真实值。关闭后内容原样发给模型。从下一次模型调用起生效，对所有会话有效。',
-      },
+      redaction: { label: '脱敏', description: '' },
       feishu: {
         label: '飞书机器人',
         description:
@@ -364,6 +361,7 @@ export const zh: typeof en = {
     backendStatus: { starting: '启动中', ready: '就绪', failed: '失败', stopped: '已停止' },
     open: '打开',
     redactionSwitch: '发给模型前脱敏',
+    redactionNote: '手机号、身份证号、银行卡号、邮箱和密钥等在发给模型前换成占位符，需要真实值的工具仍拿到真实值。从下一次模型调用起生效，对所有会话有效。',
   },
 
   config: {

@@ -9,7 +9,7 @@ const twMerge = extendTailwindMerge({
       text: ['caption', 'small', 'ui', 'body', 'title', 'display', 'hero'],
       ease: ['standard'],
       animate: ['enter', 'dialog', 'fade'],
-      container: ['thread', 'dialog', 'dialog-wide'],
+      container: ['thread', 'page', 'dialog', 'dialog-wide'],
     },
   },
 })

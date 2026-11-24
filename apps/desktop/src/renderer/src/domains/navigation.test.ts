@@ -29,7 +29,7 @@ describe('navigation', () => {
 
   it('starts on a new conversation after any other screen, or with nothing kept', () => {
     go({ kind: 'thread', threadId: 'th1' })
-    go({ kind: 'settings' })
+    go({ kind: 'settings', tab: 'general' })
     // A reload: the store starts over.
     useNavigation.setState({ screen: { kind: 'draft', workspaceId: undefined } })
     startNavigation()

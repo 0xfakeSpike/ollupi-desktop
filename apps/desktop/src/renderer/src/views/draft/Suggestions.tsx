@@ -10,7 +10,7 @@ import { NEW_CONVERSATION, suggestDraft, useDraft } from '../../domains/drafts'
 import { readSkills } from '../../domains/skills'
 import { useT } from '../../i18n'
 import { cn } from '@ollupi/ui'
-import { areaClass } from '../common/areas'
+import { useAreaClass } from '../common/useAreaClass'
 
 interface Suggestion {
   key: string
@@ -28,6 +28,7 @@ interface Suggestion {
 const firstSentence = (s: string) => s.split(/(?<=[。.!！?？])\s*|\n/)[0]?.trim() ?? s
 
 export function Suggestions({ workspace }: { workspace: { id: string; name: string } | undefined }) {
+  const area = useAreaClass(workspace?.id)
   const t = useT().conversation.draft.suggest
   const draft = useDraft(NEW_CONVERSATION)
   const [skill, setSkill] = useState<{ name: string; description: string }>()
@@ -47,7 +48,7 @@ export function Suggestions({ workspace }: { workspace: { id: string; name: stri
 
   if (draft.text.trim() || draft.attachments.length) return null
   const cards: Suggestion[] = [
-    ...(workspace ? [{ key: 'folder', source: t.folderSource, dot: areaClass(workspace.id), text: t.folder(workspace.name), start: t.folder(workspace.name) }] : []),
+    ...(workspace ? [{ key: 'folder', source: t.folderSource, dot: area ?? '', text: t.folder(workspace.name), start: t.folder(workspace.name) }] : []),
     ...(skill ? [{ key: 'skill', source: t.skillSource(skill.name), dot: 'bg-area-3', text: firstSentence(skill.description), start: t.skillStart(skill.name) }] : []),
     { key: 'cron', source: t.cronSource, dot: 'bg-area-1', text: t.cron, start: t.cron },
     { key: 'browser', source: t.browserSource, dot: 'bg-area-4', text: t.browser, start: t.browserStart },

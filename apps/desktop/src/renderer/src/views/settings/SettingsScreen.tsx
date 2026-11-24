@@ -1,6 +1,8 @@
-import { Badge, Button, cn, Field, Select, Switch } from '@ollupi/ui'
+import { Badge, Button, cn, Field, Select, Switch, Tabs } from '@ollupi/ui'
 import { Check, FileCog, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { go, settingsTabs, type SettingsTab } from '../../domains/navigation'
+import { NavPage } from '../common/NavPage'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
 import { setColorScheme, setTheme, themes, useAppearance, type Theme } from '../../domains/appearance'
 import { clearHistory } from '../../domains/browser'
@@ -15,17 +17,12 @@ import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { FeishuSection } from './FeishuSection'
 import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
+import { ProfilesSection } from './ProfilesSection'
 import { UsageSection } from './UsageSection'
 import { Emblem } from '../common/Wolf'
 
-/** General first, with the version and the backend everything runs on;
- * redaction and what is set once follow. Permissions, models, usage and
- * Feishu come last: each shows nothing until the backend has answered, and
- * filling in above the others would push the page down under the reader. */
-const sections = ['general', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'usage', 'feishu'] as const
-type Section = (typeof sections)[number]
-
-const bodies: Record<Section, () => ReactNode> = {
+const bodies: Record<SettingsTab, () => ReactNode> = {
+  profiles: ProfilesSection,
   general: General,
   language: Language,
   appearance: Appearance,
@@ -37,105 +34,28 @@ const bodies: Record<Section, () => ReactNode> = {
   feishu: FeishuSection,
 }
 
-/** How far below the top of the page a section's heading counts as reached. */
-const REACHED = 64
-
-/** Every setting on one page, its sections listed on the left as memory's
- * scopes are. A section listed jumps into view, and the list marks the one
- * being read as the page scrolls. */
-export function SettingsScreen() {
+/** The settings one part at a time, as memory's scopes and the capabilities
+ * are: the parts listed on the left, the chosen one beside them, saying
+ * what it is for in a line above its controls. */
+export function SettingsScreen({ tab }: { tab: SettingsTab }) {
   const t = useT().settings.screen
-  const page = useRef<HTMLDivElement>(null)
-  const [current, setCurrent] = useState<Section>(sections[0])
-  // A jump marks its section until the person scrolls: one near the end
-  // cannot reach the top, and the page would otherwise mark the last.
-  const jumped = useRef<Section | undefined>(undefined)
-
-  useEffect(() => {
-    const el = page.current
-    if (!el) return
-    const read = () => {
-      if (jumped.current) return
-      const top = el.getBoundingClientRect().top
-      let reached: Section = sections[0]
-      for (const id of sections) {
-        const heading = document.getElementById(`settings-${id}`)
-        if (heading && heading.getBoundingClientRect().top - top <= REACHED) reached = id
-      }
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) reached = sections[sections.length - 1]!
-      setCurrent(reached)
-    }
-    const release = () => {
-      jumped.current = undefined
-    }
-    el.addEventListener('scroll', read, { passive: true })
-    for (const e of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) el.addEventListener(e, release, { passive: true })
-    read()
-    return () => {
-      el.removeEventListener('scroll', read)
-      for (const e of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) el.removeEventListener(e, release)
-    }
-  }, [])
-
-  const jump = (id: Section) => {
-    jumped.current = id
-    setCurrent(id)
-    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
-    document.getElementById(`settings-${id}`)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
-  }
-
+  const tabs = settingsTabs.map((id) => ({ id, label: t.sections[id].label }))
+  const Body = bodies[tab]
+  const description = t.sections[tab].description
   return (
-    <div className="@container/page flex h-full flex-col">
-      <header className="drag flex h-16 shrink-0 items-center pl-6">
-        <h1 className="text-title">{t.title}</h1>
-      </header>
-      {/* A column of sections beside the page; in a narrow window, a row above it. The
-          screen's root is the container it reads: an element cannot query its own width. */}
-      <div className="flex min-h-0 flex-1 flex-col @3xl/page:flex-row">
-        {/* Its labels start under the header's title. */}
-        <nav
-          aria-label={t.title}
-          className="flex shrink-0 gap-1 overflow-x-auto px-3 py-2 [scrollbar-width:none] @3xl/page:w-56 @3xl/page:flex-col @3xl/page:gap-0.5 @3xl/page:overflow-x-visible @3xl/page:overflow-y-auto"
-        >
-          {sections.map((id) => (
-            <button
-              key={id}
-              type="button"
-              aria-current={id === current ? 'true' : undefined}
-              onClick={() => jump(id)}
-              className={cn(
-                'flex h-8 shrink-0 items-center rounded-full px-3.5 text-left text-ui whitespace-nowrap transition @3xl/page:h-9 @3xl/page:w-full duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-                id === current ? 'bg-surface font-semibold text-fg' : 'font-medium text-fg-muted hover:bg-hover hover:text-fg',
-              )}
-            >
-              {t.sections[id].label}
-            </button>
-          ))}
-        </nav>
-        <div ref={page} className="scroll-centered flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-2xl flex-col gap-10 px-6 pt-6 pb-16">
-            {sections.map((id) => {
-              const Body = bodies[id]
-              return (
-                <section key={id} aria-labelledby={`settings-${id}`} className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1">
-                    <h2 id={`settings-${id}`} className="scroll-mt-6 text-display text-fg">
-                      {t.sections[id].label}
-                    </h2>
-                    {t.sections[id].description && <p className="text-small text-fg-muted">{t.sections[id].description}</p>}
-                  </div>
-                  <Body />
-                </section>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
+    <NavPage
+      title={t.title}
+      nav={<Tabs<SettingsTab> label={t.title} orientation="auto" tabs={tabs} value={tab} onChange={(id) => go({ kind: 'settings', tab: id })} />}
+      panel={{ role: 'tabpanel', id: `panel-${tab}`, 'aria-labelledby': `tab-${tab}` }}
+    >
+      {description && <p className="text-ui text-fg-muted">{description}</p>}
+      <Body />
+    </NavPage>
   )
 }
 
-/** One row per thing the app keeps: its value, and the button that acts on it. */
+/** Ollupi itself, its version and the one step an update allows; then one
+ * row per thing the app keeps, where it is and the button that acts on it. */
 function General() {
   const m = useT()
   const t = m.settings.general
@@ -151,81 +71,92 @@ function General() {
         {t.open}
       </Button>
     )
+  const path = (p: string | undefined) => <Path path={p} home={info?.userHome} />
   return (
     <>
-    {/* About Ollupi: the one place in the settings the brand speaks. */}
-    <div className="flex items-center gap-4 rounded-3xl bg-surface px-5 py-4">
-      <Emblem className="size-14 shrink-0" />
-      <div className="min-w-0">
-        <div className="text-title text-fg">Ollupi</div>
-        <div className="text-small text-fg-muted">{t.about}</div>
-      </div>
-    </div>
-    <dl className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
-      <Row label={t.version} value={<span className="font-mono">{info?.version ?? '—'}</span>} note={<UpdateNote />} action={<UpdateAction />}>
+      {/* About Ollupi, the one place in the settings the brand speaks, with its version. */}
+      <div className="flex flex-col gap-3 rounded-3xl bg-surface px-5 py-4">
+        <div className="flex items-center gap-4">
+          <Emblem className="size-12 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-title text-fg">Ollupi</span>
+              <span className="selectable font-mono text-small text-fg-muted">{info?.version}</span>
+            </div>
+            <div className="text-small text-fg-muted">{t.about}</div>
+            <UpdateNote />
+          </div>
+          <UpdateAction />
+        </div>
         <UpdateProgress />
-      </Row>
-      <Row label={t.log} value={<Path path={info?.backendLog} />} action={open(info?.backendLog, <ScrollText size={14} />)} />
-      <Row label={t.dataFolder} value={<Path path={info?.home} />} action={open(info?.home, <FolderOpen size={14} />)} />
-      <Row label="config.yaml" value={<Path path={info?.configPath} />} action={open(info?.configPath, <FileCog size={14} />)} />
-      <Row
-        label={t.browserHistory}
-        value={visited === undefined ? '—' : t.pagesVisited(visited)}
-        action={
-          <Button
-            size="sm"
-            icon={<Trash2 size={14} />}
-            disabled={!visited}
-            onClick={() => {
-              if (confirm(t.clearHistoryConfirm)) void clearHistory().then((done) => done && setVisited(0))
-            }}
-          >
-            {t.clearHistory}
-          </Button>
-        }
-      />
-      <Row
-        label={t.status}
-        value={
-          <Badge tone={backend.status === 'ready' ? 'success' : backend.status === 'failed' ? 'danger' : 'warning'}>{t.backendStatus[backend.status]}</Badge>
-        }
-        action={
-          <Button
-            size="sm"
-            icon={<RotateCw size={14} />}
-            loading={restarting}
-            onClick={() => {
-              setRestarting(true)
-              void desktop.backend.restart().finally(() => setRestarting(false))
-            }}
-          >
-            {m.common.restartBackend}
-          </Button>
-        }
-      />
-    </dl>
+      </div>
+      <dl className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+        <Row label={t.log} value={path(info?.backendLog)} action={open(info?.backendLog, <ScrollText size={14} />)} />
+        <Row label={t.dataFolder} value={path(info?.home)} action={open(info?.home, <FolderOpen size={14} />)} />
+        <Row label="config.yaml" value={path(info?.configPath)} action={open(info?.configPath, <FileCog size={14} />)} />
+        <Row
+          label={t.browserHistory}
+          value={visited === undefined ? '—' : t.pagesVisited(visited)}
+          action={
+            // Clearing removes something, so it reads as removing; it asks first.
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-danger hover:text-danger"
+              icon={<Trash2 size={14} />}
+              disabled={!visited}
+              onClick={() => {
+                if (confirm(t.clearHistoryConfirm)) void clearHistory().then((done) => done && setVisited(0))
+              }}
+            >
+              {t.clearHistory}
+            </Button>
+          }
+        />
+        <Row
+          label={t.status}
+          value={
+            // Ready is how it should be, so it is not coloured; only trouble is.
+            <Badge tone={backend.status === 'ready' ? 'neutral' : backend.status === 'failed' ? 'danger' : 'warning'}>{t.backendStatus[backend.status]}</Badge>
+          }
+          action={
+            <Button
+              size="sm"
+              icon={<RotateCw size={14} />}
+              loading={restarting}
+              onClick={() => {
+                setRestarting(true)
+                void desktop.backend.restart().finally(() => setRestarting(false))
+              }}
+            >
+              {m.common.restartBackend}
+            </Button>
+          }
+        />
+      </dl>
     </>
   )
 }
 
-function Row({ label, value, note, action, children }: { label: string; value: ReactNode; note?: ReactNode; action?: ReactNode; children?: ReactNode }) {
+function Row({ label, value, action }: { label: string; value: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 px-3 py-2.5">
-      <div className="flex min-h-7 items-center gap-4">
-        <dt className="w-24 shrink-0 text-ui text-fg">{label}</dt>
-        <dd className="min-w-0 flex-1">
-          <div className="selectable text-small break-all text-fg-muted">{value}</div>
-          {note}
-        </dd>
-        {action && <div className="shrink-0">{action}</div>}
-      </div>
-      {children}
+    <div className="flex min-h-12 items-center gap-4 px-5 py-2.5">
+      <dt className="w-24 shrink-0 text-ui text-fg">{label}</dt>
+      <dd className="selectable min-w-0 flex-1 truncate text-small text-fg-muted">{value}</dd>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   )
 }
 
-function Path({ path }: { path: string | undefined }) {
-  return <span className="font-mono">{path || '—'}</span>
+/** A path from the home folder, as ~, on one line; the whole of it on hover. */
+function Path({ path, home }: { path: string | undefined; home: string | undefined }) {
+  if (!path) return <>—</>
+  const short = home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
+  return (
+    <span className="font-mono" title={path}>
+      {short}
+    </span>
+  )
 }
 
 function Language() {
@@ -271,7 +202,10 @@ function Redaction() {
   const settings = useSettings((s) => s.settings)
   return (
     <div className="flex items-center gap-4 rounded-3xl bg-surface px-5 py-3">
-      <span className="min-w-0 flex-1 text-ui text-fg">{t.redactionSwitch}</span>
+      <div className="min-w-0 flex-1">
+        <div className="text-ui text-fg">{t.redactionSwitch}</div>
+        <div className="text-small text-fg-muted">{t.redactionNote}</div>
+      </div>
       <Switch label={t.redactionSwitch} checked={settings?.redaction ?? false} disabled={!settings} onChange={(on) => void setRedaction(on)} />
     </div>
   )

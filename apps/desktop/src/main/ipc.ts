@@ -41,7 +41,7 @@ export function registerIpc(
   home: string,
   backendLog: string,
 ): void {
-  const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml'), backendLog }
+  const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml'), backendLog, userHome: app.getPath('home') }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())

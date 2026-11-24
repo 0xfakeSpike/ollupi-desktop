@@ -20,7 +20,7 @@ function browserShim(): DesktopApi | undefined {
   const state: BackendState = { status: 'ready', url, token, version: 'browser' }
   const tokenProfile = token.slice(token.indexOf('.') + 1)
   return {
-    info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '' }),
+    info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '', userHome: '' }),
     backend: { state: async () => state, restart: async () => {}, onState: () => () => {} },
     // The token is the one the browser was opened with, and names the one
     // profile this tab acts as; nothing can mint another here.
@@ -62,7 +62,8 @@ function browserShim(): DesktopApi | undefined {
       // No tabs to give: a draft here opens none.
       handOver: async () => {},
       bookmarks: { list: unavailable, add: unavailable, remove: unavailable },
-      history: { count: unavailable, list: unavailable, remove: unavailable, clear: unavailable },
+      // This tab has no app browser, so it has visited nothing.
+      history: { count: async () => 0, list: unavailable, remove: unavailable, clear: unavailable },
       suggest: unavailable,
       back: unavailable,
       forward: unavailable,

@@ -10,8 +10,8 @@ import { archiveThread, deleteThread, loadMoreThreads, renameThread, threadMenu,
 import { ended, useTodos } from '../../domains/todos'
 import { setArchived, startSuperAgent } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
-import { relativeTime, threadTitle, workspaceName } from '../../i18n/format'
-import { areaClass } from '../common/areas'
+import { shortTime, threadTitle, workspaceName } from '../../i18n/format'
+import { useAreaClass } from '../common/useAreaClass'
 import { TitleInput } from '../common/TitleInput'
 import { WorkspaceSettingsDialog } from '../settings/WorkspaceSettingsDialog'
 
@@ -53,6 +53,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
   const hub = workspace?.kind === 'hub'
   const left = useTodos((s) => (hub ? (s.list ?? []).filter((todo) => !ended(todo)).length : 0))
   const rootTip = useTooltip({ label: hub ? '' : (workspace?.rootPath ?? '') })
+  const area = useAreaClass(workspace?.id)
   if (!workspace && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
   const waiting = threads.filter((t) => needsUser(t.status)).length
@@ -65,7 +66,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
   }
 
   return (
-    <section className={cn('mt-2.5 rounded-3xl p-1.5', hub ? 'bg-canvas' : workspace ? areaClass(workspace.id) : 'bg-canvas/60')}>
+    <section className={cn('mt-2.5 rounded-3xl p-1.5', hub ? 'bg-canvas' : workspace ? area : 'bg-canvas/60')}>
       <div className="group flex h-7 items-center gap-1 pr-0.5 pl-2.5">
         <button
           type="button"
@@ -76,7 +77,9 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
         >
           {hub && <Waypoints size={14} aria-hidden className="shrink-0 self-center text-fg-muted" />}
           <span className="truncate">{workspace ? workspaceName(t, workspace) : m.noWorkspace}</span>
-          <span className="shrink-0 font-medium text-fg-muted">{hub && left > 0 ? `· ${m.tasksLeft(left)}` : m.things(threads.length)}</span>
+          <span className="shrink-0 font-medium text-fg-muted">{m.things(threads.length)}</span>
+          {/* The Super Agent's todos are another count than its things: a capsule of their own. */}
+          {hub && left > 0 && <span className="shrink-0 self-center rounded-full bg-hover px-2 text-caption leading-5 font-semibold text-fg-muted">{m.tasksLeft(left)}</span>}
           {/* The area says it has something for you, even folded or scrolled past its rows. */}
           {waiting > 0 && <span className="shrink-0 self-center rounded-full bg-accent px-2 text-caption leading-5 font-semibold text-accent-fg">{m.areaWaiting(waiting)}</span>}
           <ChevronRight
@@ -187,7 +190,9 @@ function ThreadEntry({ thread }: { thread: ThreadRow }) {
           ) : fresh ? (
             <span role="img" aria-label={s.unread} className="size-1.5 rounded-full bg-fg" />
           ) : (
-            <span className="text-small font-medium text-fg-muted tabular-nums">{relativeTime(m, locale, thread.updatedAt)}</span>
+            <span className="text-small font-medium text-fg-muted tabular-nums" title={new Date(thread.updatedAt).toLocaleString(locale)}>
+              {shortTime(m, locale, thread.updatedAt)}
+            </span>
           )}
         </span>
       </button>
