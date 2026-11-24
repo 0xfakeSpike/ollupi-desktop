@@ -46,7 +46,6 @@ export interface ConfigCheck {
       env_passthrough?: null | string[];
       max_output_bytes?: number;
     };
-    skills_dir?: string;
   };
   error?: string;
 }

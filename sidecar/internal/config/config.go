@@ -2,12 +2,12 @@
 // what the deployment is, the same for every user it serves. Its providers
 // are the platform's models, with their accounts and keys: every profile runs
 // on them and only chooses which. The rest is its name and prompt, the tool
-// allow-list, slots, the workspace tools and the skills. The
-// backend reads it at start; a SIGHUP has it take the providers again, and
+// allow-list, slots and the workspace tools. The backend reads it at start; a SIGHUP has it take the providers again, and
 // anything else takes a restart. Nothing in it belongs to one profile: which
 // model a profile starts and learns with, its permissions, MCP servers and
-// memory are its own in ollupi's store, set through the gateway. Files from
-// before that held profiles are taken apart once by Legacy. It only
+// memory and skills are its own in ollupi's store, set through the gateway.
+// Files from before that held profiles, or a skills folder, are taken apart
+// once by Legacy and SkillsDir. It only
 // describes; host turns it into running components.
 package config
 
@@ -16,16 +16,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
 	"github.com/0xfakeSpike/ollupi/account"
-	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 	"gopkg.in/yaml.v3"
 )
@@ -44,7 +41,6 @@ type Config struct {
 	Slots int `json:"slots,omitempty"`
 	// Workspace turns on run_command, edit_file and write_file.
 	Workspace Workspace `json:"workspace"`
-	SkillsDir string    `json:"skills_dir,omitempty"`
 }
 
 // Provider is one API account of the deployment and the models it serves.
@@ -79,15 +75,11 @@ type Workspace struct {
 	workspace.Config
 }
 
-// Load reads <home>/config.yaml, writing the starter template and skills
-// first when there is none.
+// Load reads <home>/config.yaml, writing the starter template first when
+// there is none.
 func Load(home string) (Config, error) {
 	path := filepath.Join(home, FileName)
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		// The skills go first: a start that fails copying them tries again.
-		if err := writeStarterSkills(filepath.Join(home, "skills")); err != nil {
-			return Config{}, fmt.Errorf("write starter skills: %w", err)
-		}
 		if err := os.WriteFile(path, []byte(Template), 0o600); err != nil {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
@@ -95,52 +87,8 @@ func Load(home string) (Config, error) {
 	return LoadFile(path, home)
 }
 
-// starterRoles have the skills the desktop ships: the main agent, which is
-// both of its roles, so that a conversation that moves to a model of
-// another size keeps them (ollupi installs a role's skills in the
-// directory of its name).
-var starterRoles = []agent.Name{agent.FullMain, agent.CompactMain}
-
-// writeStarterSkills copies each skill the desktop ships into the
-// directory of each starter role under dir, leaving a folder already there
-// of the same name as it is.
-func writeStarterSkills(dir string) error {
-	entries, err := fs.ReadDir(skills.FS, ".")
-	if err != nil {
-		return err
-	}
-	for _, r := range starterRoles {
-		if err := writeSkills(filepath.Join(dir, string(r)), entries); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func writeSkills(dir string, entries []fs.DirEntry) error {
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		target := filepath.Join(dir, e.Name())
-		if _, err := os.Stat(target); err == nil {
-			continue
-		}
-		skill, err := fs.Sub(skills.FS, e.Name())
-		if err != nil {
-			return err
-		}
-		// A half-copied skill would be left as it is on the next try.
-		if err := os.CopyFS(target, skill); err != nil {
-			os.RemoveAll(target)
-			return err
-		}
-	}
-	return nil
-}
-
 // LoadFile reads a config file for a backend whose home is home: a
-// relative skills_dir resolves against home.
+// relative path in it resolves against home.
 func LoadFile(path, home string) (Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -148,6 +96,9 @@ func LoadFile(path, home string) (Config, error) {
 	}
 	if _, _, found, _ := Legacy(raw); found {
 		return Config{}, fmt.Errorf("%s still declares profiles and their own models; ollupid --import-config moves the models into providers and each profile's choices into the store", path)
+	}
+	if _, _, found, _ := SkillsDir(raw, home); found {
+		return Config{}, fmt.Errorf("%s still names a skills_dir; ollupid --import-config gives its skills to each profile in the store", path)
 	}
 	cfg, err := Parse(raw)
 	if err != nil {
@@ -158,11 +109,10 @@ func LoadFile(path, home string) (Config, error) {
 }
 
 // expandPaths resolves the paths the file names: ~ is the user's home and a
-// relative path is the file's own folder, as skills_dir has always been. A
+// relative path is the file's own folder. A
 // config and the folders it names then travel to another machine, whose user
 // may be called something else.
 func (c *Config) expandPaths(home string) {
-	c.SkillsDir = expandPath(c.SkillsDir, home)
 	w := &c.Workspace
 	w.WorkspaceDirs = expandPaths(w.WorkspaceDirs, home)
 	w.DenyRead = expandPaths(w.DenyRead, home)

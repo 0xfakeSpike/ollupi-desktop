@@ -20,6 +20,7 @@ import (
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
 	"github.com/0xfakeSpike/ollupi/account"
 	"github.com/0xfakeSpike/ollupi/app"
 	"github.com/0xfakeSpike/ollupi/auth"
@@ -34,7 +35,7 @@ import (
 )
 
 type Options struct {
-	// Home is where config and skills paths resolve; commands outside a
+	// Home is where config paths resolve; commands outside a
 	// workspace run in its scratch folder (ollupi makes it).
 	Home string
 	// DataHome holds the store and the attachments; empty means Home.
@@ -91,7 +92,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	if cfg.Workspace.Enabled {
 		ws, err := workspace.New(workspace.Options{
 			Config: cfg.Workspace.Config,
-			Agent:  workspace.AgentFiles{Home: opts.Home, SkillsDir: cfg.SkillsDir},
+			Agent:  workspace.AgentFiles{Home: opts.Home},
 			// Commands must not read the secrets in the config file, nor the
 			// store, which holds every profile's API keys and MCP servers.
 			DenyRead:  []string{filepath.Join(opts.Home, config.FileName), filepath.Join(dataHome, "data")},
@@ -135,7 +136,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Tools:     tools,
 		Allowlist: cfg.Tools,
 		Boxes:     boxes.box,
-		SkillsDir: cfg.SkillsDir,
 		Slots:     cfg.Slots,
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
@@ -177,8 +177,7 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 }
 
 // Check reports whether cfg would start: it builds the backend as New
-// does, which is where ollupi checks the models, the skills folder and the
-// workspace's sandbox, against a throwaway store. Nothing is served and the
+// does, which is where ollupi checks the models and the workspace's sandbox, against a throwaway store. Nothing is served and the
 // real store is not opened.
 func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
 	data, err := os.MkdirTemp("", "ollupid-check-")
@@ -258,7 +257,8 @@ func (b *userBoxes) Close() error {
 
 // profileOf names the profile a connection's token acts as: the secret the
 // backend was started with, a dot, the profile. The secret is the app's
-// alone, so the profile it names is made if the store has not seen it.
+// alone, so the profile it names is made if the store has not seen it, with
+// the skills the desktop ships.
 func profileOf(ctx context.Context, token, secret string, st store.Store, users *app.App) (string, error) {
 	given, profile, ok := strings.Cut(token, ".")
 	if !ok || !config.ProfileID.MatchString(profile) || st == nil || users == nil || subtle.ConstantTimeCompare([]byte(given), []byte(secret)) != 1 {
@@ -270,7 +270,24 @@ func profileOf(ctx context.Context, token, secret string, st store.Store, users 
 	if err := users.EnsureUser(ctx, profile); err != nil {
 		return "", fmt.Errorf("profile %s: %w", profile, err)
 	}
+	if err := giveStarterSkills(ctx, users, profile); err != nil {
+		return "", fmt.Errorf("profile %s: %w", profile, err)
+	}
 	return profile, nil
+}
+
+// giveStarterSkills gives a new profile the skills the desktop ships.
+func giveStarterSkills(ctx context.Context, users *app.App, profile string) error {
+	starter, err := skills.Starter()
+	if err != nil {
+		return err
+	}
+	for _, p := range starter {
+		if _, err := users.SetSkill(ctx, profile, p); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // profiles lists the users the store holds.

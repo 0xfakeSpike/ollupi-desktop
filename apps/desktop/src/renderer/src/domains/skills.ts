@@ -1,80 +1,129 @@
-// Agent Skills: folders in the folder config.yaml's skills_dir names, each with
-// a SKILL.md an agent can activate. Each agent has skills of its own.
-// The main process owns the folder and checks every change with the agent's
-// own rules; the agent reads skills on each run, so a change takes effect
-// from the next one without a restart. Turning skills on or off, or moving
-// the folder, is a change to config.yaml, which does restart.
+// The profile's Agent Skills, kept in ollupi's store and given to agents
+// (ollupi's roles). ollupi checks a skill when it is set and tells every
+// client of the change (skill/changed); the agent reads its skills on each
+// turn, so a change applies from the next one without a restart. A skill
+// is stored as fields, not a SKILL.md: a folder is read on this Mac only to
+// import one (desktop.skills.import).
 
-import type { NewSkill, SkillAgent, SkillChange, SkillList } from '../../../shared/ipc'
+import type { OllupiClient } from '@ollupi/client'
+import { errorMessage } from '@ollupi/client'
+import type { SkillChangedNotification, SkillFile, SkillReadResult, SkillRow, SkillSetParams } from '@ollupi/protocol'
+import { create } from 'zustand'
+import { agentsOf, rolesOf, type SkillAgent, type SkillFolder } from '../../../shared/ipc'
+import { gateway } from '../gateway/connection'
+import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
-import { applyConfig } from './backendConfig'
 import { notify } from './notices'
 
-export function readSkills(): Promise<SkillList | undefined> {
-  return run((e) => e.skills.load, () => desktop.skills.list())
+/** Undefined until read on a connection. */
+export const useSkills = create<{ list: SkillRow[] | undefined }>()(() => ({ list: undefined }))
+
+/** The commit the list holds: a change at or before it is in it already. */
+let seen = 0
+
+function changed({ name, skill, seq }: SkillChangedNotification): void {
+  if (seq <= seen) return
+  seen = seq
+  useSkills.setState((s) => {
+    if (!s.list) return s
+    const rest = s.list.filter((x) => x.name !== name)
+    return { list: skill ? sorted([...rest, skill]) : rest }
+  })
 }
 
-export function readSkillFile(agent: SkillAgent, name: string): Promise<string | undefined> {
-  return run((e) => e.skills.read, () => desktop.skills.read(agent, name))
+const sorted = (list: SkillRow[]) => list.sort((a, b) => a.name.localeCompare(b.name))
+
+async function read(client: OllupiClient): Promise<void> {
+  const { result, newer } = await client.snapshot('skill/list', {}, ['skill/changed'])
+  seen = result.seq
+  useSkills.setState({ list: sorted(result.data) })
+  newer.forEach((e) => changed(e.params))
 }
 
-/** The agent's rule for a skill name, which is also its folder's name. */
+export const skillsDomain: Domain = {
+  bind: (client) => client.on('skill/changed', changed),
+  sync: (client) => read(client),
+  disconnect: () => {
+    seen = 0
+    useSkills.setState({ list: undefined })
+  },
+}
+
+/** The skills of the main agent, which a new conversation runs as. */
+export function mainSkills(list: SkillRow[]): SkillRow[] {
+  return list.filter((s) => agentsOf(s.roles).includes('main'))
+}
+
+/** ollupi's rule for a skill's name. */
 export function nameError(name: string, taken: string[]): 'format' | 'taken' | undefined {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || name.length > 64) return 'format'
   if (taken.includes(name)) return 'taken'
   return undefined
 }
 
-/** Resolves to the refusal, or undefined when the backend could not be
- * asked; the dialog shows a refusal where the skill is written. */
-export function createSkill(agent: SkillAgent, skill: NewSkill): Promise<SkillChange | undefined> {
-  return run((e) => e.skills.save, () => desktop.skills.create(agent, skill))
+/** A skill as the dialog writes it: what the agent is told, the agents it
+ * is given to, and the files it carries, which the app keeps as they came. */
+export interface SkillFields {
+  name: string
+  description: string
+  version?: string
+  instructions: string
+  agents: SkillAgent[]
+  files: SkillFile[]
 }
 
-export function saveSkill(agent: SkillAgent, name: string, text: string): Promise<SkillChange | undefined> {
-  return run((e) => e.skills.save, () => desktop.skills.save(agent, name, text))
+/** The skill with its instructions and files, for the dialog to edit. */
+export async function readSkill(name: string): Promise<SkillFields | undefined> {
+  const read: SkillReadResult | undefined = await run((e) => e.skills.read, () => gateway().call('skill/read', { name }))
+  if (!read) return undefined
+  const { skill, instructions, files } = read
+  return { name: skill.name, description: skill.description, version: skill.version, instructions, agents: agentsOf(skill.roles), files: files ?? [] }
 }
 
-/** Resolves to whether a folder was copied in. */
-export async function importSkill(agent: SkillAgent): Promise<boolean> {
-  return settled(await run((e) => e.skills.save, () => desktop.skills.import(agent)))
+/** A folder the person picks, read as a new skill's fields given to the
+ * main agent; undefined when none was picked or it could not be read,
+ * which a notice says. skipped are its files ollupi keeps none of. */
+export async function importFolder(): Promise<{ fields: SkillFields; skipped: string[] } | undefined> {
+  const folder: SkillFolder | undefined = await run((e) => e.skills.import, () => desktop.skills.import())
+  if (!folder) return undefined
+  if (!folder.ok || !folder.skill) {
+    notify(t().errors.failed(t().errors.skills.import, folder.error ?? ''))
+    return undefined
+  }
+  const s = folder.skill
+  return {
+    fields: { name: s.name, description: s.description, version: s.version, instructions: s.instructions, agents: ['main'], files: s.files ?? [] },
+    skipped: folder.skipped ?? [],
+  }
 }
 
-/** Resolves to whether the other agent got its copy. */
-export async function copySkill(agent: SkillAgent, name: string, to: SkillAgent): Promise<boolean> {
-  return settled(await run((e) => e.skills.save, () => desktop.skills.copy(agent, name, to)))
+/** Saved, or ollupi's refusal in its own words, which the dialog shows
+ * where the skill is written. */
+export type SkillChange = { ok: true } | { ok: false; error: string }
+
+/** Sets the skill whole: its fields, agents and files replace what it had. */
+export async function saveSkill(f: SkillFields): Promise<SkillChange> {
+  const params: SkillSetParams = {
+    name: f.name,
+    description: f.description.trim(),
+    ...(f.version && { version: f.version }),
+    instructions: f.instructions.trim(),
+    roles: f.agents.flatMap(rolesOf),
+    ...(f.files.length && { files: f.files }),
+  }
+  try {
+    await gateway().call('skill/set', params)
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) }
+  }
 }
 
-export function removeSkill(agent: SkillAgent, name: string): Promise<boolean> {
-  return run(
-    (e) => e.skills.remove,
-    async () => {
-      await desktop.skills.remove(agent, name)
-      return true
-    },
-  ).then(Boolean)
-}
-
-/** A change with no dialog to show its refusal in says it in a notice. */
-function settled(result: SkillChange | undefined): boolean {
-  if (result && !result.ok) notify(t().errors.skillsUnchanged(result.error))
-  return !!result?.ok
-}
-
-/** Points skills_dir at a folder in the backend's data folder, making it. */
-export async function turnOn(): Promise<boolean> {
-  const value = await run((e) => e.skills.save, () => desktop.skills.defaultFolder())
-  return value !== undefined && !!(await applyConfig([{ kind: 'set', path: ['skills_dir'], value }]))
-}
-
-export async function chooseFolder(): Promise<boolean> {
-  const dir = await desktop.pickDirectory()
-  return dir !== undefined && !!(await applyConfig([{ kind: 'set', path: ['skills_dir'], value: dir }]))
-}
-
-/** Leaves the folder as it is. */
-export async function turnOff(): Promise<boolean> {
-  return !!(await applyConfig([{ kind: 'delete', path: ['skills_dir'] }]))
+export function removeSkill(name: string): Promise<boolean> {
+  return run((e) => e.skills.remove, async () => {
+    await gateway().call('skill/delete', { name })
+    return true
+  }).then(Boolean)
 }

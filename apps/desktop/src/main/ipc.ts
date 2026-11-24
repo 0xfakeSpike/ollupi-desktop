@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, createProfile, listProfiles, rememberProfile, removeProfile, updateProfile } from './profile'
 import type { TempAttachments } from './attachments'
@@ -47,21 +47,10 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
   ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
   ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
-  ipcMain.handle(IpcChannel.SkillsList, () => skills.list())
-  ipcMain.handle(IpcChannel.SkillsRead, (_event, agent: unknown, name: unknown) => skills.read(skillAgent(agent), text(name)))
-  ipcMain.handle(IpcChannel.SkillsCreate, (_event, agent: unknown, skill: unknown) => {
-    const s = skill as Record<string, unknown> | null
-    return skills.create(skillAgent(agent), { name: text(s?.name), description: text(s?.description), instructions: text(s?.instructions) })
-  })
-  ipcMain.handle(IpcChannel.SkillsSave, (_event, agent: unknown, name: unknown, content: unknown) => skills.save(skillAgent(agent), text(name), text(content)))
-  ipcMain.handle(IpcChannel.SkillsImport, async (event, agent: unknown) => {
-    const to = skillAgent(agent)
+  ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
     const source = await pickDirectory(event.sender, false)
-    return source === undefined ? undefined : skills.import(to, source)
+    return source === undefined ? undefined : skills.read(source)
   })
-  ipcMain.handle(IpcChannel.SkillsCopy, (_event, agent: unknown, name: unknown, to: unknown) => skills.copy(skillAgent(agent), text(name), skillAgent(to)))
-  ipcMain.handle(IpcChannel.SkillsRemove, (_event, agent: unknown, name: unknown) => skills.remove(skillAgent(agent), text(name)))
-  ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   ipcMain.handle(IpcChannel.ProfileList, () => listProfiles(home))
   // A new profile starts with nothing of another's: its models and keys are
   // its own, added in its settings once the window acts as it.
@@ -252,13 +241,6 @@ function tabId(value: unknown): number {
 function askId(value: unknown): number {
   if (!Number.isInteger(value)) throw new Error('expected a question id')
   return value as number
-}
-
-/** An agent a skill belongs to, one the app offers. */
-function skillAgent(value: unknown): SkillAgent {
-  const agent = text(value)
-  if (!(skillAgents as readonly string[]).includes(agent)) throw new Error('expected an agent a skill belongs to')
-  return agent as SkillAgent
 }
 
 function texts(value: unknown): string[] {

@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
 	"github.com/0xfakeSpike/ollupi/account"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
+	"github.com/0xfakeSpike/ollupi/skill"
 )
 
 func TestTheUsersBoxKeepsTheBackendsEnvironment(t *testing.T) {
@@ -66,30 +68,6 @@ func load(t *testing.T, home, yaml string) config.Config {
 		t.Fatal(err)
 	}
 	return cfg
-}
-
-func TestCheckRefusesASkillTheAgentWouldNotLoad(t *testing.T) {
-	home := t.TempDir()
-	cfg := load(t, home, minimal+"skills_dir: skills\n")
-	if err := os.Mkdir(filepath.Join(home, "skills"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := Check(home, cfg, nil); err != nil {
-		t.Fatalf("refused: %v", err)
-	}
-	bad := filepath.Join(home, "skills", "full-main-agent", "bad")
-	if err := os.MkdirAll(bad, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(bad, "SKILL.md"), []byte("---\nname: other\ndescription: x\n---\n\nDo it.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := Check(home, cfg, nil); err == nil || !strings.Contains(err.Error(), `"bad"`) {
-		t.Fatalf("want a refusal naming the folder, got %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(home, "data")); err == nil {
-		t.Fatal("the check opened the real store")
-	}
 }
 
 func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
@@ -155,6 +133,41 @@ func TestATokenMadeWithTheSecretVouchesForItsProfile(t *testing.T) {
 	}
 	if users := profiles(ctx, h.ollupi.Store); !slices.Equal(users, []string{"default", "work"}) {
 		t.Fatalf("users = %v", users)
+	}
+}
+
+func TestANewProfileHasTheSkillsTheDesktopShips(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	home := t.TempDir()
+	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, minimal)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.close()
+	if _, err := profileOf(ctx, "secret.default", "secret", h.ollupi.Store, h.ollupi.App); err != nil {
+		t.Fatal(err)
+	}
+	list, _, err := h.ollupi.App.Skills(ctx, "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(list, func(s skill.Skill) bool { return s.Name == "zhou-shenghua-woodcut-style" })
+	if i < 0 {
+		t.Fatalf("skills = %+v", list)
+	}
+	if got := list[i]; !slices.Equal(slices.Sorted(slices.Values(got.Roles)), slices.Sorted(slices.Values(skills.Roles))) || len(got.Resources) == 0 {
+		t.Fatalf("the starter skill is %+v", got)
+	}
+	// A skill the profile removed stays removed on its next connection.
+	if err := h.ollupi.App.DeleteSkill(ctx, "default", "zhou-shenghua-woodcut-style"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := profileOf(ctx, "secret.default", "secret", h.ollupi.Store, h.ollupi.App); err != nil {
+		t.Fatal(err)
+	}
+	if list, _, _ := h.ollupi.App.Skills(ctx, "default"); len(list) != 0 {
+		t.Fatalf("skills = %+v", list)
 	}
 }
 

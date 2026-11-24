@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/0xfakeSpike/ollupi/agent"
-	"github.com/0xfakeSpike/ollupi/skill"
 )
 
 const plain = "name: x\n"
@@ -26,42 +24,36 @@ func TestTemplateParses(t *testing.T) {
 	}
 }
 
-func TestFirstLoadWritesStarterSkills(t *testing.T) {
-	home := t.TempDir()
-	kept := filepath.Join(home, "skills", string(agent.FullMain), "zhou-shenghua-woodcut-style", "SKILL.md")
-	cfg, err := Load(home)
-	if err != nil {
-		t.Fatal(err)
+func TestSkillsDirIsTakenOutOfAnOlderConfig(t *testing.T) {
+	raw := []byte("name: x\n\n# Agent Skills: a folder.\nskills_dir: skills\n\n# kept\nslots: 4\n")
+	dir, rest, found, err := SkillsDir(raw, "/home/me/.ollupi")
+	if err != nil || !found {
+		t.Fatalf("found = %v, err = %v", found, err)
 	}
-	if cfg.SkillsDir != filepath.Join(home, "skills") {
-		t.Fatalf("skills_dir = %s", cfg.SkillsDir)
+	if dir != filepath.Join("/home/me/.ollupi", "skills") {
+		t.Fatalf("dir = %s", dir)
 	}
-	for _, r := range []agent.Name{agent.FullMain, agent.CompactMain} {
-		list, err := skill.Load(cfg.SkillsDir, string(r))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if names := skillNames(list); !slices.Contains(names, "zhou-shenghua-woodcut-style") {
-			t.Fatalf("%s's starter skills = %v", r, names)
-		}
+	if strings.Contains(string(rest), "skills") || !strings.Contains(string(rest), "# kept") {
+		t.Fatalf("rest = %q", rest)
 	}
-	if err := os.WriteFile(kept, []byte("edited"), 0o644); err != nil {
-		t.Fatal(err)
+	cfg, err := Parse(rest)
+	if err != nil || cfg.Slots != 4 {
+		t.Fatalf("rest parses to %+v, %v", cfg, err)
 	}
-	if _, err := Load(home); err != nil {
-		t.Fatal(err)
-	}
-	if b, _ := os.ReadFile(kept); string(b) != "edited" {
-		t.Fatalf("SKILL.md = %q", b)
+	if _, _, found, _ := SkillsDir([]byte(Template), "/h"); found {
+		t.Fatal("the template names a skills_dir")
 	}
 }
 
-func skillNames(all []skill.Skill) []string {
-	var names []string
-	for _, s := range all {
-		names = append(names, s.Name)
+func TestLoadFileRefusesASkillsDir(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, FileName)
+	if err := os.WriteFile(path, []byte(plain+"skills_dir: skills\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	return names
+	if _, err := LoadFile(path, home); err == nil || !strings.Contains(err.Error(), "--import-config") {
+		t.Fatalf("want a refusal naming --import-config, got %v", err)
+	}
 }
 
 func TestValidateRejects(t *testing.T) {
@@ -83,8 +75,7 @@ func TestValidateRejects(t *testing.T) {
 
 func TestLoadFileResolvesPaths(t *testing.T) {
 	home := t.TempDir()
-	raw := plain + `skills_dir: skills
-workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}
+	raw := plain + `workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}
 `
 	path := filepath.Join(home, FileName)
 	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
@@ -97,9 +88,6 @@ workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}
 	user, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)
-	}
-	if want := filepath.Join(home, "skills"); cfg.SkillsDir != want {
-		t.Errorf("skills_dir = %s, want %s", cfg.SkillsDir, want)
 	}
 	dirs := cfg.Workspace.WorkspaceDirs
 	if len(dirs) != 2 || dirs[0] != filepath.Join(user, ".ollupi", "scratch") || dirs[1] != filepath.Join(home, "scratch") {

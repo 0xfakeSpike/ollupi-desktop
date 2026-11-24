@@ -3,7 +3,7 @@
 // change is checked on both ends.
 
 import type { ConfigCheck as CheckOutput } from './generated/backend-config'
-import type { SkillsCheck } from './generated/backend-skills'
+import type { SkillFolder } from './generated/backend-skills'
 import type { AgentRole, PresenceInput } from '@ollupi/protocol'
 
 /** config.yaml as the backend decodes it. */
@@ -76,35 +76,24 @@ export interface ListedModel {
 /** The models a provider's API lists, or why it could not be asked. */
 export type ModelList = { ok: true; models: ListedModel[] } | { ok: false; error: string }
 
-/** One skill as the agent loads it from its SKILL.md. */
-export type Skill = NonNullable<NonNullable<NonNullable<SkillsCheck['roles']>[number]['skills']>[number]>
-/** An agent a skill belongs to, as the app offers it: the main agent, which
- * ollupi runs as one of two roles by the size of the model (its skill is in
- * both roles' folders, so a conversation that changes model keeps it), the
+/** A skill folder read for import (ollupid --read-skill): its fields as
+ * skill/set takes them, without the agents that have it, and the files
+ * ollupi keeps none of; or why it cannot be read. */
+export type { SkillFolder }
+/** An agent a skill is given to, as the app offers it: the main agent, which
+ * ollupi runs as one of two roles by the size of the model (a skill of its
+ * is given to both, so a conversation that changes model keeps it), the
  * Super Agent (the hub's role), or one kind of subagent. */
 export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'frontend-sub-agent' | 'backend-sub-agent' | 'writing-sub-agent' | 'research-sub-agent'
 export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'design-sub-agent', 'codebase-sub-agent', 'frontend-sub-agent', 'backend-sub-agent', 'writing-sub-agent', 'research-sub-agent']
-/** The roles whose directories hold an agent's skills (skills_dir/<role>/<skill>). */
+/** The roles ollupi gives an agent's skill to. */
 export function rolesOf(agent: SkillAgent): AgentRole[] {
   return agent === 'main' ? ['full-main-agent', 'compact-main-agent'] : [agent]
 }
-/** One agent's skills. Each agent has its own: a skill of the same name
- * another agent has is another copy. */
-export interface AgentSkills {
-  agent: SkillAgent
-  skills: Skill[]
-}
-/** The skills folder and each agent's skills as ollupi would load them, or
- * why it would not start with the folder. dir is empty while config.yaml
- * sets no skills_dir, which turns skills off. */
-export type SkillList = { ok: true; dir: string; agents: AgentSkills[] } | { ok: false; dir: string; error: string }
-/** A change to the skills folder, or why the agent's rules refused it. */
-export type SkillChange = { ok: true } | { ok: false; error: string }
-/** What a new skill's SKILL.md is written from. */
-export interface NewSkill {
-  name: string
-  description: string
-  instructions: string
+/** The agents that have a skill given to these roles: the main agent has
+ * one given to either of its roles. */
+export function agentsOf(roles: readonly string[]): SkillAgent[] {
+  return skillAgents.filter((agent) => rolesOf(agent).some((role) => roles.includes(role)))
 }
 
 /** One entry of a workspace folder. */
@@ -329,25 +318,11 @@ export interface DesktopApi {
      * and restarts the backend, since ollupi reads its config only at start. */
     apply(changes: ConfigChange[]): Promise<ConfigCheck>
   }
-  /** The folder config.yaml's skills_dir names, where each agent has its
-   * own skills. A change is checked with the agent's own rules before it
-   * reaches the folder; skills are read on each run, so it takes effect
-   * from the next. */
+  /** Skills are each profile's, in the store, over the gateway; a folder
+   * on this Mac is read here for import. */
   skills: {
-    list(): Promise<SkillList>
-    read(agent: SkillAgent, name: string): Promise<string>
-    create(agent: SkillAgent, skill: NewSkill): Promise<SkillChange>
-    save(agent: SkillAgent, name: string, text: string): Promise<SkillChange>
-    /** Asks for a skill folder and copies it in for the agent; undefined
-     * when none was chosen. */
-    import(agent: SkillAgent): Promise<SkillChange | undefined>
-    /** Gives another agent a copy of the skill, its own from then on. */
-    copy(agent: SkillAgent, name: string, to: SkillAgent): Promise<SkillChange>
-    /** Moves the agent's copy of the skill to the Trash. */
-    remove(agent: SkillAgent, name: string): Promise<void>
-    /** Creates the skills folder in the backend's home and gives the
-     * skills_dir value that names it. */
-    defaultFolder(): Promise<string>
+    /** Asks for a skill folder and reads it; undefined when none was chosen. */
+    import(): Promise<SkillFolder | undefined>
   }
   /** The profile the window acts as. A connection is always one: there is
    * no anonymous one to fall back to. */
@@ -539,14 +514,7 @@ export const IpcChannel = {
   BackendChanged: 'backend:changed',
   ConfigRead: 'config:read',
   ConfigApply: 'config:apply',
-  SkillsList: 'skills:list',
-  SkillsRead: 'skills:read',
-  SkillsCreate: 'skills:create',
-  SkillsSave: 'skills:save',
   SkillsImport: 'skills:import',
-  SkillsCopy: 'skills:copy',
-  SkillsRemove: 'skills:remove',
-  SkillsDefaultFolder: 'skills:defaultFolder',
   ProfileList: 'profile:list',
   ProfileCreate: 'profile:create',
   ProfileUpdate: 'profile:update',

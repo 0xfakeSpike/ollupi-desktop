@@ -4,7 +4,8 @@
 // exercises every message kind the UI handles: streaming, an approval, a
 // question, a plan, a scheduled task created by the model, a subagent, an
 // MCP tool call (mock-mcp.mjs, beside a server that cannot start), the
-// memory snapshot and a memory_search call, a file attached by path,
+// memory snapshot and a memory_search call, the skill methods with
+// skill/changed and an invalid skill refused, a file attached by path,
 // read_file alone and with glob and grep in one answer, messages sent while
 // a turn runs (each a turn behind it), the cron, workspace, memory,
 // settings, MCP, permission and hub methods, token usage grouped each way,
@@ -199,6 +200,18 @@ await call('thread/updatePermissions', { threadId: thread.id, approvalPolicy: 'n
 await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { ask: ['run_command'] } })
 // A new rule for a server that did not connect cannot be checked: refused.
 await call('workspace/updatePermissions', { workspaceId: ws1.id, permissions: { ask: ['run_command', 'broken__new_tool'] } }).catch(() => {})
+await call('skill/list', {})
+await call('skill/set', {
+  name: 'release-notes',
+  description: 'Writes release notes from the changes since the last tag.',
+  version: '1',
+  instructions: 'Read the log, then write the notes.',
+  roles: ['full-main-agent', 'compact-main-agent'],
+  files: [{ path: 'scripts/log.sh', text: 'git log --oneline\n', executable: true }],
+})
+await call('skill/read', { name: 'release-notes' })
+await call('skill/set', { name: 'Not A Name', description: 'x', instructions: 'x', roles: ['full-main-agent'] }).catch(() => {})
+await call('skill/delete', { name: 'release-notes' })
 await call('memory/status', {})
 await call('memory/list', { scope: 'global' })
 await call('memory/list', { scope: 'general' })

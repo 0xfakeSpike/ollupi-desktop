@@ -34,20 +34,26 @@ type profilesFile struct {
 // one a profile without its own takes.
 var profileColors = []string{"stone", "amber", "teal", "violet", "rose", "sky"}
 
-// importLegacy takes apart an older config.yaml that declared models per
-// profile, once: every model any profile ran becomes one of the deployment's
-// providers, in the file; each profile becomes a user whose settings keep the
-// model it started and learned with, and an entry in the app's profiles.json.
-// The old file is kept beside the new one. A config without profiles is left
-// alone. Every step can run again, so an import cut short finishes on the
-// next start.
+// importLegacy takes apart an older config.yaml, once. One that declared
+// models per profile: every model any profile ran becomes one of the
+// deployment's providers, in the file; each profile becomes a user whose
+// settings keep the model it started and learned with, and an entry in the
+// app's profiles.json, and the old file is kept beside the new one. One that
+// names a skills_dir: its skills are given to every profile in the store
+// (importSkills). A config with neither is left alone. Every step can run
+// again, so an import cut short finishes on the next start.
 func importLegacy(home, names string) int {
 	imported, err := runImport(home, names)
+	var skills skillsImport
+	if err == nil {
+		skills, err = importSkills(home)
+	}
 	out := struct {
-		OK       bool     `json:"ok"`
-		Imported []string `json:"imported,omitempty"`
-		Error    string   `json:"error,omitempty"`
-	}{OK: err == nil, Imported: imported, Error: errorText(err)}
+		OK       bool         `json:"ok"`
+		Imported []string     `json:"imported,omitempty"`
+		Skills   skillsImport `json:"skills,omitzero"`
+		Error    string       `json:"error,omitempty"`
+	}{OK: err == nil, Imported: imported, Skills: skills, Error: errorText(err)}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
 	if err != nil {
@@ -72,7 +78,12 @@ func runImport(home, names string) ([]string, error) {
 	if !found {
 		return nil, nil
 	}
-	next, err := config.Parse(rest)
+	// A skills_dir is importSkills' to take apart, next.
+	_, checked, _, err := config.SkillsDir(rest, home)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	next, err := config.Parse(checked)
 	if err != nil {
 		return nil, fmt.Errorf("%s without its profiles: %w", path, err)
 	}

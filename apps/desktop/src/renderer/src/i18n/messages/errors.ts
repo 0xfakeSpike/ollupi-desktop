@@ -6,7 +6,6 @@ export const en = {
   notConnected: 'Not connected to the backend',
   contractMismatch: (where: string, problem: string) => `Contract mismatch: ${where} ${problem}`,
   configUnchanged: (why: string) => `config.yaml was not changed: ${why}`,
-  skillsUnchanged: (why: string) => `The skills folder was not changed: ${why}`,
 
   workspace: {
     add: 'Could not add the workspace',
@@ -90,8 +89,8 @@ export const en = {
     commit: 'Could not commit',
   },
   skills: {
-    load: 'Could not read the skills',
-    read: 'Could not read SKILL.md',
+    read: 'Could not read the skill',
+    import: 'Could not import the folder',
     save: 'Could not save the skill',
     remove: 'Could not remove the skill',
   },
@@ -115,7 +114,6 @@ export const zh: typeof en = {
   notConnected: '未连接到后端',
   contractMismatch: (where, problem) => `协议不一致：${where} ${problem}`,
   configUnchanged: (why) => `config.yaml 未修改：${why}`,
-  skillsUnchanged: (why) => `技能文件夹未修改：${why}`,
 
   workspace: {
     add: '无法添加工作区',
@@ -199,8 +197,8 @@ export const zh: typeof en = {
     commit: '无法提交',
   },
   skills: {
-    load: '无法读取技能',
-    read: '无法读取 SKILL.md',
+    read: '无法读取技能',
+    import: '无法导入文件夹',
     save: '无法保存技能',
     remove: '无法删除技能',
   },

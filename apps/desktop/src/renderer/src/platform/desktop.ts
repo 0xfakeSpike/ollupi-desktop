@@ -36,7 +36,7 @@ function browserShim(): DesktopApi | undefined {
     },
     // A sidecar started by hand: the browser cannot reach its config file.
     config: { read: unavailable, apply: unavailable },
-    skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
+    skills: { import: unavailable },
     // The folder in the home given, which whoever started the sidecar makes:
     // a browser cannot.
     superAgentFolder: async (profile: string) => {
@@ -108,7 +108,7 @@ export const desktop: DesktopApi = window.desktop ??
     info: unavailable,
     backend: { state: unavailable, restart: unavailable, onState: unavailable },
     config: { read: unavailable, apply: unavailable },
-    skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
+    skills: { import: unavailable },
     profile: { list: unavailable, create: unavailable, update: unavailable, delete: unavailable, select: unavailable },
     superAgentFolder: unavailable,
     attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },

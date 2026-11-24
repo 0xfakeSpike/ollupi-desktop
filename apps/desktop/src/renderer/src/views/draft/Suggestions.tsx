@@ -5,9 +5,9 @@
 // writes its words into the empty box to be finished or changed; nothing is
 // sent. They show only while the box is empty.
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NEW_CONVERSATION, suggestDraft, useDraft } from '../../domains/drafts'
-import { readSkills } from '../../domains/skills'
+import { mainSkills, useSkills } from '../../domains/skills'
 import { useT } from '../../i18n'
 import { cn } from '@ollupi/ui'
 import { useAreaClass } from '../common/useAreaClass'
@@ -31,20 +31,11 @@ export function Suggestions({ workspace }: { workspace: { id: string; name: stri
   const area = useAreaClass(workspace?.id)
   const t = useT().conversation.draft.suggest
   const draft = useDraft(NEW_CONVERSATION)
-  const [skill, setSkill] = useState<{ name: string; description: string }>()
   // One skill the main agent has, which a new conversation runs as, chosen
   // once for this visit.
-  useEffect(() => {
-    let live = true
-    void readSkills().then((list) => {
-      if (!live || !list?.ok) return
-      const usable = list.agents.find((a) => a.agent === 'main')?.skills ?? []
-      if (usable.length) setSkill(usable[Math.floor(Math.random() * usable.length)])
-    })
-    return () => {
-      live = false
-    }
-  }, [])
+  const [pick] = useState(Math.random)
+  const usable = mainSkills(useSkills((x) => x.list) ?? [])
+  const skill = usable[Math.floor(pick * usable.length)]
 
   if (draft.text.trim() || draft.attachments.length) return null
   const cards: Suggestion[] = [

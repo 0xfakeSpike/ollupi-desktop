@@ -7,12 +7,11 @@
 // line:
 //
 //	ollupid --check-config FILE   whether FILE would start
-//	ollupid --import-config       take apart an older config.yaml that declares models per profile, once
+//	ollupid --import-config       take apart an older config.yaml that declares models per profile or a skills_dir, once
 //	ollupid --delete-profile ID   delete a profile's data from the store, with the backend stopped
 //	ollupid --config-schema       the JSON Schema of --check-config's output
-//	ollupid --list-skills         each role's skills in config.yaml's skills_dir
-//	ollupid --check-skills DIR    each role's skills in DIR, as the agent would load them
-//	ollupid --skills-schema       the JSON Schema of the skills modes' output
+//	ollupid --read-skill DIR      the skill folder DIR, as the app sends it to skill/set
+//	ollupid --skill-schema        the JSON Schema of --read-skill's output
 package main
 
 import (
@@ -35,8 +34,6 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
-	"github.com/0xfakeSpike/ollupi/agent"
-	"github.com/0xfakeSpike/ollupi/skill"
 	"github.com/0xfakeSpike/ollupi/store"
 	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -50,13 +47,12 @@ func main() {
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
-	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml that declares models per profile, then exit")
+	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml that declares models per profile or a skills_dir, then exit")
 	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names and colours it kept")
 	deleteProfile := flag.String("delete-profile", "", "delete a profile's data from the store, then exit")
 	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of --check-config's output and exit")
-	listSkills := flag.Bool("list-skills", false, "list the skills in this home's skills_dir and exit")
-	checkSkills := flag.String("check-skills", "", "list the skills in a directory and exit")
-	skillsSchema := flag.Bool("skills-schema", false, "print the JSON Schema of the skills modes' output and exit")
+	readSkillDir := flag.String("read-skill", "", "read a skill folder and exit")
+	skillSchema := flag.Bool("skill-schema", false, "print the JSON Schema of --read-skill's output and exit")
 	flag.Parse()
 
 	switch {
@@ -68,12 +64,10 @@ func main() {
 		os.Exit(printSchema[checkResult]())
 	case *checkConfig != "":
 		os.Exit(check(*checkConfig, *home))
-	case *skillsSchema:
-		os.Exit(printSchema[skillsResult]())
-	case *listSkills:
-		os.Exit(printSkills(configuredSkills(*home)))
-	case *checkSkills != "":
-		os.Exit(printSkills(skillsIn(*checkSkills)))
+	case *skillSchema:
+		os.Exit(printSchema[readResult]())
+	case *readSkillDir != "":
+		os.Exit(readSkill(*readSkillDir))
 	}
 
 	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
@@ -193,65 +187,6 @@ func check(path, home string) int {
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
 	if err != nil {
-		return 1
-	}
-	return 0
-}
-
-// skillsResult is the skills modes' output: the folder and the skills each
-// role of agent loads from it, or why the agent would refuse to start with
-// it. Dir is empty when config.yaml sets no skills_dir, which turns skills
-// off.
-type skillsResult struct {
-	OK    bool         `json:"ok"`
-	Dir   string       `json:"dir"`
-	Roles []roleSkills `json:"roles,omitempty"`
-	Error string       `json:"error,omitempty"`
-}
-
-// roleSkills are the skills of one role, in the directory of its name; a
-// role without one has none.
-type roleSkills struct {
-	Role   string        `json:"role"`
-	Skills []skill.Skill `json:"skills"`
-}
-
-func configuredSkills(home string) skillsResult {
-	cfg, err := config.LoadFile(filepath.Join(home, config.FileName), home)
-	if err != nil {
-		return skillsResult{Error: err.Error()}
-	}
-	if cfg.SkillsDir == "" {
-		return skillsResult{OK: true}
-	}
-	return skillsIn(cfg.SkillsDir)
-}
-
-// skillsIn checks dir as the agent does at start, so a folder it lists is
-// one the agent starts with, and reads each role's skills as a run does.
-func skillsIn(dir string) skillsResult {
-	names := make([]string, len(agent.Names))
-	for i, r := range agent.Names {
-		names[i] = string(r)
-	}
-	if err := skill.Check(dir, names); err != nil {
-		return skillsResult{Dir: dir, Error: err.Error()}
-	}
-	out := skillsResult{OK: true, Dir: dir, Roles: make([]roleSkills, 0, len(names))}
-	for _, name := range names {
-		list, err := skill.Load(dir, name)
-		if err != nil {
-			return skillsResult{Dir: dir, Error: err.Error()}
-		}
-		out.Roles = append(out.Roles, roleSkills{Role: name, Skills: list})
-	}
-	return out
-}
-
-func printSkills(out skillsResult) int {
-	line, _ := json.Marshal(out)
-	fmt.Println(string(line))
-	if !out.OK {
 		return 1
 	}
 	return 0

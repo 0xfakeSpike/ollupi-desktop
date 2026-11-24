@@ -14,8 +14,8 @@ workspace:
   workspace_dirs:
     - ~/a
 
-# Agent Skills.
-skills_dir: skills
+# The system prompt.
+prompt: hi
 
 # How many threads may run at once (default 32).
 # slots: 32
@@ -38,7 +38,7 @@ describe('editConfigText', () => {
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
     expect(edited.text).not.toContain('command_timeout_sec')
-    expect(edited.text).toContain('\n# Agent Skills.\nskills_dir: skills\n')
+    expect(edited.text).toContain('\n# The system prompt.\nprompt: hi\n')
   })
 
   it('appends a list item', () => {
