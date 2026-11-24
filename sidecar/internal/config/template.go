@@ -5,37 +5,40 @@ const Template = `# Ollupi desktop backend. Restart the backend from the app aft
 # Permissions, MCP servers, and whether memory is on and learns are set in
 # the app.
 name: ollupi
+schema_version: 2
 
 # Empty uses ollupi's default system prompt.
 prompt: ""
 
-# Profiles the app can switch between. Each owns its models, API keys and
-# learning model. The first model of the first provider is the profile's
-# default. Limits are the context window and the most an answer may take;
-# calls caps concurrent requests to that model; images lets it receive images.
+# API accounts shared by profiles. Models that profiles both select use the
+# same client and concurrency limit. limits is the context window and the most
+# an answer may take; calls caps concurrent requests to that model; images
+# lets it receive images.
+credentials:
+  - id: openai
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key: ""
+    models:
+      - name: gpt-5.2
+        images: true
+        limits: { context: 400000, output: 128000 }
+
+# Profiles the app can switch between. Each names the models it may run in
+# order; the first is its default. Its learning model must be one of them.
 profiles:
   - id: default
-    models:
-      - provider: openai
-        type: openai
-        base_url: https://api.openai.com/v1
-        api_key: ""
-        names:
-          - name: gpt-5.2
-            images: true
-            limits: { context: 400000, output: 128000 }
+    name: ""
+    color: stone
+    models: [openai/gpt-5.2]
     # The model that learns memories from finished turns while memory and
     # learning are on. Leave it out to learn none.
     # memory:
     #   model: openai/gpt-5.2
   # - id: work
-  #   models:
-  #     - provider: openai
-  #       type: openai
-  #       api_key: sk-...
-  #       names:
-  #         - name: gpt-5.2
-  #           limits: { context: 400000, output: 128000 }
+  #   name: Work
+  #   color: teal
+  #   models: [openai/gpt-5.2]
   #   memory:
   #     model: openai/gpt-5.2
 

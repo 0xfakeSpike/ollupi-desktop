@@ -19,11 +19,12 @@ func TestTheUsersBoxKeepsTheBackendsEnvironment(t *testing.T) {
 	t.Setenv("MCP_TEST_FROM_PROFILE", "kept")
 	t.Setenv("OLLUPI_GATEWAY_TOKEN", "secret")
 	t.Setenv("BASH_FUNC_x%%", "() { :; }")
-	box, err := userBox(t.TempDir())
+	boxes := newUserBoxes(t.TempDir())
+	box, err := boxes.box("a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer box.Close()
+	defer boxes.Close()
 	res, err := box.Run(context.Background(), sandbox.Command{Program: "/usr/bin/env", Timeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
@@ -36,17 +37,35 @@ func TestTheUsersBoxKeepsTheBackendsEnvironment(t *testing.T) {
 	}
 }
 
+func TestEachProfileHasItsOwnBox(t *testing.T) {
+	boxes := newUserBoxes(t.TempDir())
+	defer boxes.Close()
+	a, err := boxes.box("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := boxes.box("b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == b {
+		t.Fatal("two profiles share one sandbox")
+	}
+}
+
 const minimal = `name: ollupi
+schema_version: 2
+credentials:
+  - id: mock
+    type: openai
+    base_url: http://127.0.0.1:1/v1
+    api_key: test
+    models:
+      - name: mock-model
+        limits: { context: 128000, output: 8000 }
 profiles:
   - id: default
-    models:
-      - provider: mock
-        type: openai
-        base_url: http://127.0.0.1:1/v1
-        api_key: test
-        names:
-          - name: mock-model
-            limits: { context: 128000, output: 8000 }
+    models: [mock/mock-model]
 `
 
 func load(t *testing.T, home, yaml string) config.Config {
@@ -153,23 +172,26 @@ func TestConfiguredProfilesExistWhenTheBackendStarts(t *testing.T) {
 	home := t.TempDir()
 	cfg := load(t, home, `
 name: ollupi
+schema_version: 2
+credentials:
+  - id: mock
+    type: openai
+    base_url: http://127.0.0.1:1/v1
+    models:
+      - name: mock-model
+        limits: { context: 128000, output: 8000 }
+  - id: work
+    type: openai
+    base_url: http://127.0.0.1:1/v1
+    api_key: work
+    models:
+      - name: work-model
+        limits: { context: 128000, output: 8000 }
 profiles:
   - id: default
-    models:
-      - provider: mock
-        type: openai
-        base_url: http://127.0.0.1:1/v1
-        names:
-          - name: mock-model
-            limits: { context: 128000, output: 8000 }
+    models: [mock/mock-model]
   - id: work
-    models:
-      - provider: work
-        type: openai
-        base_url: http://127.0.0.1:1/v1
-        names:
-          - name: work-model
-            limits: { context: 128000, output: 8000 }
+    models: [work/work-model]
 `)
 	h, err := New(ctx, Options{Home: home, Token: "secret", Config: cfg})
 	if err != nil {
@@ -187,22 +209,25 @@ profiles:
 func TestEachProfileKeepsItsOwnLearningModel(t *testing.T) {
 	home := t.TempDir()
 	cfg := load(t, home, `name: ollupi
+schema_version: 2
+credentials:
+  - id: pa
+    type: openai
+    models:
+      - name: ma
+        limits: { context: 1000, output: 100 }
+  - id: pb
+    type: openai
+    api_key: pb
+    models:
+      - name: mb
+        limits: { context: 1000, output: 100 }
 profiles:
   - id: a
-    models:
-      - provider: pa
-        type: openai
-        names:
-          - name: ma
-            limits: { context: 1000, output: 100 }
+    models: [pa/ma]
     memory: { model: pa/ma }
   - id: b
-    models:
-      - provider: pb
-        type: openai
-        names:
-          - name: mb
-            limits: { context: 1000, output: 100 }
+    models: [pb/mb]
     memory: { model: pb/mb }
 `)
 	sets, err := userModels(cfg)
@@ -212,5 +237,53 @@ profiles:
 	if len(sets) != 2 || sets[0].Memory == nil || sets[0].Memory.Connection != "pa/ma" ||
 		sets[1].Memory == nil || sets[1].Memory.Connection != "pb/mb" {
 		t.Fatalf("profile models = %+v", sets)
+	}
+}
+
+func TestProfilesSelectingOneModelShareItsClient(t *testing.T) {
+	home := t.TempDir()
+	cfg := load(t, home, `name: ollupi
+schema_version: 2
+credentials:
+  - id: shared
+    type: openai
+    models:
+      - name: m
+        limits: { context: 1000, output: 100 }
+profiles:
+  - id: a
+    models: [shared/m]
+  - id: b
+    models: [shared/m]
+`)
+	sets, err := userModels(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sets[0].Connections["shared/m"] != sets[1].Connections["shared/m"] {
+		t.Fatal("profiles sharing a credential/model built separate clients")
+	}
+}
+
+func TestReloadAddsAProfileAndSwapsItsModels(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	home := t.TempDir()
+	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, minimal)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.close()
+	next := load(t, home, minimal+`  - id: work
+    models: [mock/mock-model]
+`)
+	if err := h.Reload(ctx, next); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(profiles(ctx, h.ollupi.Store), "work") {
+		t.Fatal("the new profile was not made")
+	}
+	if got, _ := h.ollupi.App.Models("work"); len(got) != 1 || got[0].Connection != "mock/mock-model" {
+		t.Fatalf("work's models = %+v", got)
 	}
 }

@@ -80,6 +80,17 @@ export async function updateProfile(profile: Profile, name: string, color: Profi
   await sync()
 }
 
+export async function deleteProfile(profile: Profile): Promise<void> {
+  const { current, list } = useProfile.getState()
+  if (current === profile.id) {
+    const next = list.find((p) => p.id !== profile.id)
+    if (!next) throw new Error('the last profile cannot be deleted')
+    await switchProfile(next.id)
+  }
+  await desktop.profile.delete(profile.id)
+  await sync()
+}
+
 /** Makes another profile the window's. A conversation of the old one is not
  * the new one's to show, so the window opens on the new profile's draft. */
 export async function switchProfile(id: string): Promise<void> {

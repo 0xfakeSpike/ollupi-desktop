@@ -51,18 +51,25 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 渲染层拿到的是拼上身份的版本。没有身份、身份不存在、secret 不对，一律
 `auth.ErrUnknownToken`。
 
-### 1. 身份是数据边界，Profile 是 desktop 的展示
+### 1. Profile 的配置只有一个版本化来源
 
-- `users` 表只保留 `id` 和 `created_at`。名称、颜色、当前选择和顺序都是 desktop 的
-  `profiles.json` / `profile.json` 内容，不进入 Ollupi 协议。
+- `users` 表只保留 `id` 和 `created_at`。Profile 的名称、颜色、模型和记忆配置
+  都写在 `config.yaml` 的 `profiles[]`；当前选择留在本机的 `profile.json`。
+- `config.yaml` 带 `schema_version`。没有版本号的文件（0.8.17-beta.2 及以前的
+  顶层 `models`，beta.3 的 `profiles[].models` 里各带 provider）只在读文件的边界
+  一次性升级：原文件留作 `config.yaml.pre-v2`，新文件写回，之后 gateway、host 和
+  renderer 只运行当前版本；比当前更新的版本号直接拒绝。beta.3 放在
+  `userData/profiles.json` 的名称和颜色由主进程在启动时写进 `profiles[]`，
+  然后把原文件改名为 `profiles.json.imported`。
 - `config.yaml` 的 `profiles[].id` 声明这个 home 有哪些 Profile；后端启动时
   为缺少的 id 调 `EnsureUser`。因此配置、数据库和凭据在启动时对齐。
-- desktop 的 Profile 创建先在本地生成 id 和显示元数据，再把同一个 id 连同调用者的
-  模型、记忆模型写入 config；配置校验或重启失败时撤回本地元数据。
+- desktop 的 Profile 创建把 id、名称、颜色、模型选择和记忆模型一次写入 config。
 - 网关不提供跨用户的 `user/list/create/rename/color`。当前连接已经由 token 命名，
   普通客户端没有理由枚举或管理同一 shard 的其他用户。
-- v1 不做删除（删除要级联 threads → entries/items/turns、memories、attachments 目录、
-  hub 文件夹，还要处理正在跑的任务）；先支持归档/改名。删除留到 P4。
+- 删除 Profile：主进程先停后端，`ollupid --delete-profile` 在库里没有其他写者时
+  删除 threads → entries/items/turns、memory、todo、cron、presence、usage 和用户行，
+  再从 config 去掉它；之后主进程删 attachment 目录和 `users/<id>`，重启后端。
+  它若还有未结束的轮次、飞书还在以它的身份运行，或它是最后一个 Profile，都拒绝删除。
 
 ### 2. 认证：token 里带着身份
 
@@ -83,43 +90,69 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 - hub 工作区：每个身份用 `<home>/users/<id>/super-agent`。`superAgentFolder(profile)`
   决定返回哪个。
+- 本地执行环境：ollupi 的 `Boxes(user)` 每个 Profile 一个 `sandbox.Box`，根目录是
+  `<home>/users/<id>`，MCP 进程和 web 工具都从它进入本机。今天这些 Box 在同一台机器、
+  同一个系统用户下，权限相同；调用边界已经按 Profile 分开，云部署时把这个工厂换成
+  各自的云沙箱即可。工作区命令仍走 workspace 工具自己的沙箱（`sandbox_mode`），
+  不借这个完全访问的 Box。
+- 这是多 Profile，不是本机上的多用户隔离：同一台机器上的 Profile 能读到彼此的文件。
 - `attachments/` 共享：键是 `threadID/附件ID.ext`，thread id 全局唯一，不会撞。
 - `skills/` 共享（配置级）。按身份分技能是另一个功能，v1 不做。
-- `scratch/` 共享：不在工作区里跑命令的默认目录，谁都能看到内容——文档里要写明。
+- 浏览器历史和书签按设备共享。
 
-### 4. 模型与 key 按身份（最贵的一块）
+### 4. Credential 共享，模型由 Profile 选择
 
-`config.yaml` 只有一套按身份组织的配置：
+`config.yaml` v2：
 
 ```yaml
+schema_version: 2
 name: ollupi
 workspace: { enabled: true, sandbox_mode: workspace-write, ... }
 skills_dir: skills
 feishu: { app_id: ..., profile: default, users: [ou_x] }
 
+credentials:
+  - id: openai
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key: ...
+    models:
+      - name: gpt-5.2
+        limits: { context: 400000, output: 128000 }
+
 profiles:
   - id: default
-    models: [ { provider: openai, type: openai, base_url: ..., api_key: ..., names: [...] } ]
+    name: ""
+    color: stone
+    models: [openai/gpt-5.2]
     memory: { model: openai/gpt-5.2 }
   - id: work
-    models: [ { provider: ..., api_key: ..., names: [...] } ]
-    memory: { model: ... }
+    name: Work
+    color: teal
+    models: [openai/gpt-5.2]
 ```
 
-一个身份没有自己的模型（配置里没有它）就没有模型可用：能看历史，不能开新回合，
-而不是借用别的身份的。记忆模型也来自该身份自己的 `memory.model`。
+一个 credential/model 只实例化一个 client。多个 Profile 选择同一个模型时共享
+API 账户、并发限制和连接；Profile 只决定自己能选哪些模型及顺序。没有选中的模型
+不能运行，也不会借用其他 Profile 的选择。记忆模型必须是该 Profile 已选模型之一。
 
-引擎要改的地方：
+校验保证这一点：两个 credential 的 type、base_url、api_key 相同就拒绝；升级时也
+按这三者合并。界面上新加的 provider 若和已有 credential 是同一个账户，模型加进那个
+credential，而不是新建一个。
 
-- `host.models` 从“一份列表”变成“按用户”：`Models(user)`、`Limits(user, m)`；
-  `Client(user, m)` 已经有 `clientFor(user, connection)` 这个钩子，可以复用。
-- `app.Models()` → `Models(user)`；`pickModel(user, connection, last)` 只在**该身份**的
-  列表里找，线程里记的 `connection` 不属于它就报“在设置里恢复或换一个模型”（现有文案）。
-- `gateway/models` 用连接用户的列表（`gateway/owned.go` 现在调 `app.Models()`）。
-- 记忆提取（`extract.New`）现在是一个全局模型，要改成按用户解析。
-- `--check-config` 的输出带上 `profiles[]`；设置 → 模型的编辑路径变成
-  `profiles[i].models...`，`config/apply` 的 path 由渲染层按当前身份拼。
-- 新身份创建时复制调用者的 `models`（key 一起）和 `memory`。
+Renderer 不认识 YAML 路径。它提交 `addProvider`、`editModel`、
+`setMemoryModel` 等领域操作（`shared/profileConfig.ts`），main process 把它变成
+对文件的修改，由 backend 的 `--check-config` 校验后原子写入。规则各有一处：
+文件的合法性只在 sidecar 的 `config.Validate`，领域操作只在 `profileConfig.ts`，
+renderer 只用它算展示和提前提示。
+
+改动按代价生效：
+
+| 改了什么 | 怎么生效 |
+|---|---|
+| Profile 名称、颜色 | 只写文件 |
+| 新建 Profile、模型列表、API key、记忆模型 | 主进程给后端发 SIGHUP，sidecar 重读 `credentials[]`/`profiles[]`，建好缺的用户，`host.SetUsers` 原地替换模型；正在调用模型的轮次用旧 client 跑完。后端不在运行或重载失败时退回重启 |
+| 其他（工作区、沙箱、skills、slots、飞书、手改文件） | 提示后重启 |
 
 ### 5. 渲染层
 
@@ -145,14 +178,14 @@ profiles:
 
 | 阶段 | 内容 | 可验收的结果 |
 |---|---|---|
-| P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、飞书 `profile` 必填、Profile 元数据留在 desktop、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
+| P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、飞书 `profile` 必填、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
-| P3a | （已完成）引擎按身份解析模型、`config.yaml` 的 `profiles[]`、sidecar 按身份装配客户端 | 配置里写第二个身份的 provider/key，它跑的就是这一套 |
-| P3b | （已完成）新建身份把当前身份的模型和记忆模型写进配置（含复制 key）；设置页按当前身份编辑模型（`profiles[i]` 路径）；记忆模型按身份 | 图形界面里能改每个身份的模型和 key；每个身份用自己的模型学记忆 |
+| P3a | （已完成）config v2 的 `credentials[]` 与 `profiles[]`、共享 client/限流 | 不同 Profile 各自选择模型；同模型共享额度和并发 |
+| P3b | （已完成）领域化配置 API；按 Profile 设置模型顺序与记忆模型 | 图形界面里不接触 YAML 路径 |
 | P4 | （已完成）`feishu.profiles` 把 open_id 映射到身份，回调按线程归属 | 手机端按人分 |
 
-P1+P2 之后“多身份”就能日常用（模型仍共用）；P3 才是“每人一套模型和额度”。P3 动的是引擎的 `host`/`app`/`run`/`gateway`/`extract`，要发新 tag 并在桌面端 bump
-`go.mod`（和这次路径改动一样的流程）。
+每个 Profile 自己选择模型和记忆模型；共享的是底层 credential，而不是 Profile
+状态。引擎 API 变化要发新 tag，并在桌面端 bump `go.mod`。
 
 ## 风险与取舍
 
@@ -167,8 +200,6 @@ P1+P2 之后“多身份”就能日常用（模型仍共用）；P3 才是“�
 
 ## 没做的（需求里没有，别当成计划）
 
-- **删除身份**：需求是加身份，不是管理身份的生命周期。没有它也不影响使用；只有手改
-  配置删掉一个身份时，`userData/profile.json` 会留下悬空引用，那时手改回去即可。
 - **导出/导入**：目前整目录拷 `~/.ollupi` 就够了（见 README）。
 
 需要的话再说，不从“剩余工作”里算。

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useCheckedConfig } from '../../domains/backendConfig'
 import { openThread } from '../../domains/conversation'
 import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type Scopes } from '../../domains/memory'
-import { profileConfig } from '../../domains/modelConfig'
+import { profileConfig } from '../../../../shared/profileConfig'
 import { useProfile } from '../../domains/profile'
 import { shownResult, useSearch } from '../../domains/search'
 import { useSettings } from '../../domains/settings'
@@ -118,7 +118,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
             {/* The switches are the app's, not a scope's: shown once, on Global. */}
             {scope === 'global' && <MemorySettings config={config} />}
-            {data && <StatusLine status={data.status} learning={!!profile?.config.memory?.model} />}
+            {data && <StatusLine status={data.status} learning={!!profile?.memory?.model} />}
             <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
               <Search size={14} className="shrink-0 text-fg-subtle" />
               <input

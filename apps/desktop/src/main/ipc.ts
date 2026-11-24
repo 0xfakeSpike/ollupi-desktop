@@ -3,13 +3,15 @@
 // access.
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type BackendConfig as BackendConfigValue, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
-import { activeProfile, beginProfileCreate, finishProfileCreate, listProfiles, profileDraft, putProfile, rememberProfile, rollbackProfileCreate, storedProfiles, updateProfile } from './profile'
+import { activeProfile, listProfiles, rememberProfile } from './profile'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
+import { profileChanges, type ProfileConfigOperation } from '../shared/profileConfig'
 import type { BackendSkills } from './backend/skills'
 import { START_PAGE, typedPage } from './browser/address'
 import type { Bookmarks } from './browser/bookmarks'
@@ -64,7 +66,7 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
   ipcMain.handle(IpcChannel.ProfileList, async () => {
     const checked = await config.read()
-    return checked.ok ? listProfiles(profileIDs(checked.config)) : storedProfiles()
+    return checked.ok ? listProfiles(checked.config.profiles ?? []) : listProfiles([])
   })
   ipcMain.handle(IpcChannel.ProfileCreate, async (_event, name: unknown, color: unknown) => {
     const checked = await config.read()
@@ -73,29 +75,45 @@ export function registerIpc(
     const profiles = checked.config.profiles ?? []
     const source = profiles.find((p) => p.id === from)
     if (!source?.models?.length) throw new Error('the current profile has no models to copy')
-    const profile = profileDraft(text(name), profileColor(color))
-    const entry = { id: profile.id, models: source.models, ...(source.memory && { memory: source.memory }) }
-    beginProfileCreate(profile)
-    putProfile(profile)
-    try {
-      const applied = await config.apply([{ kind: 'set', path: ['profiles', profiles.length], value: entry }])
-      if (!applied.ok) throw new Error(applied.error)
-      finishProfileCreate()
-    } catch (err) {
-      // apply() may have committed config.yaml and then failed to restart.
-      // Keep the metadata with it; only roll back when config is readable and
-      // definitely does not contain the profile.
-      const after = await config.read().catch(() => undefined)
-      if (after?.ok) {
-        if ((after.config.profiles ?? []).some((p) => p.id === profile.id)) finishProfileCreate()
-        else rollbackProfileCreate(profile.id)
-      }
-      throw err
-    }
+    const profile = { id: randomUUID(), name: text(name).trim(), color: profileColor(color) }
+    if (!profile.name) throw new Error('a new profile needs a name')
+    const entry = { ...profile, models: source.models, ...(source.memory && { memory: source.memory }) }
+    const applied = await config.apply([{ kind: 'set', path: ['profiles', profiles.length], value: entry }], 'reload')
+    if (!applied.ok) throw new Error(applied.error)
     return profile
   })
-  ipcMain.handle(IpcChannel.ProfileUpdate, (_event, profile: unknown, name: unknown, color: unknown) => {
-    return updateProfile(profileID(profile), text(name), profileColor(color))
+  ipcMain.handle(IpcChannel.ProfileUpdate, async (_event, profile: unknown, name: unknown, color: unknown) => {
+    const id = profileID(profile)
+    const checked = await config.read()
+    if (!checked.ok) throw new Error(checked.error)
+    const index = (checked.config.profiles ?? []).findIndex((p) => p.id === id)
+    if (index < 0) throw new Error('profile not found')
+    const updated = { id, name: text(name).trim(), color: profileColor(color) }
+    const applied = await config.apply([
+      { kind: 'set', path: ['profiles', index, 'name'], value: updated.name },
+      { kind: 'set', path: ['profiles', index, 'color'], value: updated.color },
+    ], 'nothing')
+    if (!applied.ok) throw new Error(applied.error)
+    return updated
+  })
+  ipcMain.handle(IpcChannel.ProfileConfigure, async (_event, profile: unknown, operation: unknown) => {
+    const id = profileID(profile)
+    if (!operation || typeof operation !== 'object' || typeof (operation as { kind?: unknown }).kind !== 'string') {
+      throw new Error('expected a profile configuration operation')
+    }
+    const checked = await config.read()
+    if (!checked.ok) throw new Error(checked.error)
+    if (!(checked.config.profiles ?? []).some((p) => p.id === id)) throw new Error('profile not found')
+    const applied = await config.apply(profileChanges(checked.config, id, operation as ProfileConfigOperation), 'reload')
+    if (!applied.ok) throw new Error(applied.error)
+    return applied
+  })
+  ipcMain.handle(IpcChannel.ProfileDelete, async (_event, profile: unknown) => {
+    const id = profileID(profile)
+    if (id === activeProfile()) throw new Error('switch away from a profile before deleting it')
+    const threads = await config.deleteProfile(id)
+    await Promise.all(threads.map((thread) => rm(join(home, 'attachments', thread), { recursive: true, force: true })))
+    await rm(join(home, 'users', id), { recursive: true, force: true })
   })
   // The profile the window acts as: the choice is kept for the next start,
   // and the backend's next connection is named by it.
@@ -294,10 +312,6 @@ function profileID(value: unknown): string {
 function profileColor(value: unknown): ProfileColor {
   if (typeof value !== 'string' || !(profileColorNames as readonly string[]).includes(value)) throw new Error('not a profile colour')
   return value as ProfileColor
-}
-
-function profileIDs(config: BackendConfigValue): string[] {
-  return (config.profiles ?? []).map((p) => p.id)
 }
 
 function text(value: unknown): string {

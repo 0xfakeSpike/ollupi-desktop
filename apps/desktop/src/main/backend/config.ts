@@ -1,8 +1,9 @@
 // The backend's config.yaml, owned by the main process: the renderer reads
-// it and asks for changes, never touching the file. ollupi reads its
-// configuration once at start, so a change takes effect by restarting the
-// backend; apply() validates, writes and restarts as one step, and a change
-// the backend would refuse never reaches the file.
+// it and asks for changes, never touching the file. apply() validates and
+// writes as one step, so a change the backend would refuse never reaches the
+// file, then has the change take effect at the cost it needs: a profile's
+// name or colour needs nothing, profiles and credentials reload into the
+// running backend, and everything else restarts it.
 
 import { execFile } from 'node:child_process'
 import { chmod, readFile, rename, rm, writeFile } from 'node:fs/promises'
@@ -14,24 +15,35 @@ export interface ConfigOptions {
   binary: string
   home: string
   env(): Promise<NodeJS.ProcessEnv>
-  restart(): Promise<void>
+  backend: {
+    start(): Promise<void>
+    stop(): Promise<void>
+    restart(): Promise<void>
+    reload(): Promise<void>
+  }
 }
+
+/** What a change to config.yaml needs before it is in effect. */
+export type ConfigEffect = 'restart' | 'reload' | 'nothing'
 
 export class BackendConfig {
   readonly path: string
+  private upgrading: Promise<void> | undefined
 
   constructor(private readonly opts: ConfigOptions) {
     this.path = join(opts.home, 'config.yaml')
   }
 
   /** The current file as the backend decodes it, or why it would not start. */
-  read(): Promise<ConfigCheck> {
+  async read(): Promise<ConfigCheck> {
+    await this.upgrade()
     return this.check(this.path)
   }
 
   /** Applies changes to the file, keeping its comments and layout, if the
-   * backend accepts the result; then restarts the backend with it. */
-  async apply(changes: ConfigChange[]): Promise<ConfigCheck> {
+   * backend accepts the result; then puts them in effect. */
+  async apply(changes: ConfigChange[], effect: ConfigEffect = 'restart'): Promise<ConfigCheck> {
+    await this.upgrade()
     const edited = editConfigText(await readFile(this.path, 'utf8'), changes)
     if (!edited.ok) return edited
     // Next to the real file, so the final rename is atomic.
@@ -43,11 +55,59 @@ export class BackendConfig {
       if (!result.ok) return { ok: false, error: result.error.replaceAll(candidate, this.path) }
       await chmod(candidate, 0o600)
       await rename(candidate, this.path)
-      await this.opts.restart()
+      if (effect === 'restart') await this.opts.backend.restart()
+      else if (effect === 'reload') await this.opts.backend.reload()
       return result
     } finally {
       await rm(candidate, { force: true })
     }
+  }
+
+  /** Deletes one profile from the config and the store while the backend is
+   * stopped, so no turn of it runs and nothing else writes the database;
+   * resolves to the threads whose attachment folders go with it. */
+  async deleteProfile(id: string): Promise<string[]> {
+    const env = await this.opts.env()
+    await this.opts.backend.stop()
+    try {
+      return await new Promise((resolve, reject) => {
+        execFile(this.opts.binary, ['--home', this.opts.home, '--delete-profile', id], { env, timeout: 30_000 }, (err, stdout) => {
+          try {
+            const result = JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as { ok?: boolean; threads?: string[]; error?: string }
+            if (err || !result.ok) reject(new Error(result.error ?? err?.message ?? 'the profile could not be deleted'))
+            else resolve(result.threads ?? [])
+          } catch {
+            reject(new Error(err ? `cannot delete the profile: ${err.message}` : 'cannot delete the profile'))
+          }
+        })
+      })
+    } finally {
+      await this.opts.backend.start()
+    }
+  }
+
+  /** Runs the backend's one-way schema upgrade before any read or edit. */
+  upgrade(): Promise<void> {
+    this.upgrading ??= this.runUpgrade().catch((err: unknown) => {
+      this.upgrading = undefined
+      throw err
+    })
+    return this.upgrading
+  }
+
+  private async runUpgrade(): Promise<void> {
+    const env = await this.opts.env()
+    await new Promise<void>((resolve, reject) => {
+      execFile(this.opts.binary, ['--upgrade-config', this.path], { env, timeout: 30_000 }, (err, stdout) => {
+        try {
+          const result = JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as { ok?: boolean; error?: string }
+          if (err || !result.ok) reject(new Error(result.error ?? err?.message ?? 'the config could not be upgraded'))
+          else resolve()
+        } catch {
+          reject(new Error(err ? `cannot upgrade the config: ${err.message}` : 'cannot upgrade the config'))
+        }
+      })
+    })
   }
 
   /** ollupid --check-config: the backend's own validation, run with the

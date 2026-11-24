@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,52 +9,45 @@ vi.mock('electron', () => ({
   app: { getPath: (name: string) => (name === 'userData' ? paths.userData : '') },
 }))
 
-import { activeProfile, beginProfileCreate, createProfile, finishProfileCreate, listProfiles, pendingProfile, profileDraft, rememberProfile, rollbackProfileCreate, updateProfile } from './profile'
+import { activeProfile, legacyProfileChanges, listProfiles, rememberProfile, retireLegacyProfiles } from './profile'
 
-describe('profiles shown by the app', () => {
+describe('profile selection', () => {
   beforeEach(() => {
     paths.userData = mkdtempSync(join(tmpdir(), 'ollupi-profiles-'))
   })
 
   afterEach(() => rmSync(paths.userData, { recursive: true, force: true }))
 
-  it('fills the display metadata config needs without putting it in Ollupi', () => {
-    expect(listProfiles(['default', 'work'])).toEqual({
+  it('lists the display metadata config declares', () => {
+    expect(listProfiles([
+      { id: 'default', name: 'Me', color: 'stone' },
+      { id: 'work', name: 'Work', color: 'teal' },
+    ])).toEqual({
       current: 'default',
       data: [
-        { id: 'default', name: '', color: 'stone' },
-        { id: 'work', name: '', color: 'stone' },
+        { id: 'default', name: 'Me', color: 'stone' },
+        { id: 'work', name: 'Work', color: 'teal' },
       ],
     })
   })
 
-  it('creates, renames and recolours only the app-owned metadata', () => {
-    const made = createProfile('Work', 'teal')
-    expect(made.id).toMatch(/^[A-Za-z0-9_-]{1,64}$/)
-    expect(updateProfile(made.id, 'Studio', 'rose')).toEqual({ id: made.id, name: 'Studio', color: 'rose' })
-
-    rememberProfile(made.id)
-    expect(activeProfile()).toBe(made.id)
-    expect(listProfiles(['default', 'work', made.id]).current).toBe(made.id)
-    expect(JSON.parse(readFileSync(join(paths.userData, 'profiles.json'), 'utf8'))).toEqual({
-      profiles: [
-        { id: 'default', name: '', color: 'stone' },
-        { id: 'work', name: '', color: 'stone' },
-        { id: made.id, name: 'Studio', color: 'rose' },
-      ],
-    })
+  it('keeps only the device choice locally and falls back when it disappears', () => {
+    rememberProfile('work')
+    expect(activeProfile()).toBe('work')
+    expect(listProfiles([{ id: 'default', name: '', color: 'stone' }]).current).toBe('default')
+    expect(activeProfile()).toBe('default')
   })
 
-  it('can finish or roll back a profile creation interrupted across files', () => {
-    const pending = profileDraft('Side project', 'amber')
-    beginProfileCreate(pending)
-    expect(pendingProfile()).toEqual(pending)
-    rollbackProfileCreate(pending.id)
-    expect(pendingProfile()).toBeUndefined()
-
-    const kept = profileDraft('Studio', 'violet')
-    beginProfileCreate(kept)
-    finishProfileCreate()
-    expect(pendingProfile()).toBeUndefined()
+  it('brings in the names and colours profiles.json kept, once', () => {
+    const file = join(paths.userData, 'profiles.json')
+    writeFileSync(file, JSON.stringify({ profiles: [{ id: 'default', name: ' Me ', color: 'sky' }, { id: 'gone', name: 'Gone', color: 'rose' }, { id: 'work', name: 'Work', color: 'red' }] }))
+    expect(legacyProfileChanges([{ id: 'default' }, { id: 'work' }])).toEqual([
+      { kind: 'set', path: ['profiles', 0, 'name'], value: 'Me' },
+      { kind: 'set', path: ['profiles', 0, 'color'], value: 'sky' },
+      { kind: 'set', path: ['profiles', 1, 'name'], value: 'Work' },
+    ])
+    retireLegacyProfiles()
+    expect(existsSync(file)).toBe(false)
+    expect(legacyProfileChanges([{ id: 'default' }])).toEqual([])
   })
 })

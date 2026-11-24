@@ -51,4 +51,43 @@ exec cat >/dev/null
 
     expect((await readFile(starts, 'utf8')).trim().split('\n')).toHaveLength(1)
   })
+
+  const reloading = (starts: string, reply: string) => `#!/bin/sh
+echo started >> "${starts}"
+trap 'echo "{\\"type\\":\\"${reply}\\"}"' HUP
+echo '{"type":"ready","url":"ws://127.0.0.1:1/"}'
+while :; do sleep 60 & wait $!; done
+`
+
+  async function ready(backend: BackendSupervisor): Promise<void> {
+    while (backend.state.status !== 'ready') await once(backend, 'state')
+  }
+
+  it('reloads a running backend in place', async () => {
+    const binary = join(dir, 'ollupid')
+    const starts = join(dir, 'starts')
+    await writeFile(binary, reloading(starts, 'reloaded'))
+    await chmod(binary, 0o755)
+    const backend = new BackendSupervisor({ binary, home: dir, profile: 'default', allowOrigins: [], env: async () => process.env, logFile: join(dir, 'backend.log') })
+    await backend.start()
+    await ready(backend)
+    await Promise.all([backend.reload(), backend.reload()])
+    expect(backend.state.status).toBe('ready')
+    await backend.stop()
+    expect((await readFile(starts, 'utf8')).trim().split('\n')).toHaveLength(1)
+  })
+
+  it('restarts a backend that cannot reload', async () => {
+    const binary = join(dir, 'ollupid')
+    const starts = join(dir, 'starts')
+    await writeFile(binary, reloading(starts, 'reload_failed'))
+    await chmod(binary, 0o755)
+    const backend = new BackendSupervisor({ binary, home: dir, profile: 'default', allowOrigins: [], env: async () => process.env, logFile: join(dir, 'backend.log') })
+    await backend.start()
+    await ready(backend)
+    await backend.reload()
+    await ready(backend)
+    await backend.stop()
+    expect((await readFile(starts, 'utf8')).trim().split('\n')).toHaveLength(2)
+  })
 })

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
@@ -82,13 +83,10 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		return nil, err
 	}
 
-	// The one user's box: their workspaces' folders and attachments are this
-	// machine's, and their MCP servers run here.
-	box, err := userBox(opts.Home)
-	if err != nil {
-		return nil, err
-	}
-	h.closers = append(h.closers, box.Close)
+	// Local profiles share the machine today, but still reach it through one
+	// Box per user. A cloud host replaces the same factory with cloud boxes.
+	boxes := newUserBoxes(opts.Home)
+	h.closers = append(h.closers, boxes.Close)
 
 	// The store is the host's, made below; a call reaches this only once
 	// it is.
@@ -147,7 +145,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Users:     users,
 		Tools:     tools,
 		Allowlist: cfg.Tools,
-		Boxes:     func(string) (sandbox.Box, error) { return box, nil },
+		Boxes:     boxes.box,
 		SkillsDir: cfg.SkillsDir,
 		Slots:     cfg.Slots,
 		// The app's Super Agent is ollupi's hub: the user's one hub
@@ -186,6 +184,21 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		h.clients = append(h.clients, bot)
 	}
 	return h, nil
+}
+
+// Reload takes the profiles and credentials of cfg without a restart: every
+// profile it declares exists, and each runs the models it selects now. Turns
+// already calling a model finish on the client they started with. Nothing
+// else in cfg is read; those settings take a restart.
+func (h *Host) Reload(ctx context.Context, cfg config.Config) error {
+	users, err := userModels(cfg)
+	if err != nil {
+		return err
+	}
+	if err := ensureProfiles(ctx, h.ollupi.Store, h.ollupi.App, cfg); err != nil {
+		return err
+	}
+	return h.ollupi.SetUsers(users)
 }
 
 // Serve serves the gateway on ln and runs ollupi's flows and the clients
@@ -244,46 +257,46 @@ func (h *Host) close() {
 	}
 }
 
-// modelClients gives each model its own ollupi connection and client, of
-// the provider's API type, so calls caps that model alone (ollupi: each
-// model connection has its own cap). The models keep the file's order; the
-// first is the default.
-func modelClients(providers []config.Provider) ([]llm.Model, map[string]llm.Client, error) {
-	var models []llm.Model
+// modelClients gives each credential/model one shared client. Profiles that
+// select the same model share both its provider account and concurrency limit.
+func modelClients(credentials []config.Credential) (map[string]llm.Model, map[string]llm.Client, error) {
+	models := map[string]llm.Model{}
 	clients := map[string]llm.Client{}
-	for _, p := range providers {
-		for _, m := range p.Names {
-			id := config.ID(p.Provider, m.Name)
-			client, err := modelClient(p, m)
+	for _, c := range credentials {
+		for _, m := range c.Models {
+			id := config.ID(c.ID, m.Name)
+			client, err := modelClient(c, m)
 			if err != nil {
-				return nil, nil, fmt.Errorf("models: %s: %w", id, err)
+				return nil, nil, fmt.Errorf("credentials: %s: %w", id, err)
 			}
 			clients[id] = client
-			models = append(models, llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking, Images: m.Images})
+			models[id] = llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking, Images: m.Images}
 		}
 	}
 	return models, clients, nil
 }
 
-func modelClient(p config.Provider, m config.Model) (llm.Client, error) {
+func modelClient(c config.Credential, m config.Model) (llm.Client, error) {
 	limits := map[string]llm.Limits{m.Name: m.Limits}
-	switch p.Type {
+	switch c.Type {
 	case config.APIOpenAI:
-		return llm.NewOpenAI(p.BaseURL, p.APIKey, m.Calls, limits), nil
+		return llm.NewOpenAI(c.BaseURL, c.APIKey, m.Calls, limits), nil
 	case config.APIAnthropic:
-		return llm.NewAnthropic(p.BaseURL, p.APIKey, m.Calls, limits), nil
+		return llm.NewAnthropic(c.BaseURL, c.APIKey, m.Calls, limits), nil
 	case config.APIGemini:
-		return llm.NewGemini(p.BaseURL, p.APIKey, m.Calls, limits)
+		return llm.NewGemini(c.BaseURL, c.APIKey, m.Calls, limits)
 	}
-	return nil, fmt.Errorf("unknown API type %q", p.Type)
+	return nil, fmt.Errorf("unknown API type %q", c.Type)
 }
 
-// userBox is the user's box: this machine, where their MCP servers run
-// outside the workspace's sandbox with the environment the backend was
-// given, as commands the user configured themselves. The app's own
-// variables stay out, its tokens above all, and so do names the sandbox
-// refuses, such as a shell's BASH_FUNC_x%%.
-func userBox(home string) (*sandbox.Sandbox, error) {
+type userBoxes struct {
+	home  string
+	env   []string
+	mu    sync.Mutex
+	boxes map[string]*sandbox.Sandbox
+}
+
+func newUserBoxes(home string) *userBoxes {
 	var env []string
 	for _, pair := range os.Environ() {
 		name, _, _ := strings.Cut(pair, "=")
@@ -291,7 +304,38 @@ func userBox(home string) (*sandbox.Sandbox, error) {
 			env = append(env, name)
 		}
 	}
-	return sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{home}, EnvPassthrough: env})
+	return &userBoxes{home: home, env: env, boxes: map[string]*sandbox.Sandbox{}}
+}
+
+// box is this machine as one profile sees it. Local profiles share access
+// today, but the factory and lifetime are per user for a cloud Machine.
+func (b *userBoxes) box(user string) (sandbox.Box, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if box := b.boxes[user]; box != nil {
+		return box, nil
+	}
+	root := filepath.Join(b.home, "users", user)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return nil, err
+	}
+	box, err := sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{root}, EnvPassthrough: b.env})
+	if err != nil {
+		return nil, err
+	}
+	b.boxes[user] = box
+	return box, nil
+}
+
+func (b *userBoxes) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var errs []error
+	for _, box := range b.boxes {
+		errs = append(errs, box.Close())
+	}
+	b.boxes = nil
+	return errors.Join(errs...)
 }
 
 // profileOf names the profile a connection's token acts as: the secret the
@@ -343,30 +387,26 @@ func ensureProfiles(ctx context.Context, st store.Store, a *app.App, cfg config.
 // userModels gives every configured profile the models it runs and the clients
 // that call them. A profile's learning model comes from the same section.
 func userModels(cfg config.Config) ([]ollupi.UserModels, error) {
+	modelSet, clients, err := modelClients(cfg.Credentials)
+	if err != nil {
+		return nil, err
+	}
 	sets := make([]ollupi.UserModels, 0, len(cfg.Profiles))
 	for _, p := range cfg.Profiles {
-		models, connections, err := modelClients(p.Models)
-		if err != nil {
-			return nil, fmt.Errorf("profile %s: %w", p.ID, err)
+		models := make([]llm.Model, 0, len(p.Models))
+		connections := map[string]llm.Client{}
+		byID := map[string]llm.Model{}
+		for _, id := range p.Models {
+			m := modelSet[id]
+			models = append(models, m)
+			byID[id] = m
+			connections[id] = clients[id]
 		}
 		var memory *llm.Model
-		if m, ok := connectionOf(models, p.Memory.Model); ok {
+		if m, ok := byID[p.Memory.Model]; ok {
 			memory = &m
 		}
 		sets = append(sets, ollupi.UserModels{User: p.ID, Models: models, Connections: connections, Memory: memory})
 	}
 	return sets, nil
-}
-
-// connectionOf finds a model by its provider/name among a set's models.
-func connectionOf(models []llm.Model, connection string) (llm.Model, bool) {
-	if connection == "" {
-		return llm.Model{}, false
-	}
-	for _, m := range models {
-		if m.Connection == connection {
-			return m, true
-		}
-	}
-	return llm.Model{}, false
 }

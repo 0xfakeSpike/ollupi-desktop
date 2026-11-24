@@ -5,23 +5,28 @@ import { editConfigText } from './config'
 // entries inside sections, inline comments.
 const file = `# Ollupi desktop backend.
 name: ollupi
+schema_version: 2
+
+# API credentials.
+credentials:
+  - id: deepseek
+    base_url: https://api.deepseek.com
+    api_key: sk-test
+    models:
+      - name: deepseek-flash
+  # The local one.
+  - id: local
+    base_url: http://127.0.0.1:11434/v1
+    models:
+      - name: qwen3:32b
+  # - id: openai
+  #   base_url: https://api.openai.com/v1
 
 profiles:
   - id: default
-    # Models, grouped by the API that serves them. The first is the default.
     models:
-      - provider: deepseek
-        base_url: https://api.deepseek.com
-        api_key: sk-test
-        names:
-          - name: deepseek-flash
-      # The local one.
-      - provider: local
-        base_url: http://127.0.0.1:11434/v1
-        names:
-          - name: qwen3:32b
-      # - provider: openai
-      #   base_url: https://api.openai.com/v1
+      - deepseek/deepseek-flash
+      - local/qwen3:32b
     memory:
       model: all
 `
@@ -46,22 +51,23 @@ describe('editConfigText', () => {
   })
 
   it('moves a list item with its comment', () => {
-    const edited = editConfigText(file, [{ kind: 'move', path: ['profiles', 0, 'models', 1], to: 0 }])
+    const edited = editConfigText(file, [{ kind: 'move', path: ['credentials', 1], to: 0 }])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
     const text = edited.text
-    expect(text.indexOf('# The local one.')).toBeLessThan(text.indexOf('provider: local'))
-    expect(text.indexOf('provider: local')).toBeLessThan(text.indexOf('provider: deepseek'))
-    expect(text).toContain('      # - provider: openai\n')
+    expect(text).toContain('id: local')
+    expect(text.indexOf('# The local one.')).toBeLessThan(text.indexOf('id: local'))
+    expect(text.indexOf('id: local')).toBeLessThan(text.indexOf('id: deepseek'))
+    expect(text).toContain('  # - id: openai\n')
   })
 
   it('appends a list item', () => {
-    const edited = editConfigText(file, [{ kind: 'set', path: ['profiles', 0, 'models', 2], value: { provider: 'openai', names: [{ name: 'gpt-5.2' }] } }])
-    expect(edited.ok && edited.text.includes('      - provider: openai\n        names:\n          - name: gpt-5.2\n')).toBe(true)
+    const edited = editConfigText(file, [{ kind: 'set', path: ['credentials', 2], value: { id: 'openai', models: [{ name: 'gpt-5.2' }] } }])
+    expect(edited.ok && edited.text.includes('  - id: openai\n    models:\n      - name: gpt-5.2\n')).toBe(true)
   })
 
   it('refuses a move outside the list', () => {
-    expect(editConfigText(file, [{ kind: 'move', path: ['profiles', 0, 'models', 0], to: 2 }]).ok).toBe(false)
+    expect(editConfigText(file, [{ kind: 'move', path: ['credentials', 0], to: 2 }]).ok).toBe(false)
     expect(editConfigText(file, [{ kind: 'move', path: ['profiles', 0, 'memory'], to: 0 }]).ok).toBe(false)
   })
 

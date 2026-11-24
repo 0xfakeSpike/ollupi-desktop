@@ -3,9 +3,10 @@ import { Button, cn, Dialog, Field, Input, Picker } from '@ollupi/ui'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import type { Profile, ProfileColor } from '../../../../shared/ipc'
-import { createProfile, currentProfile, profileName, switchProfile, updateProfile, useProfile } from '../../domains/profile'
+import { createProfile, currentProfile, deleteProfile, profileName, switchProfile, updateProfile, useProfile } from '../../domains/profile'
 import { useT } from '../../i18n'
 import { confirmRestart } from '../../domains/backendConfig'
+import { notify } from '../../domains/notices'
 import { PROFILE_COLORS, profileColor } from './profileColors'
 
 /** The profile the window acts as, at the sidebar's foot: its dot and name,
@@ -38,6 +39,17 @@ export function ProfileMenu() {
         actions={[
           { label: m.create, onSelect: () => setMaking(true) },
           ...(current ? [{ label: m.edit, onSelect: () => setEditing(true) }] : []),
+          ...(current && list.length > 1
+            ? [{
+                label: m.delete,
+                onSelect: () => {
+                  // Deleting stops the backend while the store changes, so
+                  // running turns of every profile are interrupted.
+                  if (!confirm(m.deleteConfirm(profileName(current, m.unnamed))) || !confirmRestart()) return
+                  deleteProfile(current).catch((err: unknown) => notify(errorMessage(err)))
+                },
+              }]
+            : []),
         ]}
         width={260}
         className="flex h-8 w-full items-center gap-2 rounded-full px-3 text-small font-medium text-fg-muted transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
@@ -76,7 +88,6 @@ function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): voi
       if (profile) {
         if (rename || recolour) await updateProfile(profile, name.trim(), color)
       } else {
-        if (!confirmRestart()) return
         const created = await createProfile(name.trim(), color)
         await switchProfile(created.id)
       }

@@ -5,6 +5,7 @@
 import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 import type { SkillsCheck } from './generated/backend-skills'
 import type { AgentRole, PresenceInput } from '@ollupi/protocol'
+import type { ProfileConfigOperation } from './profileConfig'
 
 /** config.yaml as the backend decodes it. */
 export type BackendConfig = NonNullable<CheckOutput['config']>
@@ -360,6 +361,10 @@ export interface DesktopApi {
     create(name: string, color: ProfileColor): Promise<Profile>
     /** Changes only this app's display metadata; nothing restarts. */
     update(id: string, name: string, color: ProfileColor): Promise<Profile>
+    /** Applies one model or memory domain operation to a profile's config. */
+    configure(id: string, operation: ProfileConfigOperation): Promise<ConfigCheck>
+    /** Deletes a non-current profile, its runtime data and its files. */
+    delete(id: string): Promise<void>
     /** Makes a profile the window's: its connection reconnects as it, and a
      * restart opens as it. */
     select(id: string): Promise<void>
@@ -547,6 +552,8 @@ export const IpcChannel = {
   ProfileList: 'profile:list',
   ProfileCreate: 'profile:create',
   ProfileUpdate: 'profile:update',
+  ProfileConfigure: 'profile:configure',
+  ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',
   SuperAgentFolder: 'superAgent:folder',
   AttachmentsWrite: 'attachments:write',

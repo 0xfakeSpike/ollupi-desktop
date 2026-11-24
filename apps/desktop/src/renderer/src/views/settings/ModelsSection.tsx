@@ -1,39 +1,34 @@
-// config.yaml's models: the providers (each an API of one type: OpenAI
-// compatible, Anthropic or Gemini) and the models each serves. ollupi reads them at start, so every saved change is
-// checked by the backend, written, and the backend restarted. A provider's
-// API key is written there too, like its base URL.
+// The current profile's models: the providers it selects them from (each a
+// credential in config.yaml, an API of one type: OpenAI compatible,
+// Anthropic or Gemini, shared by every profile that uses it) and the models
+// it runs, in order. Every saved change is checked by the backend, written,
+// and reloaded into the running backend without stopping its turns. A
+// provider's API key is written there too, like its base URL.
 
 import { formatTokens } from '@ollupi/core'
 import { Badge, Button, Callout, Checkbox, cn, Details, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
-import { applyConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
-import { profileConfig, scoped } from '../../domains/modelConfig'
+import { apiTypes, type ApiType, type ListedModel } from '../../../../shared/ipc'
+import { applyProfileConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { profileConfig, type ProfileConfigOperation } from '../../../../shared/profileConfig'
 import { useProfile } from '../../domains/profile'
 import {
-  addModels,
-  addProvider,
   apiTypeOf,
   cannotRemove,
   cannotRemoveProvider,
   count,
   DEFAULT_CONTEXT,
   defaultOutput,
-  editModel,
-  editProvider,
   imagesByDefault,
   limitsOf,
-  makeDefault,
   modelId,
-  removeModel,
-  removeProvider,
   type ModelFields,
   type Provider,
   type ProviderFields,
   type ProviderModel,
   type TypedLimits,
-} from '../../domains/modelConfig'
+} from '../../../../shared/profileConfig'
 import { useBalance } from '../../domains/balance'
 import { useModelList, type ModelListState } from '../../domains/modelList'
 import { useModels } from '../../domains/models'
@@ -61,12 +56,13 @@ export function ModelsSection() {
   if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
   if (!checked) return null
 
-  const scope = profileConfig(checked.config, current)
-  const { config, models, base } = scope
+  const config = profileConfig(checked.config, current)
+  const models = config.models.flatMap((p) => p.names.map((n) => ({ id: `${p.provider}/${n.name}`, provider: p.provider, name: n.name })))
   const providers = config.models ?? []
   /** Applies changes; true when the backend accepted them. */
-  const apply = async (changes: ConfigChange[]): Promise<boolean> => {
-    const applied = await applyConfig(scoped(changes, base))
+  const apply = async (operation: ProfileConfigOperation): Promise<boolean> => {
+    if (!current) return false
+    const applied = await applyProfileConfig(current, operation)
     if (applied) setChecked(applied)
     return !!applied
   }
@@ -96,7 +92,7 @@ export function ModelsSection() {
           onRemove={() => {
             const reason = cannotRemoveProvider(config, i)
             if (reason) return notify(m.errors.modelRemoval[reason], 'info')
-            if (confirm(m.settings.models.confirmRemoveProvider(p.provider, m.settings.models.renamed))) void apply(removeProvider(config, i))
+            if (confirm(m.settings.models.confirmRemoveProvider(p.provider, m.settings.models.renamed))) void apply({ kind: 'removeProvider', index: i })
           }}
           onAddModel={() => setEditing({ kind: 'model', provider: i })}
           onEditModel={(j) => setEditing({ kind: 'model', provider: i, index: j })}
@@ -104,9 +100,9 @@ export function ModelsSection() {
             const reason = cannotRemove(config, i, j)
             if (reason) return notify(m.errors.modelRemoval[reason], 'info')
             if (confirm(m.settings.models.confirmRemoveModel(modelId(p.provider, p.names![j]!.name), m.settings.models.renamed)))
-              void apply(removeModel(config, i, j))
+              void apply({ kind: 'removeModel', provider: i, index: j })
           }}
-          onMakeDefault={(j) => void apply(makeDefault(i, j))}
+          onMakeDefault={(j) => void apply({ kind: 'makeDefault', provider: i, index: j })}
         />
       ))}
       <div>
@@ -117,14 +113,13 @@ export function ModelsSection() {
       {editing?.kind === 'provider' && (
         <ProviderDialog
           provider={editing.index === undefined ? undefined : providers[editing.index]}
-          taken={providers.filter((_, i) => i !== editing.index).map((p) => p.provider)}
+          taken={config.credentialIDs.filter((id) => id !== providers[editing.index ?? -1]?.provider)}
           onClose={() => setEditing(undefined)}
           onSave={async (fields, models) => {
-            const changes =
-              editing.index === undefined
-                ? addProvider(config, fields, models)
-                : [...editProvider(config, editing.index, fields), ...addModels(config, editing.index, models)]
-            if (await apply(changes)) setEditing(undefined)
+            const operation: ProfileConfigOperation = editing.index === undefined
+              ? { kind: 'addProvider', provider: fields, models }
+              : { kind: 'updateProvider', index: editing.index, provider: fields, models }
+            if (await apply(operation)) setEditing(undefined)
           }}
         />
       )}
@@ -135,9 +130,10 @@ export function ModelsSection() {
           taken={(providers[editing.provider]!.names ?? []).filter((_, i) => i !== editing.index).map((m) => m.name)}
           onClose={() => setEditing(undefined)}
           onSave={async (fields) => {
-            const changes =
-              editing.index === undefined ? addModels(config, editing.provider, [fields]) : editModel(config, editing.provider, editing.index, fields)
-            if (await apply(changes)) setEditing(undefined)
+            const operation: ProfileConfigOperation = editing.index === undefined
+              ? { kind: 'addModels', provider: editing.provider, models: [fields] }
+              : { kind: 'editModel', provider: editing.provider, index: editing.index, model: fields }
+            if (await apply(operation)) setEditing(undefined)
           }}
         />
       )}
@@ -375,7 +371,7 @@ function ProviderDialog({
           <SaveBlocked reason={blocked} />
           <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
           <Button size="lg" variant="primary" disabled={!!blocked} loading={saving} onClick={() => void save()}>
-            {m.settings.config.saveAndRestart}
+            {m.common.save}
           </Button>
         </>
       }
@@ -802,7 +798,7 @@ function ModelDialog({
           <SaveBlocked reason={problem} />
           <Button size="lg" onClick={onClose}>{m.common.cancel}</Button>
           <Button size="lg" variant="primary" disabled={!!problem} loading={saving} onClick={() => void save()}>
-            {m.settings.config.saveAndRestart}
+            {m.common.save}
           </Button>
         </>
       }

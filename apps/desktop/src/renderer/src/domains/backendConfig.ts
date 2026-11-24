@@ -1,14 +1,16 @@
-// The backend's config.yaml, through the main process. ollupi reads it only
-// at start, so applying a change restarts the backend; the main process
-// first checks the changed file with the backend itself.
+// The backend's config.yaml, through the main process, which first checks
+// the changed file with the backend itself. A profile's models and memory
+// model reload into the running backend; any other change restarts it.
 
 import { isWorking } from '@ollupi/core'
 import { useEffect, useState } from 'react'
 import type { ConfigChange, ConfigCheck } from '../../../shared/ipc'
+import type { ProfileConfigOperation } from '../../../shared/profileConfig'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
 import { notify } from './notices'
+import { refreshModels } from './models'
 import { useThreads } from './threads'
 
 /** A config the backend accepted. */
@@ -47,5 +49,19 @@ export async function applyConfig(changes: ConfigChange[]): Promise<CheckedConfi
     notify(t().errors.configUnchanged(result.error))
     return undefined
   }
+  return result
+}
+
+/** Applies one model or memory operation to a profile. The main process
+ * turns it into the file's changes and reloads them into the running
+ * backend, so running turns go on; the model list is then read again. */
+export async function applyProfileConfig(profile: string, operation: ProfileConfigOperation): Promise<CheckedConfig | undefined> {
+  const result = await run((e) => e.config.save, () => desktop.profile.configure(profile, operation))
+  if (!result) return undefined
+  if (!result.ok) {
+    notify(t().errors.configUnchanged(result.error))
+    return undefined
+  }
+  await refreshModels().catch(() => {})
   return result
 }

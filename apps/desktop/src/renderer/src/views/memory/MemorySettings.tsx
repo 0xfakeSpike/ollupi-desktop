@@ -10,8 +10,8 @@
 
 import { Callout, Field, Select, Switch } from '@ollupi/ui'
 import { useState, type ReactNode } from 'react'
-import { applyConfig, type CheckedConfig } from '../../domains/backendConfig'
-import { profileConfig, scoped } from '../../domains/modelConfig'
+import { applyProfileConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { profileConfig } from '../../../../shared/profileConfig'
 import { useProfile } from '../../domains/profile'
 import { setLearn, setMemory, useSettings } from '../../domains/settings'
 import { useT } from '../../i18n'
@@ -35,10 +35,12 @@ export function MemorySettings({ config }: { config: { checked: CheckedConfig | 
 
   // The backend only accepts a memory model that is one of this profile's.
   const scope = profileConfig(checked.config, current)
-  const model = scope.models.find((x) => x.id === scope.config.memory?.model)
+  const models = scope.models.flatMap((p) => p.names.map((n) => ({ id: `${p.provider}/${n.name}`, provider: p.provider, name: n.name })))
+  const model = models.find((x) => x.id === scope.memory?.model)
   const setModel = async (id: string) => {
     setSaving(true)
-    const applied = await applyConfig(scoped([{ kind: 'set', path: ['memory', 'model'], value: id }], scope.base))
+    if (!current) return
+    const applied = await applyProfileConfig(current, { kind: 'setMemoryModel', model: id })
     if (applied) config.set(applied)
     setSaving(false)
   }
@@ -56,7 +58,7 @@ export function MemorySettings({ config }: { config: { checked: CheckedConfig | 
                   {t.chooseModel}
                 </option>
               )}
-              {scope.models.map((x) => (
+              {models.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.id}
                 </option>

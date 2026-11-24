@@ -11,7 +11,7 @@ let bin: string
 let home: string
 let skills: BackendSkills
 
-const config = (skillsDir: string) => `name: test\nprofiles: [{id: default, models: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]}]\nskills_dir: ${skillsDir}\n`
+const config = (skillsDir: string) => `name: test\nschema_version: 2\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [p/m]}]\nskills_dir: ${skillsDir}\n`
 const skillFile = (name: string, body = 'Do it.') => `---\nname: ${name}\ndescription: Says hello.\n---\n\n${body}\n`
 const main = ['full-main-agent', 'compact-main-agent']
 

@@ -4,33 +4,37 @@
 export interface ConfigCheck {
   ok: boolean;
   config?: null | {
+    schema_version: number;
     name: string;
     prompt?: string;
+    credentials:
+      | null
+      | {
+          id: string;
+          type: string;
+          base_url?: string;
+          api_key?: string;
+          models:
+            | null
+            | {
+                name: string;
+                calls?: number;
+                thinking?: null | boolean;
+                images?: boolean;
+                limits: {
+                  context: number;
+                  output: number;
+                  input?: number;
+                };
+              }[];
+        }[];
     profiles:
       | null
       | {
           id: string;
-          models:
-            | null
-            | {
-                provider: string;
-                type: string;
-                base_url?: string;
-                api_key?: string;
-                names:
-                  | null
-                  | {
-                      name: string;
-                      calls?: number;
-                      thinking?: null | boolean;
-                      images?: boolean;
-                      limits: {
-                        context: number;
-                        output: number;
-                        input?: number;
-                      };
-                    }[];
-              }[];
+          name?: string;
+          color?: string;
+          models: null | string[];
           memory?: {
             model?: string;
           };

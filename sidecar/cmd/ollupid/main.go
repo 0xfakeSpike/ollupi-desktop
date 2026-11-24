@@ -35,6 +35,8 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
 	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/skill"
+	"github.com/0xfakeSpike/ollupi/store"
+	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -46,6 +48,8 @@ func main() {
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
+	upgradeConfig := flag.String("upgrade-config", "", "upgrade a config file to the current schema and exit")
+	deleteProfile := flag.String("delete-profile", "", "delete a profile and all of its local data, then exit")
 	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of --check-config's output and exit")
 	listSkills := flag.Bool("list-skills", false, "list the skills in this home's skills_dir and exit")
 	checkSkills := flag.String("check-skills", "", "list the skills in a directory and exit")
@@ -53,6 +57,10 @@ func main() {
 	flag.Parse()
 
 	switch {
+	case *upgradeConfig != "":
+		os.Exit(upgrade(*upgradeConfig))
+	case *deleteProfile != "":
+		os.Exit(deleteProfileData(*home, *deleteProfile))
 	case *configSchema:
 		os.Exit(printSchema[checkResult]())
 	case *checkConfig != "":
@@ -70,6 +78,64 @@ func main() {
 		slog.Error("ollupid stopped", "err", err)
 		os.Exit(1)
 	}
+}
+
+func deleteProfileData(home, id string) int {
+	path := filepath.Join(home, config.FileName)
+	raw, err := os.ReadFile(path)
+	var threads []string
+	if err == nil {
+		var candidate []byte
+		candidate, err = config.RemoveProfile(raw, id)
+		if err == nil {
+			err = os.WriteFile(path+".delete-candidate", candidate, 0o600)
+		}
+	}
+	if err == nil {
+		var st *storesqlite.Store
+		st, err = storesqlite.Open(home)
+		if err == nil {
+			ctx := context.Background()
+			err = st.Update(ctx, func(tx store.Tx) error {
+				threads, err = tx.DeleteUser(id)
+				return err
+			})
+			st.Close()
+		}
+	}
+	if err == nil {
+		err = os.WriteFile(path+".pre-delete-"+id, raw, 0o600)
+	}
+	if err == nil {
+		err = os.Rename(path+".delete-candidate", path)
+	}
+	os.Remove(path + ".delete-candidate")
+	out := struct {
+		OK      bool     `json:"ok"`
+		Threads []string `json:"threads,omitempty"`
+		Error   string   `json:"error,omitempty"`
+	}{OK: err == nil, Threads: threads, Error: errorText(err)}
+	line, _ := json.Marshal(out)
+	fmt.Println(string(line))
+	if err != nil {
+		return 1
+	}
+	return 0
+}
+
+func upgrade(path string) int {
+	changed, err := config.UpgradeFile(path)
+	out := struct {
+		OK       bool   `json:"ok"`
+		Migrated bool   `json:"migrated"`
+		Error    string `json:"error,omitempty"`
+	}{OK: err == nil, Migrated: changed, Error: errorText(err)}
+	line, _ := json.Marshal(out)
+	fmt.Println(string(line))
+	if err != nil {
+		return 1
+	}
+	return 0
 }
 
 func run(home, listen string, origins []string, watchStdin bool) error {
@@ -94,6 +160,21 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err != nil {
 		return err
 	}
+	reload := make(chan os.Signal, 1)
+	signal.Notify(reload, syscall.SIGHUP)
+	defer signal.Stop(reload)
+	go func() {
+		for range reload {
+			next, err := config.LoadFile(filepath.Join(home, config.FileName), home)
+			if err == nil {
+				err = h.Reload(ctx, next)
+			}
+			if err != nil {
+				slog.Error("config not reloaded", "err", err)
+			}
+			handshake.Reloaded(err)
+		}
+	}()
 	if watchStdin {
 		go func() {
 			// However stdin ends, the parent is gone.

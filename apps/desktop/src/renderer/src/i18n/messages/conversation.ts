@@ -357,7 +357,7 @@ export const en = {
   /** How a conversation names a scope of its memories: global, and its
    * own, which is its workspace or general without one. */
   memoryScope: {
-    global: 'Global',
+    global: 'All conversations in this profile',
     general: 'Outside workspaces',
     workspace: 'This workspace',
   },
@@ -781,7 +781,7 @@ export const zh: typeof en = {
     compaction: '压缩了之前的上下文',
   },
   memoryScope: {
-    global: '全局',
+    global: '此身份的所有会话',
     general: '无工作区',
     workspace: '本工作区',
   },

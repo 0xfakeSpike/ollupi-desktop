@@ -17,7 +17,7 @@ import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
-import { activeProfile, finishProfileCreate, listProfiles, pendingProfile, putProfile, rollbackProfileCreate } from './profile'
+import { activeProfile, legacyProfileChanges, listProfiles, retireLegacyProfiles } from './profile'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { Presence } from './presence/presence'
 import { AppUpdater, bundleOf } from './update'
@@ -44,7 +44,7 @@ if (!app.requestSingleInstanceLock()) {
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
   const backend = new BackendSupervisor({ binary: backendBinary(), home, profile: activeProfile(), allowOrigins: [APP_HOST], env, logFile: backendLog })
-  const config = new BackendConfig({ binary: backendBinary(), home, env, restart: () => backend.restart() })
+  const config = new BackendConfig({ binary: backendBinary(), home, env, backend })
   const skills = new BackendSkills({ binary: backendBinary(), home, trash: (path) => shell.trashItem(path) })
   const updater = new AppUpdater({
     fetch: net.fetch,
@@ -72,18 +72,19 @@ if (!app.requestSingleInstanceLock()) {
     void attachments.clear()
 	    // The first token names the profile the config actually serves. Fix a
 	    // stale saved choice before the backend accepts any connection.
-	    const checked = await config.read()
+	    let checked = await config.read()
 	    if (checked.ok) {
-	      const pending = pendingProfile()
-	      if (pending) {
-	        if ((checked.config.profiles ?? []).some((p) => p.id === pending.id)) {
-	          putProfile(pending)
-	          finishProfileCreate()
-	        } else {
-	          rollbackProfileCreate(pending.id)
-	        }
+	      // 0.8.17-beta.3 kept names and colours in profiles.json; config.yaml
+	      // holds them now. The backend is not running yet, so nothing restarts.
+	      const legacy = legacyProfileChanges(checked.config.profiles ?? [])
+	      const imported = legacy.length ? await config.apply(legacy, 'nothing') : checked
+	      if (imported.ok) {
+	        retireLegacyProfiles()
+	        checked = imported
 	      }
-	      backend.selectProfile(listProfiles((checked.config.profiles ?? []).map((p) => p.id)).current)
+	    }
+	    if (checked.ok) {
+	      backend.selectProfile(listProfiles(checked.config.profiles ?? []).current)
 	    }
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
