@@ -33,8 +33,8 @@ pnpm release
 打完确认二进制里有新东西（0 就是没进去）：
 
 ```bash
-grep -ac 'import-config' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/arm64/ollupid
-grep -ac 'learnModel' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/arm64/ollupid
+grep -ac 'import-config' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+grep -ac 'learnModel' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
