@@ -5,7 +5,6 @@
 import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 import type { SkillsCheck } from './generated/backend-skills'
 import type { AgentRole, PresenceInput } from '@ollupi/protocol'
-import type { ProfileConfigOperation } from './profileConfig'
 
 /** config.yaml as the backend decodes it. */
 export type BackendConfig = NonNullable<CheckOutput['config']>
@@ -39,12 +38,10 @@ export interface AppInfo {
   backendLog: string
 }
 
-/** One edit to config.yaml, by key path, e.g. ['memory', 'generate']. A move
- * takes the list item at path to index `to` of the same list. */
+/** One edit to config.yaml, by key path, e.g. ['feishu', 'users']. */
 export type ConfigChange =
   | { kind: 'set'; path: (string | number)[]; value: unknown }
   | { kind: 'delete'; path: (string | number)[] }
-  | { kind: 'move'; path: (string | number)[]; to: number }
 
 /** The API a provider speaks (config.yaml's type), which picks the
  * backend's client for it. */
@@ -353,17 +350,16 @@ export interface DesktopApi {
   /** The profile the window acts as. A connection is always one: there is
    * no anonymous one to fall back to. */
   profile: {
-    /** Every profile declared by the backend config, with the app's local
-     * display metadata. */
+    /** The profiles the home lists (its profiles.json), with this Mac's
+     * current choice. */
     list(): Promise<ProfileSnapshot>
-    /** Creates a profile from the current one's models and memory setting.
-     * The backend restarts with the new users entry. */
+    /** Adds a profile to the list. It starts with no models: its own are
+     * added through the gateway once the window acts as it. */
     create(name: string, color: ProfileColor): Promise<Profile>
-    /** Changes only this app's display metadata; nothing restarts. */
+    /** Renames or recolours a profile; nothing restarts. */
     update(id: string, name: string, color: ProfileColor): Promise<Profile>
-    /** Applies one model or memory domain operation to a profile's config. */
-    configure(id: string, operation: ProfileConfigOperation): Promise<ConfigCheck>
-    /** Deletes a non-current profile, its runtime data and its files. */
+    /** Deletes a non-current profile: its data in the store, its files and
+     * its place in the list. The backend stops while the store changes. */
     delete(id: string): Promise<void>
     /** Makes a profile the window's: its connection reconnects as it, and a
      * restart opens as it. */
@@ -552,7 +548,6 @@ export const IpcChannel = {
   ProfileList: 'profile:list',
   ProfileCreate: 'profile:create',
   ProfileUpdate: 'profile:update',
-  ProfileConfigure: 'profile:configure',
   ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',
   SuperAgentFolder: 'superAgent:folder',

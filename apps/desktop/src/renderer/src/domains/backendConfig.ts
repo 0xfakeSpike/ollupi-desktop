@@ -1,11 +1,11 @@
 // The backend's config.yaml, through the main process, which first checks
-// the changed file with the backend itself. A profile's models and memory
-// model reload into the running backend; any other change restarts it.
+// the changed file with the backend itself. A change to the providers (the
+// models the backend serves) reloads into the running backend; any other
+// restarts it.
 
 import { isWorking } from '@ollupi/core'
 import { useEffect, useState } from 'react'
 import type { ConfigChange, ConfigCheck } from '../../../shared/ipc'
-import type { ProfileConfigOperation } from '../../../shared/profileConfig'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { desktop } from '../platform/desktop'
@@ -39,10 +39,11 @@ export function confirmRestart(): boolean {
 }
 
 /** Applies changes and restarts the backend, asking first while threads
- * run. Resolves to the config now in effect, or
- * undefined when nothing was applied. */
-export async function applyConfig(changes: ConfigChange[]): Promise<CheckedConfig | undefined> {
-  if (!confirmRestart()) return undefined
+ * run, or, for a change the main process reloads (the providers), without
+ * asking. Resolves to the config now in effect, or undefined when nothing
+ * was applied. */
+export async function applyConfig(changes: ConfigChange[], { reload = false } = {}): Promise<CheckedConfig | undefined> {
+  if (!reload && !confirmRestart()) return undefined
   const result = await run((e) => e.config.save, () => desktop.config.apply(changes))
   if (!result) return undefined
   if (!result.ok) {
@@ -52,16 +53,10 @@ export async function applyConfig(changes: ConfigChange[]): Promise<CheckedConfi
   return result
 }
 
-/** Applies one model or memory operation to a profile. The main process
- * turns it into the file's changes and reloads them into the running
- * backend, so running turns go on; the model list is then read again. */
-export async function applyProfileConfig(profile: string, operation: ProfileConfigOperation): Promise<CheckedConfig | undefined> {
-  const result = await run((e) => e.config.save, () => desktop.profile.configure(profile, operation))
-  if (!result) return undefined
-  if (!result.ok) {
-    notify(t().errors.configUnchanged(result.error))
-    return undefined
-  }
-  await refreshModels().catch(() => {})
-  return result
+/** Saves an edit to the providers and reloads them into the running
+ * backend; the model list is read again once it took them. */
+export async function applyProviders(changes: ConfigChange[]): Promise<CheckedConfig | undefined> {
+  const applied = await applyConfig(changes, { reload: true })
+  if (applied) await refreshModels().catch(() => {})
+  return applied
 }

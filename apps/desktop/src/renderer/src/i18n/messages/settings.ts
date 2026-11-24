@@ -18,7 +18,7 @@ export const en = {
       },
       models: {
         label: 'Models',
-        description: 'The services you have a key for, and the models from each that it can use.',
+        description: 'The services this backend has a key for, and their models. Every profile runs on these; which one a conversation starts with is each profile’s own choice.',
       },
       usage: {
         label: 'Usage',
@@ -78,7 +78,7 @@ export const en = {
   },
 
   models: {
-    renamed: 'Threads whose last turn used the old id need another model chosen for their next turn.',
+    renamed: 'Profiles that chose a model by the old id, and threads whose last turn used it, need another model chosen.',
     stale: 'config.yaml lists different models than the backend is using.',
     confirmRemoveProvider: (provider: string, renamed: string) => `Remove ${provider} and its models? ${renamed}`,
     confirmRemoveModel: (id: string, renamed: string) => `Remove ${id}? ${renamed}`,
@@ -98,7 +98,7 @@ export const en = {
       noKey: 'No API key',
       edit: (name: string) => `Edit ${name}`,
       remove: (name: string) => `Remove ${name}`,
-      makeDefault: (id: string) => `Make ${id} the default`,
+      makeDefault: (id: string) => `Start this profile’s conversations with ${id}`,
       default: 'default',
       memory: 'memory',
     },
@@ -329,7 +329,7 @@ export const zh: typeof en = {
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
       models: {
         label: '模型',
-        description: '你有密钥的模型服务，以及它能用的每家的模型。',
+        description: '后端有密钥的模型服务和它们的模型。所有身份都用这些模型；新会话默认用哪个，由每个身份自己选。',
       },
       usage: {
         label: '用量',
@@ -388,7 +388,7 @@ export const zh: typeof en = {
   },
 
   models: {
-    renamed: '上一轮使用旧 ID 的会话，需要为下一轮另选模型。',
+    renamed: '选了旧 ID 模型的身份，以及上一轮用了它的会话，都需要另选模型。',
     stale: 'config.yaml 中的模型与后端正在使用的不同。',
     confirmRemoveProvider: (provider, renamed) => `删除 ${provider} 及其模型？${renamed}`,
     confirmRemoveModel: (id, renamed) => `删除 ${id}？${renamed}`,
@@ -408,7 +408,7 @@ export const zh: typeof en = {
       noKey: '无 API 密钥',
       edit: (name) => `编辑 ${name}`,
       remove: (name) => `删除 ${name}`,
-      makeDefault: (id) => `将 ${id} 设为默认`,
+      makeDefault: (id) => `本身份的新会话默认用 ${id}`,
       default: '默认',
       memory: '记忆',
     },

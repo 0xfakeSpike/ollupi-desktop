@@ -4,10 +4,9 @@
 export interface ConfigCheck {
   ok: boolean;
   config?: null | {
-    schema_version: number;
     name: string;
     prompt?: string;
-    credentials:
+    providers:
       | null
       | {
           id: string;
@@ -27,17 +26,6 @@ export interface ConfigCheck {
                   input?: number;
                 };
               }[];
-        }[];
-    profiles:
-      | null
-      | {
-          id: string;
-          name?: string;
-          color?: string;
-          models: null | string[];
-          memory?: {
-            model?: string;
-          };
         }[];
     tools?: null | string[];
     slots?: number;

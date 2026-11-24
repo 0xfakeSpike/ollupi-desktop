@@ -17,7 +17,7 @@ import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
-import { activeProfile, legacyProfileChanges, listProfiles, retireLegacyProfiles } from './profile'
+import { activeProfile, listProfiles } from './profile'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { Presence } from './presence/presence'
 import { AppUpdater, bundleOf } from './update'
@@ -44,7 +44,7 @@ if (!app.requestSingleInstanceLock()) {
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
   const backend = new BackendSupervisor({ binary: backendBinary(), home, profile: activeProfile(), allowOrigins: [APP_HOST], env, logFile: backendLog })
-  const config = new BackendConfig({ binary: backendBinary(), home, env, backend })
+  const config = new BackendConfig({ binary: backendBinary(), home, env, backend, olderProfiles: join(app.getPath('userData'), 'profiles.json') })
   const skills = new BackendSkills({ binary: backendBinary(), home, trash: (path) => shell.trashItem(path) })
   const updater = new AppUpdater({
     fetch: net.fetch,
@@ -63,29 +63,19 @@ if (!app.requestSingleInstanceLock()) {
   // Closing the window hides it on macOS, until the app quits.
   const keepOnClose = () => process.platform === 'darwin' && !stopping
 
-	  void app.whenReady().then(async () => {
+  void app.whenReady().then(async () => {
     // A packaged app takes its icon from the bundle; in development the Dock
     // would show Electron's until the interface sets its theme's, so it takes
     // the brand's from the start.
     if (!app.isPackaged) setAppIcon('stone')
     serveRenderer(join(import.meta.dirname, '../renderer'))
     void attachments.clear()
-	    // The first token names the profile the config actually serves. Fix a
-	    // stale saved choice before the backend accepts any connection.
-	    let checked = await config.read()
-	    if (checked.ok) {
-	      // 0.8.17-beta.3 kept names and colours in profiles.json; config.yaml
-	      // holds them now. The backend is not running yet, so nothing restarts.
-	      const legacy = legacyProfileChanges(checked.config.profiles ?? [])
-	      const imported = legacy.length ? await config.apply(legacy, 'nothing') : checked
-	      if (imported.ok) {
-	        retireLegacyProfiles()
-	        checked = imported
-	      }
-	    }
-	    if (checked.ok) {
-	      backend.selectProfile(listProfiles(checked.config.profiles ?? []).current)
-	    }
+    // An older config.yaml's profiles move into the store before anything
+    // reads it, and the first token names a profile the home lists, not a
+    // stale saved choice. A failed import is the backend's to report: it
+    // will not start on that file.
+    await config.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
+    backend.selectProfile(listProfiles(home).current)
     registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.

@@ -3,15 +3,13 @@
 // access.
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
-import { randomUUID } from 'node:crypto'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
 import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, skillAgents, type SkillAgent, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
-import { activeProfile, listProfiles, rememberProfile } from './profile'
+import { activeProfile, createProfile, listProfiles, rememberProfile, removeProfile, updateProfile } from './profile'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
-import { profileChanges, type ProfileConfigOperation } from '../shared/profileConfig'
 import type { BackendSkills } from './backend/skills'
 import { START_PAGE, typedPage } from './browser/address'
 import type { Bookmarks } from './browser/bookmarks'
@@ -64,54 +62,22 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.SkillsCopy, (_event, agent: unknown, name: unknown, to: unknown) => skills.copy(skillAgent(agent), text(name), skillAgent(to)))
   ipcMain.handle(IpcChannel.SkillsRemove, (_event, agent: unknown, name: unknown) => skills.remove(skillAgent(agent), text(name)))
   ipcMain.handle(IpcChannel.SkillsDefaultFolder, () => skills.defaultFolder())
-  ipcMain.handle(IpcChannel.ProfileList, async () => {
-    const checked = await config.read()
-    return checked.ok ? listProfiles(checked.config.profiles ?? []) : listProfiles([])
-  })
-  ipcMain.handle(IpcChannel.ProfileCreate, async (_event, name: unknown, color: unknown) => {
-    const checked = await config.read()
-    if (!checked.ok) throw new Error(checked.error)
-    const from = activeProfile()
-    const profiles = checked.config.profiles ?? []
-    const source = profiles.find((p) => p.id === from)
-    if (!source?.models?.length) throw new Error('the current profile has no models to copy')
-    const profile = { id: randomUUID(), name: text(name).trim(), color: profileColor(color) }
-    if (!profile.name) throw new Error('a new profile needs a name')
-    const entry = { ...profile, models: source.models, ...(source.memory && { memory: source.memory }) }
-    const applied = await config.apply([{ kind: 'set', path: ['profiles', profiles.length], value: entry }], 'reload')
-    if (!applied.ok) throw new Error(applied.error)
-    return profile
-  })
-  ipcMain.handle(IpcChannel.ProfileUpdate, async (_event, profile: unknown, name: unknown, color: unknown) => {
-    const id = profileID(profile)
-    const checked = await config.read()
-    if (!checked.ok) throw new Error(checked.error)
-    const index = (checked.config.profiles ?? []).findIndex((p) => p.id === id)
-    if (index < 0) throw new Error('profile not found')
-    const updated = { id, name: text(name).trim(), color: profileColor(color) }
-    const applied = await config.apply([
-      { kind: 'set', path: ['profiles', index, 'name'], value: updated.name },
-      { kind: 'set', path: ['profiles', index, 'color'], value: updated.color },
-    ], 'nothing')
-    if (!applied.ok) throw new Error(applied.error)
-    return updated
-  })
-  ipcMain.handle(IpcChannel.ProfileConfigure, async (_event, profile: unknown, operation: unknown) => {
-    const id = profileID(profile)
-    if (!operation || typeof operation !== 'object' || typeof (operation as { kind?: unknown }).kind !== 'string') {
-      throw new Error('expected a profile configuration operation')
-    }
-    const checked = await config.read()
-    if (!checked.ok) throw new Error(checked.error)
-    if (!(checked.config.profiles ?? []).some((p) => p.id === id)) throw new Error('profile not found')
-    const applied = await config.apply(profileChanges(checked.config, id, operation as ProfileConfigOperation), 'reload')
-    if (!applied.ok) throw new Error(applied.error)
-    return applied
-  })
+  ipcMain.handle(IpcChannel.ProfileList, () => listProfiles(home))
+  // A new profile starts with nothing of another's: its models and keys are
+  // its own, added in its settings once the window acts as it.
+  ipcMain.handle(IpcChannel.ProfileCreate, (_event, name: unknown, color: unknown) => createProfile(home, text(name), profileColor(color)))
+  ipcMain.handle(IpcChannel.ProfileUpdate, (_event, profile: unknown, name: unknown, color: unknown) =>
+    updateProfile(home, profileID(profile), text(name), profileColor(color)))
   ipcMain.handle(IpcChannel.ProfileDelete, async (_event, profile: unknown) => {
     const id = profileID(profile)
     if (id === activeProfile()) throw new Error('switch away from a profile before deleting it')
+    if (listProfiles(home).data.length <= 1) throw new Error('the last profile cannot be deleted')
+    const checked = await config.read()
+    if (checked.ok && checked.config.feishu && [checked.config.feishu.profile, ...Object.values(checked.config.feishu.profiles ?? {})].includes(id)) {
+      throw new Error('the Feishu bot still acts as this profile')
+    }
     const threads = await config.deleteProfile(id)
+    removeProfile(home, id)
     await Promise.all(threads.map((thread) => rm(join(home, 'attachments', thread), { recursive: true, force: true })))
     await rm(join(home, 'users', id), { recursive: true, force: true })
   })
@@ -119,6 +85,9 @@ export function registerIpc(
   // and the backend's next connection is named by it.
   ipcMain.handle(IpcChannel.ProfileSelect, (_event, profile: unknown) => {
     const id = profileID(profile)
+    // A token makes the backend's user of the profile it names, so only a
+    // profile the home lists is one to act as.
+    if (!listProfiles(home).data.some((p) => p.id === id)) throw new Error('profile not found')
     rememberProfile(id)
     backend.selectProfile(id)
   })
@@ -349,11 +318,7 @@ function validChanges(changes: unknown): ConfigChange[] {
       throw new Error('a change needs a key path')
     }
     if (c.kind === 'delete') return { kind: 'delete', path }
-    if (c.kind === 'move') {
-      if (!Number.isInteger(c.to)) throw new Error('a move needs a list index')
-      return { kind: 'move', path, to: c.to }
-    }
-    if (c.kind !== 'set') throw new Error('a change is set, delete or move')
+    if (c.kind !== 'set') throw new Error('a change is set or delete')
     return { kind: 'set', path, value: JSON.parse(JSON.stringify(c.value ?? null)) }
   })
 }

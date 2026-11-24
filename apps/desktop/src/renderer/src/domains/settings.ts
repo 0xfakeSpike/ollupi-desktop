@@ -45,6 +45,21 @@ export function setLearn(on: boolean): Promise<void | undefined> {
   })
 }
 
+/** The model this profile's new conversations start with, one of those the
+ * backend serves. */
+export function setStartModel(id: string): Promise<void | undefined> {
+  return run((e) => e.settings.model, async () => {
+    await gateway().call('settings/update', { model: id })
+  })
+}
+
+/** The model that learns this profile's memories; empty learns none. */
+export function setLearnModel(id: string): Promise<void | undefined> {
+  return run((e) => e.settings.model, async () => {
+    await gateway().call('settings/update', { learnModel: id })
+  })
+}
+
 /** ollupi checks the rules against the user's tools and refuses one that
  * names no tool, or a tool of a server not connected now. */
 export function updateUserPermissions(settings: PermissionSettings): Promise<boolean> {

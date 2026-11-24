@@ -53,20 +53,7 @@ func TestEachProfileHasItsOwnBox(t *testing.T) {
 	}
 }
 
-const minimal = `name: ollupi
-schema_version: 2
-credentials:
-  - id: mock
-    type: openai
-    base_url: http://127.0.0.1:1/v1
-    api_key: test
-    models:
-      - name: mock-model
-        limits: { context: 128000, output: 8000 }
-profiles:
-  - id: default
-    models: [mock/mock-model]
-`
+const minimal = "name: ollupi\n"
 
 func load(t *testing.T, home, yaml string) config.Config {
 	t.Helper()
@@ -142,7 +129,7 @@ func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
 	}
 }
 
-func TestATokenNamesAProfileTheHomeHolds(t *testing.T) {
+func TestATokenMadeWithTheSecretVouchesForItsProfile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
@@ -152,138 +139,62 @@ func TestATokenNamesAProfileTheHomeHolds(t *testing.T) {
 	}
 	defer h.close()
 	cases := []struct{ token, want string }{
-		{"secret.default", "default"}, // the profile a fresh home is made with
-		{"secret.nobody", ""},         // a profile the store does not hold
+		{"secret.default", "default"}, // the profile a fresh home starts with
+		{"secret.work", "work"},       // one the app made since: it is made now
 		{"default", ""},               // no secret, so no profile
 		{"other.default", ""},         // the wrong secret
+		{"other.stranger", ""},        // the wrong secret makes no one
 		{"secret.", ""},               // no profile named
+		{"secret.a/b", ""},            // not a profile id
 	}
 	for _, c := range cases {
-		got, err := profileOf(ctx, c.token, "secret", h.ollupi.Store)
+		got, err := profileOf(ctx, c.token, "secret", h.ollupi.Store, h.ollupi.App)
 		if got != c.want || (c.want == "" && err == nil) {
 			t.Errorf("profileOf(%q) = %q, %v; want %q", c.token, got, err, c.want)
 		}
 	}
+	if users := profiles(ctx, h.ollupi.Store); !slices.Equal(users, []string{"default", "work"}) {
+		t.Fatalf("users = %v", users)
+	}
 }
 
-func TestConfiguredProfilesExistWhenTheBackendStarts(t *testing.T) {
+func TestTheProfilesFeishuActsAsExistWhenTheBackendStarts(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	cfg := load(t, home, `
-name: ollupi
-schema_version: 2
-credentials:
-  - id: mock
-    type: openai
-    base_url: http://127.0.0.1:1/v1
-    models:
-      - name: mock-model
-        limits: { context: 128000, output: 8000 }
-  - id: work
-    type: openai
-    base_url: http://127.0.0.1:1/v1
-    api_key: work
-    models:
-      - name: work-model
-        limits: { context: 128000, output: 8000 }
-profiles:
-  - id: default
-    models: [mock/mock-model]
-  - id: work
-    models: [work/work-model]
-`)
+	cfg := load(t, home, minimal+"feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_a: work}}\n")
 	h, err := New(ctx, Options{Home: home, Token: "secret", Config: cfg})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer h.close()
-	for _, id := range []string{"default", "work"} {
-		got, err := profileOf(ctx, "secret."+id, "secret", h.ollupi.Store)
-		if err != nil || got != id {
-			t.Errorf("profileOf(%q) = %q, %v", id, got, err)
-		}
+	if users := profiles(ctx, h.ollupi.Store); !slices.Equal(users, []string{"default", "work"}) {
+		t.Fatalf("users = %v", users)
 	}
 }
 
-func TestEachProfileKeepsItsOwnLearningModel(t *testing.T) {
-	home := t.TempDir()
-	cfg := load(t, home, `name: ollupi
-schema_version: 2
-credentials:
-  - id: pa
-    type: openai
-    models:
-      - name: ma
-        limits: { context: 1000, output: 100 }
-  - id: pb
-    type: openai
-    api_key: pb
-    models:
-      - name: mb
-        limits: { context: 1000, output: 100 }
-profiles:
-  - id: a
-    models: [pa/ma]
-    memory: { model: pa/ma }
-  - id: b
-    models: [pb/mb]
-    memory: { model: pb/mb }
-`)
-	sets, err := userModels(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(sets) != 2 || sets[0].Memory == nil || sets[0].Memory.Connection != "pa/ma" ||
-		sets[1].Memory == nil || sets[1].Memory.Connection != "pb/mb" {
-		t.Fatalf("profile models = %+v", sets)
-	}
-}
-
-func TestProfilesSelectingOneModelShareItsClient(t *testing.T) {
-	home := t.TempDir()
-	cfg := load(t, home, `name: ollupi
-schema_version: 2
-credentials:
-  - id: shared
-    type: openai
-    models:
-      - name: m
-        limits: { context: 1000, output: 100 }
-profiles:
-  - id: a
-    models: [shared/m]
-  - id: b
-    models: [shared/m]
-`)
-	sets, err := userModels(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sets[0].Connections["shared/m"] != sets[1].Connections["shared/m"] {
-		t.Fatal("profiles sharing a credential/model built separate clients")
-	}
-}
-
-func TestReloadAddsAProfileAndSwapsItsModels(t *testing.T) {
+func TestReloadSwapsTheProvidersEveryProfileRunsOn(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, minimal)})
+	one := minimal + "providers: [{id: p, type: openai, base_url: 'http://127.0.0.1:1/v1', models: [{name: m, limits: {context: 1000, output: 100}}]}]\n"
+	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, one)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer h.close()
-	next := load(t, home, minimal+`  - id: work
-    models: [mock/mock-model]
-`)
-	if err := h.Reload(ctx, next); err != nil {
+	for _, profile := range []string{"default", "work"} {
+		if _, err := profileOf(ctx, "secret."+profile, "secret", h.ollupi.Store, h.ollupi.App); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := h.Reload(load(t, home, minimal+"providers: [{id: q, type: anthropic, api_key: k, models: [{name: n, limits: {context: 1000, output: 100}}]}]\n")); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(profiles(ctx, h.ollupi.Store), "work") {
-		t.Fatal("the new profile was not made")
-	}
-	if got, _ := h.ollupi.App.Models("work"); len(got) != 1 || got[0].Connection != "mock/mock-model" {
-		t.Fatalf("work's models = %+v", got)
+	for _, profile := range []string{"default", "work"} {
+		models, first, err := h.ollupi.App.Models(ctx, profile)
+		if err != nil || len(models) != 1 || first != "q/n" {
+			t.Fatalf("%s runs %+v from %q, %v", profile, models, first, err)
+		}
 	}
 }

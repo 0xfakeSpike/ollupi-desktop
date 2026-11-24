@@ -2,19 +2,19 @@ package config
 
 // Template is written to <home>/config.yaml on first start.
 const Template = `# Ollupi desktop backend. Restart the backend from the app after editing.
-# Permissions, MCP servers, and whether memory is on and learns are set in
-# the app.
+# This file is the same for every profile. Which model a profile starts and
+# learns with, its permissions, MCP servers, and whether memory is on are its
+# own, set in the app.
 name: ollupi
-schema_version: 2
 
 # Empty uses ollupi's default system prompt.
 prompt: ""
 
-# API accounts shared by profiles. Models that profiles both select use the
-# same client and concurrency limit. limits is the context window and the most
-# an answer may take; calls caps concurrent requests to that model; images
-# lets it receive images.
-credentials:
+# The models this backend serves, each provider an API account. Every profile
+# runs on them and chooses which; a model is selected as provider/name. limits
+# is the context window and the most an answer may take; calls caps
+# concurrent requests to that model; images lets it receive images.
+providers:
   - id: openai
     type: openai
     base_url: https://api.openai.com/v1
@@ -23,24 +23,6 @@ credentials:
       - name: gpt-5.2
         images: true
         limits: { context: 400000, output: 128000 }
-
-# Profiles the app can switch between. Each names the models it may run in
-# order; the first is its default. Its learning model must be one of them.
-profiles:
-  - id: default
-    name: ""
-    color: stone
-    models: [openai/gpt-5.2]
-    # The model that learns memories from finished turns while memory and
-    # learning are on. Leave it out to learn none.
-    # memory:
-    #   model: openai/gpt-5.2
-  # - id: work
-  #   name: Work
-  #   color: teal
-  #   models: [openai/gpt-5.2]
-  #   memory:
-  #     model: openai/gpt-5.2
 
 # How many threads may run at once (default 32).
 # slots: 32
@@ -62,7 +44,7 @@ skills_dir: skills
 # feishu:
 #   app_id: cli_xxx
 #   app_secret: xxx
-#   profile: default # the user the bot's sessions belong to
+#   profile: default # the profile the bot's sessions belong to
 #   users: [ou_xxx]
 #   profiles: {ou_xxx: default} # optional: whose open_id acts as which profile
 #   workspace: ~/projects/app # new sessions' workspace; ~ is your home and a

@@ -7,11 +7,8 @@ import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi
 import { Badge, Button, ClampText, Details, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useCheckedConfig } from '../../domains/backendConfig'
 import { openThread } from '../../domains/conversation'
 import { editMemory, forgetMemory, kindLabel, moveMemory, placeKey, placeOf, readMemory, type MemoryPlace, type Scopes } from '../../domains/memory'
-import { profileConfig } from '../../../../shared/profileConfig'
-import { useProfile } from '../../domains/profile'
 import { shownResult, useSearch } from '../../domains/search'
 import { useSettings } from '../../domains/settings'
 import { useThreadRow } from '../../domains/threads'
@@ -21,6 +18,7 @@ import { useLocale, useT, type Messages } from '../../i18n'
 import { relativeTime, threadTitle } from '../../i18n/format'
 import { useFound } from '../common/found'
 import { MemorySettings } from './MemorySettings'
+import { useModels } from '../../domains/models'
 import { Wolf } from '../common/Wolf'
 
 /** The places a memory can be in, as the list names them. */
@@ -35,8 +33,8 @@ function placesOf(m: Messages, workspaces: { id: string; name: string }[]): { pl
 export function MemoryScreen({ found }: { found?: { id: string; scope: string } }) {
   const m = useT()
   const workspaces = useWorkspaces((s) => s.list)
-  const config = useCheckedConfig()
-  const current = useProfile((s) => s.current)
+  const learnModel = useSettings((s) => s.settings?.learnModel)
+  const served = useModels((s) => s.list)
   const [scope, setScope] = useState(found?.scope ?? 'global')
   const [data, setData] = useState<{ status: MemoryStatus; scopes: Scopes }>()
   const [query, setQuery] = useState('')
@@ -48,7 +46,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   const searching = !!query.trim()
   const [loading, setLoading] = useState(true)
   const workspaceIds = workspaces.map((w) => w.id).join('\n')
-  const profile = config.checked ? profileConfig(config.checked.config, current) : undefined
+  const learning = !!learnModel && served.some((x) => x.connection === learnModel)
 
   // Saving the memory settings restarts the backend: read again once the
   // new one is connected.
@@ -117,8 +115,8 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
         <div role="tabpanel" id={`panel-${scope}`} aria-labelledby={`tab-${scope}`} className="scroll-centered flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-6">
             {/* The switches are the app's, not a scope's: shown once, on Global. */}
-            {scope === 'global' && <MemorySettings config={config} />}
-            {data && <StatusLine status={data.status} learning={!!profile?.memory?.model} />}
+            {scope === 'global' && <MemorySettings />}
+            {data && <StatusLine status={data.status} learning={learning} />}
             <label className="flex h-8 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:ring-3 focus-within:ring-focus">
               <Search size={14} className="shrink-0 text-fg-subtle" />
               <input

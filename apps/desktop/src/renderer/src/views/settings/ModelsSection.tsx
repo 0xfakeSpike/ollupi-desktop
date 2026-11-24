@@ -1,38 +1,45 @@
-// The current profile's models: the providers it selects them from (each a
-// credential in config.yaml, an API of one type: OpenAI compatible,
-// Anthropic or Gemini, shared by every profile that uses it) and the models
-// it runs, in order. Every saved change is checked by the backend, written,
-// and reloaded into the running backend without stopping its turns. A
-// provider's API key is written there too, like its base URL.
+// The models the backend serves: config.yaml's providers, each an API of
+// one type (OpenAI compatible, Anthropic or Gemini) with its account, and the
+// models it serves. They are the deployment's, the same for every profile;
+// a saved change is checked by the backend, written, and reloaded into the
+// running backend without stopping its turns. A provider's API key is written
+// there too, like its base URL. Which model this profile's conversations
+// start with is its own choice, kept in its settings.
 
 import { formatTokens } from '@ollupi/core'
 import { Badge, Button, Callout, Checkbox, cn, Details, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { apiTypes, type ApiType, type ListedModel } from '../../../../shared/ipc'
-import { applyProfileConfig, readConfig, type CheckedConfig } from '../../domains/backendConfig'
-import { profileConfig, type ProfileConfigOperation } from '../../../../shared/profileConfig'
-import { useProfile } from '../../domains/profile'
+import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
+import { applyProviders, readConfig, type CheckedConfig } from '../../domains/backendConfig'
 import {
+  addModels,
+  addProvider,
   apiTypeOf,
   cannotRemove,
   cannotRemoveProvider,
   count,
   DEFAULT_CONTEXT,
   defaultOutput,
+  editModel,
+  editProvider,
   imagesByDefault,
   limitsOf,
   modelId,
+  providersOf,
+  removeModel,
+  removeProvider,
   type ModelFields,
   type Provider,
   type ProviderFields,
   type ProviderModel,
   type TypedLimits,
-} from '../../../../shared/profileConfig'
+} from '../../domains/providers'
 import { useBalance } from '../../domains/balance'
 import { useModelList, type ModelListState } from '../../domains/modelList'
 import { useModels } from '../../domains/models'
 import { notify } from '../../domains/notices'
+import { setStartModel, useSettings } from '../../domains/settings'
 import { useConnection } from '../../gateway/connection'
 import { useLocale, useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
@@ -45,9 +52,9 @@ export function ModelsSection() {
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
   const running = useModels((s) => s.list)
+  const start = useModels((s) => s.fallback)
+  const learnModel = useSettings((s) => s.settings?.learnModel)
   const connected = useConnection((s) => s.gateway === 'connected')
-
-  const current = useProfile((s) => s.current)
 
   useEffect(() => {
     void readConfig().then((r) => (r?.ok ? setChecked(r) : setError(r?.error)))
@@ -56,19 +63,17 @@ export function ModelsSection() {
   if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
   if (!checked) return null
 
-  const config = profileConfig(checked.config, current)
-  const models = config.models.flatMap((p) => p.names.map((n) => ({ id: `${p.provider}/${n.name}`, provider: p.provider, name: n.name })))
-  const providers = config.models ?? []
+  const config = checked.config
+  const providers = providersOf(config)
+  const models = providers.flatMap((p) => (p.models ?? []).map((n) => modelId(p.id, n.name)))
   /** Applies changes; true when the backend accepted them. */
-  const apply = async (operation: ProfileConfigOperation): Promise<boolean> => {
-    if (!current) return false
-    const applied = await applyProfileConfig(current, operation)
+  const apply = async (changes: ConfigChange[]): Promise<boolean> => {
+    const applied = await applyProviders(changes)
     if (applied) setChecked(applied)
     return !!applied
   }
-  // The file and the running backend disagree, e.g. after a hand edit. The
-  // order matters: the first model is the default.
-  const stale = connected && running.map((m) => m.connection).join('\n') !== models.map((m) => m.id).join('\n')
+  // The file and the running backend disagree, e.g. after a hand edit.
+  const stale = connected && running.map((m) => m.connection).join('\n') !== models.join('\n')
 
   return (
     <>
@@ -84,25 +89,24 @@ export function ModelsSection() {
       )}
       {providers.map((p, i) => (
         <ProviderCard
-          key={`${i}:${p.provider}`}
+          key={`${i}:${p.id}`}
           provider={p}
-          isFirst={i === 0}
-          memoryModel={config.memory?.model}
+          start={start}
+          memoryModel={learnModel || undefined}
           onEdit={() => setEditing({ kind: 'provider', index: i })}
           onRemove={() => {
             const reason = cannotRemoveProvider(config, i)
             if (reason) return notify(m.errors.modelRemoval[reason], 'info')
-            if (confirm(m.settings.models.confirmRemoveProvider(p.provider, m.settings.models.renamed))) void apply({ kind: 'removeProvider', index: i })
+            if (confirm(m.settings.models.confirmRemoveProvider(p.id, m.settings.models.renamed))) void apply(removeProvider(config, i))
           }}
           onAddModel={() => setEditing({ kind: 'model', provider: i })}
           onEditModel={(j) => setEditing({ kind: 'model', provider: i, index: j })}
           onRemoveModel={(j) => {
-            const reason = cannotRemove(config, i, j)
+            const reason = cannotRemove(config)
             if (reason) return notify(m.errors.modelRemoval[reason], 'info')
-            if (confirm(m.settings.models.confirmRemoveModel(modelId(p.provider, p.names![j]!.name), m.settings.models.renamed)))
-              void apply({ kind: 'removeModel', provider: i, index: j })
+            if (confirm(m.settings.models.confirmRemoveModel(modelId(p.id, p.models![j]!.name), m.settings.models.renamed))) void apply(removeModel(config, i, j))
           }}
-          onMakeDefault={(j) => void apply({ kind: 'makeDefault', provider: i, index: j })}
+          onMakeDefault={(j) => void setStartModel(modelId(p.id, p.models![j]!.name))}
         />
       ))}
       <div>
@@ -113,27 +117,27 @@ export function ModelsSection() {
       {editing?.kind === 'provider' && (
         <ProviderDialog
           provider={editing.index === undefined ? undefined : providers[editing.index]}
-          taken={config.credentialIDs.filter((id) => id !== providers[editing.index ?? -1]?.provider)}
+          taken={providers.filter((_, i) => i !== editing.index).map((p) => p.id)}
           onClose={() => setEditing(undefined)}
-          onSave={async (fields, models) => {
-            const operation: ProfileConfigOperation = editing.index === undefined
-              ? { kind: 'addProvider', provider: fields, models }
-              : { kind: 'updateProvider', index: editing.index, provider: fields, models }
-            if (await apply(operation)) setEditing(undefined)
+          onSave={async (fields, added) => {
+            const changes = editing.index === undefined
+              ? addProvider(config, fields, added)
+              : [...editProvider(config, editing.index, fields), ...addModels(config, editing.index, added)]
+            if (await apply(changes)) setEditing(undefined)
           }}
         />
       )}
       {editing?.kind === 'model' && (
         <ModelDialog
           provider={providers[editing.provider]!}
-          model={editing.index === undefined ? undefined : providers[editing.provider]!.names![editing.index]}
-          taken={(providers[editing.provider]!.names ?? []).filter((_, i) => i !== editing.index).map((m) => m.name)}
+          model={editing.index === undefined ? undefined : providers[editing.provider]!.models![editing.index]}
+          taken={(providers[editing.provider]!.models ?? []).filter((_, i) => i !== editing.index).map((m) => m.name)}
           onClose={() => setEditing(undefined)}
           onSave={async (fields) => {
-            const operation: ProfileConfigOperation = editing.index === undefined
-              ? { kind: 'addModels', provider: editing.provider, models: [fields] }
-              : { kind: 'editModel', provider: editing.provider, index: editing.index, model: fields }
-            if (await apply(operation)) setEditing(undefined)
+            const changes = editing.index === undefined
+              ? addModels(config, editing.provider, [fields])
+              : editModel(config, editing.provider, editing.index, fields)
+            if (await apply(changes)) setEditing(undefined)
           }}
         />
       )}
@@ -169,7 +173,7 @@ const UNFOLDED_MODELS = 5
 
 function ProviderCard({
   provider: p,
-  isFirst,
+  start,
   memoryModel,
   onEdit,
   onRemove,
@@ -179,8 +183,9 @@ function ProviderCard({
   onMakeDefault,
 }: {
   provider: Provider
-  isFirst: boolean
-  /** The model learning extracts memories with, if learning is on. */
+  /** The model this profile's conversations start with. */
+  start: string
+  /** The model that learns this profile's memories, if it chose one. */
   memoryModel: string | undefined
   onEdit(): void
   onRemove(): void
@@ -191,7 +196,7 @@ function ProviderCard({
 }) {
   const m = useT()
   const c = m.settings.models.card
-  const names = p.names ?? []
+  const names = p.models ?? []
   const [open, setOpen] = useState(names.length <= UNFOLDED_MODELS)
   const listId = useId()
   return (
@@ -199,7 +204,7 @@ function ProviderCard({
       <div className="flex items-start gap-3 border-b border-canvas px-5 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-ui font-medium text-fg">{p.provider}</span>
+            <span className="text-ui font-medium text-fg">{p.id}</span>
             <Badge>{m.settings.models.types[apiTypeOf(p)].label}</Badge>
           </div>
           <div className="selectable mt-0.5 truncate font-mono text-small text-fg-subtle">{p.base_url || c.noBaseUrl}</div>
@@ -209,10 +214,10 @@ function ProviderCard({
             <ProviderBalance baseUrl={p.base_url ?? ''} apiKey={p.api_key ?? ''} />
           </div>
         </div>
-        <IconButton label={c.edit(p.provider)} size="sm" onClick={onEdit}>
+        <IconButton label={c.edit(p.id)} size="sm" onClick={onEdit}>
           <Pencil size={14} />
         </IconButton>
-        <IconButton label={c.remove(p.provider)} size="sm" onClick={onRemove}>
+        <IconButton label={c.remove(p.id)} size="sm" onClick={onRemove}>
           <Trash2 size={14} />
         </IconButton>
       </div>
@@ -229,8 +234,8 @@ function ProviderCard({
       {open && (
         <ul id={listId} className="flex flex-col divide-y divide-canvas border-t border-canvas">
           {names.map((model, i) => {
-            const id = modelId(p.provider, model.name)
-            const isDefault = isFirst && i === 0
+            const id = modelId(p.id, model.name)
+            const isDefault = id === start
             return (
               <li key={`${i}:${model.name}`} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
@@ -295,7 +300,7 @@ function ProviderDialog({
 }) {
   const m = useT()
   const t = m.settings.models.provider
-  const [name, setName] = useState(provider?.provider ?? '')
+  const [name, setName] = useState(provider?.id ?? '')
   const [type, setType] = useState<ApiType>(provider ? apiTypeOf(provider) : 'openai')
   const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? '')
   // A new provider starts from a preset: one picked fills in the name, the
@@ -322,8 +327,8 @@ function ProviderDialog({
 
   const trimmed = name.trim()
   const nameError = !trimmed ? t.required : trimmed.includes('/') ? t.noSlash : taken.includes(trimmed) ? t.taken : undefined
-  const renamed = provider && trimmed !== provider.provider && (provider.names ?? []).length > 0
-  const served = (provider?.names ?? []).map((m) => m.name)
+  const renamed = provider && trimmed !== provider.id && (provider.models ?? []).length > 0
+  const served = (provider?.models ?? []).map((m) => m.name)
   // Listed models the provider does not serve yet, in the list's order.
   const offered = list.status === 'listed' ? list.models.filter((m) => !served.includes(m.name)) : []
   const chosen = offered.map((m) => m.name).filter((n) => picked[n])
@@ -363,7 +368,7 @@ function ProviderDialog({
 
   return (
     <Dialog
-      title={provider ? t.editTitle(provider.provider) : t.addTitle}
+      title={provider ? t.editTitle(provider.id) : t.addTitle}
       closeLabel={m.common.close}
       onClose={onClose}
       footer={
@@ -780,7 +785,7 @@ function ModelDialog({
   // The name can be picked from what the API lists and the provider does not serve.
   const { list } = useModelList(apiTypeOf(p), p.base_url ?? '', p.api_key ?? '')
   const listed = list.status === 'listed' ? list.models.filter((m) => !taken.includes(m.name)) : []
-  const provider = p.provider
+  const provider = p.id
   const { form, fields, problem } = useModelForm(provider, apiTypeOf(p), model, taken, listed)
   const [saving, setSaving] = useState(false)
   const save = async () => {

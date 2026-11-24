@@ -4,35 +4,25 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/0xfakeSpike/ollupi/agent"
 	"github.com/0xfakeSpike/ollupi/skill"
 )
 
-const oneCredential = `schema_version: 2
-name: x
-credentials:
-  - id: p
-    type: openai
-    models:
-      - name: m
-        limits: { context: 1000, output: 100 }
-profiles:
-  - id: default
-    models: [p/m]
-`
+const plain = "name: x\n"
 
 func TestTemplateParses(t *testing.T) {
 	cfg, err := Parse([]byte(Template))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.SchemaVersion != SchemaVersion || !slices.Equal(cfg.Profiles[0].Models, []string{"openai/gpt-5.2"}) {
+	if len(cfg.Providers) != 1 || cfg.Providers[0].ID != "openai" || !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Feishu != nil {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
-	if !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" || cfg.Profiles[0].Memory.Model != "" {
-		t.Fatalf("unexpected config: %+v", cfg)
+	if _, _, found, _ := Legacy([]byte(Template)); found {
+		t.Fatal("the template declares profiles")
 	}
 }
 
@@ -74,59 +64,18 @@ func skillNames(all []skill.Skill) []string {
 	return names
 }
 
-func TestProfilesShareAModelButNotItsSelection(t *testing.T) {
-	raw := `schema_version: 2
-name: x
-credentials:
-  - id: a
-    type: openai
-    api_key: k1
-    models:
-      - name: m
-        calls: 2
-        limits: { context: 1000, output: 100 }
-  - id: b
-    type: openai
-    api_key: k2
-    models:
-      - name: m
-        calls: 8
-        limits: { context: 1000, output: 100 }
-profiles:
-  - id: one
-    models: [a/m, b/m]
-    memory: { model: b/m }
-  - id: two
-    models: [b/m]
-`
-	cfg, err := Parse([]byte(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Credentials[1].Models[0].Calls != 8 || cfg.Profiles[0].Memory.Model != "b/m" || !slices.Equal(cfg.Profiles[1].Models, []string{"b/m"}) {
-		t.Fatalf("unexpected config: %+v", cfg)
-	}
-}
-
 func TestValidateRejects(t *testing.T) {
 	cases := map[string]string{
-		"no version":          "name: x\ncredentials: []\nprofiles: []\n",
-		"no credentials":      "schema_version: 2\nname: x\nprofiles: [{id: default, models: [p/m]}]\n",
-		"no profiles":         "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: []\n",
-		"profile no models":   "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default}]\n",
-		"credential no model": "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: []}]\nprofiles: [{id: default, models: [p/m]}]\n",
-		"credential bad type": "schema_version: 2\nname: x\ncredentials: [{id: p, type: claude, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [p/m]}]\n",
-		"negative calls":      "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, calls: -1, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [p/m]}]\n",
-		"unknown model":       "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [p/other]}]\n",
-		"model twice":         "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [p/m, p/m]}]\n",
-		"memory bad model":    "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [p/m], memory: {model: p/other}}]\n",
-		"profile bad id":      "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: a/b, models: [p/m]}]\n",
-		"profile bad color":   "schema_version: 2\nname: x\ncredentials: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, color: red, models: [p/m]}]\n",
-		"same account twice":  "schema_version: 2\nname: x\ncredentials: [{id: a, type: openai, api_key: k, models: [{name: m, limits: {context: 1000, output: 100}}]}, {id: b, type: openai, api_key: k, models: [{name: n, limits: {context: 1000, output: 100}}]}]\nprofiles: [{id: default, models: [a/m]}]\n",
-		"newer version":       "schema_version: 3\nname: x\n",
-		"unknown key":         oneCredential + "modle: 1\n",
-		"feishu no profile":   oneCredential + "feishu: {app_id: cli_x, app_secret: s}\n",
-		"feishu unknown user": oneCredential + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_a: work}}\n",
+		"no name":             "prompt: hi\n",
+		"provider twice":      plain + "providers: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}, {id: p, type: openai, models: [{name: n, limits: {context: 1000, output: 100}}]}]\n",
+		"provider with slash": plain + "providers: [{id: a/b, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"provider bad type":   plain + "providers: [{id: p, type: claude, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"model no limits":     plain + "providers: [{id: p, type: openai, models: [{name: m}]}]\n",
+		"negative slots":      plain + "slots: -1\n",
+		"unknown key":         plain + "modle: 1\n",
+		"feishu no profile":   plain + "feishu: {app_id: cli_x, app_secret: s}\n",
+		"feishu bad profile":  plain + "feishu: {app_id: cli_x, app_secret: s, profile: a/b}\n",
+		"feishu unknown user": plain + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a], profiles: {ou_b: work}}\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {
@@ -137,7 +86,7 @@ func TestValidateRejects(t *testing.T) {
 
 func TestLoadFileResolvesPaths(t *testing.T) {
 	home := t.TempDir()
-	raw := oneCredential + `skills_dir: skills
+	raw := plain + `skills_dir: skills
 workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}
 feishu: {app_id: cli_x, app_secret: s, profile: default, workspace: super-agent}
 `
@@ -165,129 +114,140 @@ feishu: {app_id: cli_x, app_secret: s, profile: default, workspace: super-agent}
 	}
 }
 
-func TestUpgradeSharesOneAccountAcrossProfiles(t *testing.T) {
-	old := `name: x
+func TestFeishuNamesTheProfilesItActsAs(t *testing.T) {
+	cfg, err := Parse([]byte(plain + "feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a, ou_b], profiles: {ou_a: default, ou_b: work}}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Profiles(); len(got) != 2 || !slices.Contains(got, "default") || !slices.Contains(got, "work") {
+		t.Fatalf("profiles = %v", got)
+	}
+}
+
+func TestLegacyGathersEveryProfilesModelsIntoTheProviders(t *testing.T) {
+	const tail = "# the workspace\nworkspace: {enabled: true}\n"
+	cases := map[string]struct {
+		raw       string
+		profiles  []LegacyProfile
+		providers map[string][]string
+	}{
+		"beta.2": {raw: `name: x
+prompt: hi
+models:
+  - provider: DeepSeek 官方
+    type: openai
+    api_key: sk-a
+    names:
+      - name: chat
+        calls: 2
+        limits: { context: 1000, output: 100 }
+      - name: reasoner
+        thinking: false
+        limits: { context: 2000, output: 200, input: 1500 }
+memory: { model: DeepSeek 官方/reasoner }
+` + tail,
+			profiles:  []LegacyProfile{{ID: "default", Model: "DeepSeek 官方/chat", LearnModel: "DeepSeek 官方/reasoner"}},
+			providers: map[string][]string{"DeepSeek 官方": {"chat", "reasoner"}}},
+		"beta.3": {raw: `name: x
 profiles:
   - id: default
     models:
-      - provider: deepseek
-        type: openai
-        api_key: sk-a
-        names:
-          - name: flash
-            limits: { context: 1000, output: 100 }
-    memory: { model: deepseek/flash }
+      - provider: p
+        type: anthropic
+        api_key: k
+        names: [{ name: m, limits: { context: 1000, output: 100 } }]
   - id: work
     models:
-      - provider: ds
+      - provider: p
+        type: anthropic
+        api_key: other
+        names: [{ name: m, limits: { context: 1000, output: 100 } }]
+      - provider: q
         type: openai
-        api_key: sk-a
-        names:
-          - name: flash
-            limits: { context: 1000, output: 100 }
-          - name: pro
-            limits: { context: 2000, output: 200 }
-      - provider: deepseek
-        type: openai
-        api_key: sk-b
-        names:
-          - name: flash
-            limits: { context: 1000, output: 100 }
-    memory: { model: ds/pro }
-`
-	raw, changed, err := Upgrade([]byte(old))
-	if err != nil || !changed {
-		t.Fatalf("Upgrade = changed %v, %v", changed, err)
-	}
-	cfg, err := Parse(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cfg.Credentials) != 2 || cfg.Credentials[0].ID != "deepseek" || len(cfg.Credentials[0].Models) != 2 || cfg.Credentials[1].ID != "deepseek-2" {
-		t.Fatalf("credentials: %+v", cfg.Credentials)
-	}
-	work := cfg.Profiles[1]
-	if !slices.Equal(work.Models, []string{"deepseek/flash", "deepseek/pro", "deepseek-2/flash"}) || work.Memory.Model != "deepseek/pro" {
-		t.Fatalf("work: %+v", work)
-	}
-	if _, changed, err := Upgrade(raw); changed || err != nil {
-		t.Fatalf("upgrading twice: changed %v, %v", changed, err)
-	}
-}
-
-func TestUpgradeMovesTheSingleModelsListIntoTheDefaultProfile(t *testing.T) {
-	raw, _, err := Upgrade([]byte(`name: x
-models:
-  - provider: p
+        names: [{ name: n, limits: { context: 1000, output: 100 } }]
+    memory: { model: q/n }
+  - id: home
+    models:
+      - provider: p
+        type: anthropic
+        api_key: k
+        names: [{ name: extra, limits: { context: 1000, output: 100 } }]
+` + tail,
+			profiles: []LegacyProfile{{ID: "default", Model: "p/m"}, {ID: "work", Model: "p-2/m", LearnModel: "q/n"}, {ID: "home", Model: "p/extra"}},
+			// work's p is another account, so it is renamed; home's p is
+			// default's, so its model joins it.
+			providers: map[string][]string{"p": {"m", "extra"}, "p-2": {"m"}, "q": {"n"}}},
+		"beta.4": {raw: `schema_version: 2
+name: x
+credentials:
+  - id: openai
     type: openai
-    names:
-      - name: m
-        limits: { context: 1000, output: 100 }
-memory: { model: p/m }
-`))
-	if err != nil {
-		t.Fatal(err)
+    api_key: sk-o
+    models:
+      - { name: a, limits: { context: 1000, output: 100 } }
+      - { name: b, limits: { context: 1000, output: 100 } }
+profiles:
+  - id: default
+    name: Me
+    color: teal
+    models: [openai/b, openai/a]
+    memory: { model: openai/a }
+  - id: work
+    models: [openai/a]
+` + tail,
+			profiles:  []LegacyProfile{{ID: "default", Name: "Me", Color: "teal", Model: "openai/b", LearnModel: "openai/a"}, {ID: "work", Model: "openai/a"}},
+			providers: map[string][]string{"openai": {"a", "b"}}},
 	}
-	cfg, err := Parse(raw)
-	if err != nil {
-		t.Fatal(err)
+	for name, c := range cases {
+		got, rest, found, err := Legacy([]byte(c.raw))
+		if err != nil || !found {
+			t.Fatalf("%s: found %v, %v", name, found, err)
+		}
+		if !slices.Equal(got, c.profiles) {
+			t.Fatalf("%s: profiles %+v, want %+v", name, got, c.profiles)
+		}
+		cfg, err := Parse(rest)
+		if err != nil || !cfg.Workspace.Enabled || !strings.Contains(string(rest), "# the workspace") {
+			t.Fatalf("%s: the rest %q parses as %+v, %v", name, rest, cfg, err)
+		}
+		served := map[string][]string{}
+		for _, p := range cfg.Providers {
+			for _, m := range p.Models {
+				served[p.ID] = append(served[p.ID], m.Name)
+			}
+		}
+		if len(served) != len(c.providers) {
+			t.Fatalf("%s: providers %v, want %v", name, served, c.providers)
+		}
+		for id, models := range c.providers {
+			if !slices.Equal(served[id], models) {
+				t.Fatalf("%s: providers %v, want %v", name, served, c.providers)
+			}
+		}
+		if _, _, again, _ := Legacy(rest); again {
+			t.Fatalf("%s: the rest still declares profiles", name)
+		}
 	}
-	if len(cfg.Profiles) != 1 || cfg.Profiles[0].ID != "default" || cfg.Profiles[0].Memory.Model != "p/m" {
-		t.Fatalf("profiles: %+v", cfg.Profiles)
+	// Every setting of a model and its account comes through.
+	_, rest, _, _ := Legacy([]byte(cases["beta.2"].raw))
+	cfg, _ := Parse(rest)
+	p := cfg.Providers[0]
+	if p.APIKey != "sk-a" || p.Models[0].Calls != 2 || p.Models[1].Thinking == nil || *p.Models[1].Thinking || p.Models[1].Limits.MaxInput != 1500 {
+		t.Fatalf("provider %+v", p)
+	}
+	if strings.Index(string(rest), "providers:") < strings.Index(string(rest), "prompt: hi") {
+		t.Fatalf("providers come before the prompt:\n%s", rest)
 	}
 }
 
-func TestLoadUpgradesTheFileOnceAndKeepsTheOldOne(t *testing.T) {
+func TestLoadFileTellsAnOlderConfigToBeImported(t *testing.T) {
 	home := t.TempDir()
 	path := filepath.Join(home, FileName)
 	old := "name: x\nmodels: [{provider: p, type: openai, names: [{name: m, limits: {context: 1000, output: 100}}]}]\n"
 	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(home); err != nil {
-		t.Fatal(err)
-	}
-	kept, err := os.ReadFile(path + ".pre-v2")
-	if err != nil || string(kept) != old {
-		t.Fatalf("backup = %q, %v", kept, err)
-	}
-	if _, err := LoadFile(path, home); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestFeishuNamesEachHolderAProfile(t *testing.T) {
-	raw := oneCredential + `  - id: work
-    models: [p/m]
-feishu: {app_id: cli_x, app_secret: s, profile: default, users: [ou_a, ou_b], profiles: {ou_a: default, ou_b: work}}
-`
-	cfg, err := Parse([]byte(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Feishu.Profiles["ou_b"] != "work" || cfg.Feishu.Profiles["ou_a"] != "default" {
-		t.Fatalf("profiles = %v", cfg.Feishu.Profiles)
-	}
-}
-
-func TestRemoveProfileRejectsReferencesAndKeepsAnother(t *testing.T) {
-	raw := []byte(oneCredential + `  - id: work
-    models: [p/m]
-feishu: {app_id: cli_x, app_secret: s, profile: work}
-`)
-	if _, err := RemoveProfile(raw, "work"); err == nil {
-		t.Fatal("removed the Feishu profile")
-	}
-	plain := []byte(oneCredential + "  - id: work\n    models: [p/m]\n")
-	out, err := RemoveProfile(plain, "work")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := Parse(out)
-	if err != nil || len(cfg.Profiles) != 1 || cfg.Profiles[0].ID != "default" {
-		t.Fatalf("profiles = %+v, %v", cfg.Profiles, err)
-	}
-	if _, err := RemoveProfile(out, "default"); err == nil {
-		t.Fatal("removed the last profile")
+	if _, err := LoadFile(path, home); err == nil || !strings.Contains(err.Error(), "--import-config") {
+		t.Fatalf("loaded an older config: %v", err)
 	}
 }

@@ -1,20 +1,25 @@
 // The backend's config.yaml, owned by the main process: the renderer reads
-// it and asks for changes, never touching the file. apply() validates and
-// writes as one step, so a change the backend would refuse never reaches the
-// file, then has the change take effect at the cost it needs: a profile's
-// name or colour needs nothing, profiles and credentials reload into the
-// running backend, and everything else restarts it.
+// it and asks for changes, never touching the file. It is the deployment's
+// configuration, the same for every profile: the models it serves (providers,
+// with their keys) and how it runs. Which model a profile chooses is its own,
+// in the store, set through the gateway. apply() validates and writes as one
+// step, so a change the backend would refuse never reaches the file, then
+// has it take effect: the providers reload into the running backend, and
+// anything else restarts it.
 
 import { execFile } from 'node:child_process'
 import { chmod, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { isMap, isSeq, parseDocument, type Document } from 'yaml'
+import { isMap, parseDocument, type Document } from 'yaml'
 import type { ConfigChange, ConfigCheck } from '../../shared/ipc'
 
 export interface ConfigOptions {
   binary: string
   home: string
   env(): Promise<NodeJS.ProcessEnv>
+  /** The profiles.json 0.8.17-beta.3 kept in the app's own folder, for the
+   * names and colours of the profiles an older config.yaml declared. */
+  olderProfiles: string
   backend: {
     start(): Promise<void>
     stop(): Promise<void>
@@ -23,12 +28,9 @@ export interface ConfigOptions {
   }
 }
 
-/** What a change to config.yaml needs before it is in effect. */
-export type ConfigEffect = 'restart' | 'reload' | 'nothing'
-
 export class BackendConfig {
   readonly path: string
-  private upgrading: Promise<void> | undefined
+  private importing: Promise<void> | undefined
 
   constructor(private readonly opts: ConfigOptions) {
     this.path = join(opts.home, 'config.yaml')
@@ -36,14 +38,16 @@ export class BackendConfig {
 
   /** The current file as the backend decodes it, or why it would not start. */
   async read(): Promise<ConfigCheck> {
-    await this.upgrade()
+    await this.importOlder()
     return this.check(this.path)
   }
 
   /** Applies changes to the file, keeping its comments and layout, if the
-   * backend accepts the result; then puts them in effect. */
-  async apply(changes: ConfigChange[], effect: ConfigEffect = 'restart'): Promise<ConfigCheck> {
-    await this.upgrade()
+   * backend accepts the result; then puts them in effect: changes to the
+   * providers alone reload into the running backend, and any other restarts
+   * it. */
+  async apply(changes: ConfigChange[]): Promise<ConfigCheck> {
+    await this.importOlder()
     const edited = editConfigText(await readFile(this.path, 'utf8'), changes)
     if (!edited.ok) return edited
     // Next to the real file, so the final rename is atomic.
@@ -55,57 +59,55 @@ export class BackendConfig {
       if (!result.ok) return { ok: false, error: result.error.replaceAll(candidate, this.path) }
       await chmod(candidate, 0o600)
       await rename(candidate, this.path)
-      if (effect === 'restart') await this.opts.backend.restart()
-      else if (effect === 'reload') await this.opts.backend.reload()
+      if (onlyProviders(changes)) await this.opts.backend.reload()
+      else await this.opts.backend.restart()
       return result
     } finally {
       await rm(candidate, { force: true })
     }
   }
 
-  /** Deletes one profile from the config and the store while the backend is
-   * stopped, so no turn of it runs and nothing else writes the database;
-   * resolves to the threads whose attachment folders go with it. */
+  /** Deletes a profile's data from the store while the backend is stopped,
+   * so nothing else writes the database; resolves to the threads whose
+   * attachment folders go with it. The backend refuses while one of the
+   * profile's turns is in progress or queued. */
   async deleteProfile(id: string): Promise<string[]> {
     const env = await this.opts.env()
     await this.opts.backend.stop()
     try {
-      return await new Promise((resolve, reject) => {
-        execFile(this.opts.binary, ['--home', this.opts.home, '--delete-profile', id], { env, timeout: 30_000 }, (err, stdout) => {
-          try {
-            const result = JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as { ok?: boolean; threads?: string[]; error?: string }
-            if (err || !result.ok) reject(new Error(result.error ?? err?.message ?? 'the profile could not be deleted'))
-            else resolve(result.threads ?? [])
-          } catch {
-            reject(new Error(err ? `cannot delete the profile: ${err.message}` : 'cannot delete the profile'))
-          }
-        })
-      })
+      const result = await this.run('the profile could not be deleted', ['--home', this.opts.home, '--delete-profile', id], env)
+      return (result.threads as string[] | undefined) ?? []
     } finally {
       await this.opts.backend.start()
     }
   }
 
-  /** Runs the backend's one-way schema upgrade before any read or edit. */
-  upgrade(): Promise<void> {
-    this.upgrading ??= this.runUpgrade().catch((err: unknown) => {
-      this.upgrading = undefined
-      throw err
-    })
-    return this.upgrading
+  /** Moves the profiles and models an older config.yaml declared into the
+   * store, before anything reads the file; once per start, and a no-op once
+   * done. */
+  importOlder(): Promise<void> {
+    this.importing ??= this.opts.env()
+      .then((env) => this.run('the older config could not be imported', ['--home', this.opts.home, '--import-config', '--names', this.opts.olderProfiles], env))
+      .then(() => undefined)
+      .catch((err: unknown) => {
+        this.importing = undefined
+        throw err
+      })
+    return this.importing
   }
 
-  private async runUpgrade(): Promise<void> {
-    const env = await this.opts.env()
-    await new Promise<void>((resolve, reject) => {
-      execFile(this.opts.binary, ['--upgrade-config', this.path], { env, timeout: 30_000 }, (err, stdout) => {
+  /** Runs one of ollupid's modes, which answer with a JSON line. */
+  private run(failed: string, args: string[], env: NodeJS.ProcessEnv): Promise<{ ok?: boolean; error?: string; [key: string]: unknown }> {
+    return new Promise((resolve, reject) => {
+      execFile(this.opts.binary, args, { env, timeout: 30_000 }, (err, stdout) => {
+        let result: { ok?: boolean; error?: string }
         try {
-          const result = JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as { ok?: boolean; error?: string }
-          if (err || !result.ok) reject(new Error(result.error ?? err?.message ?? 'the config could not be upgraded'))
-          else resolve()
+          result = JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as { ok?: boolean; error?: string }
         } catch {
-          reject(new Error(err ? `cannot upgrade the config: ${err.message}` : 'cannot upgrade the config'))
+          return reject(new Error(err ? `${failed}: ${err.message}` : failed))
         }
+        if (err || !result.ok) reject(new Error(result.error ?? err?.message ?? failed))
+        else resolve(result)
       })
     })
   }
@@ -126,6 +128,12 @@ export class BackendConfig {
   }
 }
 
+/** Whether the changes touch only the providers, the one section the
+ * running backend takes again without a restart. */
+export function onlyProviders(changes: ConfigChange[]): boolean {
+  return changes.length > 0 && changes.every((c) => c.path[0] === 'providers')
+}
+
 /** Applies changes to config.yaml text, keeping its comments where a person
  * reads them. */
 export function editConfigText(text: string, changes: ConfigChange[]): { ok: true; text: string } | { ok: false; error: string } {
@@ -134,16 +142,7 @@ export function editConfigText(text: string, changes: ConfigChange[]): { ok: tru
   attachSectionComments(doc)
   for (const c of changes) {
     if (c.kind === 'delete') doc.deleteIn(c.path)
-    else if (c.kind === 'set') doc.setIn(c.path, doc.createNode(c.value))
-    else {
-      // The node itself moves, with the comments attached to it.
-      const list = doc.getIn(c.path.slice(0, -1), true)
-      const from = c.path.at(-1)
-      if (!isSeq(list) || typeof from !== 'number' || from >= list.items.length || c.to < 0 || c.to >= list.items.length) {
-        return { ok: false, error: `cannot move ${c.path.join('.')} to ${c.to}` }
-      }
-      list.items.splice(c.to, 0, ...list.items.splice(from, 1))
-    }
+    else doc.setIn(c.path, doc.createNode(c.value))
   }
   return { ok: true, text: doc.toString() }
 }

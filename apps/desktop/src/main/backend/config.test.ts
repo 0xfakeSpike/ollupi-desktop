@@ -1,77 +1,63 @@
 import { describe, expect, it } from 'vitest'
-import { editConfigText } from './config'
+import { editConfigText, onlyProviders } from './config'
 
-// The shape of a real config.yaml: section comments above keys, commented-out
-// entries inside sections, inline comments.
+// The shape of the config.yaml the backend starts a home with: section
+// comments above keys, inline comments, a commented-out section.
 const file = `# Ollupi desktop backend.
 name: ollupi
-schema_version: 2
 
-# API credentials.
-credentials:
-  - id: deepseek
-    base_url: https://api.deepseek.com
-    api_key: sk-test
-    models:
-      - name: deepseek-flash
-  # The local one.
-  - id: local
-    base_url: http://127.0.0.1:11434/v1
-    models:
-      - name: qwen3:32b
-  # - id: openai
-  #   base_url: https://api.openai.com/v1
+# Commands and file edits, in the sandbox.
+workspace:
+  enabled: true
+  sandbox_mode: workspace-write # read-only | workspace-write | full-access
+  command_timeout_sec: 60
 
-profiles:
-  - id: default
-    models:
-      - deepseek/deepseek-flash
-      - local/qwen3:32b
-    memory:
-      model: all
+# A Feishu bot.
+feishu:
+  app_id: cli_x
+  app_secret: s
+  profile: default
+  users:
+    - ou_a
+
+# How many threads may run at once (default 32).
+# slots: 32
 `
 
 describe('editConfigText', () => {
   it('changes only what was asked, keeping every comment where it was', () => {
-    const edited = editConfigText(file, [
-      { kind: 'set', path: ['profiles', 0, 'memory', 'model'], value: 'deepseek/deepseek-flash' },
-    ])
+    const edited = editConfigText(file, [{ kind: 'set', path: ['feishu', 'profile'], value: 'work' }])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
-    expect(edited.text).toBe(file.replace('      model: all\n', '      model: deepseek/deepseek-flash\n'))
+    expect(edited.text).toBe(file.replace('  profile: default\n', '  profile: work\n'))
   })
 
   it('leaves the file unchanged when nothing changes', () => {
     expect(editConfigText(file, [])).toEqual({ ok: true, text: file })
   })
 
-  it('deletes keys', () => {
-    const edited = editConfigText(file, [{ kind: 'delete', path: ['profiles', 0, 'memory'] }])
-    expect(edited.ok && edited.text.includes('    memory:')).toBe(false)
-  })
-
-  it('moves a list item with its comment', () => {
-    const edited = editConfigText(file, [{ kind: 'move', path: ['credentials', 1], to: 0 }])
+  it('deletes keys, leaving the next section its comment', () => {
+    const edited = editConfigText(file, [{ kind: 'delete', path: ['workspace', 'command_timeout_sec'] }])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
-    const text = edited.text
-    expect(text).toContain('id: local')
-    expect(text.indexOf('# The local one.')).toBeLessThan(text.indexOf('id: local'))
-    expect(text.indexOf('id: local')).toBeLessThan(text.indexOf('id: deepseek'))
-    expect(text).toContain('  # - id: openai\n')
+    expect(edited.text).not.toContain('command_timeout_sec')
+    expect(edited.text).toContain('\n# A Feishu bot.\nfeishu:\n')
   })
 
   it('appends a list item', () => {
-    const edited = editConfigText(file, [{ kind: 'set', path: ['credentials', 2], value: { id: 'openai', models: [{ name: 'gpt-5.2' }] } }])
-    expect(edited.ok && edited.text.includes('  - id: openai\n    models:\n      - name: gpt-5.2\n')).toBe(true)
-  })
-
-  it('refuses a move outside the list', () => {
-    expect(editConfigText(file, [{ kind: 'move', path: ['credentials', 0], to: 2 }]).ok).toBe(false)
-    expect(editConfigText(file, [{ kind: 'move', path: ['profiles', 0, 'memory'], to: 0 }]).ok).toBe(false)
+    const edited = editConfigText(file, [{ kind: 'set', path: ['feishu', 'users', 1], value: 'ou_b' }])
+    expect(edited.ok && edited.text.includes('  users:\n    - ou_a\n    - ou_b\n')).toBe(true)
   })
 
   it('refuses text that is not YAML', () => {
     expect(editConfigText('name: [unclosed', []).ok).toBe(false)
+  })
+})
+
+describe('onlyProviders', () => {
+  it('reloads a change to the providers alone, and restarts for any other', () => {
+    expect(onlyProviders([{ kind: 'set', path: ['providers', 0, 'api_key'], value: 'k' }, { kind: 'delete', path: ['providers', 1] }])).toBe(true)
+    expect(onlyProviders([{ kind: 'set', path: ['providers', 0, 'api_key'], value: 'k' }, { kind: 'set', path: ['slots'], value: 8 }])).toBe(false)
+    expect(onlyProviders([])).toBe(false)
   })
 })

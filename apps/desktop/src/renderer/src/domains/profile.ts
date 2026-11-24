@@ -1,5 +1,5 @@
-// The profiles this app presents: their ids come from the backend config,
-// while names and colours live in the main process. Switching asks the main
+// The profiles this app presents, as the main process keeps them in the
+// backend's home with their names and colours. Switching asks the main
 // process for a token named by the profile; the session then reconnects and
 // every profile-scoped domain starts from nothing.
 
@@ -67,8 +67,8 @@ async function sync(): Promise<void> {
   useProfile.setState({ list: data, current })
 }
 
-/** Adds a profile to the app and config.yaml, with the current profile's
- * models and memory setting. */
+/** Adds a profile. It runs on the backend's models like every profile, and
+ * starts with its own settings, conversations and memory empty. */
 export async function createProfile(name: string, color: ProfileColor): Promise<Profile> {
   const user = await desktop.profile.create(name, color)
   await sync()

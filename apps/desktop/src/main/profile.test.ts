@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,45 +9,55 @@ vi.mock('electron', () => ({
   app: { getPath: (name: string) => (name === 'userData' ? paths.userData : '') },
 }))
 
-import { activeProfile, legacyProfileChanges, listProfiles, rememberProfile, retireLegacyProfiles } from './profile'
+import { activeProfile, createProfile, listProfiles, PROFILES_FILE, rememberProfile, removeProfile, updateProfile } from './profile'
 
-describe('profile selection', () => {
+describe('profiles', () => {
+  let home: string
+
   beforeEach(() => {
-    paths.userData = mkdtempSync(join(tmpdir(), 'ollupi-profiles-'))
+    paths.userData = mkdtempSync(join(tmpdir(), 'ollupi-app-'))
+    home = mkdtempSync(join(tmpdir(), 'ollupi-home-'))
   })
 
-  afterEach(() => rmSync(paths.userData, { recursive: true, force: true }))
-
-  it('lists the display metadata config declares', () => {
-    expect(listProfiles([
-      { id: 'default', name: 'Me', color: 'stone' },
-      { id: 'work', name: 'Work', color: 'teal' },
-    ])).toEqual({
-      current: 'default',
-      data: [
-        { id: 'default', name: 'Me', color: 'stone' },
-        { id: 'work', name: 'Work', color: 'teal' },
-      ],
-    })
+  afterEach(() => {
+    rmSync(paths.userData, { recursive: true, force: true })
+    rmSync(home, { recursive: true, force: true })
   })
 
-  it('keeps only the device choice locally and falls back when it disappears', () => {
-    rememberProfile('work')
-    expect(activeProfile()).toBe('work')
-    expect(listProfiles([{ id: 'default', name: '', color: 'stone' }]).current).toBe('default')
+  it('serves the profile a fresh home starts with, and keeps it in the home', () => {
+    expect(listProfiles(home)).toEqual({ current: 'default', data: [{ id: 'default', name: '', color: 'stone' }] })
+    expect(JSON.parse(readFileSync(join(home, PROFILES_FILE), 'utf8'))).toEqual({ profiles: [{ id: 'default', name: '', color: 'stone' }] })
+  })
+
+  it('reads the list the import wrote, leaving out what cannot be a profile', () => {
+    writeFileSync(join(home, PROFILES_FILE), JSON.stringify({ profiles: [
+      { id: 'default', name: ' Me ', color: 'teal' },
+      { id: 'a/b', name: 'Bad' },
+      { id: 'default', name: 'Twice' },
+      { id: 'work', name: 'Work', color: 'red' },
+    ] }))
+    expect(listProfiles(home).data).toEqual([
+      { id: 'default', name: 'Me', color: 'teal' },
+      { id: 'work', name: 'Work', color: 'stone' },
+    ])
+  })
+
+  it('keeps this Mac\'s choice apart, and falls back when it is gone', () => {
+    const work = createProfile(home, 'Work', 'sky')
+    rememberProfile(work.id)
+    expect(listProfiles(home).current).toBe(work.id)
+    removeProfile(home, work.id)
+    expect(listProfiles(home).current).toBe('default')
     expect(activeProfile()).toBe('default')
   })
 
-  it('brings in the names and colours profiles.json kept, once', () => {
-    const file = join(paths.userData, 'profiles.json')
-    writeFileSync(file, JSON.stringify({ profiles: [{ id: 'default', name: ' Me ', color: 'sky' }, { id: 'gone', name: 'Gone', color: 'rose' }, { id: 'work', name: 'Work', color: 'red' }] }))
-    expect(legacyProfileChanges([{ id: 'default' }, { id: 'work' }])).toEqual([
-      { kind: 'set', path: ['profiles', 0, 'name'], value: 'Me' },
-      { kind: 'set', path: ['profiles', 0, 'color'], value: 'sky' },
-      { kind: 'set', path: ['profiles', 1, 'name'], value: 'Work' },
-    ])
-    retireLegacyProfiles()
-    expect(existsSync(file)).toBe(false)
-    expect(legacyProfileChanges([{ id: 'default' }])).toEqual([])
+  it('names, renames and removes profiles, but never the last', () => {
+    expect(() => createProfile(home, '  ', 'stone')).toThrow()
+    const work = createProfile(home, ' Work ', 'teal')
+    expect(work.name).toBe('Work')
+    expect(updateProfile(home, work.id, 'Job', 'rose')).toEqual({ id: work.id, name: 'Job', color: 'rose' })
+    expect(listProfiles(home).data.map((p) => p.name)).toEqual(['', 'Job'])
+    removeProfile(home, work.id)
+    expect(() => removeProfile(home, 'default')).toThrow('last profile')
   })
 })

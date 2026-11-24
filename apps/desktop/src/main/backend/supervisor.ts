@@ -175,8 +175,8 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     await this.start()
   }
 
-  /** Has the running backend take config.yaml's profiles and credentials
-   * again without stopping its turns. A backend that is not running, or
+  /** Has the running backend take config.yaml's providers again without
+   * stopping its turns. A backend that is not running, or
    * cannot take them, is restarted instead, which reads the whole file. */
   reload(): Promise<void> {
     const next = this.reloading.then(() => this.signalReload())

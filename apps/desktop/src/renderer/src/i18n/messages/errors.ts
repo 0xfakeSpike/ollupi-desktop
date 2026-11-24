@@ -60,6 +60,7 @@ export const en = {
     memory: 'Could not turn memory on or off',
     learn: 'Could not turn learning on or off',
     permissions: 'Could not save the permissions',
+    model: 'Could not choose the model',
   },
   config: {
     read: 'Could not read config.yaml',
@@ -106,8 +107,6 @@ export const en = {
   },
   modelRemoval: {
     lastModel: 'The backend needs at least one model.',
-    memoryModel: 'Memory uses this model to extract memories. Choose another one on the Memory screen first.',
-    memoryModels: 'Memory uses one of these models to extract memories. Choose another one on the Memory screen first.',
   },
 }
 
@@ -170,6 +169,7 @@ export const zh: typeof en = {
     memory: '无法开关记忆',
     learn: '无法开关学习',
     permissions: '无法保存权限',
+    model: '无法选择模型',
   },
   config: {
     read: '无法读取 config.yaml',
@@ -216,7 +216,5 @@ export const zh: typeof en = {
   },
   modelRemoval: {
     lastModel: '后端至少需要一个模型。',
-    memoryModel: '记忆用这个模型提取记忆。请先在记忆页面选择其他模型。',
-    memoryModels: '记忆用其中一个模型提取记忆。请先在记忆页面选择其他模型。',
   },
 }

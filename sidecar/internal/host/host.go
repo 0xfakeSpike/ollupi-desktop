@@ -27,7 +27,6 @@ import (
 	"github.com/0xfakeSpike/ollupi/auth"
 	"github.com/0xfakeSpike/ollupi/gateway"
 	ollupi "github.com/0xfakeSpike/ollupi/host"
-	"github.com/0xfakeSpike/ollupi/pkg/llm"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 	"github.com/0xfakeSpike/ollupi/store"
 	"github.com/0xfakeSpike/ollupi/tool"
@@ -78,11 +77,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		dataHome = opts.Home
 	}
 
-	users, err := userModels(cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	// Local profiles share the machine today, but still reach it through one
 	// Box per user. A cloud host replaces the same factory with cloud boxes.
 	boxes := newUserBoxes(opts.Home)
@@ -92,11 +86,14 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	// it is.
 	var st store.Store
 	// Every connection names its profile: the token is the secret the app
-	// started the backend with and the profile, joined by a dot, and only a
-	// profile that exists works. There is no anonymous connection and none is
-	// made up for it.
+	// started the backend with and the profile, joined by a dot. The app is
+	// this deployment's identity provider, and only it holds the secret, so a
+	// token it made vouches for the profile: one the store has not seen yet is
+	// made then, as a cloud shard makes a user placed on it. There is no
+	// anonymous connection.
+	var users *app.App
 	authenticate := func(ctx context.Context, token string) (string, error) {
-		return profileOf(ctx, token, opts.Token, st)
+		return profileOf(ctx, token, opts.Token, st, users)
 	}
 	// web_fetch is ollupi's own, made from the Boxes below.
 	var tools []kit.Provider
@@ -104,8 +101,9 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		ws, err := workspace.New(workspace.Options{
 			Config: cfg.Workspace.Config,
 			Agent:  workspace.AgentFiles{Home: opts.Home, SkillsDir: cfg.SkillsDir},
-			// Commands must not read the API keys in the config file.
-			DenyRead:  []string{filepath.Join(opts.Home, config.FileName)},
+			// Commands must not read the secrets in the config file, nor the
+			// store, which holds every profile's API keys and MCP servers.
+			DenyRead:  []string{filepath.Join(opts.Home, config.FileName), filepath.Join(dataHome, "data")},
 			EnvMarker: "OLLUPI_SANDBOX",
 			// Commands run on this machine and nowhere else: a conversation
 			// started in another environment is told so rather than having its
@@ -142,7 +140,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Home:      dataHome,
 		Name:      cfg.Name,
 		Prompt:    cfg.Prompt,
-		Users:     users,
+		Models:    cfg.Catalog(),
 		Tools:     tools,
 		Allowlist: cfg.Tools,
 		Boxes:     boxes.box,
@@ -157,24 +155,14 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		return nil, err
 	}
 	h.closers = append(h.closers, h.ollupi.Close)
-	st = h.ollupi.Store
-	// config.yaml declares the profiles this home serves. Create the missing
-	// user rows here, before a token or the Feishu client names one.
-	if err := ensureProfiles(ctx, st, h.ollupi.App, cfg); err != nil {
-		return nil, err
-	}
-	if cfg.Feishu != nil {
-		home := profiles(ctx, st)
-		if !slices.Contains(home, cfg.Feishu.Profile) {
-			return nil, fmt.Errorf("feishu.profile %q is not a profile of this home", cfg.Feishu.Profile)
-		}
-		for open, profile := range cfg.Feishu.Profiles {
-			if !slices.Contains(home, profile) {
-				return nil, fmt.Errorf("feishu.profiles: %s acts as %q, which is not a profile of this home", open, profile)
-			}
+	st, users = h.ollupi.Store, h.ollupi.App
+	// The profiles the Feishu bot acts as are named by the deployment, as a
+	// token names one, so they exist before the bot reaches them.
+	for _, profile := range cfg.Profiles() {
+		if err := users.EnsureUser(ctx, profile); err != nil {
+			return nil, fmt.Errorf("feishu: profile %s: %w", profile, err)
 		}
 	}
-
 	if cfg.Feishu != nil {
 		// Which topic holds which session is kept beside the store.
 		bot, err := feishu.New(*cfg.Feishu, h.ollupi.App, h.ollupi.Store, filepath.Join(dataHome, "data", "feishu.json"))
@@ -186,19 +174,11 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	return h, nil
 }
 
-// Reload takes the profiles and credentials of cfg without a restart: every
-// profile it declares exists, and each runs the models it selects now. Turns
-// already calling a model finish on the client they started with. Nothing
-// else in cfg is read; those settings take a restart.
-func (h *Host) Reload(ctx context.Context, cfg config.Config) error {
-	users, err := userModels(cfg)
-	if err != nil {
-		return err
-	}
-	if err := ensureProfiles(ctx, h.ollupi.Store, h.ollupi.App, cfg); err != nil {
-		return err
-	}
-	return h.ollupi.SetUsers(users)
+// Reload takes cfg's providers without a restart: new turns run on them at
+// once, and turns already calling a model finish on the client they started
+// with. Nothing else in cfg is read; those settings take a restart.
+func (h *Host) Reload(cfg config.Config) error {
+	return h.ollupi.SetModels(cfg.Catalog())
 }
 
 // Serve serves the gateway on ln and runs ollupi's flows and the clients
@@ -257,38 +237,6 @@ func (h *Host) close() {
 	}
 }
 
-// modelClients gives each credential/model one shared client. Profiles that
-// select the same model share both its provider account and concurrency limit.
-func modelClients(credentials []config.Credential) (map[string]llm.Model, map[string]llm.Client, error) {
-	models := map[string]llm.Model{}
-	clients := map[string]llm.Client{}
-	for _, c := range credentials {
-		for _, m := range c.Models {
-			id := config.ID(c.ID, m.Name)
-			client, err := modelClient(c, m)
-			if err != nil {
-				return nil, nil, fmt.Errorf("credentials: %s: %w", id, err)
-			}
-			clients[id] = client
-			models[id] = llm.Model{Name: m.Name, Connection: id, Thinking: m.Thinking, Images: m.Images}
-		}
-	}
-	return models, clients, nil
-}
-
-func modelClient(c config.Credential, m config.Model) (llm.Client, error) {
-	limits := map[string]llm.Limits{m.Name: m.Limits}
-	switch c.Type {
-	case config.APIOpenAI:
-		return llm.NewOpenAI(c.BaseURL, c.APIKey, m.Calls, limits), nil
-	case config.APIAnthropic:
-		return llm.NewAnthropic(c.BaseURL, c.APIKey, m.Calls, limits), nil
-	case config.APIGemini:
-		return llm.NewGemini(c.BaseURL, c.APIKey, m.Calls, limits)
-	}
-	return nil, fmt.Errorf("unknown API type %q", c.Type)
-}
-
 type userBoxes struct {
 	home  string
 	env   []string
@@ -339,21 +287,18 @@ func (b *userBoxes) Close() error {
 }
 
 // profileOf names the profile a connection's token acts as: the secret the
-// backend was started with, a dot, the profile. Only a profile the store
-// holds works; nothing is created for an unknown one.
-func profileOf(ctx context.Context, token, secret string, st store.Store) (string, error) {
+// backend was started with, a dot, the profile. The secret is the app's
+// alone, so the profile it names is made if the store has not seen it.
+func profileOf(ctx context.Context, token, secret string, st store.Store, users *app.App) (string, error) {
 	given, profile, ok := strings.Cut(token, ".")
-	if !ok || profile == "" || st == nil || subtle.ConstantTimeCompare([]byte(given), []byte(secret)) != 1 {
+	if !ok || !config.ProfileID.MatchString(profile) || st == nil || users == nil || subtle.ConstantTimeCompare([]byte(given), []byte(secret)) != 1 {
 		return "", auth.ErrUnknownToken
 	}
-	var known bool
-	err := st.Read(ctx, func(r store.Reader) error {
-		users, err := r.Users()
-		known = slices.Contains(users, profile)
-		return err
-	})
-	if err != nil || !known {
-		return "", auth.ErrUnknownToken
+	if slices.Contains(profiles(ctx, st), profile) {
+		return profile, nil
+	}
+	if err := users.EnsureUser(ctx, profile); err != nil {
+		return "", fmt.Errorf("profile %s: %w", profile, err)
 	}
 	return profile, nil
 }
@@ -367,46 +312,4 @@ func profiles(ctx context.Context, st store.Store) []string {
 		return err
 	})
 	return users
-}
-
-// ensureProfiles makes every profile the config declares. The first profile
-// always exists, even in a fresh home with an otherwise empty users list.
-func ensureProfiles(ctx context.Context, st store.Store, a *app.App, cfg config.Config) error {
-	known := profiles(ctx, st)
-	for _, p := range cfg.Profiles {
-		if slices.Contains(known, p.ID) {
-			continue
-		}
-		if err := a.EnsureUser(ctx, p.ID); err != nil {
-			return fmt.Errorf("profile %q: %w", p.ID, err)
-		}
-	}
-	return nil
-}
-
-// userModels gives every configured profile the models it runs and the clients
-// that call them. A profile's learning model comes from the same section.
-func userModels(cfg config.Config) ([]ollupi.UserModels, error) {
-	modelSet, clients, err := modelClients(cfg.Credentials)
-	if err != nil {
-		return nil, err
-	}
-	sets := make([]ollupi.UserModels, 0, len(cfg.Profiles))
-	for _, p := range cfg.Profiles {
-		models := make([]llm.Model, 0, len(p.Models))
-		connections := map[string]llm.Client{}
-		byID := map[string]llm.Model{}
-		for _, id := range p.Models {
-			m := modelSet[id]
-			models = append(models, m)
-			byID[id] = m
-			connections[id] = clients[id]
-		}
-		var memory *llm.Model
-		if m, ok := byID[p.Memory.Model]; ok {
-			memory = &m
-		}
-		sets = append(sets, ollupi.UserModels{User: p.ID, Models: models, Connections: connections, Memory: memory})
-	}
-	return sets, nil
 }

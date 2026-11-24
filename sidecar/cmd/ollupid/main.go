@@ -7,6 +7,8 @@
 // line:
 //
 //	ollupid --check-config FILE   whether FILE would start
+//	ollupid --import-config       take apart an older config.yaml that declares models per profile, once
+//	ollupid --delete-profile ID   delete a profile's data from the store, with the backend stopped
 //	ollupid --config-schema       the JSON Schema of --check-config's output
 //	ollupid --list-skills         each role's skills in config.yaml's skills_dir
 //	ollupid --check-skills DIR    each role's skills in DIR, as the agent would load them
@@ -48,8 +50,9 @@ func main() {
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
-	upgradeConfig := flag.String("upgrade-config", "", "upgrade a config file to the current schema and exit")
-	deleteProfile := flag.String("delete-profile", "", "delete a profile and all of its local data, then exit")
+	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml that declares models per profile, then exit")
+	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names and colours it kept")
+	deleteProfile := flag.String("delete-profile", "", "delete a profile's data from the store, then exit")
 	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of --check-config's output and exit")
 	listSkills := flag.Bool("list-skills", false, "list the skills in this home's skills_dir and exit")
 	checkSkills := flag.String("check-skills", "", "list the skills in a directory and exit")
@@ -57,8 +60,8 @@ func main() {
 	flag.Parse()
 
 	switch {
-	case *upgradeConfig != "":
-		os.Exit(upgrade(*upgradeConfig))
+	case *importConfig:
+		os.Exit(importLegacy(*home, *names))
 	case *deleteProfile != "":
 		os.Exit(deleteProfileData(*home, *deleteProfile))
 	case *configSchema:
@@ -80,56 +83,25 @@ func main() {
 	}
 }
 
+// deleteProfileData deletes a profile's conversations, memories and settings
+// from the store, while no backend has it open; the app then forgets the
+// profile and removes its folders. It refuses while one of its turns is in
+// progress or queued.
 func deleteProfileData(home, id string) int {
-	path := filepath.Join(home, config.FileName)
-	raw, err := os.ReadFile(path)
 	var threads []string
+	st, err := storesqlite.Open(home)
 	if err == nil {
-		var candidate []byte
-		candidate, err = config.RemoveProfile(raw, id)
-		if err == nil {
-			err = os.WriteFile(path+".delete-candidate", candidate, 0o600)
-		}
+		err = st.Update(context.Background(), func(tx store.Tx) error {
+			threads, err = tx.DeleteUser(id)
+			return err
+		})
+		st.Close()
 	}
-	if err == nil {
-		var st *storesqlite.Store
-		st, err = storesqlite.Open(home)
-		if err == nil {
-			ctx := context.Background()
-			err = st.Update(ctx, func(tx store.Tx) error {
-				threads, err = tx.DeleteUser(id)
-				return err
-			})
-			st.Close()
-		}
-	}
-	if err == nil {
-		err = os.WriteFile(path+".pre-delete-"+id, raw, 0o600)
-	}
-	if err == nil {
-		err = os.Rename(path+".delete-candidate", path)
-	}
-	os.Remove(path + ".delete-candidate")
 	out := struct {
 		OK      bool     `json:"ok"`
 		Threads []string `json:"threads,omitempty"`
 		Error   string   `json:"error,omitempty"`
 	}{OK: err == nil, Threads: threads, Error: errorText(err)}
-	line, _ := json.Marshal(out)
-	fmt.Println(string(line))
-	if err != nil {
-		return 1
-	}
-	return 0
-}
-
-func upgrade(path string) int {
-	changed, err := config.UpgradeFile(path)
-	out := struct {
-		OK       bool   `json:"ok"`
-		Migrated bool   `json:"migrated"`
-		Error    string `json:"error,omitempty"`
-	}{OK: err == nil, Migrated: changed, Error: errorText(err)}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
 	if err != nil {
@@ -167,10 +139,10 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 		for range reload {
 			next, err := config.LoadFile(filepath.Join(home, config.FileName), home)
 			if err == nil {
-				err = h.Reload(ctx, next)
+				err = h.Reload(next)
 			}
 			if err != nil {
-				slog.Error("config not reloaded", "err", err)
+				slog.Error("providers not reloaded", "err", err)
 			}
 			handshake.Reloaded(err)
 		}

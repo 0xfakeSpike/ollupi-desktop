@@ -18,12 +18,22 @@ function browserShim(): DesktopApi | undefined {
   const token = q.get('token')
   if (!url || !token) return undefined
   const state: BackendState = { status: 'ready', url, token, version: 'browser' }
+  const tokenProfile = token.slice(token.indexOf('.') + 1)
   return {
     info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '' }),
     backend: { state: async () => state, restart: async () => {}, onState: () => () => {} },
-    // The token is the one the browser was opened with; nothing can mint
-    // another here.
-    profile: { list: unavailable, create: unavailable, update: unavailable, configure: unavailable, delete: unavailable, select: unavailable },
+    // The token is the one the browser was opened with, and names the one
+    // profile this tab acts as; nothing can mint another here.
+    profile: {
+      list: async () => ({ data: [{ id: tokenProfile, name: '', color: 'stone' }], current: tokenProfile }),
+      create: unavailable,
+      update: unavailable,
+      delete: unavailable,
+      // The tab already acts as its token's profile; any other needs a token.
+      select: async (id: string) => {
+        if (id !== tokenProfile) unavailable()
+      },
+    },
     // A sidecar started by hand: the browser cannot reach its config file.
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
@@ -98,7 +108,7 @@ export const desktop: DesktopApi = window.desktop ??
     backend: { state: unavailable, restart: unavailable, onState: unavailable },
     config: { read: unavailable, apply: unavailable },
     skills: { list: unavailable, read: unavailable, create: unavailable, save: unavailable, import: unavailable, copy: unavailable, remove: unavailable, defaultFolder: unavailable },
-    profile: { list: unavailable, create: unavailable, update: unavailable, configure: unavailable, delete: unavailable, select: unavailable },
+    profile: { list: unavailable, create: unavailable, update: unavailable, delete: unavailable, select: unavailable },
     superAgentFolder: unavailable,
     attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
     files: { list: unavailable, read: unavailable, kind: unavailable },
