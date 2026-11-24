@@ -1,26 +1,24 @@
-# 多身份这版的发布清单
+# 发布清单
 
-版本：app `0.8.17-beta.5`，引擎 `v0.27.1`。
+版本：app `0.8.17-beta.6`，引擎 `v0.28.0`。
 
 ## 1. 引擎先出去
 
-```bash
-cd ~/Desktop/yiming/ollupi
-git push origin main
-git tag -a v0.27.1 -m "ollupi v0.27.1, the deployment serves the models and each user chooses among them"
-git push origin v0.27.1
-```
+引擎 `v0.28.0` 已推送（tag 在 origin 上）。这一版引擎：
 
-这一版引擎：模型目录归部署（`host.Config.Models`，`host.SetModels` 原地替换），去掉
-`host.Config.Users` 和 `host.SetUsers`；用户在 settings 里选新会话默认的模型和学记忆的模型
-（迁移 0017 加两列，`settings/update` 的 `model`、`learnModel`）。
+- 流式文本的 delta 带 `offset`（它在条目最终文本里的起点，按 UTF-16 计），客户端照它放，
+  重复、迟到的 delta 不再弄乱文本；之前一次回调同时有思考和正文时正文会丢，现在两条都发。
+- 存储读走只读连接池、写走单连接，写和事件排队，不再持锁通知。
+- 工作区搬家记在行里（迁移 0018，`WorkspaceRow.movingTo`），启动时收尾没搬完的。
+- 定时任务在任务变化和到点时醒，不再每分钟轮询。
 
 ## 2. 桌面端钉到新引擎
 
 ```bash
 cd ~/Desktop/yiming/ollupi-desktop/sidecar
-GOWORK=off go get github.com/0xfakeSpike/ollupi@v0.27.1
+GOWORK=off go get github.com/0xfakeSpike/ollupi@v0.28.0
 GOWORK=off go test -tags sqlite_fts5 ./...
+cd .. && pnpm protocol:generate && node packages/protocol/scripts/record-session.mjs
 ```
 
 ## 3. 打包
@@ -30,27 +28,26 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制里有新东西（0 就是没进去）：
+打完确认二进制是新引擎（第一行要是 v0.28.0，第二行 0 就是没进去）：
 
 ```bash
-grep -ac 'import-config' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
-grep -ac 'learnModel' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
+grep -ac 'movingTo' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.5 --prerelease --title "0.8.17-beta.5" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.6 --prerelease --title "0.8.17-beta.6" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
-- 首次启动后 `~/.ollupi/config.yaml` 只有 `providers` 和部署设置，没有 `credentials`、`profiles`、
-  `schema_version`；旁边有 `config.yaml.pre-import`，`~/.ollupi/profiles.json` 里身份的名称和颜色还在。
-- 每个身份的模型选择器列出全部模型，默认的还是它原来的第一个模型；记忆页的学习模型还是原来那个。
-- 设置 → 模型里加一个模型：后端不重启，所有身份的模型选择器里马上能选到。
-- 星标一个模型，再切到别的身份：那个身份的默认不变。
-- 新建身份并切过去：会话、工作区是空的，模型照常能用。
+- 长回答流式显示时文字不重复、不缺字；带思考的模型，思考和正文都边写边出。
+- 断网重连后正在写的回答接着显示，没有重复的段落。
+- 搬一个工作区，搬的途中退出再打开：搬家完成，工作区指向新位置。
+- 定时任务到点照常跑。
+- 从 beta.5 升上来：模型、身份、设置都还在。
 
 ## 这版的已知限制
 
