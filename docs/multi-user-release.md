@@ -1,31 +1,25 @@
 # 多身份这版的发布清单
 
-版本：app `0.8.17-beta.3`，引擎 `v0.26.6`。旧包（beta.2）连不上新后端，必须一起发。
+版本：app `0.8.17-beta.4`，引擎 `v0.27.0`。
 
 ## 1. 引擎先出去
 
 ```bash
 cd ~/Desktop/yiming/ollupi
 git push origin main
-git tag v0.26.6 && git push origin v0.26.6
+git tag -a v0.27.0 -m "ollupi v0.27.0, models swap in place, users can be deleted, recall follows the request"
+git push origin v0.27.0
 ```
 
-这一版引擎收紧身份边界：每个连接必须由一个已有 user id 认证，模型和记忆按 user 解析；
-Profile 的名称、颜色和 CRUD 留在 desktop，不进入 gateway。
+这一版引擎：`host.SetUsers` 原地替换各用户的模型；`Tx.DeleteUser` 删除一个空闲用户的全部数据；
+自动记忆召回按本轮请求的相关性排序。
 
 ## 2. 桌面端钉到新引擎
 
 ```bash
 cd ~/Desktop/yiming/ollupi-desktop/sidecar
-GOWORK=off go get github.com/0xfakeSpike/ollupi@v0.26.6
-# 代理不通时：GOPROXY=https://goproxy.cn
-git add go.mod go.sum && git commit -m "Follow ollupi v0.26.6"
-```
-
-确认模块真的带上了新东西（应能看到最新的 0016_usage_provider.sql）：
-
-```bash
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.26.6/store/sqlite/migrations/
+GOWORK=off go get github.com/0xfakeSpike/ollupi@v0.27.0
+GOWORK=off go test -tags sqlite_fts5 ./...
 ```
 
 ## 3. 打包
@@ -38,32 +32,32 @@ pnpm release
 打完确认二进制里有新方法（0 就是没进去）：
 
 ```bash
-grep -ac 'profile:select' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/ollupid 2>/dev/null || true
+grep -ac 'delete-profile' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/ollupid 2>/dev/null || true
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.3 --prerelease --title "0.8.17-beta.3" --notes-file - <<'NOTE'
-多身份（profiles）：侧栏底部新增身份菜单，可新建、切换、改名、换色。
-每个身份的会话、记忆、待办、工作区、权限和草稿都是自己的。
-每个身份有自己的模型与 API key：新建时继承一份，之后在设置 → 模型里各改各的。
-记忆按身份用自己的模型学习。
-飞书：不同 open_id 可以用 feishu.profiles 映射到不同身份。
-升级提示：这一版 config.yaml 统一使用 `profiles[]`；旧配置需要重写。
+gh release create v0.8.17-beta.4 --prerelease --title "0.8.17-beta.4" --notes-file - <<'NOTE'
+多个身份共用同一个 API key 时，共用同一套并发限制，不再各自跑满。
+config.yaml 有了版本号（schema v2）：API 账户写在 credentials[]，身份从中选择模型。
+旧配置首次启动时自动转换，原文件备份为 config.yaml.pre-v2；beta.3 的身份名称和颜色一并迁入。
+改模型、API key、记忆模型或新建身份不再重启后端，运行中的会话不受影响。
+可以删除身份（菜单 → 删除这个身份），连同它的会话、记忆、待办和文件。
+自动注入的记忆按当前请求挑选相关的，不再只看最近更新。
+“全局记忆”改称“此身份的所有会话”。
 NOTE
 ```
 
 ## 5. 装完自查
 
-- 侧栏底部能看到身份菜单，显示「我」；能新建一个身份并切过去。
-- 新身份里设置 → 模型显示的是它自己的 provider，改 key 不影响第一个身份。
-- 切回第一个身份，会话、待办、工作区都还在。
-- 飞书按人测试（如果配了 `feishu.profiles`）。
+- 首次启动后 `~/.ollupi/config.yaml` 带 `schema_version: 2`，旁边有 `config.yaml.pre-v2`；身份名称和颜色还在。
+- 设置 → 模型里加一个模型：后端不重启，模型选择器里马上能选到。
+- 新建身份并切过去；再切回来删除它，它的会话和记忆都不见了。
 
 ## 这版的已知限制
 
-- 身份不是安全边界：同一 macOS 账户下，数据文件互相可读；真隔离用系统账户。
-- 没有「删除身份」「导出/导入」——需求里没有，别当成漏做。
-- Profile 的显示名和颜色只保存在 desktop；引擎协议里不会出现 `user/color`。
-- 只发 P1–P3 与飞书映射；`docs/multi-user-design.md` 里有分期记录。
+- 身份不是本机上的安全边界：同一 macOS 账户下，各身份的文件互相可读。按身份分的 Box
+  是为云部署准备的调用边界。
+- API key 仍明文写在 config.yaml；Keychain 以后再做。
+- 工作区、沙箱、skills、slots、飞书的改动仍然重启后端。
