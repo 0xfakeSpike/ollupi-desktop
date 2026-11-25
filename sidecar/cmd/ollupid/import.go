@@ -15,34 +15,29 @@ import (
 	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
 )
 
-// ProfilesFile is the app's list of the profiles this home serves, with the
-// name and colour each is shown by: the app is the identity provider of this
-// deployment. It lives in the home so that it travels with the data.
+// ProfilesFile was the app's list of the profiles this home served, with the
+// name and colour each was shown by, before ollupi named its users.
 const ProfilesFile = "profiles.json"
 
 type profileEntry struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type profilesFile struct {
 	Profiles []profileEntry `json:"profiles"`
 }
 
-// profileColors are the colours the app shows a profile in; the first is the
-// one a profile without its own takes.
-var profileColors = []string{"stone", "amber", "teal", "violet", "rose", "sky"}
-
 // importLegacy takes apart an older config.yaml, once. One with a
 // workspace block: the block goes, as the workspace tools now always run as
 // ollupi sets them up (dropWorkspace). One that declared models per
 // profile: every model any profile ran becomes one of the deployment's
-// providers, in ollupi's catalog; each profile becomes a user whose
-// settings keep the model it started and learned with, and an entry in the
-// app's profiles.json, and the old file is kept beside the new one
-// (runImport). One that lists providers: they become the catalog
-// (importProviders). One that names a skills_dir: its skills are given to
+// providers, in ollupi's catalog; each profile becomes a user, named, whose
+// settings keep the model it started and learned with, and the old file is
+// kept beside the new one (runImport). One that lists providers: they
+// become the catalog (importProviders). A profiles.json in the home: its
+// profiles become users with their names, and the file goes
+// (importProfiles). One that names a skills_dir: its skills are given to
 // every profile in the store (importSkills). A config with none of these is
 // left alone. Every step can run again, so an import cut short finishes on
 // the next start.
@@ -55,6 +50,10 @@ func importLegacy(home, names string) int {
 	if err == nil {
 		providers, err = importProviders(home)
 	}
+	var named []string
+	if err == nil {
+		named, err = importProfiles(home)
+	}
 	var skills skillsImport
 	if err == nil {
 		skills, err = importSkills(home)
@@ -64,9 +63,10 @@ func importLegacy(home, names string) int {
 		Workspace bool         `json:"workspace,omitempty"`
 		Imported  []string     `json:"imported,omitempty"`
 		Providers []string     `json:"providers,omitempty"`
+		Profiles  []string     `json:"profiles,omitempty"`
 		Skills    skillsImport `json:"skills,omitzero"`
 		Error     string       `json:"error,omitempty"`
-	}{OK: err == nil, Workspace: workspace, Imported: imported, Providers: providers, Skills: skills, Error: errorText(err)}
+	}{OK: err == nil, Workspace: workspace, Imported: imported, Providers: providers, Profiles: named, Skills: skills, Error: errorText(err)}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
 	if err != nil {
@@ -121,6 +121,7 @@ func runImport(home, names string) ([]string, error) {
 		return nil, fmt.Errorf("%s without its profiles: %w", path, err)
 	}
 	served := account.Connections(catalog)
+	older := olderNames(names)
 	st, err := storesqlite.Open(home)
 	if err != nil {
 		return nil, err
@@ -130,6 +131,9 @@ func runImport(home, names string) ([]string, error) {
 			return err
 		}
 		for _, p := range profiles {
+			if p.Name == "" {
+				p.Name = older[p.ID]
+			}
 			if err := importProfile(tx, p, served); err != nil {
 				return fmt.Errorf("profile %s: %w", p.ID, err)
 			}
@@ -138,9 +142,6 @@ func runImport(home, names string) ([]string, error) {
 	})
 	st.Close()
 	if err != nil {
-		return nil, err
-	}
-	if err := keepProfiles(home, profiles, names); err != nil {
 		return nil, err
 	}
 	if err := os.WriteFile(path+".pre-import", raw, 0o600); err != nil {
@@ -196,6 +197,11 @@ func importProfile(tx store.Tx, p config.LegacyProfile, served []string) error {
 	if err := tx.EnsureUser(p.ID); err != nil {
 		return err
 	}
+	if name, err := account.UserName(p.Name); err == nil {
+		if err := tx.SetUserName(p.ID, name); err != nil {
+			return err
+		}
+	}
 	s, err := tx.Settings(p.ID)
 	if err != nil {
 		return err
@@ -209,44 +215,71 @@ func importProfile(tx store.Tx, p config.LegacyProfile, served []string) error {
 	return tx.SetSettings(p.ID, s)
 }
 
-// keepProfiles adds the imported profiles to the app's profiles.json, each
-// with the name and colour the config kept, or else the older profiles.json
-// of the app's own folder.
-func keepProfiles(home string, imported []config.LegacyProfile, names string) error {
-	path := filepath.Join(home, ProfilesFile)
-	var kept profilesFile
-	if raw, err := os.ReadFile(path); err == nil {
-		if err := json.Unmarshal(raw, &kept); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
+// olderNames are the names of the profiles.json 0.8.17-beta.3 kept in the
+// app's own folder, by id; none when it cannot be read.
+func olderNames(path string) map[string]string {
+	out := map[string]string{}
+	if path == "" {
+		return out
 	}
 	var older profilesFile
-	if names != "" {
-		if raw, err := os.ReadFile(names); err == nil {
-			// Names that cannot be read leave the profiles unnamed.
-			_ = json.Unmarshal(raw, &older)
+	if raw, err := os.ReadFile(path); err == nil && json.Unmarshal(raw, &older) == nil {
+		for _, e := range older.Profiles {
+			out[e.ID] = e.Name
 		}
 	}
-	for _, p := range imported {
-		if slices.ContainsFunc(kept.Profiles, func(e profileEntry) bool { return e.ID == p.ID }) {
-			continue
-		}
-		entry := profileEntry{ID: p.ID, Name: p.Name, Color: p.Color}
-		if i := slices.IndexFunc(older.Profiles, func(e profileEntry) bool { return e.ID == p.ID }); i >= 0 && entry.Name == "" && entry.Color == "" {
-			entry.Name, entry.Color = older.Profiles[i].Name, older.Profiles[i].Color
-		}
-		if !slices.Contains(profileColors, entry.Color) {
-			entry.Color = profileColors[0]
-		}
-		kept.Profiles = append(kept.Profiles, entry)
+	return out
+}
+
+// importProfiles makes every profile the home's profiles.json lists a user
+// of the store, named as the file names it (a name that does not check is
+// left out), then removes the file: from then on ollupi keeps the users and
+// their names, and the operator makes and names them over the gateway. It
+// says the profiles it took.
+func importProfiles(home string) ([]string, error) {
+	path := filepath.Join(home, ProfilesFile)
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
 	}
-	out, err := json.MarshalIndent(kept, "", "  ")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return writeAtomically(path, append(out, '\n'))
+	var listed profilesFile
+	if err := json.Unmarshal(raw, &listed); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	var ids []string
+	for _, e := range listed.Profiles {
+		if config.ProfileID.MatchString(e.ID) && !slices.Contains(ids, e.ID) {
+			ids = append(ids, e.ID)
+		}
+	}
+	st, err := storesqlite.Open(home)
+	if err != nil {
+		return nil, err
+	}
+	err = st.Update(context.Background(), func(tx store.Tx) error {
+		for _, e := range listed.Profiles {
+			if !slices.Contains(ids, e.ID) {
+				continue
+			}
+			if err := tx.EnsureUser(e.ID); err != nil {
+				return err
+			}
+			if name, err := account.UserName(e.Name); err == nil {
+				if err := tx.SetUserName(e.ID, name); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	st.Close()
+	if err != nil {
+		return nil, err
+	}
+	return ids, os.Remove(path)
 }
 
 func writeAtomically(path string, data []byte) error {

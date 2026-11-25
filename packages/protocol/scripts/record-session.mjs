@@ -147,6 +147,12 @@ await call('catalog/set', {
 })
 await call('catalog/set', { data: [{ id: 'a/b', api: 'openai', models: [{ name: 'x', limits: { context: 1000, output: 100 } }] }] }).catch(() => {})
 await call('model/list', {})
+await call('user/read', {})
+await call('user/update', { id: 'default', name: 'Me' })
+await call('user/list', {})
+const { user: made } = await call('user/create', { name: 'Work' })
+await call('user/update', { id: made.id, name: 'Office' })
+await call('user/create', { name: ' ' }).catch(() => {})
 await call('settings/read', {})
 // The user's MCP servers, one that cannot start beside it; each arrives as
 // mcpServer/changed.

@@ -59,7 +59,6 @@ export const en = {
     deleteConfirm: (name: string) => `Delete “${name}” and all of its conversations, memory and files?`,
     name: 'Name',
     namePlaceholder: 'e.g. Work',
-    color: 'Colour',
   },
   connection: {
     starting: 'Backend starting…',
@@ -170,7 +169,6 @@ export const zh: typeof en = {
     deleteConfirm: (name: string) => `删除“${name}”及其全部会话、记忆和文件？`,
     name: '名字',
     namePlaceholder: '例如：工作',
-    color: '颜色',
   },
   connection: {
     starting: '后端启动中…',

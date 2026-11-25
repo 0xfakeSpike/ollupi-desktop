@@ -16,12 +16,10 @@ import (
 // LegacyProfile is a profile a config from before declared, reduced to what
 // is still its own: the model its conversations started with and the one
 // that learned its memories (both now its choices in the store, among the
-// deployment's providers), and the name and colour 0.8.17-beta.4 kept beside
-// them.
+// deployment's providers), and the name 0.8.17-beta.4 kept beside them.
 type LegacyProfile struct {
 	ID         string
 	Name       string
-	Color      string
 	Model      string
 	LearnModel string
 }
@@ -127,7 +125,7 @@ func (c *catalog) fromCredentials(tree map[string]any) ([]LegacyProfile, error) 
 	var out []LegacyProfile
 	for _, raw := range list(tree["profiles"]) {
 		p := object(raw)
-		profile := LegacyProfile{ID: text(p["id"]), Name: strings.TrimSpace(text(p["name"])), Color: text(p["color"]), LearnModel: text(object(p["memory"])["model"])}
+		profile := LegacyProfile{ID: text(p["id"]), Name: strings.TrimSpace(text(p["name"])), LearnModel: text(object(p["memory"])["model"])}
 		if models := list(p["models"]); len(models) > 0 {
 			profile.Model = text(models[0])
 		}

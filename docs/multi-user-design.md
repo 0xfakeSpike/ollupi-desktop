@@ -8,8 +8,9 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
 
 | 层 | 内容 | 放在哪 |
 |---|---|---|
-| 部署（运营者） | 模型目录（provider 的地址、key、模型和上限）、名称、prompt、slots、工具、沙箱、skills | `config.yaml`，每个副本一样 |
-| 身份提供方 | 有哪些身份、名称和颜色；给连接签 token | 桌面主进程，`<home>/profiles.json` |
+| 部署（运营者） | 名称、prompt、slots、工具 | `config.yaml`，每个副本一样 |
+| 部署（运营者） | 模型目录（provider 的地址、key、模型和上限）；有哪些身份、各叫什么 | ollupi 的库，经网关由运营者的连接改 |
+| 身份提供方 | 给连接签 token | 桌面主进程，拿着网关和运营者的两个 secret |
 | 用户 | 新会话默认用哪个模型、学记忆用哪个模型、权限、MCP、记忆、会话 | ollupi 的库，经网关由本人的连接改 |
 | 设备 | 这台 Mac 上次选的身份、主题、语言 | `userData` |
 
@@ -52,31 +53,31 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
 
 - `gateway.Options.Token` 和默认的 token → `DefaultUser` 映射：`Authenticate` 成了必填项，
   构造时没有就直接报错。
-- 网关不再替任何连接 `EnsureUser`：用户由身份提供方开，ollupi 不猜。
+- 网关不再替任何连接 `EnsureUser`：用户由运营者开（`user/create`），ollupi 不猜。
 - 后端启动时给 `DefaultUser` 预热 MCP：改成遍历库里所有身份。
-- 全新 home 也有身份：`profiles.json` 不存在时主进程写入第一个身份（id `default`），
-  第一个连接就以它的名义开户。
+- 全新 home 也有身份：sidecar 启动时库里一个用户都没有，就建第一个（id `default`，
+  不起名），给它放自带技能。
 
 token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只放进后端的环境；
 渲染层拿到的是拼上身份的版本。没有身份、身份 id 不合法、secret 不对，一律
-`auth.ErrUnknownToken`。secret 只有主进程知道，所以带对 secret 的 token 就是身份提供方
-的担保：库里还没有这个用户时当场建，和云上分片第一次见到被分配来的用户一样。
+`auth.ErrUnknownToken`。身份还必须是库里已有的用户：token 不再顺手开户，
+不认识的身份同样回 `ErrUnknownToken`。
 
-### 1. 身份由主进程提供
+### 1. 身份是 ollupi 的用户
 
-- `users` 表只保留 `id` 和 `created_at`。有哪些身份、各自的名称和颜色，写在
-  `<home>/profiles.json`（跟数据一起走，整个 `~/.ollupi` 拷走还能用）；这台 Mac 上次选的
-  身份留在 `userData/profile.json`。
-- 新建身份只往 `profiles.json` 加一行；切过去时第一个连接让后端开户。新身份什么都是空的，
-  模型用平台的，不需要从别的身份复制什么。
-- 只能切到 `profiles.json` 里有的身份：token 会开户，主进程不给列表外的 id 签。
-- 网关不提供跨用户的 `user/list/create/rename/color`。当前连接已经由 token 命名，
-  普通客户端没有理由枚举或管理同一 shard 的其他用户。
+- `users` 表有 `id`、`name`、`created_at`（迁移 0022 加的 `name`，空就是还没起名，
+  界面显示成"我"）。颜色没有了。这台 Mac 上次选的身份留在 `userData/profile.json`。
+- 运营者的连接经网关管理身份：`user/list` 列出全部，`user/create {name}` 新建（id 是
+  新的 uuid，sidecar 经 `gateway.Options.Welcome` 给它放自带技能），`user/update {id, name}`
+  改名。普通连接只能 `user/read` 自己、给自己改名，改别人回 `forbidden`。改动发
+  `user/changed`：运营者连接收到每一个，普通连接只收到自己的。
+- 主进程不再保管身份列表。sidecar 的握手 `ready` 行带上库里所有身份的 id；这台 Mac
+  选的身份不在里面时，主进程退回第一个并记住它。后端的 `ready` 状态带着当前身份，
+  渲染层从这里知道自己是谁。
 - 删除 Profile：主进程先停后端，`ollupid --delete-profile` 在库里没有其他写者时
   删除 threads → entries/items/turns、memory、todo、cron、presence、usage、settings
-  和用户行；之后主进程把它从 `profiles.json` 去掉，删 attachment 目录和 `users/<id>`，
-  重启后端。它若还有未结束的轮次，或它是最后一个 Profile，
-  都拒绝删除。
+  和用户行；之后主进程删 attachment 目录和 `users/<id>`，重启后端。它若还有未结束的
+  轮次，或它是库里最后一个身份，`--delete-profile` 都拒绝删除。
 
 ### 2. 认证：token 里带着身份
 
@@ -138,7 +139,9 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
   后来者改名为 `名字-2`，那个身份的选择跟着改。provider 名字不变，旧会话记着的
   `provider/model` 照样能用。
 - 每个身份建用户，原来的第一个模型和记忆模型写进它的 settings。
-- 名称和颜色写进 `profiles.json`：beta.4 从配置里来，beta.3 从 `userData/profiles.json` 来。
+- 名字写进库里的 `users.name`：beta.4 从配置里来，beta.3 从 `userData/profiles.json` 来。
+- 0.8.17-beta.10 及以前的 `<home>/profiles.json`：里面的身份都建成库里的用户，名字写进
+  `users.name`（颜色不要了），再删掉这个文件。
 - beta.5 到 beta.9 的 `config.yaml` 顶层写着 `providers`：整份写进库里的目录，再从文件里
   删掉这一项。
 - 原文件留作 `config.yaml.pre-import`，新文件保留其余部分和注释。每一步都能重跑，
@@ -146,7 +149,7 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
 
 ### 5. 渲染层
 
-- 设置的第一个分类"身份"（现在这样实现）：列出所有身份、切换、新建（起名 + 选颜色）、编辑名字和颜色、删除不在用的；侧栏底部的设置胶囊带当前身份的颜色圆点。
+- 设置的第一个分类"身份"（现在这样实现）：运营者连接列出所有身份、切换、新建（起名）、改名、删除不在用的；普通连接只看到自己，可以改自己的名字。
 - **切换 = 重连**：先清空每个 profile-scoped domain 的 store，再用新 token 连接
   （threads、workspaces、todos、memory、usage、models、read state）。
   `resetForProfile()` 同时清掉当前 conversation、panel、model、environment 和 approval。
@@ -163,7 +166,7 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
 |---|---|---|
 | P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
-| P3 | （已完成）模型目录归部署（存在 ollupi 的库里，运营者经网关 `catalog/set` 改，宿主跟着库的改动换客户端）；身份只在库里选默认模型和记忆模型；`profiles.json` 归主进程，token 首次使用即开户；旧配置一次性导入 | 所有身份用同一份模型目录，各自选默认和记忆模型；改目录不中断正在跑的轮次 |
+| P3 | （已完成）模型目录归部署（存在 ollupi 的库里，运营者经网关 `catalog/set` 改，宿主跟着库的改动换客户端）；身份只在库里选默认模型和记忆模型；身份是库里的用户（带名字），运营者经网关建和改名，token 只认库里已有的身份；旧配置和 `profiles.json` 一次性导入 | 所有身份用同一份模型目录，各自选默认和记忆模型；改目录不中断正在跑的轮次 |
 
 模型目录是部署的，每个 Profile 只在里面选。引擎 API 变化要发新 tag，并在桌面端 bump `go.mod`。
 

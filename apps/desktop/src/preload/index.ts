@@ -24,9 +24,6 @@ const api: DesktopApi = {
     import: () => ipcRenderer.invoke(IpcChannel.SkillsImport),
   },
   profile: {
-    list: () => ipcRenderer.invoke(IpcChannel.ProfileList),
-    create: (name, color) => ipcRenderer.invoke(IpcChannel.ProfileCreate, name, color),
-    update: (id, name, color) => ipcRenderer.invoke(IpcChannel.ProfileUpdate, id, name, color),
     delete: (id) => ipcRenderer.invoke(IpcChannel.ProfileDelete, id),
     select: (id) => ipcRenderer.invoke(IpcChannel.ProfileSelect, id),
   },

@@ -18,7 +18,7 @@ import { TempAttachments } from './attachments'
 import { WorkspaceChanges } from './changes'
 import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
-import { activeProfile, listProfiles } from './profile'
+import { activeProfile, rememberProfile } from './profile'
 import { registerAppScheme, serveRenderer } from './protocol'
 import { Presence } from './presence/presence'
 import { AppUpdater, bundleOf } from './update'
@@ -49,6 +49,9 @@ if (!app.requestSingleInstanceLock()) {
     binary: backendBinary(),
     home,
     profile: activeProfile(),
+    // A saved choice the store no longer holds falls back to its first
+    // profile, which is then the choice.
+    remember: rememberProfile,
     allowOrigins: [APP_HOST],
     env,
     logFile: backendLog,
@@ -90,12 +93,10 @@ if (!app.requestSingleInstanceLock()) {
       return target ? remoteSources(target) : []
     })
     void attachments.clear()
-    // An older config.yaml's profiles move into the store before anything
-    // reads it, and the first token names a profile the home lists, not a
-    // stale saved choice. A failed import is the backend's to report: it
+    // An older config.yaml and profiles.json move into the store before the
+    // backend reads them. A failed import is the backend's to report: it
     // will not start on that file.
     await config.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
-    backend.selectProfile(listProfiles(home).current)
     registerIpc(backend, remote, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.

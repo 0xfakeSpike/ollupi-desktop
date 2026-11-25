@@ -24,6 +24,9 @@ export interface SupervisorOptions {
    * by a profile, and this app is also the operator of the backend it runs,
    * which sets the models every profile chooses among. */
   profile: string
+  /** Keeps the profile the window acts as when the store no longer holds
+   * the one chosen, and the first it holds stands in. */
+  remember(profile: string): void
   allowOrigins: string[]
   env(): Promise<NodeJS.ProcessEnv>
   /** Where the backend's log lines go (ollupi logs ids and numbers, never
@@ -44,6 +47,8 @@ interface Handshake {
   version?: string
   message?: string
   configPath?: string
+  /** The profiles the store holds. */
+  profiles?: string[]
 }
 
 const HANDSHAKE_TIMEOUT_MS = 30_000
@@ -91,7 +96,8 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     const target = await this.opts.remote()
     if (target) {
       this.target = target
-      this.set({ status: 'ready', url: target.url, token: target.token, version: '' })
+      // A remote's token names its profile, as whoever runs it gave it.
+      this.set({ status: 'ready', url: target.url, token: target.token, profile: target.token.slice(target.token.indexOf('.') + 1), version: '' })
       return
     }
     // The gateway's secret makes a connection a user only; nothing here
@@ -101,7 +107,6 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     const secret = randomBytes(32).toString('hex')
     this.secret = secret
     const env = { ...(await this.opts.env()), OLLUPI_GATEWAY_TOKEN: randomBytes(32).toString('hex'), OLLUPI_OPERATOR_TOKEN: secret }
-    const token = this.tokenFor(this.profile)
     const args = ['--home', this.opts.home, '--watch-stdin']
     if (this.opts.allowOrigins.length) args.push('--allow-origin', this.opts.allowOrigins.join(','))
 
@@ -125,7 +130,14 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
       if (!msg) return remember(line)
       handshaken = true
       clearTimeout(timer)
-      if (msg.type === 'ready' && msg.url) this.set({ status: 'ready', url: msg.url, token, version: msg.version ?? '' })
+      if (msg.type === 'ready' && msg.url) {
+        const held = msg.profiles ?? []
+        if (held.length && !held.includes(this.profile)) {
+          this.profile = held[0]!
+          this.opts.remember(this.profile)
+        }
+        this.set({ status: 'ready', url: msg.url, token: this.tokenFor(this.profile), profile: this.profile, version: msg.version ?? '' })
+      }
       else this.fail({ kind: 'reported', message: msg.message }, msg.configPath)
     })
     child.on('error', (err) => {
@@ -155,7 +167,7 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     this.profile = profile
     // A remote's token names its profile, as whoever runs it gave it.
     if (this.current.status !== 'ready' || this.target) return
-    this.set({ ...this.current, token: this.tokenFor(profile) })
+    this.set({ ...this.current, token: this.tokenFor(profile), profile })
   }
 
   /** After a connection to the remote failed: a refusal there is no

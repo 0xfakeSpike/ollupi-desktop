@@ -5,7 +5,7 @@ import type { Attention } from './signals'
 
 vi.mock('electron', () => ({}))
 
-const ready: BackendState = { status: 'ready', url: 'ws://localhost:1/', token: 't', version: '0' }
+const ready: BackendState = { status: 'ready', url: 'ws://localhost:1/', token: 't', profile: 'default', version: '0' }
 const thread: PresenceContext = { threadId: 't1', workspaceId: 'w1' }
 
 /** A backend that says when it is up, without a process behind it. */

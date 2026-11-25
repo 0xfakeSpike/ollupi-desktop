@@ -84,12 +84,10 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	// The store is the host's, made below; a call reaches this only once
 	// it is.
 	var st store.Store
-	// Every connection names its profile: the token is the secret the app
-	// started the backend with and the profile, joined by a dot. The app is
-	// this deployment's identity provider, and only it holds the secret, so a
-	// token it made vouches for the profile: one the store has not seen yet is
-	// made then, as a cloud shard makes a user placed on it. There is no
-	// anonymous connection.
+	// Every connection names its profile: the token is a secret the backend
+	// was started with and the profile, joined by a dot. The profile must be
+	// a user of the store; the operator makes users (user/create), and the
+	// first one is made at start. There is no anonymous connection.
 	var users *app.App
 	authenticate := func(ctx context.Context, token string) (auth.Identity, error) {
 		return profileOf(ctx, token, opts.Token, opts.OperatorToken, st, users)
@@ -143,15 +141,27 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
 		Hub:     true,
-		Gateway: &gateway.Options{Authenticate: authenticate, AllowedOrigins: opts.AllowedOrigins},
+		Gateway: &gateway.Options{
+			Authenticate: authenticate,
+			// A user the operator makes starts with the skills the desktop
+			// ships.
+			Welcome:        func(ctx context.Context, user string) error { return giveStarterSkills(ctx, users, user) },
+			AllowedOrigins: opts.AllowedOrigins,
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
 	h.closers = append(h.closers, h.ollupi.Close)
 	st, users = h.ollupi.Store, h.ollupi.App
+	if err := firstProfile(ctx, st, users); err != nil {
+		return nil, err
+	}
 	return h, nil
 }
+
+// Profiles are the users of the store, by id.
+func (h *Host) Profiles(ctx context.Context) []string { return Profiles(ctx, h.ollupi.Store) }
 
 // Serve serves the gateway on ln and runs ollupi's flows until ctx ends or
 // one of them fails, then releases the store.
@@ -163,7 +173,7 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 	// Each profile's MCP servers connect and list their tools now rather
 	// than in the first turn; one that cannot is skipped, and mcpServer/list
 	// says why.
-	for _, user := range profiles(ctx, h.ollupi.Store) {
+	for _, user := range Profiles(ctx, h.ollupi.Store) {
 		g.Go(func() error {
 			h.ollupi.Users.Tools(ctx, user)
 			return nil
@@ -233,10 +243,9 @@ func (b *userBoxes) Close() error {
 }
 
 // profileOf names the profile a connection's token acts as: a secret the
-// backend was started with, a dot, the profile. The gateway's secret makes
-// it a user; the operator's makes it the deployment's operator as well. The
-// secrets are the app's alone, so the profile a token names is made if the
-// store has not seen it, with the skills the desktop ships.
+// backend was started with, a dot, the profile, which must be a user of the
+// store. The gateway's secret makes it a user; the operator's makes it the
+// deployment's operator as well.
 func profileOf(ctx context.Context, token, secret, operator string, st store.Store, users *app.App) (auth.Identity, error) {
 	given, profile, ok := strings.Cut(token, ".")
 	if !ok || !config.ProfileID.MatchString(profile) || st == nil || users == nil {
@@ -251,16 +260,26 @@ func profileOf(ctx context.Context, token, secret, operator string, st store.Sto
 	default:
 		return auth.Identity{}, auth.ErrUnknownToken
 	}
-	if slices.Contains(profiles(ctx, st), profile) {
-		return id, nil
-	}
-	if err := users.EnsureUser(ctx, profile); err != nil {
-		return auth.Identity{}, fmt.Errorf("profile %s: %w", profile, err)
-	}
-	if err := giveStarterSkills(ctx, users, profile); err != nil {
-		return auth.Identity{}, fmt.Errorf("profile %s: %w", profile, err)
+	if !slices.Contains(Profiles(ctx, st), profile) {
+		return auth.Identity{}, auth.ErrUnknownToken
 	}
 	return id, nil
+}
+
+// FirstProfile is the profile a home starts with.
+const FirstProfile = "default"
+
+// firstProfile makes a home without users its first, unnamed, with the
+// skills the desktop ships: the app connects as it until the operator makes
+// others.
+func firstProfile(ctx context.Context, st store.Store, users *app.App) error {
+	if len(Profiles(ctx, st)) > 0 {
+		return nil
+	}
+	if err := users.EnsureUser(ctx, FirstProfile); err != nil {
+		return err
+	}
+	return giveStarterSkills(ctx, users, FirstProfile)
 }
 
 // giveStarterSkills gives a new profile the skills the desktop ships.
@@ -277,8 +296,8 @@ func giveStarterSkills(ctx context.Context, users *app.App, profile string) erro
 	return nil
 }
 
-// profiles lists the users the store holds.
-func profiles(ctx context.Context, st store.Store) []string {
+// Profiles lists the users the store holds.
+func Profiles(ctx context.Context, st store.Store) []string {
 	var users []string
 	_ = st.Read(ctx, func(r store.Reader) error {
 		var err error

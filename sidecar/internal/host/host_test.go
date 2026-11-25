@@ -109,25 +109,29 @@ func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
 	}
 }
 
-func TestATokenMadeWithTheSecretVouchesForItsProfile(t *testing.T) {
+func TestATokenMadeWithASecretVouchesForAProfileTheStoreHolds(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, minimal)})
+	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer h.close()
+	work, err := h.ollupi.App.CreateUser(ctx, "Work")
+	if err != nil {
+		t.Fatal(err)
+	}
 	cases := []struct {
 		token string
 		want  auth.Identity
 	}{
 		{"secret.default", auth.Identity{User: "default"}},               // the profile a fresh home starts with
-		{"secret.work", auth.Identity{User: "work"}},                     // one the app made since: it is made now
+		{"secret." + work.ID, auth.Identity{User: work.ID}},              // one the operator made
 		{"boss.default", auth.Identity{User: "default", Operator: true}}, // the operator's secret
+		{"secret.stranger", auth.Identity{}},                             // a profile the store does not hold is not made
 		{"default", auth.Identity{}},                                     // no secret, so no profile
 		{"other.default", auth.Identity{}},                               // the wrong secret
-		{"other.stranger", auth.Identity{}},                              // the wrong secret makes no one
 		{"secret.", auth.Identity{}},                                     // no profile named
 		{"secret.a/b", auth.Identity{}},                                  // not a profile id
 	}
@@ -137,24 +141,20 @@ func TestATokenMadeWithTheSecretVouchesForItsProfile(t *testing.T) {
 			t.Errorf("profileOf(%q) = %+v, %v; want %+v", c.token, got, err, c.want)
 		}
 	}
-	if users := profiles(ctx, h.ollupi.Store); !slices.Equal(users, []string{"default", "work"}) {
+	if users := h.Profiles(ctx); len(users) != 2 || !slices.Contains(users, "default") || !slices.Contains(users, work.ID) {
 		t.Fatalf("users = %v", users)
 	}
 }
 
-func TestANewProfileHasTheSkillsTheDesktopShips(t *testing.T) {
+func TestTheFirstProfileHasTheSkillsTheDesktopShips(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	h, err := New(ctx, Options{Home: home, Token: "secret", Config: load(t, home, minimal)})
+	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.close()
-	if _, err := profileOf(ctx, "secret.default", "secret", "boss", h.ollupi.Store, h.ollupi.App); err != nil {
-		t.Fatal(err)
-	}
-	list, _, err := h.ollupi.App.Skills(ctx, "default")
+	list, _, err := h.ollupi.App.Skills(ctx, FirstProfile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,14 +165,17 @@ func TestANewProfileHasTheSkillsTheDesktopShips(t *testing.T) {
 	if got := list[i]; !slices.Equal(slices.Sorted(slices.Values(got.Roles)), slices.Sorted(slices.Values(skills.Roles))) || len(got.Resources) == 0 {
 		t.Fatalf("the starter skill is %+v", got)
 	}
-	// A skill the profile removed stays removed on its next connection.
-	if err := h.ollupi.App.DeleteSkill(ctx, "default", "zhou-shenghua-woodcut-style"); err != nil {
+	// A skill the profile removed stays removed when the backend starts again.
+	if err := h.ollupi.App.DeleteSkill(ctx, FirstProfile, "zhou-shenghua-woodcut-style"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := profileOf(ctx, "secret.default", "secret", "boss", h.ollupi.Store, h.ollupi.App); err != nil {
+	h.close()
+	h, err = New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if list, _, _ := h.ollupi.App.Skills(ctx, "default"); len(list) != 0 {
+	defer h.close()
+	if list, _, _ := h.ollupi.App.Skills(ctx, FirstProfile); len(list) != 0 {
 		t.Fatalf("skills = %+v", list)
 	}
 }
@@ -186,16 +189,15 @@ func TestTheOperatorSetsTheModelsEveryProfileRunsOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer h.close()
-	for _, profile := range []string{"default", "work"} {
-		if _, err := profileOf(ctx, "secret."+profile, "secret", "boss", h.ollupi.Store, h.ollupi.App); err != nil {
-			t.Fatal(err)
-		}
+	work, err := h.ollupi.App.CreateUser(ctx, "Work")
+	if err != nil {
+		t.Fatal(err)
 	}
 	catalog := []account.ModelProvider{{ID: "q", API: account.Anthropic, APIKey: "k", Models: []account.ProviderModel{{Name: "n", Limits: llm.Limits{Context: 1000, Output: 100}}}}}
 	if err := h.ollupi.App.SetCatalog(ctx, catalog); err != nil {
 		t.Fatal(err)
 	}
-	for _, profile := range []string{"default", "work"} {
+	for _, profile := range []string{FirstProfile, work.ID} {
 		models, first, _, err := h.ollupi.App.Models(ctx, profile)
 		if err != nil || len(models) != 1 || first != "q/n" {
 			t.Fatalf("%s runs %+v from %q, %v", profile, models, first, err)

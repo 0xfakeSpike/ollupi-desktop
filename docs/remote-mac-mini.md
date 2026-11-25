@@ -84,7 +84,8 @@ ollupi 本身不用改：
 - 不要加 `--watch-stdin`。这个参数让 ollupid 在 stdin 关闭时退出，是桌面端管理本机 sidecar 时用的；launchd 下 stdin 一开始就是关着的，加了会立即退出。
 - `--listen` 只监听 `127.0.0.1`，外面只能经 cloudflared 进来。
 - launchd 给的环境很少，agent 跑命令要用到的工具目录需要写进 `PATH`。
-- 两个 token 都用随机串（比如 `openssl rand -hex 32`），而且不能相同。`<token>.<身份>` 连上来只是这个身份；`<operator-token>.<身份>` 连上来同时是运营者，可以改所有身份共用的模型。只给自己用的那台桌面端填运营者 token，给别人的只给普通 token。
+- 两个 token 都用随机串（比如 `openssl rand -hex 32`），而且不能相同。`<token>.<身份>` 连上来只是这个身份；`<operator-token>.<身份>` 连上来同时是运营者，可以改所有身份共用的模型，也可以新建身份、给身份改名。只给自己用的那台桌面端填运营者 token，给别人的只给普通 token。
+- 第一次启动时库里没有身份，ollupid 会建一个 `default`。别的身份由运营者在 设置 → 身份 里新建，id 是新的 uuid，在那里能看到；token 只认库里已有的身份。
 - plist 里有 token 明文，权限收紧：`chmod 600 ~/Library/LaunchAgents/com.ollupi.ollupid.plist`。
 
 加载并启动：
@@ -213,7 +214,7 @@ curl -i -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" -H
 | 字段 | 填什么 |
 | --- | --- |
 | 地址 | `wss://ollupi.example.com` |
-| 网关 token | `<token>.<profile>`，比如 `<token>.default`。点后面是在远程上用哪个身份；身份不存在时，远程第一次连上会建一个 |
+| 网关 token | `<token>.<profile>`，比如 `<token>.default`。点后面是在远程上用哪个身份，必须是远程库里已有的；新身份由运营者先建好 |
 | Access Client ID / Secret | 第 3 步的服务令牌 |
 
 保存后窗口会刷新并连到远程。连着远程时，本机不运行后端；关掉开关再保存就回到本机的后端。
@@ -236,6 +237,6 @@ WebSocket 握手失败时，页面只能拿到 1006 这个关闭码。为了区�
 ## 远程模式下的限制
 
 - 模型服务和 `config.yaml` 里的其他设置属于 Mac mini，在 Mac mini 上编辑（见上文“模型”）。桌面端的「设置 → 通用」里打开的 `config.yaml` 和后端日志都是本机的。
-- 身份由网关 token 里的 profile 决定。「设置 → 身份」列出的是本机的身份，在那里切换不会改变连接用的身份；要换身份就改 token 里点后面的部分。
+- 身份由网关 token 里的 profile 决定。用运营者 token 时，「设置 → 身份」列出的是远程的身份，可以新建、改名，但切换不会改变连接用的身份；要换身份就改 token 里点后面的部分。用普通 token 时只看到自己。
 - 文件面板、终端、Git 改动这些面板操作的是 MacBook 上的路径，而远程工作区的路径在 Mac mini 上，所以这些面板在远程模式下用不上。
 - agent 的浏览器工具连的是桌面端的内置浏览器。launchd 启动的 ollupid 没有这个浏览器，浏览器工具用不了。

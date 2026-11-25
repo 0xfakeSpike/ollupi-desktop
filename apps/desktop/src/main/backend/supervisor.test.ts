@@ -19,6 +19,7 @@ describe('BackendSupervisor', () => {
     home: dir,
     profile: 'default',
     allowOrigins: [],
+    remember: () => {},
     env: async () => process.env,
     logFile: join(dir, 'backend.log'),
     remote: async () => remote,
@@ -69,6 +70,23 @@ exec cat >/dev/null
     while (backend.state.status !== 'ready') await once(backend, 'state')
   }
 
+  it('stands in the first profile the store holds for a choice it no longer does', async () => {
+    const binary = join(dir, 'ollupid')
+    await writeFile(binary, `#!/bin/sh
+echo '{"type":"ready","url":"ws://127.0.0.1:1/","profiles":["a1","b2"]}'
+exec cat >/dev/null
+`)
+    await chmod(binary, 0o755)
+    const remembered: string[] = []
+    const backend = new BackendSupervisor({ ...options(binary), profile: 'gone', remember: (p) => remembered.push(p) })
+    await backend.start()
+    await ready(backend)
+    expect(backend.state).toMatchObject({ status: 'ready', profile: 'a1' })
+    expect(backend.state.status === 'ready' && backend.state.token.endsWith('.a1')).toBe(true)
+    expect(remembered).toEqual(['a1'])
+    await backend.stop()
+  })
+
   it('hands the window a token made with the operator secret, not the gateway one', async () => {
     const binary = join(dir, 'ollupid')
     const secrets = join(dir, 'secrets')
@@ -94,7 +112,7 @@ exec cat >/dev/null
   it('runs nothing for a remote, and hands out its address and token', async () => {
     const backend = new BackendSupervisor(options(join(dir, 'missing'), remote))
     await backend.start()
-    expect(backend.state).toEqual({ status: 'ready', url: remote.url, token: remote.token, version: '' })
+    expect(backend.state).toEqual({ status: 'ready', url: remote.url, token: remote.token, profile: 'home', version: '' })
     // The remote's token names its profile; switching here does not change it.
     backend.selectProfile('work')
     expect(backend.state).toMatchObject({ token: 'secret.home' })

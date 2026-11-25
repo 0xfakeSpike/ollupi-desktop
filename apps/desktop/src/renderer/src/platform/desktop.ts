@@ -17,8 +17,8 @@ function browserShim(): DesktopApi | undefined {
   const url = q.get('gateway')
   const token = q.get('token')
   if (!url || !token) return undefined
-  const state: BackendState = { status: 'ready', url, token, version: 'browser' }
   const tokenProfile = token.slice(token.indexOf('.') + 1)
+  const state: BackendState = { status: 'ready', url, token, profile: tokenProfile, version: 'browser' }
   return {
     info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '', userHome: '' }),
     backend: { state: async () => state, restart: async () => {}, check: async () => {}, onState: () => () => {} },
@@ -26,9 +26,6 @@ function browserShim(): DesktopApi | undefined {
     // The token is the one the browser was opened with, and names the one
     // profile this tab acts as; nothing can mint another here.
     profile: {
-      list: async () => ({ data: [{ id: tokenProfile, name: '', color: 'stone' }], current: tokenProfile }),
-      create: unavailable,
-      update: unavailable,
       delete: unavailable,
       // The tab already acts as its token's profile; any other needs a token.
       select: async (id: string) => {
@@ -108,7 +105,7 @@ export const desktop: DesktopApi = window.desktop ??
     backend: { state: unavailable, restart: unavailable, check: unavailable, onState: unavailable },
     remote: { read: unavailable, save: unavailable },
     skills: { import: unavailable },
-    profile: { list: unavailable, create: unavailable, update: unavailable, delete: unavailable, select: unavailable },
+    profile: { delete: unavailable, select: unavailable },
     superAgentFolder: unavailable,
     attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
     files: { list: unavailable, read: unavailable, kind: unavailable },

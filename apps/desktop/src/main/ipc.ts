@@ -5,9 +5,9 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
-import { activeProfile, createProfile, listProfiles, rememberProfile, removeProfile, updateProfile } from './profile'
+import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
@@ -64,28 +64,19 @@ export function registerIpc(
     const source = await pickDirectory(event.sender, false)
     return source === undefined ? undefined : skills.read(source)
   })
-  ipcMain.handle(IpcChannel.ProfileList, () => listProfiles(home))
-  // A new profile starts with nothing of another's: its models and keys are
-  // its own, added in its settings once the window acts as it.
-  ipcMain.handle(IpcChannel.ProfileCreate, (_event, name: unknown, color: unknown) => createProfile(home, text(name), profileColor(color)))
-  ipcMain.handle(IpcChannel.ProfileUpdate, (_event, profile: unknown, name: unknown, color: unknown) =>
-    updateProfile(home, profileID(profile), text(name), profileColor(color)))
   ipcMain.handle(IpcChannel.ProfileDelete, async (_event, profile: unknown) => {
     const id = profileID(profile)
     if (id === activeProfile()) throw new Error('switch away from a profile before deleting it')
-    if (listProfiles(home).data.length <= 1) throw new Error('the last profile cannot be deleted')
+    // The backend refuses the last profile, and one with a turn running.
     const threads = await config.deleteProfile(id)
-    removeProfile(home, id)
     await Promise.all(threads.map((thread) => rm(join(home, 'attachments', thread), { recursive: true, force: true })))
     await rm(join(home, 'users', id), { recursive: true, force: true })
   })
   // The profile the window acts as: the choice is kept for the next start,
-  // and the backend's next connection is named by it.
+  // and the backend's next connection is named by it. The backend refuses a
+  // token for a profile its store does not hold.
   ipcMain.handle(IpcChannel.ProfileSelect, (_event, profile: unknown) => {
     const id = profileID(profile)
-    // A token makes the backend's user of the profile it names, so only a
-    // profile the home lists is one to act as.
-    if (!listProfiles(home).data.some((p) => p.id === id)) throw new Error('profile not found')
     rememberProfile(id)
     backend.selectProfile(id)
   })
@@ -271,13 +262,8 @@ function texts(value: unknown): string[] {
  * this name, so it holds no separator and no dot-dot. */
 function profileID(value: unknown): string {
   const id = text(value)
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error('not a profile id')
+  if (!PROFILE_ID.test(id)) throw new Error('not a profile id')
   return id
-}
-
-function profileColor(value: unknown): ProfileColor {
-  if (typeof value !== 'string' || !(profileColorNames as readonly string[]).includes(value)) throw new Error('not a profile colour')
-  return value as ProfileColor
 }
 
 function text(value: unknown): string {

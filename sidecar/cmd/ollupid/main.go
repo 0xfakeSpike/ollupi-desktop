@@ -70,14 +70,21 @@ func main() {
 }
 
 // deleteProfileData deletes a profile's conversations, memories and settings
-// from the store, while no backend has it open; the app then forgets the
-// profile and removes its folders. It refuses while one of its turns is in
+// from the store, while no backend has it open; the app then removes its
+// folders. It refuses the last profile, and while one of its turns is in
 // progress or queued.
 func deleteProfileData(home, id string) int {
 	var threads []string
 	st, err := storesqlite.Open(home)
 	if err == nil {
 		err = st.Update(context.Background(), func(tx store.Tx) error {
+			users, err := tx.Users()
+			if err != nil {
+				return err
+			}
+			if len(users) == 1 && users[0] == id {
+				return errors.New("the last profile cannot be deleted")
+			}
 			threads, err = tx.DeleteUser(id)
 			return err
 		})
@@ -131,7 +138,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 
 	// Ready only once the backend is built, so a start failure is reported
 	// as fatal rather than after a ready line.
-	handshake.Ready(fmt.Sprintf("ws://%s/", ln.Addr()), version())
+	handshake.Ready(fmt.Sprintf("ws://%s/", ln.Addr()), version(), h.Profiles(ctx))
 	return h.Serve(ctx, ln)
 }
 

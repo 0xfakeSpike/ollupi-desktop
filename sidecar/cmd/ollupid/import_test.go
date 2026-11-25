@@ -82,3 +82,34 @@ func TestImportMakesTheProvidersTheCatalog(t *testing.T) {
 		t.Fatalf("again: %v, %v", again, err)
 	}
 }
+
+func TestImportNamesTheUsersOfProfilesJSONAndRemovesIt(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ProfilesFile)
+	listed := `{"profiles":[{"id":"default","name":"","color":"sky"},{"id":"work","name":" Office ","color":"teal"},{"id":"a/b","name":"bad"}]}`
+	if err := os.WriteFile(path, []byte(listed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	took, err := importProfiles(home)
+	if err != nil || !slices.Equal(took, []string{"default", "work"}) {
+		t.Fatalf("took %v, %v", took, err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("profiles.json is still there: %v", err)
+	}
+	st, err := storesqlite.Open(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	var users []account.User
+	if err := st.Read(context.Background(), func(r store.Reader) (err error) { users, err = r.UserList(); return err }); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(users, []account.User{{ID: "default"}, {ID: "work", Name: "Office"}}) {
+		t.Fatalf("users %+v", users)
+	}
+	if again, err := importProfiles(home); err != nil || again != nil {
+		t.Fatalf("again: %v, %v", again, err)
+	}
+}

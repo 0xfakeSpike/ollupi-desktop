@@ -205,7 +205,7 @@ profiles:
   - id: work
     models: [openai/a]
 ` + tail,
-			profiles:  []LegacyProfile{{ID: "default", Name: "Me", Color: "teal", Model: "openai/b", LearnModel: "openai/a"}, {ID: "work", Model: "openai/a"}},
+			profiles:  []LegacyProfile{{ID: "default", Name: "Me", Model: "openai/b", LearnModel: "openai/a"}, {ID: "work", Model: "openai/a"}},
 			providers: map[string][]string{"openai": {"a", "b"}}},
 	}
 	for name, c := range cases {

@@ -8,7 +8,8 @@ import type { AgentRole, PresenceInput } from '@ollupi/protocol'
 /** The backend process as the supervisor sees it. */
 export type BackendState =
   | { status: 'starting' }
-  | { status: 'ready'; url: string; token: string; version: string }
+  /** profile is the one the token names, which the window acts as. */
+  | { status: 'ready'; url: string; token: string; profile: string; version: string }
   | { status: 'failed'; failure: BackendFailure; configPath: string | undefined; log: string }
   | { status: 'stopped' }
 
@@ -67,21 +68,11 @@ export interface AppInfo {
 export const apiTypes = ['openai', 'anthropic', 'gemini'] as const
 export type ApiType = (typeof apiTypes)[number]
 
-/** A profile as the desktop presents it. The id scopes Ollupi's data and is
- * declared in config.yaml; the name and colour belong only to this app. */
+/** A profile: a user of ollupi's store, its id the one a token names and
+ * its name the one people see it by, empty until someone names it. */
 export interface Profile {
   id: string
   name: string
-  color: string
-}
-
-export const profileColorNames = ['stone', 'amber', 'teal', 'violet', 'rose', 'sky'] as const
-export type ProfileColor = (typeof profileColorNames)[number]
-
-/** The profiles the app knows and the one this window acts as. */
-export interface ProfileSnapshot {
-  data: Profile[]
-  current: string
 }
 
 /** One model an API lists, with those of its limits the API says. */
@@ -346,18 +337,11 @@ export interface DesktopApi {
     import(): Promise<SkillFolder | undefined>
   }
   /** The profile the window acts as. A connection is always one: there is
-   * no anonymous one to fall back to. */
+   * no anonymous one to fall back to. The profiles themselves are ollupi's
+   * users, which the operator lists, makes and names over the gateway. */
   profile: {
-    /** The profiles the home lists (its profiles.json), with this Mac's
-     * current choice. */
-    list(): Promise<ProfileSnapshot>
-    /** Adds a profile to the list. It starts with no models: its own are
-     * added through the gateway once the window acts as it. */
-    create(name: string, color: ProfileColor): Promise<Profile>
-    /** Renames or recolours a profile; nothing restarts. */
-    update(id: string, name: string, color: ProfileColor): Promise<Profile>
-    /** Deletes a non-current profile: its data in the store, its files and
-     * its place in the list. The backend stops while the store changes. */
+    /** Deletes a non-current profile: its data in the store and its files.
+     * The backend stops while the store changes; it refuses the last. */
     delete(id: string): Promise<void>
     /** Makes a profile the window's: its connection reconnects as it, and a
      * restart opens as it. */
@@ -537,9 +521,6 @@ export const IpcChannel = {
   RemoteRead: 'remote:read',
   RemoteSave: 'remote:save',
   SkillsImport: 'skills:import',
-  ProfileList: 'profile:list',
-  ProfileCreate: 'profile:create',
-  ProfileUpdate: 'profile:update',
   ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',
   SuperAgentFolder: 'superAgent:folder',

@@ -1,10 +1,9 @@
 import { groupByWorkspace, hubOf, waitingFirst } from '@ollupi/core'
 import { cn, useTooltip } from '@ollupi/ui'
-import { ArrowDown, Blocks, Bookmark, Clock, FolderPlus, Plus, Search } from 'lucide-react'
+import { ArrowDown, Blocks, Bookmark, Clock, FolderPlus, Plus, Search, Settings } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { go, useNavigation } from '../../domains/navigation'
 import { profileName, useProfile } from '../../domains/profile'
-import { ProfileDot } from '../common/ProfileDot'
 import { useThreads } from '../../domains/threads'
 import { addWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
@@ -110,10 +109,9 @@ export function Sidebar() {
           <NavButton icon={<Blocks size={14} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
             {m.capabilities}
           </NavButton>
-          {/* The settings wear the dot of the profile the window acts as: who you
-              are is one of them, the first. */}
+          {/* Who you are is one of the settings, the first. */}
           <NavButton
-            icon={<ProfileDot color={profile?.color ?? ''} />}
+            icon={<Settings size={14} />}
             title={profileName(profile, t.shell.profiles.unnamed)}
             active={screen.kind === 'settings'}
             onClick={() => go({ kind: 'settings', tab: 'profiles' })}

@@ -1,23 +1,23 @@
 import { errorMessage } from '@ollupi/client'
-import { Badge, Button, cn, Dialog, Field, Input } from '@ollupi/ui'
+import { Badge, Button, Dialog, Field, Input } from '@ollupi/ui'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import type { Profile, ProfileColor } from '../../../../shared/ipc'
+import type { Profile } from '../../../../shared/ipc'
 import { confirmRestart } from '../../domains/restart'
 import { notify } from '../../domains/notices'
-import { createProfile, deleteProfile, profileName, switchProfile, updateProfile, useProfile } from '../../domains/profile'
+import { createProfile, deleteProfile, profileName, renameProfile, switchProfile, useProfile } from '../../domains/profile'
 import { useT } from '../../i18n'
-import { ProfileDot } from '../common/ProfileDot'
-import { PROFILE_COLORS } from '../common/profileColors'
 
-/** Every profile on this Mac, the one the window acts as first: switching to
- * another, naming and colouring one, deleting one not in use, and making a
- * new one. */
+/** The profiles of the backend, the one the window acts as first. The
+ * operator's connection sees every one: switching to another, naming one,
+ * deleting one not in use, and making a new one. Another connection sees
+ * only its own, and names it. */
 export function ProfilesSection() {
   const t = useT()
   const m = t.shell.profiles
   const list = useProfile((s) => s.list)
   const currentId = useProfile((s) => s.current)
+  const operator = useProfile((s) => s.operator)
   const [making, setMaking] = useState(false)
   const [editing, setEditing] = useState<Profile>()
   const ordered = [...list.filter((p) => p.id === currentId), ...list.filter((p) => p.id !== currentId)]
@@ -36,12 +36,11 @@ export function ProfilesSection() {
           const current = p.id === currentId
           return (
             <li key={p.id} className="flex min-h-12 items-center gap-3 px-5 py-2.5">
-              <ProfileDot color={p.color} />
               <span className="min-w-0 truncate text-ui font-medium text-fg">{profileName(p, m.unnamed)}</span>
               {current && <Badge>{m.current}</Badge>}
               <span className="flex-1" />
               {/* The one in use is not deleted: switch away first. */}
-              {!current && (
+              {!current && operator && (
                 <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => remove(p)}>
                   {m.delete}
                 </Button>
@@ -58,37 +57,37 @@ export function ProfilesSection() {
           )
         })}
       </ul>
-      <div>
-        <Button icon={<Plus size={14} />} onClick={() => setMaking(true)}>
-          {m.create}
-        </Button>
-      </div>
+      {operator && (
+        <div>
+          <Button icon={<Plus size={14} />} onClick={() => setMaking(true)}>
+            {m.create}
+          </Button>
+        </div>
+      )}
       {making && <ProfileDialog onClose={() => setMaking(false)} />}
       {editing && <ProfileDialog profile={editing} onClose={() => setEditing(undefined)} />}
     </>
   )
 }
 
-/** What a profile is named and coloured: a new one, or the one being edited. */
+/** What a profile is named: a new one, or the one being edited. */
 function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): void }) {
   const t = useT()
   const m = t.shell.profiles
   const [name, setName] = useState(profile?.name ?? '')
-  const [color, setColor] = useState<ProfileColor>((profile?.color as ProfileColor | undefined) ?? (Object.keys(PROFILE_COLORS)[0] as ProfileColor))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
   const rename = !!profile && name.trim() !== profile.name.trim()
-  const recolour = !!profile && color !== profile.color
 
   const save = async (): Promise<void> => {
-    if (!profile && !name.trim()) return
+    if (!name.trim()) return
     setSaving(true)
     setError(undefined)
     try {
       if (profile) {
-        if (rename || recolour) await updateProfile(profile, name.trim(), color)
+        if (rename) await renameProfile(profile, name.trim())
       } else {
-        const created = await createProfile(name.trim(), color)
+        const created = await createProfile(name.trim())
         await switchProfile(created.id)
       }
       onClose()
@@ -110,7 +109,7 @@ function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): voi
           <Button size="lg" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button size="lg" variant="primary" loading={saving} disabled={!profile && !name.trim()} onClick={() => void save()}>
+          <Button size="lg" variant="primary" loading={saving} disabled={!name.trim()} onClick={() => void save()}>
             {t.common.save}
           </Button>
         </>
@@ -120,34 +119,8 @@ function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): voi
         <Field label={m.name}>
           <Input autoFocus value={name} placeholder={m.namePlaceholder} maxLength={120} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
         </Field>
-        <Field label={m.color}>
-          <Swatches value={color} onChange={setColor} />
-        </Field>
         {error && <p className="text-small text-warning">{error}</p>}
       </div>
     </Dialog>
-  )
-}
-
-/** The colours a profile may wear, each a dot to pick. */
-function Swatches({ value, onChange }: { value: ProfileColor; onChange(color: ProfileColor): void }) {
-  return (
-    <div className="flex gap-2">
-      {Object.entries(PROFILE_COLORS).map(([name, hex]) => (
-        <button
-          key={name}
-          type="button"
-          aria-label={name}
-          aria-pressed={value === name}
-          onClick={() => onChange(name as ProfileColor)}
-          className={cn(
-            'size-7 rounded-full ring-offset-2 ring-offset-canvas transition duration-100 ease-standard',
-            'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-            value === name ? 'ring-2 ring-fg' : 'ring-1 ring-line hover:ring-line-strong',
-          )}
-          style={{ backgroundColor: hex }}
-        />
-      ))}
-    </div>
   )
 }

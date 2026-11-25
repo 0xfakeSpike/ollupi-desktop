@@ -68,6 +68,9 @@ export const en = {
     read: 'Could not read the models',
     save: 'Could not save the models',
   },
+  profile: {
+    save: 'Could not save the profile',
+  },
   files: {
     list: 'Could not read the folder',
     read: 'Could not read the file',
@@ -177,6 +180,9 @@ export const zh: typeof en = {
   models: {
     read: '无法读取模型',
     save: '无法保存模型',
+  },
+  profile: {
+    save: '无法保存身份',
   },
   files: {
     list: '无法读取文件夹',
