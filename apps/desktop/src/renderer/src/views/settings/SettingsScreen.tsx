@@ -1,6 +1,6 @@
-import { Badge, Button, cn, Field, Select, Switch, Tabs } from '@ollupi/ui'
+import { Badge, Button, cn, Field, SectionNav, Select, Switch } from '@ollupi/ui'
 import { Check, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { go, settingsTabs, type SettingsTab } from '../../domains/navigation'
 import { NavPage } from '../common/NavPage'
 import { colorSchemes, type AppInfo, type ColorScheme } from '../../../../shared/ipc'
@@ -32,25 +32,103 @@ const bodies: Record<SettingsTab, () => ReactNode> = {
   redaction: Redaction,
 }
 
-/** The settings one part at a time, as memory's scopes and the capabilities
- * are: the parts listed on the left, the chosen one beside them, saying
- * what it is for in a line above its controls. */
+/** Where a section's top counts as reached, below the top of the scroll
+ * area: past the row of capsules the list is in a narrow window. */
+const REACHED = 72
+
+/** Every part of the settings on one page, each under its name with a line
+ * on what it is for, read by scrolling. The parts are listed on the left:
+ * the one in view is marked, and a click leads to one. tab is the part the
+ * page was asked to show, as a link to the settings names one. */
 export function SettingsScreen({ tab }: { tab: SettingsTab }) {
   const t = useT().settings.screen
-  const tabs = settingsTabs.map((id) => ({ id, label: t.sections[id].label }))
-  const Body = bodies[tab]
-  const description = t.sections[tab].description
+  const scroller = useRef<HTMLDivElement>(null)
+  const [current, setCurrent] = useState<SettingsTab>(tab)
+  const sections = settingsTabs.map((id) => ({ id, label: t.sections[id].label }))
+  // While the page glides to a part, the parts it passes are not marked.
+  const gliding = useRef(false)
+  const opened = useRef(false)
+
+  const show = useCallback((id: SettingsTab, smooth: boolean) => {
+    const el = document.getElementById(sectionId(id))
+    if (!el) return
+    gliding.current = smooth
+    // A glide that has nowhere to go ends without a scrollend.
+    if (smooth) setTimeout(() => (gliding.current = false), 1000)
+    el.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'instant' })
+    setCurrent(id)
+  }, [])
+  // The part asked for: at once when the page opens, gliding when a click
+  // or a link names another while it is open.
+  useEffect(() => {
+    show(tab, opened.current)
+    opened.current = true
+  }, [tab, show])
+
+  // The part in view: the last whose top has passed the top of the page, or
+  // the last part once the page is scrolled to its end.
+  useEffect(() => {
+    const area = scroller.current
+    if (!area) return
+    const spy = () => {
+      if (gliding.current) return
+      const top = area.getBoundingClientRect().top + REACHED
+      const end = area.scrollTop + area.clientHeight >= area.scrollHeight - 2
+      let seen: SettingsTab = settingsTabs[0]
+      for (const id of settingsTabs) {
+        const el = document.getElementById(sectionId(id))
+        if (el && el.getBoundingClientRect().top <= top) seen = id
+      }
+      setCurrent(end ? settingsTabs[settingsTabs.length - 1]! : seen)
+    }
+    const settled = () => {
+      gliding.current = false
+      spy()
+    }
+    area.addEventListener('scroll', spy, { passive: true })
+    area.addEventListener('scrollend', settled)
+    return () => {
+      area.removeEventListener('scroll', spy)
+      area.removeEventListener('scrollend', settled)
+    }
+  }, [])
+
   return (
     <NavPage
       title={t.title}
-      nav={<Tabs<SettingsTab> label={t.title} orientation="auto" tabs={tabs} value={tab} onChange={(id) => go({ kind: 'settings', tab: id })} />}
-      panel={{ role: 'tabpanel', id: `panel-${tab}`, 'aria-labelledby': `tab-${tab}` }}
+      scrollRef={scroller}
+      nav={
+        <SectionNav<SettingsTab>
+          label={t.title}
+          sections={sections}
+          current={current}
+          // The page remembers the part last asked for; asked again, it glides there anew.
+          onSelect={(id) => (id === tab ? show(id, true) : go({ kind: 'settings', tab: id }))}
+        />
+      }
     >
-      {description && <p className="text-ui text-fg-muted">{description}</p>}
-      <Body />
+      <div className="flex flex-col gap-12">
+        {settingsTabs.map((id) => {
+          const Body = bodies[id]
+          const { label, description } = t.sections[id]
+          return (
+            <section key={id} id={sectionId(id)} aria-labelledby={`${sectionId(id)}-title`} className="flex scroll-mt-14 flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <h2 id={`${sectionId(id)}-title`} className="text-display text-fg">
+                  {label}
+                </h2>
+                {description && <p className="text-ui text-fg-muted">{description}</p>}
+              </div>
+              <Body />
+            </section>
+          )
+        })}
+      </div>
     </NavPage>
   )
 }
+
+const sectionId = (id: SettingsTab) => `settings-${id}`
 
 /** Ollupi itself, its version and the one step an update allows; then one
  * row per thing the app keeps, where it is and the button that acts on it. */

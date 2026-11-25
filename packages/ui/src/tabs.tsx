@@ -73,3 +73,41 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, orientati
     </div>
   )
 }
+
+export interface SectionNavProps<T extends string> {
+  sections: { id: T; label: string }[]
+  /** The section in view. */
+  current: T
+  onSelect(id: T): void
+  label: string
+}
+
+/** The sections of one long page, drawn as Tabs are (orientation auto): a
+ * click leads to a section, and the one in view is marked. It is a list of
+ * links within the page, not tabs: every section is on the page at once. */
+export function SectionNav<T extends string>({ sections, current, onSelect, label }: SectionNavProps<T>) {
+  return (
+    <ul aria-label={label} className="flex gap-1 @3xl/page:flex-col @3xl/page:gap-0.5">
+      {sections.map((s) => {
+        const here = s.id === current
+        return (
+          <li key={s.id} className="shrink-0 @3xl/page:w-full">
+            <button
+              type="button"
+              aria-current={here ? 'location' : undefined}
+              onClick={() => onSelect(s.id)}
+              className={cn(
+                'flex h-8 items-center rounded-full px-3.5 text-ui whitespace-nowrap transition duration-100 ease-standard focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none @3xl/page:h-9 @3xl/page:w-full @3xl/page:text-left',
+                here ? 'bg-surface font-semibold text-fg' : 'font-medium text-fg-muted hover:bg-hover hover:text-fg',
+              )}
+            >
+              <span className="@3xl/page:min-w-0 @3xl/page:flex-1 @3xl/page:truncate" title={s.label}>
+                {s.label}
+              </span>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
