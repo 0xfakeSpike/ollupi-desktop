@@ -1,20 +1,21 @@
 # 发布清单
 
-版本：app `0.8.17-beta.9`，引擎 `v0.31.0`（和 beta.8 相同）。
+版本：app `0.8.17-beta.10`，引擎 `v0.32.0`（beta.9 是 `v0.31.0`）。
 
 ## 1. 这一版改了什么
 
-- 可以连另一台机器上的 ollupid：设置 → 连接里填 `wss://` 地址（SSH 隧道时可用回环地址上的 `ws://`）、网关令牌 `<secret>.<profile>` 和 Cloudflare Access 的服务令牌。密钥用 safeStorage 封存在 `remote.json`，不回到渲染进程。远程模式下不启动本机 sidecar；主进程只给那一个主机的请求加 `CF-Access-Client-Id`/`Secret`，CSP 的 connect-src 只放行它。连不上时读出是谁拒绝的（401 令牌、403 Access、403 "host not allowed" 是 cloudflared 没改写 Host），停在失败状态并说明原因，不再无限重连。部署见 `docs/remote-mac-mini.md`。
-- `config.yaml` 没有 `workspace` 块了：`run_command`、`edit_file`、`write_file` 总是打开，沙箱用引擎默认（工作区可写、不联网、命令默认 30 秒超时，单次最多 600 秒）。启动时 `--import-config` 把旧文件里的这一块删掉，其余内容和注释原样保留。
-- 从旧配置里删键（`skills_dir`、`workspace`）时，上方属于前一项的注释段落不再一起丢。
+- 模型目录（提供方、地址、密钥、模型）存在 ollupi 的数据库里，不在 `config.yaml` 里了。只有运营者的连接能读写（`catalog/read`、`catalog/set`，整份替换），用户的连接被拒（`forbidden`）；改了马上生效、不重启，正在跑的轮次用原来的客户端跑完。运营者连接收到 `catalog/changed`，每个连接收到 `model/changed`。
+- ollupid 多要一个 `OLLUPI_OPERATOR_TOKEN`，和 `OLLUPI_GATEWAY_TOKEN` 不能相同。`<运营者密钥>.<身份>` 既是这个身份又是运营者，`<网关密钥>.<身份>` 只是这个身份。本机应用用运营者 token 连，所以能改模型；连远程时，填的是运营者 token 才能改，否则 设置 → 模型 只能选默认。
+- 升级时 `--import-config` 把 `config.yaml` 里的 `providers` 整份搬进数据库，再从文件里删掉这一项，其余内容和注释保留。之后 `config.yaml` 只剩名字、prompt、工具、slots。
+- 应用不再读写 `config.yaml`：`--check-config`、SIGHUP 重载、"文件和运行中的后端不一致"的提示都去掉了。
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.31.0`：
+sidecar 钉在 `v0.32.0`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.31.0/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.32.0/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -24,26 +25,26 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.31.0，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.32.0，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
-grep -ac 'still has a workspace block' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
-grep -ac 'skill/set' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+grep -ac 'catalog/set' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+grep -ac 'OLLUPI_OPERATOR_TOKEN' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.9 --prerelease --title "0.8.17-beta.9" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.10 --prerelease --title "0.8.17-beta.10" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
-- 从 beta.8 升上来：会话、工作区、身份、技能、设置都在；`config.yaml` 里没有 `workspace` 块了，其余内容和注释都在。
-- 新会话里让 agent 跑一条命令、改一个文件：照常能做，写工作区外面会被沙箱拒绝。
-- 设置 → 连接：不填时照常用本机后端；填一个远程地址保存后，窗口重新加载并连上远程；令牌填错时显示是令牌被拒，而不是一直重连。
-- 新建一个身份，切过去：能力 → 技能里有自带的配图技能。
+- 从 beta.9 升上来：设置 → 模型 里还是原来的提供方和模型，密钥都在；`config.yaml` 里没有 `providers` 了，其余内容和注释都在。
+- 改一个模型（比如打开"支持图片"）保存：卡片马上更新，不重启后端；发一条消息照常回答。
+- 新建一个身份切过去：模型和原来的一样，可以给它选自己的默认模型。
+- 设置 → 连接 用普通 token 连远程时，模型页只显示列表和星标，说明由运营者添加和修改。
 
 ## 这版的已知限制
 
