@@ -1,6 +1,6 @@
 // The tools the agents have built in, from ollupi and this app's browser,
 // listed under each agent whose role keeps them (ToolDescriptor.roles) and
-// grouped by what they let it do: each group says so in a line, and opens
+// grouped by what they let it do, a card each: each group says so in a line, and opens
 // into its tools with the names permission rules use and the hints ollupi
 // uses for permissions (tools.Annotations), worded for a person. MCP
 // servers' tools are listed under their servers.
@@ -46,11 +46,13 @@ export function ToolsSection() {
 function ToolGroups({ groups }: { groups: Groups }) {
   const m = useT()
   return (
-    <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+    // Two columns where the column is wide enough; a group opened grows on
+    // its own, not the one beside it.
+    <ul className="grid items-start gap-2.5 @3xl/page:grid-cols-2">
       {groups.map(([provider, list]) => {
         const group = (m.capabilities.groups as Record<string, { name: string; about: string } | undefined>)[provider as Known]
         return (
-          <li key={provider} className="flex flex-col gap-1 px-5 py-3.5">
+          <li key={provider} className="flex min-w-0 flex-col gap-1 rounded-3xl bg-surface px-5 py-3.5">
             <span className="text-ui font-medium text-fg">{group?.name ?? provider}</span>
             {group && <p className="text-small text-fg-muted">{group.about}</p>}
             <Details summary={<span className="text-small text-fg-subtle">{m.capabilities.toolCount(list.length)}</span>}>
