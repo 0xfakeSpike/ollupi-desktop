@@ -73,7 +73,11 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
    * a beta is offered when the person checks, never on their behalf. */
   start(): void {
     if (!this.opts.bundle) return
-    void rm(this.opts.staging, { recursive: true, force: true }).then(() => this.check())
+    // A folder left that cannot be cleared now is cleared again before the
+    // next download, which says so if it still cannot; the check goes on.
+    void removeFolder(this.opts.staging)
+      .catch(() => undefined)
+      .then(() => this.check())
     setInterval(() => void this.check(), CHECK_EVERY_MS).unref()
   }
 
@@ -138,7 +142,7 @@ export class AppUpdater extends EventEmitter<{ state: [UpdateState] }> {
         throw new LocationError(bundle)
       })
       const dir = join(this.opts.staging, release.version)
-      await rm(dir, { recursive: true, force: true })
+      await removeFolder(dir)
       await mkdir(dir, { recursive: true })
       const zip = join(dir, 'update.zip')
       await this.fetchFile(release, zip)
@@ -301,6 +305,13 @@ async function unpackedBundle(dir: string, installed: string, version: string): 
   if (stagedId !== id) throw new Error(`The zip holds ${stagedId}, not ${id}`)
   if (stagedVersion !== version) throw new Error(`The zip holds version ${stagedVersion}, not ${version}`)
   return staged
+}
+
+/** Removes a folder and all in it. Not with fs.rm: in Electron's main
+ * process fs takes an app.asar for a folder of its own, so a staged bundle's
+ * Resources could never be emptied (ENOTEMPTY). */
+async function removeFolder(path: string): Promise<void> {
+  await run('/bin/rm', ['-rf', path])
 }
 
 async function plistValue(bundle: string, key: string): Promise<string> {

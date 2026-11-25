@@ -126,6 +126,18 @@ describe('AppUpdater', () => {
     expect(await readdir(join(staging, '0.3.0'))).toEqual(['Ollupi.app'])
   })
 
+  it('downloads over what an earlier download left, its app.asar included', async () => {
+    const left = join(staging, '0.3.0', 'Ollupi.app', 'Contents', 'Resources')
+    await mkdir(left, { recursive: true })
+    await writeFile(join(left, 'app.asar'), 'half of an earlier download')
+    const { fetch } = await release('0.3.0')
+    const { u } = updater(fetch)
+    await u.check()
+    await u.download()
+    expect(u.state).toEqual({ status: 'ready', version: '0.3.0' })
+    await expect(readFile(join(left, 'app.asar'))).rejects.toThrow()
+  })
+
   it('is up to date when the latest release is not newer', async () => {
     const { fetch } = await release('0.2.0')
     const { u } = updater(fetch)
