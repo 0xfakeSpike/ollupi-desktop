@@ -1,8 +1,13 @@
 # 发布清单
 
-版本：app `0.8.17-beta.21`，引擎 `v0.35.4`。
+版本：app `0.8.17-beta.22`，引擎 `v0.35.4`（和 beta.21 相同）。
 
 ## 1. 这一版改了什么
+
+beta.22 相对 beta.21：
+
+- 待办面板按层级显示：子待办缩进在上级下面，沿一条细线排开；上级在另一组或归档的另一个月时，子待办留在本组顶层，写"属于「上级」"。
+- 修复：启动后归档是空的（只请求了没结束的待办），现在一打开就能看到做完和放弃的。
 
 beta.21 相对 beta.20（引擎 v0.35.3 → v0.35.4）：
 
@@ -73,12 +78,13 @@ grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Reso
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.21 --prerelease --title "0.8.17-beta.21" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.22 --prerelease --title "0.8.17-beta.22" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
-- 让 Super Agent 把一个待办拆成几个子待办：子待办的标题里不带上级，原有待办都还在。
+- 让 Super Agent 把一个待办拆成几个子待办：面板里子待办缩进在上级下面，标题里不带上级，原有待办都还在。
+- 重开应用后打开待办面板，归档里有以前做完的待办。
 - 让 Super Agent 列出并读几个会话：同一轮里一起调用，不是一个接一个。
 - 发一条消息：思考和回答都一个字一个字流出来，结束后和重开会话看到的一样。
 - 设置：从上滚到下，左边的分类跟着走；点「权限」滑到最后；侧边栏的设置按钮打开在「身份」。
