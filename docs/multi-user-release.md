@@ -1,8 +1,12 @@
 # 发布清单
 
-版本：app `0.8.17-beta.19`，引擎 `v0.35.2`。
+版本：app `0.8.17-beta.20`，引擎 `v0.35.3`。
 
 ## 1. 这一版改了什么
+
+beta.20 相对 beta.19（引擎 v0.35.2 → v0.35.3）：
+
+- Super Agent（中枢）把互不依赖的调用放在同一次回复里发出，比如列会话、读会话同时进行，不再每个都多花一次模型调用。
 
 beta.19 相对 beta.18（引擎 v0.35.1 → v0.35.2）：
 
@@ -39,11 +43,11 @@ beta.15 相对 beta.14：
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.35.2`：
+sidecar 钉在 `v0.35.3`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.2/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.3/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -53,7 +57,7 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.35.2，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.35.3，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
@@ -64,11 +68,12 @@ grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Reso
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.19 --prerelease --title "0.8.17-beta.19" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.20 --prerelease --title "0.8.17-beta.20" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 让 Super Agent 列出并读几个会话：同一轮里一起调用，不是一个接一个。
 - 发一条消息：思考和回答都一个字一个字流出来，结束后和重开会话看到的一样。
 - 设置：从上滚到下，左边的分类跟着走；点「权限」滑到最后；侧边栏的设置按钮打开在「身份」。
 - 没有 Super Agent 的身份点「开始」，`super-agent` 文件夹建在环境文件夹旁边；已有的中枢照常打开。
@@ -78,7 +83,7 @@ gh release create v0.8.17-beta.19 --prerelease --title "0.8.17-beta.19" --notes-
 - 文件面板看 Markdown（相对路径的图片能显示）、PDF；环境面板暂存、提交、丢弃一个新文件（进废纸篓）。
 - 终端：关掉面板再开，之前的输出还在；`cat ~/.ollupi/data/store.sqlite` 被拒。
 - 发一张粘贴的截图和一个拖进来的文件。
-- 连远程 ollupid（同为 v0.35.2）时，上面这些面板都能用。
+- 连远程 ollupid（同为 v0.35.3）时，上面这些面板都能用。
 
 ## 这版的已知限制
 
