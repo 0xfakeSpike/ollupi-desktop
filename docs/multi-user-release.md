@@ -1,8 +1,12 @@
 # 发布清单
 
-版本：app `0.8.17-beta.16`，引擎 `v0.35.0`。
+版本：app `0.8.17-beta.17`，引擎 `v0.35.0`（和 beta.16 相同）。
 
 ## 1. 这一版改了什么
+
+beta.17 相对 beta.16：
+
+- 环境改在设置里管理：新增「环境」页（在「连接」后面），新增、改名、删除环境都在这里；草稿页的环境选择器只用来选新会话在哪个环境跑，不再有"管理环境…"。
 
 beta.16 相对 beta.15（设计见 [workspace-environment-design.md](workspace-environment-design.md)）：
 
@@ -48,11 +52,12 @@ grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Reso
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.16 --prerelease --title "0.8.17-beta.16" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.17 --prerelease --title "0.8.17-beta.17" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 设置 → 环境：新增一个环境、改名、删掉；草稿页的环境选择器里没有"管理环境…"。
 - 升上来之后：工作区、会话都在；原来不属于工作区的会话在侧边栏底部的"默认工作区"里。
 - 添加工作区：弹窗里浏览文件夹、新建文件夹、添加。
 - 文件面板看 Markdown（相对路径的图片能显示）、PDF；环境面板暂存、提交、丢弃一个新文件（进废纸篓）。
