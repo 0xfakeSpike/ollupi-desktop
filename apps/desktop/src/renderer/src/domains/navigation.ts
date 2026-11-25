@@ -22,10 +22,10 @@ export interface PanelState {
 /** What the agent can do, from where. */
 export type CapabilityTab = 'skills' | 'mcp' | 'tools'
 
-/** The settings, one part at a time: who the window acts as first, as the
- * sidebar's settings capsule wears that profile's dot; then General, with
- * the version and the backend everything runs on. */
-export const settingsTabs = ['profiles', 'general', 'connection', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'usage'] as const
+/** The profile's own settings, one part at a time: who the window acts as
+ * first; then General, with the version and the backend everything runs on.
+ * The models and the usage are the platform's, each a screen of its own. */
+export const settingsTabs = ['profiles', 'general', 'connection', 'redaction', 'notifications', 'appearance', 'language', 'permissions'] as const
 export type SettingsTab = (typeof settingsTabs)[number]
 
 export type Screen =
@@ -37,6 +37,10 @@ export type Screen =
   /** found: a task a search led to. */
   | { kind: 'cron'; found?: string }
   | { kind: 'capabilities'; tab: CapabilityTab }
+  /** The platform's models: the operator sets them, a profile picks among them. */
+  | { kind: 'models' }
+  /** The tokens the models used. */
+  | { kind: 'usage' }
   | { kind: 'settings'; tab: SettingsTab }
 
 interface NavigationStore {

@@ -14,11 +14,9 @@ import { setLanguage, useLocale, useT, type LanguagePreference } from '../../i18
 import { locales, systemLocale } from '../../i18n/locale'
 import { desktop } from '../../platform/desktop'
 import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
-import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
 import { ProfilesSection } from './ProfilesSection'
 import { RemoteSection } from './RemoteSection'
-import { UsageSection } from './UsageSection'
 import { Emblem } from '../common/Wolf'
 
 const bodies: Record<SettingsTab, () => ReactNode> = {
@@ -28,8 +26,6 @@ const bodies: Record<SettingsTab, () => ReactNode> = {
   language: Language,
   appearance: Appearance,
   notifications: Notifications,
-  models: ModelsSection,
-  usage: UsageSection,
   permissions: Permissions,
   redaction: Redaction,
 }

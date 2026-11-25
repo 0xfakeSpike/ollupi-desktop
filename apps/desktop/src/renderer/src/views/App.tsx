@@ -13,6 +13,7 @@ import { DraftScreen } from './draft/DraftScreen'
 import { CronScreen } from './cron/CronScreen'
 import { MemoryScreen } from './memory/MemoryScreen'
 import { SearchScreen } from './search/SearchScreen'
+import { ModelsScreen, UsageScreen } from './settings/PlatformScreens'
 import { SettingsScreen } from './settings/SettingsScreen'
 import { Sidebar } from './sidebar/Sidebar'
 
@@ -92,6 +93,10 @@ function CurrentScreen() {
       return <CronScreen found={screen.found} />
     case 'capabilities':
       return <CapabilitiesScreen tab={screen.tab} />
+    case 'models':
+      return <ModelsScreen />
+    case 'usage':
+      return <UsageScreen />
     case 'settings':
       return <SettingsScreen tab={screen.tab} />
   }

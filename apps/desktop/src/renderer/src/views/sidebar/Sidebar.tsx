@@ -1,6 +1,6 @@
 import { groupByWorkspace, hubOf, waitingFirst } from '@ollupi/core'
 import { cn, useTooltip } from '@ollupi/ui'
-import { ArrowDown, Blocks, Bookmark, Clock, FolderPlus, Plus, Search, Settings } from 'lucide-react'
+import { ArrowDown, Blocks, Bookmark, ChartColumn, Clock, Cpu, FolderPlus, Plus, Search, Settings } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { go, useNavigation } from '../../domains/navigation'
 import { profileName, useProfile } from '../../domains/profile'
@@ -39,7 +39,7 @@ export function Sidebar() {
         <Dragonfly className="pointer-events-none mr-auto ml-38 h-7 w-auto -rotate-6" />
         <Wordmark className="h-5 w-auto text-fg-muted" />
       </div>
-      {/* A new thing is the one action; searching and the schedule sit beside it as capsules. */}
+      {/* A new thing is the one action; searching sits beside it as a capsule. */}
       <nav className="flex gap-2 px-3.5 pb-1">
         <button
           type="button"
@@ -53,9 +53,6 @@ export function Sidebar() {
         </button>
         <CapsuleButton label={m.search} hint="⌘K" active={screen.kind === 'search'} onClick={() => go({ kind: 'search' })}>
           <Search size={16} />
-        </CapsuleButton>
-        <CapsuleButton label={m.cron} active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
-          <Clock size={16} />
         </CapsuleButton>
       </nav>
       <div className="flex min-h-0 flex-1 flex-col">
@@ -102,46 +99,68 @@ export function Sidebar() {
       <div className="flex flex-col gap-1 px-3.5 pt-2 pb-3">
         <UpdatePrompt />
         <ConnectionStatus />
-        <div className="flex flex-wrap gap-1">
-          <NavButton icon={<Bookmark size={14} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
-            {m.memory}
-          </NavButton>
-          <NavButton icon={<Blocks size={14} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
-            {m.capabilities}
-          </NavButton>
-          {/* Who you are is one of the settings, the first. */}
-          <NavButton
-            icon={<Settings size={14} />}
-            title={profileName(profile, t.shell.profiles.unnamed)}
-            active={screen.kind === 'settings'}
-            onClick={() => go({ kind: 'settings', tab: 'profiles' })}
-          >
-            {m.settings}
-          </NavButton>
+        {/* Two rows of three: the platform's places, which its operator
+            sets up, over the profile's own. One grid, so the columns line
+            up, each as wide as its widest name; it reaches into the edge's
+            padding so the icons line up with the sidebar's other content. */}
+        <div className="-mx-1.5 grid grid-cols-[auto_auto_auto] justify-start gap-y-1">
+          <div role="group" aria-label={m.platform} className="contents">
+            <NavItem icon={<Cpu size={14} />} active={screen.kind === 'models'} onClick={() => go({ kind: 'models' })}>
+              {m.models}
+            </NavItem>
+            <NavItem icon={<ChartColumn size={14} />} active={screen.kind === 'usage'} onClick={() => go({ kind: 'usage' })}>
+              {m.usage}
+            </NavItem>
+            <NavItem icon={<Blocks size={14} />} active={screen.kind === 'capabilities'} onClick={() => go({ kind: 'capabilities', tab: 'skills' })}>
+              {m.capabilities}
+            </NavItem>
+          </div>
+          <div role="group" aria-label={m.mine} className="contents">
+            <NavItem icon={<Bookmark size={14} />} active={screen.kind === 'memory'} onClick={() => go({ kind: 'memory' })}>
+              {m.memory}
+            </NavItem>
+            <NavItem icon={<Clock size={14} />} active={screen.kind === 'cron'} onClick={() => go({ kind: 'cron' })}>
+              {m.cron}
+            </NavItem>
+            {/* Who you are is one of the settings, the first; its tip says who. */}
+            <NavItem
+              icon={<Settings size={14} />}
+              tip={profileName(profile, t.shell.profiles.unnamed)}
+              active={screen.kind === 'settings'}
+              onClick={() => go({ kind: 'settings', tab: 'profiles' })}
+            >
+              {m.settings}
+            </NavItem>
+          </div>
         </div>
       </div>
     </aside>
   )
 }
 
-/** The places below the map: memory, capabilities, settings, as small
- * capsules in one row; the open one sits on the sheet's colour. */
-function NavButton({ icon, title, active, onClick, children }: { icon: ReactNode; title?: string; active?: boolean; onClick(): void; children: ReactNode }) {
+/** One of the places below the map, a small capsule with its icon and
+ * name; the open one sits on the sheet's colour. */
+function NavItem({ icon, tip, active, onClick, children }: { icon: ReactNode; tip?: string; active?: boolean; onClick(): void; children: ReactNode }) {
+  const tooltip = useTooltip({ label: tip ?? '' })
+  const trigger = tip ? tooltip.trigger : {}
   return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'flex h-8 items-center gap-1.5 rounded-full px-3 text-small font-medium transition-colors duration-100 ease-standard',
-        'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
-        active ? 'bg-canvas text-fg shadow-sm' : 'text-fg-muted hover:bg-hover hover:text-fg',
-      )}
-    >
-      {icon}
-      {children}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex h-8 min-w-0 items-center gap-1 rounded-full px-1.5 text-small font-medium transition-colors duration-100 ease-standard',
+          'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',
+          active ? 'bg-canvas text-fg shadow-sm' : 'text-fg-muted hover:bg-hover hover:text-fg',
+        )}
+        {...trigger}
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="truncate">{children}</span>
+      </button>
+      {tip && tooltip.tooltip}
+    </>
   )
 }
 
