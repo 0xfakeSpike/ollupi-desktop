@@ -1,8 +1,15 @@
 # 发布清单
 
-版本：app `0.8.17-beta.18`，引擎 `v0.35.1`。
+版本：app `0.8.17-beta.19`，引擎 `v0.35.2`。
 
 ## 1. 这一版改了什么
+
+beta.19 相对 beta.18（引擎 v0.35.1 → v0.35.2）：
+
+- 协议：正文和思考的流式文字合并成一个 `item/delta` 通知，用 `type` 区分；桌面端跟着改，界面上看不出差别。和 v0.35.1 及更早的 ollupid 不再兼容（收不到流式文字）。
+- 定时任务：已归档会话里过期的任务不再挡住别的任务，活跃会话的任务不会再晚最多一分钟才跑。
+- 在线时长：按天、工作区、待办分组时不再把在别的应用里的时间算进来。
+- 思考条目的结束时间按答案开始流出的时刻算。
 
 beta.18 相对 beta.17：
 
@@ -32,11 +39,11 @@ beta.15 相对 beta.14：
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.35.1`：
+sidecar 钉在 `v0.35.2`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.1/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.2/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -46,22 +53,23 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.35.1，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.35.2，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
-grep -ac 'workspace/startHub' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+grep -ac 'item/delta' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.18 --prerelease --title "0.8.17-beta.18" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.19 --prerelease --title "0.8.17-beta.19" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 发一条消息：思考和回答都一个字一个字流出来，结束后和重开会话看到的一样。
 - 设置：从上滚到下，左边的分类跟着走；点「权限」滑到最后；侧边栏的设置按钮打开在「身份」。
 - 没有 Super Agent 的身份点「开始」，`super-agent` 文件夹建在环境文件夹旁边；已有的中枢照常打开。
 - 设置 → 环境：新增一个环境、改名、删掉；草稿页的环境选择器里没有"管理环境…"。
@@ -70,7 +78,7 @@ gh release create v0.8.17-beta.18 --prerelease --title "0.8.17-beta.18" --notes-
 - 文件面板看 Markdown（相对路径的图片能显示）、PDF；环境面板暂存、提交、丢弃一个新文件（进废纸篓）。
 - 终端：关掉面板再开，之前的输出还在；`cat ~/.ollupi/data/store.sqlite` 被拒。
 - 发一张粘贴的截图和一个拖进来的文件。
-- 连远程 ollupid（同为 v0.35.0）时，上面这些面板都能用。
+- 连远程 ollupid（同为 v0.35.2）时，上面这些面板都能用。
 
 ## 这版的已知限制
 
