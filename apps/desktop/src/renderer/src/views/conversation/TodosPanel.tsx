@@ -1,8 +1,8 @@
 // The Super Agent's todos beside its conversations, kept by ollupi
 // (domains/todos) and drawn as a list: those a conversation is working on
 // first, then the ones nobody has taken yet, each with its project, where
-// its conversation stands and a way into it; under them the archive, a month
-// at a time. A todo is changed here: its checkbox ends it, and a row's
+// its conversation stands and a way into it, and the parts it was broken
+// into under it; under them the archive, a month at a time. A todo is changed here: its checkbox ends it, and a row's
 // actions drop it, put it back or hand it to another conversation. What a
 // todo came to (its result) is the Super Agent's to write when it checks
 // the work.
@@ -14,7 +14,7 @@ import { ArrowUpRight, Check, Circle, CircleCheck, CircleDot, ListTodo, Messages
 import { useMemo, useState } from 'react'
 import { openThread } from '../../domains/conversation'
 import { useThreadRow, useThreads } from '../../domains/threads'
-import { assignTodo, completeTodo, dropTodo, ended, reopenTodo, useTodos } from '../../domains/todos'
+import { assignTodo, completeTodo, dropTodo, ended, nest, reopenTodo, type TodoNode, useTodos } from '../../domains/todos'
 import { useWorkspace, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
 import { threadTitle, workspaceName } from '../../i18n/format'
@@ -55,8 +55,10 @@ export function TodosPanel() {
   )
 }
 
-/** Todos under a heading that counts them, as one block of rows. */
+/** Todos under a heading that counts them, as one block of rows, each part
+ * under the todo it belongs to. */
 function Group({ title, todos }: { title?: string; todos: TodoRow[] }) {
+  const tree = useMemo(() => nest(todos), [todos])
   if (todos.length === 0) return null
   return (
     <section className="flex flex-col gap-1.5">
@@ -67,8 +69,8 @@ function Group({ title, todos }: { title?: string; todos: TodoRow[] }) {
         </h3>
       )}
       <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
-        {todos.map((todo) => (
-          <TodoItem key={todo.id} todo={todo} />
+        {tree.map((node) => (
+          <TodoItem key={node.todo.id} node={node} />
         ))}
       </ul>
     </section>
@@ -77,63 +79,77 @@ function Group({ title, todos }: { title?: string; todos: TodoRow[] }) {
 
 /** A todo in two lines at most: its checkbox and what it is, with its
  * actions on the right when it is pointed at or focused; then its project,
- * its note, what it came to and the conversation working on it. A finished
- * one reads quieter; a dropped one is struck through. */
-function TodoItem({ todo }: { todo: TodoRow }) {
+ * the todo it belongs to when that one is drawn elsewhere, its note, what it
+ * came to and the conversation working on it. A finished one reads quieter;
+ * a dropped one is struck through. Its parts follow, indented along a guide
+ * line from its checkbox, as a subagent's timeline is. */
+function TodoItem({ node: { todo, children }, nested }: { node: TodoNode; nested?: boolean }) {
   const m = useT()
   const t = m.conversation.todos
   const finished = ended(todo)
-  const detail = todo.workspaceId || todo.notes || todo.result || todo.threadId
+  // A parent drawn in this block has the todo under it already.
+  const parent = useTodos((s) => (todo.parentId && !nested ? s.list?.find((p) => p.id === todo.parentId) : undefined))
+  const detail = todo.workspaceId || parent || todo.notes || todo.result || todo.threadId
   return (
-    <li className="group relative flex min-w-0 flex-col gap-1 py-2.5 pr-2.5 pl-2">
-      <div className="flex min-h-6 min-w-0 items-center gap-1.5">
-        <button
-          type="button"
-          aria-label={finished ? t.reopen : t.done}
-          onClick={() => void (finished ? reopenTodo(todo) : completeTodo(todo))}
-          className="flex size-6 shrink-0 items-center justify-center rounded-full text-fg-subtle transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
-        >
-          {finished ? (
-            <CircleCheck size={15} aria-hidden />
-          ) : todo.status === 'handed' ? (
-            <CircleDot size={15} className="text-fg" aria-hidden />
-          ) : (
-            <Circle size={15} aria-hidden />
-          )}
-        </button>
-        <span className={cn('line-clamp-2 min-w-0 flex-1 text-ui break-words', finished ? 'text-fg-muted' : 'font-medium text-fg', todo.status === 'dropped' && 'line-through')}>
-          {todo.title}
-        </span>
-        {todo.status === 'dropped' && <span className="shrink-0 text-small text-fg-subtle">{t.dropped}</span>}
-        {/* Over the row rather than in it, so the text does not shift; kept
-            while the assign picker is open, whose trigger lives here. */}
-        <div className="absolute top-2.5 right-2.5 hidden h-6 items-center rounded-full bg-surface pl-1 group-focus-within:flex group-hover:flex has-[[aria-expanded=true]]:flex">
-          {finished ? (
-            <IconButton label={t.reopen} size="sm" onClick={() => void reopenTodo(todo)}>
-              <RotateCcw size={13} />
-            </IconButton>
-          ) : (
-            <>
-              <IconButton label={t.done} size="sm" onClick={() => void completeTodo(todo)}>
-                <Check size={13} />
+    <li className={cn('flex min-w-0 flex-col', nested ? 'pt-1.5' : 'py-2.5')}>
+      <div className="group relative flex min-w-0 flex-col gap-1 pr-2.5 pl-2">
+        <div className="flex min-h-6 min-w-0 items-center gap-1.5">
+          <button
+            type="button"
+            aria-label={finished ? t.reopen : t.done}
+            onClick={() => void (finished ? reopenTodo(todo) : completeTodo(todo))}
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-fg-subtle transition duration-100 ease-standard hover:bg-hover hover:text-fg focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
+          >
+            {finished ? (
+              <CircleCheck size={15} aria-hidden />
+            ) : todo.status === 'handed' ? (
+              <CircleDot size={15} className="text-fg" aria-hidden />
+            ) : (
+              <Circle size={15} aria-hidden />
+            )}
+          </button>
+          <span className={cn('line-clamp-2 min-w-0 flex-1 text-ui break-words', finished ? 'text-fg-muted' : 'font-medium text-fg', todo.status === 'dropped' && 'line-through')}>
+            {todo.title}
+          </span>
+          {todo.status === 'dropped' && <span className="shrink-0 text-small text-fg-subtle">{t.dropped}</span>}
+          {/* Over the row rather than in it, so the text does not shift; kept
+              while the assign picker is open, whose trigger lives here. */}
+          <div className="absolute top-0 right-2.5 hidden h-6 items-center rounded-full bg-surface pl-1 group-focus-within:flex group-hover:flex has-[[aria-expanded=true]]:flex">
+            {finished ? (
+              <IconButton label={t.reopen} size="sm" onClick={() => void reopenTodo(todo)}>
+                <RotateCcw size={13} />
               </IconButton>
-              <IconButton label={t.drop} size="sm" onClick={() => void dropTodo(todo)}>
-                <X size={13} />
-              </IconButton>
-              <Assign todo={todo} />
-            </>
-          )}
-        </div>
-      </div>
-      {detail && (
-        <div className="flex min-w-0 items-start gap-2 pl-9.5">
-          {todo.workspaceId && <Project id={todo.workspaceId} />}
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            {todo.notes && <p className="line-clamp-2 text-small break-words text-fg-muted">{todo.notes}</p>}
-            {todo.result && <p className="line-clamp-2 text-small break-words text-fg-subtle">{t.resultOf(todo.result)}</p>}
+            ) : (
+              <>
+                <IconButton label={t.done} size="sm" onClick={() => void completeTodo(todo)}>
+                  <Check size={13} />
+                </IconButton>
+                <IconButton label={t.drop} size="sm" onClick={() => void dropTodo(todo)}>
+                  <X size={13} />
+                </IconButton>
+                <Assign todo={todo} />
+              </>
+            )}
           </div>
-          {todo.threadId && <Conversation id={todo.threadId} />}
         </div>
+        {detail && (
+          <div className="flex min-w-0 items-start gap-2 pl-9.5">
+            {todo.workspaceId && <Project id={todo.workspaceId} />}
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              {parent && <p className="truncate text-small text-fg-subtle">{t.under(parent.title)}</p>}
+              {todo.notes && <p className="line-clamp-2 text-small break-words text-fg-muted">{todo.notes}</p>}
+              {todo.result && <p className="line-clamp-2 text-small break-words text-fg-subtle">{t.resultOf(todo.result)}</p>}
+            </div>
+            {todo.threadId && <Conversation id={todo.threadId} />}
+          </div>
+        )}
+      </div>
+      {children.length > 0 && (
+        <ul className="ml-5 border-l border-line">
+          {children.map((child) => (
+            <TodoItem key={child.todo.id} node={child} nested />
+          ))}
+        </ul>
       )}
     </li>
   )

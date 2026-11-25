@@ -16,6 +16,10 @@ import { run } from '../gateway/run'
 /** As many todos as ollupi's todo/list gives at most. */
 const LIMIT = 2000
 
+/** Every status, so the list holds the archive too: todo/list with none
+ * gives only the todos not ended. */
+const STATUSES: TodoStatus[] = ['open', 'handed', 'done', 'dropped']
+
 export const useTodos = create<{
   /** Every todo in ollupi's order (store.Todos): those not ended yet by id,
    * then those ended, the latest ended first. Undefined until the first list
@@ -31,6 +35,26 @@ export const useTodos = create<{
 /** Whether a todo is finished with: done or dropped, in the archive. */
 export function ended(todo: TodoRow): boolean {
   return todo.status === 'done' || todo.status === 'dropped'
+}
+
+/** A todo with the todos under it that are drawn with it. */
+export interface TodoNode {
+  todo: TodoRow
+  children: TodoNode[]
+}
+
+/** The todos of one list as ollupi nests them (a todo's parentId, at most
+ * three levels): each under its parent when the parent is in the same list,
+ * at the top otherwise, so a part handed out while its parent waits stands
+ * with the handed ones. Siblings keep the order of the list. */
+export function nest(todos: readonly TodoRow[]): TodoNode[] {
+  const nodes = new Map(todos.map((todo) => [todo.id, { todo, children: [] as TodoNode[] }]))
+  const roots: TodoNode[] = []
+  for (const node of nodes.values()) {
+    const parent = node.todo.parentId ? nodes.get(node.todo.parentId) : undefined
+    ;(parent ? parent.children : roots).push(node)
+  }
+  return roots
 }
 
 /** The order todo/list gives, so a change lands where a fresh list would
@@ -60,7 +84,7 @@ export const todosDomain: Domain = {
   // panel says why, and the next connection (or todo/changed) reads it again.
   sync: async (client) => {
     try {
-      const { result, newer } = await client.snapshot('todo/list', { limit: LIMIT }, ['todo/changed'])
+      const { result, newer } = await client.snapshot('todo/list', { statuses: STATUSES, limit: LIMIT }, ['todo/changed'])
       seen = result.seq
       useTodos.setState({ list: result.data ?? [], more: !!result.more, error: undefined })
       newer.forEach((e) => changed(e.params))
