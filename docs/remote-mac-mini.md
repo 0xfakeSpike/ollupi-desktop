@@ -30,7 +30,7 @@ ollupi 本身不用改：
 ### 准备
 
 1. 二进制：从和 MacBook 上同一个版本的 Ollupi 里拷出来，路径是 `Ollupi.app/Contents/Resources/bin/ollupid`，比如放到 `/usr/local/bin/ollupid`。两边版本要一致，否则协议对不上，界面顶部会提示协议版本不同。
-2. 数据目录：比如 `~/.ollupi`。第一次启动时会在里面生成 `config.yaml`。
+2. 数据目录：比如 `~/.ollupi`。第一次启动时会在里面建数据库，后端不读任何配置文件。
 3. 网关 token：生成一个足够长的随机值。
 
    ```bash
@@ -118,18 +118,12 @@ curl -i -H "Authorization: Bearer <token>.default" http://127.0.0.1:7777/
 
 ### 模型
 
-模型服务和密钥存在 Mac mini 上 ollupi 的数据库里，不在 `config.yaml` 里。用运营者 token 连上的桌面端，在 设置 → 模型 里添加和修改，保存后马上生效，不用重启；用普通 token 连上的只能在已有的模型里选默认。
+模型服务和密钥存在 Mac mini 上 ollupi 的数据库里。用运营者 token 连上的桌面端，在 设置 → 模型 里添加和修改，保存后马上生效，不用重启；用普通 token 连上的只能在已有的模型里选默认。
 
-旧的 `config.yaml` 里还写着 `providers` 的，先在 Mac mini 上跑一次导入，把它们搬进数据库再启动：
+数据目录里还留着旧版的 `config.yaml` 或 `profiles.json` 的，先在 Mac mini 上跑一次导入：里面的模型和身份搬进数据库，`config.yaml` 删掉。
 
 ```bash
 /usr/local/bin/ollupid --home ~/.ollupi --import-config
-```
-
-`config.yaml` 里剩下的字段（名字、prompt、工具、slots）改了要重启才生效：
-
-```bash
-launchctl kickstart -k gui/$(id -u)/com.ollupi.ollupid
 ```
 
 ## 2. Mac mini：cloudflared
@@ -236,7 +230,7 @@ WebSocket 握手失败时，页面只能拿到 1006 这个关闭码。为了区�
 
 ## 远程模式下的限制
 
-- 模型服务和 `config.yaml` 里的其他设置属于 Mac mini，在 Mac mini 上编辑（见上文“模型”）。桌面端的「设置 → 通用」里打开的 `config.yaml` 和后端日志都是本机的。
+- 模型服务属于 Mac mini 的数据库，用运营者 token 在桌面端改（见上文“模型”）。桌面端的「设置 → 通用」里打开的数据目录和后端日志都是本机的。
 - 身份由网关 token 里的 profile 决定。用运营者 token 时，「设置 → 身份」列出的是远程的身份，可以新建、改名，但切换不会改变连接用的身份；要换身份就改 token 里点后面的部分。用普通 token 时只看到自己。
 - 文件面板、终端、Git 改动这些面板操作的是 MacBook 上的路径，而远程工作区的路径在 Mac mini 上，所以这些面板在远程模式下用不上。
 - agent 的浏览器工具连的是桌面端的内置浏览器。launchd 启动的 ollupid 没有这个浏览器，浏览器工具用不了。

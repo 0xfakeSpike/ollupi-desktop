@@ -2,7 +2,7 @@
 // connecting, or a startup failure and what to do about it.
 
 import { Button, Callout, Loader } from '@ollupi/ui'
-import { FileCog, Globe, RotateCw, TriangleAlert } from 'lucide-react'
+import { Globe, RotateCw, TriangleAlert } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { BackendFailure } from '../../../../shared/ipc'
 import { openPath } from '../../domains/files'
@@ -24,7 +24,7 @@ export function BackendScreen() {
   if (backend.status === 'failed') {
     return (
       <Shell>
-        <Failure failure={backend.failure} configPath={backend.configPath} log={backend.log} />
+        <Failure failure={backend.failure} log={backend.log} />
       </Shell>
     )
   }
@@ -45,7 +45,7 @@ function Shell({ children }: { children: ReactNode }) {
   return <div className="drag flex h-full items-center justify-center bg-canvas p-8">{children}</div>
 }
 
-function Failure({ failure, configPath, log }: { failure: BackendFailure; configPath: string | undefined; log: string }) {
+function Failure({ failure, log }: { failure: BackendFailure; log: string }) {
   const [restarting, setRestarting] = useState(false)
   const m = useT()
   const remote = failure.kind === 'remote'
@@ -58,11 +58,6 @@ function Failure({ failure, configPath, log }: { failure: BackendFailure; config
       <Callout tone="danger">
         <span className="selectable text-fg">{failureText(m, failure)}</span>
       </Callout>
-      {configPath && (
-        <p className="text-ui text-fg-muted">
-          {m.shell.backend.configuredIn(<code className="selectable font-mono text-small text-fg">{configPath}</code>)}
-        </p>
-      )}
       <div className="flex gap-2">
         <Button
           size="lg"
@@ -76,11 +71,6 @@ function Failure({ failure, configPath, log }: { failure: BackendFailure; config
         >
           {remote ? m.shell.backend.retry : m.common.restartBackend}
         </Button>
-        {configPath && (
-          <Button size="lg" icon={<FileCog size={16} />} onClick={() => void openPath(configPath)}>
-            {m.shell.backend.openConfig}
-          </Button>
-        )}
         <ConnectionSettings />
       </div>
       {log && (

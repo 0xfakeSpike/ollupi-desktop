@@ -74,8 +74,6 @@ export const en = {
     remoteFailed: 'The remote ollupid refused the connection',
     connectionSettings: 'Connection settings',
     retry: 'Try again',
-    configuredIn: (path: ReactNode): ReactNode => <>The backend is configured in {path}. Fix it there, then restart the backend.</>,
-    openConfig: 'Open config',
     log: 'Backend log',
     failure: {
       timeout: (s: number) => `the backend did not report ready within ${s}s`,
@@ -184,8 +182,6 @@ export const zh: typeof en = {
     remoteFailed: '远程 ollupid 拒绝了连接',
     connectionSettings: '连接设置',
     retry: '重试',
-    configuredIn: (path) => <>后端的配置在 {path}。请在那里修改，然后重启后端。</>,
-    openConfig: '打开配置',
     log: '后端日志',
     failure: {
       timeout: (s) => `后端在 ${s} 秒内没有报告就绪`,

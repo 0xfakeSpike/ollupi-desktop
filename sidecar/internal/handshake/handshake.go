@@ -11,11 +11,10 @@ import (
 )
 
 type Message struct {
-	Type       string `json:"type"`
-	URL        string `json:"url,omitempty"`
-	Version    string `json:"version,omitempty"`
-	Message    string `json:"message,omitempty"`
-	ConfigPath string `json:"configPath,omitempty"`
+	Type    string `json:"type"`
+	URL     string `json:"url,omitempty"`
+	Version string `json:"version,omitempty"`
+	Message string `json:"message,omitempty"`
 	// Profiles are the users of the store, for the app to act as one.
 	Profiles []string `json:"profiles,omitempty"`
 }
@@ -24,9 +23,7 @@ func Ready(url, version string, profiles []string) {
 	write(Message{Type: "ready", URL: url, Version: version, Profiles: profiles})
 }
 
-func Fatal(err error, configPath string) {
-	write(Message{Type: "fatal", Message: err.Error(), ConfigPath: configPath})
-}
+func Fatal(err error) { write(Message{Type: "fatal", Message: err.Error()}) }
 
 func write(m Message) {
 	line, _ := json.Marshal(m)

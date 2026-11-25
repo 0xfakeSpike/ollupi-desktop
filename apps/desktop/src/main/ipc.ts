@@ -9,7 +9,7 @@ import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTh
 import { setAppIcon } from './appIcon'
 import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
 import type { TempAttachments } from './attachments'
-import type { BackendConfig } from './backend/config'
+import type { BackendHome } from './backend/home'
 import type { BackendSkills } from './backend/skills'
 import type { RemoteStore } from './backend/remote'
 import { START_PAGE, typedPage } from './browser/address'
@@ -30,7 +30,7 @@ import type { AppUpdater } from './update'
 export function registerIpc(
   backend: BackendSupervisor,
   remote: RemoteStore,
-  config: BackendConfig,
+  backendHome: BackendHome,
   skills: BackendSkills,
   changes: WorkspaceChanges,
   browser: AgentBrowser,
@@ -43,7 +43,7 @@ export function registerIpc(
   home: string,
   backendLog: string,
 ): void {
-  const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, configPath: join(home, 'config.yaml'), backendLog, userHome: app.getPath('home') }
+  const info: AppInfo = { version: app.getVersion(), platform: process.platform, home, backendLog, userHome: app.getPath('home') }
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
@@ -68,7 +68,7 @@ export function registerIpc(
     const id = profileID(profile)
     if (id === activeProfile()) throw new Error('switch away from a profile before deleting it')
     // The backend refuses the last profile, and one with a turn running.
-    const threads = await config.deleteProfile(id)
+    const threads = await backendHome.deleteProfile(id)
     await Promise.all(threads.map((thread) => rm(join(home, 'attachments', thread), { recursive: true, force: true })))
     await rm(join(home, 'users', id), { recursive: true, force: true })
   })

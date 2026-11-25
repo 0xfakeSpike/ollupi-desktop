@@ -14,34 +14,43 @@ import (
 	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
 )
 
-func TestImportTakesOutTheWorkspaceBlock(t *testing.T) {
+func TestImportTakesAnOlderHomeApartAndRemovesConfigYAML(t *testing.T) {
 	home := t.TempDir()
-	path := filepath.Join(home, config.FileName)
-	older := config.Template + "\n# Commands and file edits, in the sandbox.\nworkspace:\n  enabled: true\n  sandbox_mode: workspace-write\n  command_timeout_sec: 60\n  network: false\n"
-	if err := os.WriteFile(path, []byte(older), 0o600); err != nil {
+	older := "name: ollupi\nprompt: \"\"\n\nproviders:\n  - id: deep\n    type: openai\n    api_key: sk-d\n    models:\n      - name: flash\n        limits: {context: 128000, output: 8192}\n\nworkspace:\n  enabled: true\n\n# slots: 32\n"
+	if err := os.WriteFile(filepath.Join(home, config.FileName), []byte(older), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := config.LoadFile(path); err == nil {
-		t.Fatal("an older config loaded with its workspace block")
+	if err := os.WriteFile(filepath.Join(home, ProfilesFile), []byte(`{"profiles":[{"id":"default","name":"Me","color":"sky"}]}`), 0o600); err != nil {
+		t.Fatal(err)
 	}
-
-	dropped, err := dropWorkspace(home)
-	if err != nil || !dropped {
-		t.Fatalf("dropped = %v, err = %v", dropped, err)
+	if code := importLegacy(home, ""); code != 0 {
+		t.Fatalf("import exited %d", code)
 	}
-	raw, err := os.ReadFile(path)
+	for _, gone := range []string{config.FileName, ProfilesFile} {
+		if _, err := os.Stat(filepath.Join(home, gone)); !os.IsNotExist(err) {
+			t.Fatalf("%s is still there: %v", gone, err)
+		}
+	}
+	st, err := storesqlite.Open(home)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "sandbox_mode") || !strings.Contains(string(raw), "# How many threads may run at once") {
-		t.Fatalf("the file is now:\n%s", raw)
+	defer st.Close()
+	var catalog []account.ModelProvider
+	var users []account.User
+	err = st.Read(context.Background(), func(r store.Reader) (err error) {
+		if catalog, err = r.Catalog(); err != nil {
+			return err
+		}
+		users, err = r.UserList()
+		return err
+	})
+	if err != nil || len(catalog) != 1 || catalog[0].APIKey != "sk-d" || !slices.Equal(users, []account.User{{ID: "default", Name: "Me"}}) {
+		t.Fatalf("catalog %+v, users %+v, %v", catalog, users, err)
 	}
-	if _, err := config.LoadFile(path); err != nil {
-		t.Fatalf("the config still does not load: %v", err)
-	}
-	// Once taken out, there is nothing more to do.
-	if dropped, err := dropWorkspace(home); err != nil || dropped {
-		t.Fatalf("again: dropped = %v, err = %v", dropped, err)
+	// Nothing is left to do on the next start.
+	if code := importLegacy(home, ""); code != 0 {
+		t.Fatalf("again: import exited %d", code)
 	}
 }
 
@@ -62,9 +71,6 @@ func TestImportMakesTheProvidersTheCatalog(t *testing.T) {
 	}
 	if strings.Contains(string(raw), "providers") || strings.Contains(string(raw), "sk-d") || !strings.Contains(string(raw), "# How many threads") {
 		t.Fatalf("the file is now:\n%s", raw)
-	}
-	if _, err := config.LoadFile(path); err != nil {
-		t.Fatalf("the config still does not load: %v", err)
 	}
 	st, err := storesqlite.Open(home)
 	if err != nil {

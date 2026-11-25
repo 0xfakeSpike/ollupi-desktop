@@ -28,25 +28,21 @@ type profilesFile struct {
 	Profiles []profileEntry `json:"profiles"`
 }
 
-// importLegacy takes apart an older config.yaml, once. One with a
-// workspace block: the block goes, as the workspace tools now always run as
-// ollupi sets them up (dropWorkspace). One that declared models per
-// profile: every model any profile ran becomes one of the deployment's
-// providers, in ollupi's catalog; each profile becomes a user, named, whose
-// settings keep the model it started and learned with, and the old file is
-// kept beside the new one (runImport). One that lists providers: they
-// become the catalog (importProviders). A profiles.json in the home: its
-// profiles become users with their names, and the file goes
-// (importProfiles). One that names a skills_dir: its skills are given to
-// every profile in the store (importSkills). A config with none of these is
-// left alone. Every step can run again, so an import cut short finishes on
-// the next start.
+// importLegacy takes apart what an older home kept in files, once. A
+// config.yaml that declared models per profile: every model any profile
+// ran becomes one of the deployment's providers, in ollupi's catalog; each
+// profile becomes a user, named, whose settings keep the model it started
+// and learned with (runImport). One that lists providers: they become the
+// catalog (importProviders). A profiles.json: its profiles become users with
+// their names, and the file goes (importProfiles). A config.yaml that names
+// a skills_dir: its skills are given to every profile in the store
+// (importSkills). Then config.yaml goes: the backend reads none, and what
+// else it held (a name, a prompt, tools, slots) is the host's now
+// (removeConfig). Every step can run again, so an import cut short
+// finishes on the next start.
 func importLegacy(home, names string) int {
-	workspace, err := dropWorkspace(home)
-	var imported, providers []string
-	if err == nil {
-		imported, err = runImport(home, names)
-	}
+	imported, err := runImport(home, names)
+	var providers []string
 	if err == nil {
 		providers, err = importProviders(home)
 	}
@@ -58,15 +54,19 @@ func importLegacy(home, names string) int {
 	if err == nil {
 		skills, err = importSkills(home)
 	}
+	var removed bool
+	if err == nil {
+		removed, err = removeConfig(home)
+	}
 	out := struct {
 		OK        bool         `json:"ok"`
-		Workspace bool         `json:"workspace,omitempty"`
 		Imported  []string     `json:"imported,omitempty"`
 		Providers []string     `json:"providers,omitempty"`
 		Profiles  []string     `json:"profiles,omitempty"`
 		Skills    skillsImport `json:"skills,omitzero"`
+		Config    bool         `json:"config,omitempty"`
 		Error     string       `json:"error,omitempty"`
-	}{OK: err == nil, Workspace: workspace, Imported: imported, Providers: providers, Profiles: named, Skills: skills, Error: errorText(err)}
+	}{OK: err == nil, Imported: imported, Providers: providers, Profiles: named, Skills: skills, Config: removed, Error: errorText(err)}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
 	if err != nil {
@@ -75,25 +75,14 @@ func importLegacy(home, names string) int {
 	return 0
 }
 
-// dropWorkspace takes the workspace block out of config.yaml, keeping the
-// rest of the file and its comments; dropped says it had one.
-func dropWorkspace(home string) (dropped bool, err error) {
-	path := filepath.Join(home, config.FileName)
-	raw, err := os.ReadFile(path)
+// removeConfig removes config.yaml once nothing in it is still to be taken
+// apart; removed says there was one.
+func removeConfig(home string) (removed bool, err error) {
+	err = os.Remove(filepath.Join(home, config.FileName))
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
-	if err != nil {
-		return false, err
-	}
-	rest, found, err := config.Workspace(raw)
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", path, err)
-	}
-	if !found {
-		return false, nil
-	}
-	return true, writeAtomically(path, rest)
+	return err == nil, err
 }
 
 func runImport(home, names string) ([]string, error) {
@@ -111,14 +100,6 @@ func runImport(home, names string) ([]string, error) {
 	}
 	if !found {
 		return nil, nil
-	}
-	// A skills_dir is importSkills' to take apart, next.
-	_, checked, _, err := config.SkillsDir(rest, home)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	if _, err := config.Parse(checked); err != nil {
-		return nil, fmt.Errorf("%s without its profiles: %w", path, err)
 	}
 	served := account.Connections(catalog)
 	older := olderNames(names)
@@ -142,9 +123,6 @@ func runImport(home, names string) ([]string, error) {
 	})
 	st.Close()
 	if err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(path+".pre-import", raw, 0o600); err != nil {
 		return nil, err
 	}
 	if err := writeAtomically(path, rest); err != nil {

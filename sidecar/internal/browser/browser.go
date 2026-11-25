@@ -132,7 +132,7 @@ var catalog = []action{
 		described:   true,
 	},
 	{
-		action: "paste",
+		action:      "paste",
 		description: "Paste text into the page's focused field, or into the field a ref names, in one go, as pasting from the clipboard does: use it for a rich-text editor that ignores typed text, such as a post or comment box. The text goes in at the caret; nothing is submitted. With html, the same text goes in as markup, so an editor that takes rich text keeps its headings, bold, lists and links. The page is not read back unless snapshot is true, so check the result with browser_snapshot.",
 		schema: object(map[string]any{
 			"text":     map[string]any{"type": "string", "description": "The text to paste, newlines kept; a blank line asks a rich-text editor for a new block."},

@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -10,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
 	"github.com/0xfakeSpike/ollupi/account"
 	"github.com/0xfakeSpike/ollupi/auth"
@@ -57,21 +55,6 @@ func TestEachProfileHasItsOwnBox(t *testing.T) {
 	}
 }
 
-const minimal = "name: ollupi\n"
-
-func load(t *testing.T, home, yaml string) config.Config {
-	t.Helper()
-	file := filepath.Join(home, config.FileName)
-	if err := os.WriteFile(file, []byte(yaml), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := config.LoadFile(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return cfg
-}
-
 func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
@@ -84,7 +67,7 @@ func TestTheUsersMCPServersRunOnThisMachine(t *testing.T) {
 	home := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	h, err := New(ctx, Options{Home: home, Token: "t", Config: load(t, home, minimal)})
+	h, err := New(ctx, Options{Home: home, Token: "t"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +96,7 @@ func TestATokenMadeWithASecretVouchesForAProfileTheStoreHolds(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
+	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +133,7 @@ func TestTheFirstProfileHasTheSkillsTheDesktopShips(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
+	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +153,7 @@ func TestTheFirstProfileHasTheSkillsTheDesktopShips(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.close()
-	h, err = New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
+	h, err = New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +167,7 @@ func TestTheOperatorSetsTheModelsEveryProfileRunsOn(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home := t.TempDir()
-	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss", Config: load(t, home, minimal)})
+	h, err := New(ctx, Options{Home: home, Token: "secret", OperatorToken: "boss"})
 	if err != nil {
 		t.Fatal(err)
 	}

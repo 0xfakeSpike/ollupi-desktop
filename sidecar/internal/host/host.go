@@ -1,4 +1,4 @@
-// Package host puts one ollupi backend together from a Config: ollupi's own
+// Package host puts one ollupi backend together: ollupi's own
 // host (the store, the models, the flows that run turns, learn memory and
 // send scheduled tasks, the app and its gateway, web_fetch among its tools)
 // with the tools the desktop adds to it (the workspace's commands and files,
@@ -48,7 +48,6 @@ type Options struct {
 	// operator, which may set the catalog of models. The app connects with
 	// it; a remote one hands out whichever it means to.
 	OperatorToken string
-	Config        config.Config
 	// AllowedOrigins are WebSocket origin patterns beyond loopback, e.g. the
 	// packaged renderer's app://ollupi.
 	AllowedOrigins []string
@@ -64,7 +63,6 @@ type Host struct {
 
 // New builds the backend within ctx, which the user's MCP servers run in.
 func New(ctx context.Context, opts Options) (_ *Host, err error) {
-	cfg := opts.Config
 	h := &Host{}
 	defer func() {
 		if err != nil {
@@ -95,9 +93,9 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	// Commands and file edits, in the sandbox as ollupi sets it up.
 	ws, err := workspace.New(workspace.Options{
 		Agent: workspace.AgentFiles{Home: opts.Home},
-		// Commands must not read the secrets in the config file, nor the
-		// store, which holds every profile's API keys and MCP servers.
-		DenyRead:  []string{filepath.Join(opts.Home, config.FileName), filepath.Join(dataHome, "data")},
+		// Commands must not read the store, which holds the models' API keys
+		// and every profile's MCP servers.
+		DenyRead:  []string{filepath.Join(dataHome, "data")},
 		EnvMarker: "OLLUPI_SANDBOX",
 		// Commands run on this machine and nowhere else: a conversation
 		// started in another environment is told so rather than having its
@@ -131,16 +129,14 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	}
 
 	h.ollupi, err = ollupi.New(ctx, ollupi.Config{
-		Home:      dataHome,
-		Name:      cfg.Name,
-		Prompt:    cfg.Prompt,
-		Tools:     tools,
-		Allowlist: cfg.Tools,
-		Boxes:     boxes.box,
-		Slots:     cfg.Slots,
+		Home: dataHome,
+		// ollupi's own system prompt, every tool, and its slots.
+		Name:  Name,
+		Tools: tools,
+		Boxes: boxes.box,
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
-		Hub:     true,
+		Hub: true,
 		Gateway: &gateway.Options{
 			Authenticate: authenticate,
 			// A user the operator makes starts with the skills the desktop
@@ -265,6 +261,9 @@ func profileOf(ctx context.Context, token, secret, operator string, st store.Sto
 	}
 	return id, nil
 }
+
+// Name is what the backend calls itself, to the agent and to MCP servers.
+const Name = "ollupi"
 
 // FirstProfile is the profile a home starts with.
 const FirstProfile = "default"

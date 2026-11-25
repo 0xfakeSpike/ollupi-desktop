@@ -3,7 +3,7 @@
 // without asking. It says so with a shield, and the loosest policy, which
 // asks nothing, is drawn in the warning colour. A thread's own policy, or
 // for a new conversation the one it will start with; without one it
-// inherits its workspace's, else the agent's in config.yaml
+// inherits its workspace's, else the profile's settings, else ollupi's
 // (agent/permission.Resolve, the last one set wins). The choices say what
 // each one lets through; the thread's rules are one more step from here.
 

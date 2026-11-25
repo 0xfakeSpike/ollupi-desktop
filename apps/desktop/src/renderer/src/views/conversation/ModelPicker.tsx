@@ -21,7 +21,7 @@ export function ModelPicker({ inherited }: { inherited: string | undefined }) {
   const chosen = useNavigation((s) => s.model)
   const t = useT().conversation.modelPicker
   const shown = chosen ?? inherited ?? fallback
-  // The thread's last model was removed from config.yaml or renamed: the
+  // The thread's last model was removed from the catalog or renamed: the
   // server refuses to continue on it until another is chosen.
   const unavailable = !models.some((m) => m.connection === shown)
   const options = useMemo(

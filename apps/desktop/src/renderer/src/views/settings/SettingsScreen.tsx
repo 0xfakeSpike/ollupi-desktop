@@ -1,5 +1,5 @@
 import { Badge, Button, cn, Field, Select, Switch, Tabs } from '@ollupi/ui'
-import { Check, FileCog, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
+import { Check, FolderOpen, RotateCw, ScrollText, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { go, settingsTabs, type SettingsTab } from '../../domains/navigation'
 import { NavPage } from '../common/NavPage'
@@ -93,7 +93,6 @@ function General() {
       <dl className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
         <Row label={t.log} value={path(info?.backendLog)} action={open(info?.backendLog, <ScrollText size={14} />)} />
         <Row label={t.dataFolder} value={path(info?.home)} action={open(info?.home, <FolderOpen size={14} />)} />
-        <Row label="config.yaml" value={path(info?.configPath)} action={open(info?.configPath, <FileCog size={14} />)} />
         <Row
           label={t.browserHistory}
           value={visited === undefined ? '—' : t.pagesVisited(visited)}

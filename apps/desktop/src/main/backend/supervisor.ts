@@ -46,7 +46,6 @@ interface Handshake {
   url?: string
   version?: string
   message?: string
-  configPath?: string
   /** The profiles the store holds. */
   profiles?: string[]
 }
@@ -138,7 +137,7 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
         }
         this.set({ status: 'ready', url: msg.url, token: this.tokenFor(this.profile), profile: this.profile, version: msg.version ?? '' })
       }
-      else this.fail({ kind: 'reported', message: msg.message }, msg.configPath)
+      else this.fail({ kind: 'reported', message: msg.message })
     })
     child.on('error', (err) => {
       clearTimeout(timer)
@@ -215,9 +214,9 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     await this.start()
   }
 
-  private fail(failure: BackendFailure, configPath?: string): void {
+  private fail(failure: BackendFailure): void {
     if (this.current.status === 'failed') return
-    this.set({ status: 'failed', failure, configPath, log: this.log.join('\n') })
+    this.set({ status: 'failed', failure, log: this.log.join('\n') })
   }
 
   private remember(line: string): void {

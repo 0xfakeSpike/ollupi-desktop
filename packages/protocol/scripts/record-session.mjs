@@ -55,11 +55,6 @@ const workspace = join(tmp, 'workspace')
 mkdirSync(home)
 mkdirSync(workspace)
 writeFileSync(join(workspace, 'README.md'), '# demo\n')
-writeFileSync(
-  join(home, 'config.yaml'),
-  `name: ollupi
-`,
-)
 
 children.push(spawn('node', [join(here, 'mock-model.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore' }))
 const backend = spawn(binary, ['--home', home], { env: { ...process.env, OLLUPI_GATEWAY_TOKEN: TOKEN, OLLUPI_OPERATOR_TOKEN: OPERATOR }, stdio: ['ignore', 'pipe', 'inherit'] })

@@ -1,15 +1,12 @@
 // The backend's home, as the main process tends to it outside the running
-// backend: an older config.yaml is taken apart once before the backend
-// reads it (ollupid --import-config), and a profile's data is deleted while
-// the backend is stopped (ollupid --delete-profile). config.yaml itself is
-// the deployment's: its name, prompt, tools and slots, the same for every
-// profile, edited by hand. The models are not in it: they are ollupi's
-// catalog, which the operator sets over the gateway.
+// backend: what an older home kept in files (config.yaml, profiles.json) is
+// taken into the store once before the backend starts (ollupid
+// --import-config), and a profile's data is deleted while the backend is
+// stopped (ollupid --delete-profile). The backend reads no config file.
 
 import { execFile } from 'node:child_process'
-import { join } from 'node:path'
 
-export interface ConfigOptions {
+export interface HomeOptions {
   binary: string
   home: string
   env(): Promise<NodeJS.ProcessEnv>
@@ -22,13 +19,10 @@ export interface ConfigOptions {
   }
 }
 
-export class BackendConfig {
-  readonly path: string
+export class BackendHome {
   private importing: Promise<void> | undefined
 
-  constructor(private readonly opts: ConfigOptions) {
-    this.path = join(opts.home, 'config.yaml')
-  }
+  constructor(private readonly opts: HomeOptions) {}
 
   /** Deletes a profile's data from the store while the backend is stopped,
    * so nothing else writes the database; resolves to the threads whose
@@ -45,7 +39,7 @@ export class BackendConfig {
     }
   }
 
-  /** Moves the profiles and models an older config.yaml declared into the
+  /** Moves what an older home kept in files (models, profiles, skills) into the
    * store, before anything reads the file; once per start, and a no-op once
    * done. */
   importOlder(): Promise<void> {

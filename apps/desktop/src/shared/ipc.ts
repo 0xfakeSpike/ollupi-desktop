@@ -10,7 +10,7 @@ export type BackendState =
   | { status: 'starting' }
   /** profile is the one the token names, which the window acts as. */
   | { status: 'ready'; url: string; token: string; profile: string; version: string }
-  | { status: 'failed'; failure: BackendFailure; configPath: string | undefined; log: string }
+  | { status: 'failed'; failure: BackendFailure; log: string }
   | { status: 'stopped' }
 
 /** Why the backend is not running. The renderer words it in the app's
@@ -54,9 +54,8 @@ export interface RemoteInput {
 export interface AppInfo {
   version: string
   platform: string
-  /** The backend's data and config directory. */
+  /** The backend's data directory. */
   home: string
-  configPath: string
   /** The backend's log file. */
   backendLog: string
   /** The user's home folder, which paths shown to them start from as ~. */
@@ -239,7 +238,7 @@ export interface BrowserBounds {
 }
 
 /** The tool provider the app's browser is in the backend, whose tools are
- * browser_<action>; config.yaml cannot give an MCP server the name. */
+ * browser_<action>; no MCP server can take the name. */
 export const BROWSER_PROVIDER = 'browser'
 
 /** Whose tabs a draft's browser panel shows, as a thread's are by its id:

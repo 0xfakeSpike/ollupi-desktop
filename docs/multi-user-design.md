@@ -8,7 +8,7 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
 
 | 层 | 内容 | 放在哪 |
 |---|---|---|
-| 部署（运营者） | 名称、prompt、slots、工具 | `config.yaml`，每个副本一样 |
+| 部署（运营者） | 名称、prompt、slots、工具 | sidecar 里的常量（名字 `ollupi`，其余用 ollupi 的默认值），没有配置文件 |
 | 部署（运营者） | 模型目录（provider 的地址、key、模型和上限）；有哪些身份、各叫什么 | ollupi 的库，经网关由运营者的连接改 |
 | 身份提供方 | 给连接签 token | 桌面主进程，拿着网关和运营者的两个 secret |
 | 用户 | 新会话默认用哪个模型、学记忆用哪个模型、权限、MCP、记忆、会话 | ollupi 的库，经网关由本人的连接改 |
@@ -112,7 +112,7 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 ### 4. 模型是平台的，身份只选
 
 模型目录（各 provider 的账户、key 和模型）存在 ollupi 的库里（迁移 0021 的 `providers`、
-`provider_models`），是部署的，所有身份共用，不在 `config.yaml` 里。
+`provider_models`），是部署的，所有身份共用。
 
 - 宿主启动时从库里读目录，之后跟着库的改动走：`Tx.SetCatalog` 提交一条不属于任何用户的
   事件，宿主换掉变了的模型客户端，正在调用模型的轮次用旧 client 跑完。每个模型一个
@@ -127,7 +127,7 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
   模型、选默认。查余额、拉取厂商的模型列表是设置页拿着目录里的 key 经主进程做的。
 - 模型卡片上的星标是“本身份的新会话默认用它”，记忆页的模型是“本身份用它学记忆”，
   都走网关，不碰文件。
-- 命令跑在沙箱里，读不到 `config.yaml`，也读不到 `<home>/data`（库，key 在里面）。
+- 命令跑在沙箱里，读不到 `<home>/data`（库，key 在里面）。
 
 #### 从旧配置导入
 
@@ -144,8 +144,8 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
   `users.name`（颜色不要了），再删掉这个文件。
 - beta.5 到 beta.9 的 `config.yaml` 顶层写着 `providers`：整份写进库里的目录，再从文件里
   删掉这一项。
-- 原文件留作 `config.yaml.pre-import`，新文件保留其余部分和注释。每一步都能重跑，
-  中途断了下次启动接着做。
+- 最后删掉 `config.yaml`：后端不读配置文件，名字、prompt、工具、slots 是 sidecar 的常量，
+  旧文件里这几项的值不保留。每一步都能重跑，中途断了下次启动接着做。
 
 ### 5. 渲染层
 

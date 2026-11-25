@@ -5,7 +5,7 @@ import { app, net, safeStorage, session, shell } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST, IpcChannel } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
-import { BackendConfig } from './backend/config'
+import { BackendHome } from './backend/home'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
 import { remoteRefusal, remoteSources, RemoteStore, sendAccessToken } from './backend/remote'
@@ -64,7 +64,7 @@ if (!app.requestSingleInstanceLock()) {
     },
     refusal: (target) => remoteRefusal(net.fetch, target),
   })
-  const config = new BackendConfig({ binary: backendBinary(), home, env, backend, olderProfiles: join(app.getPath('userData'), 'profiles.json') })
+  const homeFiles = new BackendHome({ binary: backendBinary(), home, env, backend, olderProfiles: join(app.getPath('userData'), 'profiles.json') })
   const skills = new BackendSkills({ binary: backendBinary(), home })
   const updater = new AppUpdater({
     fetch: net.fetch,
@@ -94,10 +94,10 @@ if (!app.requestSingleInstanceLock()) {
     })
     void attachments.clear()
     // An older config.yaml and profiles.json move into the store before the
-    // backend reads them. A failed import is the backend's to report: it
-    // will not start on that file.
-    await config.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
-    registerIpc(backend, remote, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
+    // backend starts, and config.yaml goes. A failed import is said in the
+    // log; the backend starts all the same.
+    await homeFiles.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
+    registerIpc(backend, remote, homeFiles, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.
     const newWindow = () => {

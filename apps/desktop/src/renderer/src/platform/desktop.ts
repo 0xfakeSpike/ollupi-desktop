@@ -20,7 +20,7 @@ function browserShim(): DesktopApi | undefined {
   const tokenProfile = token.slice(token.indexOf('.') + 1)
   const state: BackendState = { status: 'ready', url, token, profile: tokenProfile, version: 'browser' }
   return {
-    info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', configPath: '', backendLog: '', userHome: '' }),
+    info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', backendLog: '', userHome: '' }),
     backend: { state: async () => state, restart: async () => {}, check: async () => {}, onState: () => () => {} },
     remote: { read: async () => ({ enabled: false, url: '', accessClientId: '', hasToken: false, hasAccessSecret: false }), save: unavailable },
     // The token is the one the browser was opened with, and names the one

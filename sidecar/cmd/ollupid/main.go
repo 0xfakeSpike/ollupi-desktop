@@ -6,7 +6,7 @@
 //
 // Other modes serve the app; each prints one JSON line:
 //
-//	ollupid --import-config       take apart an older config.yaml (models per profile, providers, a skills_dir, a workspace block), once
+//	ollupid --import-config       take apart an older config.yaml and profiles.json into the store, then remove config.yaml, once
 //	ollupid --delete-profile ID   delete a profile's data from the store, with the backend stopped
 //	ollupid --read-skill DIR      the skill folder DIR, as the app sends it to skill/set
 //	ollupid --skill-schema        the JSON Schema of --read-skill's output
@@ -29,7 +29,6 @@ import (
 	"syscall"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
 	"github.com/0xfakeSpike/ollupi/store"
@@ -44,7 +43,7 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:0", "gateway listen address")
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
-	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml (models per profile, providers, a skills_dir, a workspace block), then exit")
+	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml and profiles.json into the store, remove config.yaml, then exit")
 	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names and colours it kept")
 	deleteProfile := flag.String("delete-profile", "", "delete a profile's data from the store, then exit")
 	readSkillDir := flag.String("read-skill", "", "read a skill folder and exit")
@@ -63,7 +62,7 @@ func main() {
 	}
 
 	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
-		handshake.Fatal(err, filepath.Join(*home, config.FileName))
+		handshake.Fatal(err)
 		slog.Error("ollupid stopped", "err", err)
 		os.Exit(1)
 	}
@@ -114,13 +113,9 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		return err
 	}
-	cfg, err := config.Load(home)
-	if err != nil {
-		return err
-	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, Config: cfg, AllowedOrigins: origins, Browser: browserEndpoint()})
+	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, AllowedOrigins: origins, Browser: browserEndpoint()})
 	if err != nil {
 		return err
 	}

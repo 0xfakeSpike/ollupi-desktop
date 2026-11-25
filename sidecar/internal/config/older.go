@@ -23,11 +23,6 @@ const skillsDirKey = "skills_dir"
 // operator sets.
 const providersKey = "providers"
 
-// workspaceKey held the settings of the workspace tools (whether they ran,
-// the sandbox, the command timeout), before the desktop always ran them as
-// ollupi sets them up.
-const workspaceKey = "workspace"
-
 // SkillsDir takes apart a config that still names a skills folder: dir is
 // the folder, resolved against home as a path in the file was, and rest the
 // file without the key, comments included. found is false for a config
@@ -41,13 +36,6 @@ func SkillsDir(raw []byte, home string) (dir string, rest []byte, found bool, er
 		return "", nil, true, errors.New("skills_dir is not a path")
 	}
 	return expandPath(v.Value, home), rest, true, nil
-}
-
-// Workspace takes the workspace block out of a config that still has one:
-// rest is the file without it, comments included. Nothing in it is kept.
-func Workspace(raw []byte) (rest []byte, found bool, err error) {
-	v, rest, err := takeKey(raw, workspaceKey)
-	return rest, v != nil, err
 }
 
 // Providers takes the providers out of a config that still lists them:

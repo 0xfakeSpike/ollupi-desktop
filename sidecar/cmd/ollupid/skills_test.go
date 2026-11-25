@@ -30,7 +30,7 @@ func writeSkill(t *testing.T, dir, name, instructions string) {
 
 func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	home := t.TempDir()
-	cfg := strings.Replace(config.Template, "# How many threads", "# Agent Skills.\nskills_dir: skills\n\n# How many threads", 1)
+	cfg := "name: ollupi\n\n# Agent Skills.\nskills_dir: skills\n\n# How many threads may run at once (default 32).\n# slots: 32\n"
 	if err := os.WriteFile(filepath.Join(home, config.FileName), []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -66,8 +66,8 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	if !slices.Equal(got.Skills, []string{"draw", "edit"}) || len(got.Skipped) != 2 {
 		t.Fatalf("imported %+v", got)
 	}
-	if _, err := config.LoadFile(filepath.Join(home, config.FileName)); err != nil {
-		t.Fatalf("the config still does not load: %v", err)
+	if raw, err := os.ReadFile(filepath.Join(home, config.FileName)); err != nil || strings.Contains(string(raw), "skills_dir") {
+		t.Fatalf("the config still names the folder: %s, %v", raw, err)
 	}
 	if _, err := os.Stat(filepath.Join(skills, "writing-sub-agent", "edit", "SKILL.md")); err != nil {
 		t.Fatal("the folder was not left as it was")
