@@ -1,7 +1,7 @@
 // Exposes DesktopApi to the sandboxed renderer. Nothing else from Node or
 // Electron crosses the bridge.
 
-import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel, type BackendState, type BrowserDownload, type BrowserPermission, type BrowserState, type DesktopApi, type PresenceBatch, type UpdateState } from '../shared/ipc'
 
 const api: DesktopApi = {
@@ -28,40 +28,6 @@ const api: DesktopApi = {
     select: (id) => ipcRenderer.invoke(IpcChannel.ProfileSelect, id),
   },
   superAgentFolder: (profile) => ipcRenderer.invoke(IpcChannel.SuperAgentFolder, profile),
-  attachments: {
-    pathOf: (file) => webUtils.getPathForFile(file) || undefined,
-    writeTemp: (name, data) => ipcRenderer.invoke(IpcChannel.AttachmentsWrite, name, data),
-    removeTemp: (path) => ipcRenderer.invoke(IpcChannel.AttachmentsRemove, path),
-  },
-  files: {
-    list: (root, path) => ipcRenderer.invoke(IpcChannel.FilesList, root, path),
-    read: (root, path) => ipcRenderer.invoke(IpcChannel.FilesRead, root, path),
-    kind: (root, path) => ipcRenderer.invoke(IpcChannel.FilesKind, root, path),
-  },
-  changes: {
-    list: (root) => ipcRenderer.invoke(IpcChannel.ChangesList, root),
-    diff: (root, path, untracked) => ipcRenderer.invoke(IpcChannel.ChangesDiff, root, path, untracked),
-    stage: (root, paths) => ipcRenderer.invoke(IpcChannel.ChangesStage, root, paths),
-    unstage: (root, paths) => ipcRenderer.invoke(IpcChannel.ChangesUnstage, root, paths),
-    discard: (root, file) => ipcRenderer.invoke(IpcChannel.ChangesDiscard, root, file),
-    commit: (root, message) => ipcRenderer.invoke(IpcChannel.ChangesCommit, root, message),
-  },
-  terminal: {
-    open: (key, cwd, cols, rows) => ipcRenderer.invoke(IpcChannel.TerminalOpen, key, cwd, cols, rows),
-    write: (key, text) => ipcRenderer.invoke(IpcChannel.TerminalWrite, key, text),
-    resize: (key, cols, rows) => ipcRenderer.invoke(IpcChannel.TerminalResize, key, cols, rows),
-    close: (key) => ipcRenderer.invoke(IpcChannel.TerminalClose, key),
-    onData: (listener) => {
-      const wrapped = (_e: IpcRendererEvent, key: string, text: string) => listener(key, text)
-      ipcRenderer.on(IpcChannel.TerminalData, wrapped)
-      return () => ipcRenderer.off(IpcChannel.TerminalData, wrapped)
-    },
-    onExit: (listener) => {
-      const wrapped = (_e: IpcRendererEvent, key: string, code: number) => listener(key, code)
-      ipcRenderer.on(IpcChannel.TerminalExit, wrapped)
-      return () => ipcRenderer.off(IpcChannel.TerminalExit, wrapped)
-    },
-  },
   browser: {
     state: (thread) => ipcRenderer.invoke(IpcChannel.BrowserState, thread),
     place: (thread, bounds) => ipcRenderer.invoke(IpcChannel.BrowserPlace, thread, bounds),
@@ -143,7 +109,6 @@ const api: DesktopApi = {
     },
     ack: (ack) => ipcRenderer.send(IpcChannel.PresenceAck, ack),
   },
-  pickDirectory: () => ipcRenderer.invoke(IpcChannel.PickDirectory),
   saveFile: (name, text) => ipcRenderer.invoke(IpcChannel.SaveFile, name, text),
   openPath: (path) => ipcRenderer.invoke(IpcChannel.OpenPath, path),
   revealFile: (path) => ipcRenderer.invoke(IpcChannel.RevealFile, path),

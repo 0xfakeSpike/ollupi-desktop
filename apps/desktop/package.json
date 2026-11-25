@@ -19,11 +19,9 @@
     "config:generate": "node scripts/generate-config.mjs",
     "config:check": "node scripts/generate-config.mjs --check",
     "test": "vitest run",
-    "release": "electron-vite build && electron-builder --mac --arm64 --publish never",
-    "postinstall": "node scripts/node-pty-helper.mjs"
+    "release": "electron-vite build && electron-builder --mac --arm64 --publish never"
   },
   "dependencies": {
-    "node-pty": "^1.1.0",
     "playwright-core": "^1.65.0",
     "yaml": "^2.9.1"
   },

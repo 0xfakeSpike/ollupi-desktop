@@ -6,26 +6,25 @@ import { gateway } from '../gateway/connection'
 import { run } from '../gateway/run'
 import type { Messages } from '../i18n'
 
-/** Where a memory applies: to every conversation (global), to those
- * outside any workspace (general), or to one workspace's. */
-export type MemoryPlace = { scope: 'global' } | { scope: 'general' } | { scope: 'workspace'; workspaceId: string }
+/** Where a memory applies: to every conversation (global), or to one
+ * workspace's, a scratch one's too. */
+export type MemoryPlace = { scope: 'global' } | { scope: 'workspace'; workspaceId: string }
 
 /** A place's key in Scopes: the scope, or the workspace id. */
 export const placeKey = (p: MemoryPlace): string => (p.scope === 'workspace' ? p.workspaceId : p.scope)
 
-export const placeOf = (row: MemoryRow): MemoryPlace =>
-  row.scope === 'workspace' ? { scope: 'workspace', workspaceId: row.workspaceId! } : { scope: row.scope }
+export const placeOf = (row: MemoryRow): MemoryPlace => (row.scope === 'workspace' ? { scope: 'workspace', workspaceId: row.workspaceId! } : { scope: 'global' })
 
 /** Memories by placeKey. */
 export type Scopes = Map<string, MemoryRow[]>
 
 /** memory/status counts active memories in every scope, while memory/list
- * reads one, so each is read on its own: global, general and every
- * workspace, archived ones included, since their memories stay. */
+ * reads one, so each is read on its own: global and every workspace,
+ * archived ones included, since their memories stay. */
 export function readMemory(workspaceIds: string[]): Promise<{ status: MemoryStatus; scopes: Scopes } | undefined> {
   return run((e) => e.memory.load, async () => {
     const client = gateway()
-    const places: MemoryPlace[] = [{ scope: 'global' }, { scope: 'general' }, ...workspaceIds.map((workspaceId) => ({ scope: 'workspace' as const, workspaceId }))]
+    const places: MemoryPlace[] = [{ scope: 'global' }, ...workspaceIds.map((workspaceId) => ({ scope: 'workspace' as const, workspaceId }))]
     const [status, ...lists] = await Promise.all([client.call('memory/status', {}), ...places.map((p) => client.call('memory/list', p))])
     return { status, scopes: new Map(places.map((p, i) => [placeKey(p), lists[i]!.data])) }
   })

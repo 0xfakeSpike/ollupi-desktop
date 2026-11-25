@@ -34,10 +34,9 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const thread = timeline?.thread ?? summary
   const workspace = useWorkspace(thread?.workspaceId)
   const area = useAreaClass(workspace?.id)
-  // Where the thread runs: the user's first environment keeps quiet,
-  // another says which it is.
-  const environment = useEnvironment(thread?.environmentId)
-  // A thread that names none runs where ollupi starts conversations.
+  // Where the thread runs, its workspace's environment: the user's first
+  // environment keeps quiet, another says which it is.
+  const environment = useEnvironment(workspace?.environmentId)
   const fallback = useEnvironments((s) => defaultEnvironment(s.list))
   const running = timeline && activeTurn(timeline)
   const parent = thread?.parentThreadId
@@ -60,7 +59,7 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const spentTip = useTooltip({ label: m.conversation.screen.spentHint })
   // The main process counts the time this conversation is in front with someone
   // at the computer; the figure is read from the backend it writes to.
-  usePresenceContext(thread ? { threadId, workspaceId: thread.workspaceId ?? '' } : null)
+  usePresenceContext(thread ? { threadId, workspaceId: thread.workspaceId } : null)
   const spent = useSpent(threadId, summary?.createdAt)
   const waiting = useWaitingOutOfView(ref, threadId)
   useEscapeStops(threadId, !!running && waiting.count === 0)

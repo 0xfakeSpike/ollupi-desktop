@@ -111,7 +111,7 @@ scratch 文件夹。
 
 | 方法 | 参数 | 结果 |
 |---|---|---|
-| `workspace/listFiles` | `workspaceId, path` | 目录项（名字、类型、大小），文件夹在前 |
+| `workspace/listFiles` | `workspaceId, path` | 目录项（名字、文件还是文件夹），文件夹在前 |
 | `workspace/readFile` | `workspaceId, path` | 预览：文本（上限 256 KB）、图片、PDF，或“二进制/过大” |
 | `workspace/statFile` | `workspaceId, path` | 文件 / 文件夹 / 不存在 |
 
@@ -139,7 +139,9 @@ scratch 文件夹。
 | `workspace/discard` | 见下文 |
 | `workspace/commit` | `commit -m` |
 
-- 这些命令用 Box 默认的权限跑就够了：工作区可写，不需要联网。不用完全访问。
+- 这些命令以人的身份跑：在会限制命令的 Box 上用完全访问（和第 3 节的终端一样），在本身就
+  整个属于用户的云沙箱上照常跑。Box 默认的限制不够用：工作区可能只是仓库的一个子目录，
+  `.git` 在工作区外；提交签名要读 `~/.gnupg`；hooks 可能要联网。
 - 环境里没装 git 时，返回明确的错误，面板显示“这个环境没有 git”。
 - **丢弃新文件**：git 里没有的内容丢了就找不回来，所以仍然移进回收站，不直接删除。
   怎么移由 Box 新增的 `Trash` 方法决定（见下文），引擎只调用 `box.Trash(ctx, path)`。
@@ -193,9 +195,10 @@ Terminal(ctx context.Context, spec TerminalSpec) (Terminal, error)
 终端在 shell 退出、工作区归档、环境删除或用户删除时结束，窗口全部关掉不会结束它，不设
 闲置超时。以后长期挂着的 shell 多了再加。
 
-**数据走独立的 WebSocket。** 生命周期走 RPC：`terminal/open`（返回终端 id 和已有输出）、
-`terminal/resize`、`terminal/close`，再加 `terminal/exited` 通知。输入输出走单独的连接
-`GET /terminals/{id}`（WebSocket，二进制帧，鉴权和主连接一样）。不和 JSON-RPC 主连接
+**数据走独立的 WebSocket。** 生命周期走 RPC：`terminal/open`（返回终端 id）、
+`terminal/resize`、`terminal/close`。输入输出走单独的连接 `GET /terminals/{id}`
+（WebSocket，二进制帧，鉴权和主连接一样）：连上先收到已有输出，再收到新的；shell 退出时
+连接以 1000 和原因 `exit <code>` 关闭，不另发通知，只有看着终端的人需要知道。不和 JSON-RPC 主连接
 混在一起，是为了 `cat` 大文件这种情况下不堵住其他消息，也不需要 base64。
 
 **权限：终端总是完全访问。** 终端里的命令是人自己要跑的，不是 agent 的，所以用
@@ -253,10 +256,10 @@ seatbelt（`pkg/sandbox/sandbox.go` 的 `command`），所以 sidecar 配的“`
 
 新建工作区时，先选环境，再在这个环境里选文件夹：
 
-- `environment/listDir`（`environmentId, path`）：列出目录，只返回文件夹，不读文件内容。
-  经 `box.ReadDir`，受 `CheckRead` 约束。
-- `environment/makeDir`（`environmentId, path`）：新建文件夹。Box 没有 mkdir，加一个
-  `MakeDir` 方法，不用 `Run mkdir` 绕过去。
+- `environment/listFolders`（`environmentId, path`）：列出目录，只返回文件夹（以 `.` 开头
+  的不列），不读文件内容；不给 `path` 时从环境自己的文件夹开始。经 `box.ReadDir`。
+- `environment/makeFolder`（`environmentId, parent, name`）：在 `parent` 里新建文件夹。
+  Box 没有 mkdir，加一个 `MakeDir` 方法，不用 `Run mkdir` 绕过去。
 - 选好后照旧调用 `workspace/add`，引擎用 `box.Directory` 校验。
 
 界面上用一个文件夹浏览器替代原生对话框，所有环境都用它，包括“本机后端 + 本机环境”。
@@ -304,7 +307,7 @@ seatbelt（`pkg/sandbox/sandbox.go` 的 `command`），所以 sidecar 配的“`
    桌面端换调用，删 `main/files.ts`。
 3. **Git 改动**：引擎加 `workspace/changes` 等方法和 `Box.Trash`（macOS、Linux、远程机器
    三种实现）；桌面端换调用，删 `main/changes.ts`，删掉工作区文件的打开和显示入口。
-4. **选文件夹**：引擎加 `environment/listDir / makeDir` 和 `Box.MakeDir`；桌面端做文件夹浏览器。
+4. **选文件夹**：引擎加 `environment/listFolders / makeFolder` 和 `Box.MakeDir`；桌面端做文件夹浏览器。
 5. **终端**：完全访问的 seatbelt 配置、`Box.Terminal`、本机和远程机器的实现、网关的终端
    连接；桌面端换成连网关，删 `main/terminal.ts` 和 `node-pty`。
 

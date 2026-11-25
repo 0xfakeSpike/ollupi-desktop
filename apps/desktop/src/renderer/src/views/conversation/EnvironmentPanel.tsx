@@ -7,16 +7,16 @@
 // checkbox, discarded after asking, and what is staged is committed with a
 // message.
 
-import type { EnvironmentRow, WorkspaceRow } from '@ollupi/protocol'
+import type { ChangesResult, EnvironmentRow, FileChangeRow, FileDiffResult, HeadRow, WorkspaceRow } from '@ollupi/protocol'
 import { Button, Details, IconButton, Loader, Textarea } from '@ollupi/ui'
-import { ArrowLeft, Cloud, ExternalLink, Folder, GitBranch, GitCommitHorizontal, Laptop, RotateCw, Undo2, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Cloud, Folder, FolderTree, GitBranch, GitCommitHorizontal, Laptop, RotateCw, Undo2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import type { Changes, FileChange, FileDiff, Head } from '../../../../shared/ipc'
 import { commitStaged, discardFile, readChanges, readDiff, stageFiles, unstageFiles } from '../../domains/changes'
 import { environmentName, onThisMachine, providerName, useEnvironments } from '../../domains/environments'
-import { openPath } from '../../domains/files'
+import { showFile } from '../../domains/navigation'
 import { notify } from '../../domains/notices'
 import { useT } from '../../i18n'
+import { workspaceName } from '../../i18n/format'
 import { CodeBlock } from '../common/Markdown'
 import { SidePanel } from './SidePanel'
 
@@ -33,24 +33,24 @@ export function EnvironmentPanel({
 }) {
   const panel = useT().conversation.environment
   const t = useT().conversation.changes
-  const root = workspace.rootPath
-  const [changes, setChanges] = useState<Changes>()
-  const [open, setOpen] = useState<FileChange>()
+  const id = workspace.id
+  const [changes, setChanges] = useState<ChangesResult>()
+  const [open, setOpen] = useState<FileChangeRow>()
   const [version, setVersion] = useState(0)
   useEffect(() => {
     let live = true
-    void readChanges(root).then((c) => live && c && setChanges(c))
+    void readChanges(id).then((c) => live && c && setChanges(c))
     return () => {
       live = false
     }
-  }, [root, turn, version])
+  }, [id, turn, version])
 
   /** Runs a git action, then reads the changes again. */
   const act = async (action: () => Promise<unknown>) => {
     await action()
     setVersion((v) => v + 1)
   }
-  const files = changes?.repo ? changes.files : []
+  const files = changes?.files ?? []
   const staged = files.filter((f) => f.staged !== 'none')
   const allStaged = files.length > 0 && files.every((f) => f.staged === 'all')
 
@@ -74,21 +74,21 @@ export function EnvironmentPanel({
             <Loader label={t.loading} />
           </div>
         ) : open ? (
-          <Diff root={root} file={open} version={`${turn}:${version}`} onBack={() => setOpen(undefined)} />
+          <Diff workspaceId={id} file={open} version={`${turn}:${version}`} onBack={() => setOpen(undefined)} />
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <h3 className="text-display text-fg">{!changes.repo ? t.noHistory : files.length === 0 ? t.none : t.headline(files.length)}</h3>
               <p className="text-ui text-fg-muted">{!changes.repo ? t.notRepo : files.length === 0 ? t.noneHint : t.headlineHint}</p>
             </div>
-            <Where environment={environment} root={root} head={changes.repo ? changes.head : undefined} />
+            <Where environment={environment} workspace={workspace} head={changes.head ?? undefined} />
             {files.length > 0 && (
               <div className="flex flex-col gap-1">
                 <div className="flex justify-end">
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => void act(() => (allStaged ? unstageFiles(root, files.map((f) => f.path)) : stageFiles(root, files.map((f) => f.path))))}
+                    onClick={() => void act(() => (allStaged ? unstageFiles(id, files.map((f) => f.path)) : stageFiles(id, files.map((f) => f.path))))}
                   >
                     {allStaged ? t.unstageAll : t.stageAll}
                   </Button>
@@ -99,9 +99,9 @@ export function EnvironmentPanel({
                       <FileRow
                         file={f}
                         onOpen={() => setOpen(f)}
-                        onStage={(on) => void act(() => (on ? stageFiles(root, [f.path]) : unstageFiles(root, [f.path])))}
+                        onStage={(on) => void act(() => (on ? stageFiles(id, [f.path]) : unstageFiles(id, [f.path])))}
                         onDiscard={() => {
-                          if (confirm(f.kind === 'untracked' || f.kind === 'added' ? t.discardNewConfirm(f.path) : t.discardConfirm(f.path))) void act(() => discardFile(root, f))
+                          if (confirm(f.kind === 'untracked' || f.kind === 'added' ? t.discardNewConfirm(f.path) : t.discardConfirm(f.path))) void act(() => discardFile(id, f))
                         }}
                       />
                     </li>
@@ -112,21 +112,22 @@ export function EnvironmentPanel({
           </div>
         )}
       </div>
-      {!open && changes?.repo && files.length > 0 && <CommitForm root={root} staged={staged.length} onCommitted={() => setVersion((v) => v + 1)} />}
+      {!open && changes?.repo && files.length > 0 && <CommitForm workspaceId={id} staged={staged.length} onCommitted={() => setVersion((v) => v + 1)} />}
     </SidePanel>
   )
 }
 
 /** Where it runs, as one line ("On this computer, in ollupi-desktop"), that
- * opens into the environment, the full folder path and, in a repository,
- * where HEAD is. */
-function Where({ environment, root, head }: { environment: EnvironmentRow | undefined; root: string; head: Head | undefined }) {
+ * opens into the environment, the full folder path (a scratch workspace's
+ * is its environment's own) and, in a repository, where HEAD is. */
+function Where({ environment, workspace, head }: { environment: EnvironmentRow | undefined; workspace: WorkspaceRow; head: HeadRow | undefined }) {
   const m = useT()
   const t = m.conversation.environment
   const providers = useEnvironments((s) => s.providers)
   const cloud = !!environment && !onThisMachine(environment)
   const place = environment ? environmentName(environment) : t.here
-  const folder = root.slice(root.lastIndexOf('/') + 1) || root
+  const root = workspace.rootPath
+  const folder = root ? root.slice(root.lastIndexOf('/') + 1) || root : workspaceName(m, workspace)
   return (
     <Details summary={<span className="text-small text-fg-muted">{t.where(place, folder)}</span>}>
       <dl className="mt-1.5 flex flex-col gap-0.5">
@@ -135,21 +136,14 @@ function Where({ environment, root, head }: { environment: EnvironmentRow | unde
           {environment && <span className="shrink-0 text-small text-fg-subtle">{providerName(environment.provider, providers)}</span>}
         </Row>
         <Row icon={Folder} label={t.folder}>
-          <button
-            type="button"
-            title={t.openFolder}
-            onClick={() => void openPath(root)}
-            className="selectable min-w-0 truncate rounded-sm text-left font-mono text-small text-fg hover:underline focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
-          >
-            {root}
-          </button>
+          <span className="selectable min-w-0 truncate font-mono text-small text-fg">{root || t.scratchFolder}</span>
         </Row>
         {head && (
           <Row icon={GitBranch} label={t.branch}>
-            {'branch' in head ? (
+            {head.branch ? (
               <span className="selectable truncate font-mono text-small">{head.branch}</span>
             ) : (
-              <span className="truncate text-small text-fg-muted">{t.detached(head.detached)}</span>
+              <span className="truncate text-small text-fg-muted">{t.detached(head.detached ?? '')}</span>
             )}
           </Row>
         )}
@@ -171,13 +165,13 @@ function Row({ icon: Icon, label, children }: { icon: LucideIcon; label: string;
 }
 
 /** Commits what is staged; the message's first line is its subject. */
-function CommitForm({ root, staged, onCommitted }: { root: string; staged: number; onCommitted(): void }) {
+function CommitForm({ workspaceId, staged, onCommitted }: { workspaceId: string; staged: number; onCommitted(): void }) {
   const t = useT().conversation.changes
   const [message, setMessage] = useState('')
   const [committing, setCommitting] = useState(false)
   const commit = async () => {
     setCommitting(true)
-    const done = await commitStaged(root, message.trim())
+    const done = await commitStaged(workspaceId, message.trim())
     setCommitting(false)
     if (!done) return
     setMessage('')
@@ -204,7 +198,7 @@ function CommitForm({ root, staged, onCommitted }: { root: string; staged: numbe
   )
 }
 
-function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChange; onOpen(): void; onStage(on: boolean): void; onDiscard(): void }) {
+function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChangeRow; onOpen(): void; onStage(on: boolean): void; onDiscard(): void }) {
   const t = useT().conversation.changes
   const slash = file.path.lastIndexOf('/')
   return (
@@ -230,10 +224,10 @@ function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChange; onOpe
           <span className={file.kind === 'deleted' ? 'shrink-0 text-fg-subtle line-through' : 'shrink-0 text-fg'}>{file.path.slice(slash + 1)}</span>
           {slash > 0 && <span className="truncate text-small text-fg-subtle">{file.path.slice(0, slash)}</span>}
         </span>
-        {file.added !== undefined && (
+        {file.added != null && (
           <span className="shrink-0 font-mono text-small tabular-nums">
             {file.added > 0 && <span className="text-success">+{file.added}</span>}
-            {file.removed! > 0 && <span className="ml-1 text-danger">−{file.removed}</span>}
+            {(file.removed ?? 0) > 0 && <span className="ml-1 text-danger">−{file.removed}</span>}
           </span>
         )}
         <span className="w-12 shrink-0 text-right text-small text-fg-subtle">{t.kinds[file.kind]}</span>
@@ -245,16 +239,16 @@ function FileRow({ file, onOpen, onStage, onDiscard }: { file: FileChange; onOpe
   )
 }
 
-function Diff({ root, file, version, onBack }: { root: string; file: FileChange; version: string; onBack(): void }) {
+function Diff({ workspaceId, file, version, onBack }: { workspaceId: string; file: FileChangeRow; version: string; onBack(): void }) {
   const t = useT().conversation.changes
-  const [diff, setDiff] = useState<FileDiff>()
+  const [diff, setDiff] = useState<FileDiffResult>()
   useEffect(() => {
     let live = true
-    void readDiff(root, file.path, file.kind === 'untracked').then((d) => live && d && setDiff(d))
+    void readDiff(workspaceId, file.path, file.kind === 'untracked').then((d) => live && d && setDiff(d))
     return () => {
       live = false
     }
-  }, [root, file, version])
+  }, [workspaceId, file, version])
 
   return (
     <div className="flex flex-col gap-3">
@@ -266,8 +260,8 @@ function Diff({ root, file, version, onBack }: { root: string; file: FileChange;
           {file.path}
         </span>
         {file.kind !== 'deleted' && (
-          <IconButton label={t.open} size="sm" onClick={() => void openPath(`${root}/${file.path}`)}>
-            <ExternalLink size={14} />
+          <IconButton label={t.showInFiles} size="sm" onClick={() => showFile(workspaceId, file.path)}>
+            <FolderTree size={14} />
           </IconButton>
         )}
       </div>

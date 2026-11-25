@@ -60,9 +60,9 @@ export function Sidebar() {
         {/* The Super Agent heads the map: it is where work for every project starts. */}
         {hub ? <ThreadGroup workspace={hub} threads={hubThreads} /> : <SuperAgentStart />}
         {groups
-          .filter((g) => g.workspace)
+          .filter((g) => g.workspace.kind !== 'scratch')
           .map((g) => (
-            <ThreadGroup key={g.workspace!.id} workspace={g.workspace} threads={g.threads} />
+            <ThreadGroup key={g.workspace.id} workspace={g.workspace} threads={g.threads} />
           ))}
         {/* Adding one is occasional, so it ends the workspaces rather than leading the sidebar. */}
         <button
@@ -73,10 +73,11 @@ export function Sidebar() {
           <FolderPlus size={14} className="shrink-0" />
           {m.addWorkspace}
         </button>
+        {/* What was started in no project: each environment's own folder, on the bare ground. */}
         {groups
-          .filter((g) => !g.workspace)
+          .filter((g) => g.workspace.kind === 'scratch')
           .map((g) => (
-            <ThreadGroup key="none" workspace={undefined} threads={g.threads} />
+            <ThreadGroup key={g.workspace.id} workspace={g.workspace} threads={g.threads} />
           ))}
         <ArchivedThreads />
         <ArchivedWorkspaces workspaces={workspaces.filter((w) => w.archivedAt)} />

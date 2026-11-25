@@ -299,6 +299,7 @@ export const en = {
       folder: 'Folder',
       folderHint: 'Its conversations run here, and its agent reads and writes here.',
       move: 'Move…',
+      moveHere: 'Move here',
       moveConfirm: (path: string) =>
         `Move the folder to ${path}? Everything in it moves there, and the folder you pick has to be empty.`,
       permissions: 'Permissions',
@@ -588,6 +589,7 @@ export const zh: typeof en = {
       folder: '文件夹',
       folderHint: '这里的会话在这个文件夹里运行，agent 也在这里读写文件。',
       move: '移动…',
+      moveHere: '移到这里',
       moveConfirm: (path) => `把文件夹移动到 ${path}？里面的文件会一起搬过去，选中的文件夹必须是空的。`,
       permissions: '权限',
       intro: '叠加在 agent 默认设置之上；此工作区中的会话可以添加自己的权限。',

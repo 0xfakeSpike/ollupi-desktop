@@ -166,11 +166,12 @@ const components: Components = {
   img: Image,
 }
 
-/** The workspace file a text is, when it is one: root is the workspace's,
- * path the file's within it. version is bumped to read its images again. */
-export type MarkdownFile = { root: string; path: string; version?: number }
+/** The workspace file a text is, when it is one: rootPath is the
+ * workspace's folder (empty when only its environment names it), path the
+ * file's within it. version is bumped to read its images again. */
+export type MarkdownFile = { workspaceId: string; rootPath: string; path: string; version?: number }
 
-const InFile = createContext<{ root: string; folder: string; version: number } | undefined>(undefined)
+const InFile = createContext<{ workspaceId: string; rootPath: string; folder: string; version: number } | undefined>(undefined)
 
 /** Footnote links keep their ids and labels, which screen readers follow. */
 function Link({ href, children, node: _node, className: _className, ...props }: ComponentProps<'a'> & ExtraProps) {
@@ -192,7 +193,7 @@ function Link({ href, children, node: _node, className: _className, ...props }: 
     )
   }
   // A link to a workspace file opens it; any other, in the browser.
-  const path = !href ? undefined : file ? linkedPath(href, file.folder, file.root) : /^[a-z][\w+.-]*:/i.test(href) ? undefined : safeDecode(href)
+  const path = !href ? undefined : file ? linkedPath(href, file.folder, file.rootPath) : /^[a-z][\w+.-]*:/i.test(href) ? undefined : safeDecode(href)
   return (
     <ReplyPath
       text={path}
@@ -211,16 +212,22 @@ function Link({ href, children, node: _node, className: _className, ...props }: 
  * missing one leaves its description. Any other loads as it is. */
 function Image({ src, alt, node: _node, className: _className, ...props }: ComponentProps<'img'> & ExtraProps) {
   const file = useContext(InFile)
-  const path = file && typeof src === 'string' ? linkedPath(src, file.folder, file.root) : undefined
+  const path = file && typeof src === 'string' ? linkedPath(src, file.folder, file.rootPath) : undefined
   const [read, setRead] = useState<{ path: string; url: string | undefined }>()
   useEffect(() => {
     if (!file || !path) return
     let live = true
-    void readImage(file.root, path).then((url) => live && setRead({ path, url }))
+    let shown: string | undefined
+    void readImage(file.workspaceId, path).then((url) => {
+      if (!live) return url && URL.revokeObjectURL(url)
+      shown = url
+      setRead({ path, url })
+    })
     return () => {
       live = false
+      if (shown) URL.revokeObjectURL(shown)
     }
-  }, [file?.root, file?.version, path])
+  }, [file?.workspaceId, file?.version, path])
   if (!path) return <img {...props} src={src} alt={alt} />
   if (read?.path !== path) return null
   return read.url ? <img {...props} src={read.url} alt={alt} /> : <span className="text-fg-subtle">{alt || path}</span>
@@ -236,10 +243,11 @@ const fileRehypePlugins = Object.values(fileRehype)
 export const Markdown = memo(function Markdown({ text, streaming = false, file }: { text: string; streaming?: boolean; file?: MarkdownFile }) {
   const m = useT().conversation.markdown
   const remarkRehypeOptions = useMemo(() => ({ footnoteLabel: m.footnotes, footnoteBackLabel: m.footnoteBack }), [m])
-  const root = file?.root
+  const workspaceId = file?.workspaceId
+  const rootPath = file?.rootPath ?? ''
   const folder = file?.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : ''
   const version = file?.version ?? 0
-  const inFile = useMemo(() => (root === undefined ? undefined : { root, folder, version }), [root, folder, version])
+  const inFile = useMemo(() => (workspaceId === undefined ? undefined : { workspaceId, rootPath, folder, version }), [workspaceId, rootPath, folder, version])
   return (
     <InFile.Provider value={inFile}>
       <Streamdown

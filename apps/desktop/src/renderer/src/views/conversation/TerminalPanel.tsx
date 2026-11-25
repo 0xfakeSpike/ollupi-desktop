@@ -1,7 +1,10 @@
-// The person's own shell in the workspace's folder, beside the conversation.
-// One per workspace: threads of a workspace share it, and it keeps running
-// while the panel is closed, showing what it printed meanwhile when it opens
-// again. It is not the agent's: nothing typed here goes through ollupi.
+// The person's own shell in the workspace's folder, beside the conversation,
+// run where the workspace is, which may be another machine than the
+// window's: ollupi starts it there and streams it here. One per workspace:
+// threads of a workspace share it, and it keeps running while the panel is
+// closed, or the window, showing what it printed meanwhile when it opens
+// again. It is the person's, not the agent's: it runs with full access and
+// asks nothing.
 
 import type { WorkspaceRow } from '@ollupi/protocol'
 import { IconButton } from '@ollupi/ui'
@@ -11,10 +14,14 @@ import '@xterm/xterm/css/xterm.css'
 import { RotateCcw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAppearance } from '../../domains/appearance'
+import { gateway } from '../../gateway/connection'
+import { gatewayPath, gatewaySocket } from '../../gateway/http'
 import { run } from '../../gateway/run'
 import { useT } from '../../i18n'
-import { desktop } from '../../platform/desktop'
 import { SidePanel } from './SidePanel'
+
+/** How long a stream lost, not ended, waits before it attaches again. */
+const RETRY_MS = [500, 1000, 2000, 5000]
 
 export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
   const t = useT().conversation.terminal
@@ -23,7 +30,8 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
   const [restarts, setRestarts] = useState(0)
   const appearance = useAppearance()
   const key = workspace.id
-  const cwd = workspace.rootPath
+  // The terminal on screen, for restart to end.
+  const shown = useRef<string>(undefined)
 
   useEffect(() => {
     const el = host.current
@@ -62,33 +70,54 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
     term.loadAddon(fit)
     term.open(el)
     fit.fit()
-    // What the shell printed before open answered is in its answer; only
-    // what follows is drawn as it comes.
-    let ready = false
-    const offData = desktop.terminal.onData((k, text) => ready && k === key && term.write(text))
-    const offExit = desktop.terminal.onExit((k) => k === key && term.write(`\r\n${t.exited}\r\n`))
+    // Each attach streams what the shell printed so far, then what it
+    // prints: the screen starts over with it. A stream lost, not ended,
+    // attaches again.
     let live = true
-    void run((e) => e.terminal, () => desktop.terminal.open(key, cwd, term.cols, term.rows)).then((past) => {
-      if (!live) return
-      ready = true
-      if (past) term.write(past)
+    let socket: WebSocket | undefined
+    let tries = 0
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const attach = async () => {
+      const opened = await run((e) => e.terminal, () => gateway().call('terminal/open', { workspaceId: key, cols: term.cols, rows: term.rows }))
+      if (!live || !opened) return
+      shown.current = opened.terminalId
+      const ws = await gatewaySocket(gatewayPath('terminal', { terminal: opened.terminalId }))
+      if (!live) return ws.close()
+      socket = ws
+      ws.binaryType = 'arraybuffer'
+      ws.onopen = () => {
+        tries = 0
+        term.reset()
+      }
+      ws.onmessage = (ev: MessageEvent<ArrayBuffer | string>) => term.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data))
+      ws.onclose = (ev) => {
+        if (!live || socket !== ws) return
+        socket = undefined
+        if (ev.code === 1000 && ev.reason.startsWith('exit')) return void term.write(`\r\n${t.exited}\r\n`)
+        retry = setTimeout(() => void attach(), RETRY_MS[Math.min(tries++, RETRY_MS.length - 1)])
+      }
+    }
+    void attach()
+    const encoder = new TextEncoder()
+    const input = term.onData((text) => socket?.readyState === WebSocket.OPEN && socket.send(encoder.encode(text)))
+    const resized = term.onResize(({ cols, rows }) => {
+      const terminalId = shown.current
+      if (terminalId) void gateway().call('terminal/resize', { terminalId, cols, rows }).catch(() => {})
     })
-    const input = term.onData((text) => void desktop.terminal.write(key, text))
-    const resized = term.onResize(({ cols, rows }) => void desktop.terminal.resize(key, cols, rows))
     const observer = new ResizeObserver(() => fit.fit())
     observer.observe(el)
     term.focus()
     return () => {
       live = false
+      clearTimeout(retry)
+      socket?.close()
       dark.removeEventListener('change', recolor)
       observer.disconnect()
       input.dispose()
       resized.dispose()
-      offData()
-      offExit()
       term.dispose()
     }
-  }, [key, cwd, restarts, appearance.scheme, t.exited])
+  }, [key, restarts, appearance.scheme, t.exited])
 
   return (
     <SidePanel
@@ -102,7 +131,13 @@ export function TerminalPanel({ workspace }: { workspace: WorkspaceRow }) {
           label={t.restart}
           size="sm"
           onClick={() => {
-            void desktop.terminal.close(key).then(() => setRestarts((n) => n + 1))
+            const terminalId = shown.current
+            void run(
+              (e) => e.terminal,
+              async () => {
+                if (terminalId) await gateway().call('terminal/close', { terminalId })
+              },
+            ).then(() => setRestarts((n) => n + 1))
           }}
         >
           <RotateCcw size={14} />

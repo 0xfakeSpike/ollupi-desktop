@@ -12,6 +12,7 @@ import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
 import { t } from '../i18n'
 import { useNavigation } from './navigation'
+import { dropEnvironmentWorkspaces } from './workspaces'
 
 export const useEnvironments = create<{ list: EnvironmentRow[]; providers: SandboxProviderRow[] }>()(() => ({ list: [], providers: [] }))
 
@@ -36,6 +37,7 @@ function changed({ environmentId, environment, seq }: EnvironmentChangedNotifica
   if (seq <= seen) return
   seen = seq
   useEnvironments.setState((s) => (environment ? { list: upsert(s.list, environment) } : { list: s.list.filter((e) => e.id !== environmentId) }))
+  if (!environment) dropEnvironmentWorkspaces(environmentId)
 }
 
 export const environmentsDomain: Domain = {

@@ -17,6 +17,7 @@ import * as search from './messages/search'
 import * as settings from './messages/settings'
 import * as shell from './messages/shell'
 import * as skills from './messages/skills'
+import * as workspaces from './messages/workspaces'
 
 const en = {
   common: common.en,
@@ -30,6 +31,7 @@ const en = {
   settings: settings.en,
   notifications: notifications.en,
   search: search.en,
+  workspaces: workspaces.en,
   errors: errors.en,
 }
 
@@ -49,6 +51,7 @@ const catalogs: Record<Locale, Messages> = {
     settings: settings.zh,
     notifications: notifications.zh,
     search: search.zh,
+    workspaces: workspaces.zh,
     errors: errors.zh,
   },
 }

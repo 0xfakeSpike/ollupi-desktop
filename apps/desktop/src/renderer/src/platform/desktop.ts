@@ -40,11 +40,6 @@ function browserShim(): DesktopApi | undefined {
       if (!home) throw new Error('no home given (?home=)')
       return superAgentFolder(home, profile)
     },
-    // A browser gives a file no path.
-    attachments: { pathOf: () => undefined, writeTemp: unavailable, removeTemp: unavailable },
-    files: { list: unavailable, read: unavailable, kind: unavailable },
-    changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
-    terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
     browser: {
       state: unavailable,
       place: unavailable,
@@ -84,7 +79,6 @@ function browserShim(): DesktopApi | undefined {
     // A tab in a browser shows a conversation but records no presence: the
     // main process is not there to see the window.
     presence: { context: () => {}, onRows: () => () => {}, ack: () => {} },
-    pickDirectory: async () => prompt('Workspace folder (absolute path)') ?? undefined,
     saveFile: unavailable,
     openPath: async () => {},
     revealFile: async () => {},
@@ -107,10 +101,6 @@ export const desktop: DesktopApi = window.desktop ??
     skills: { import: unavailable },
     profile: { delete: unavailable, select: unavailable },
     superAgentFolder: unavailable,
-    attachments: { pathOf: unavailable, writeTemp: unavailable, removeTemp: unavailable },
-    files: { list: unavailable, read: unavailable, kind: unavailable },
-    changes: { list: unavailable, diff: unavailable, stage: unavailable, unstage: unavailable, discard: unavailable, commit: unavailable },
-    terminal: { open: unavailable, write: unavailable, resize: unavailable, close: unavailable, onData: () => () => {}, onExit: () => () => {} },
     browser: {
       state: unavailable,
       place: unavailable,
@@ -141,7 +131,6 @@ export const desktop: DesktopApi = window.desktop ??
     onNoticeClicked: () => () => {},
     setBadge: unavailable,
     presence: { context: unavailable, onRows: () => () => {}, ack: unavailable },
-    pickDirectory: unavailable,
     saveFile: unavailable,
     openPath: unavailable,
     revealFile: unavailable,

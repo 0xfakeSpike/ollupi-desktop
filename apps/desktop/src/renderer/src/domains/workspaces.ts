@@ -1,9 +1,11 @@
-// Workspaces: project folders threads run in. ollupi sends every change as
+// Workspaces: the folders threads run in, each of one environment's
+// machine; every environment has a scratch one, its own folder, where a
+// thread started in no project goes. ollupi sends every change as
 // workspace/changed (an "always allow" answer included), before it answers
 // the call that made it, so the calls below leave the list to it.
 
 import { compareWorkspaces, upsertWorkspace } from '@ollupi/core'
-import type { PermissionSettings, WorkspaceChangedNotification, WorkspaceRow } from '@ollupi/protocol'
+import type { EnvironmentFoldersResult, PermissionSettings, WorkspaceChangedNotification, WorkspaceRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
@@ -45,14 +47,50 @@ export function activeWorkspaces(list: readonly WorkspaceRow[]): WorkspaceRow[] 
   return list.filter((w) => !w.archivedAt)
 }
 
-/** Picks a folder, registers it, and opens a draft in it. */
-export function addWorkspace(): Promise<void | undefined> {
+/** Whether the dialog that adds a workspace is open. */
+export const useAddingWorkspace = create<{ open: boolean }>()(() => ({ open: false }))
+
+/** Opens the dialog that picks a folder of an environment's machine to add
+ * as a workspace. */
+export function addWorkspace(): void {
+  useAddingWorkspace.setState({ open: true })
+}
+
+/** Registers a folder of an environment's machine as a workspace and opens a
+ * draft in it. */
+export function addWorkspaceAt(environmentId: string | undefined, path: string): Promise<boolean> {
   return run((e) => e.workspace.add, async () => {
-    const path = await desktop.pickDirectory()
-    if (!path) return
-    const { workspace } = await gateway().call('workspace/add', { path })
+    const { workspace } = await gateway().call('workspace/add', { path, environmentId })
+    useAddingWorkspace.setState({ open: false })
     go({ kind: 'draft', workspaceId: workspace.id })
-  })
+    return true
+  }).then(Boolean)
+}
+
+export type FolderList = EnvironmentFoldersResult
+
+/** A folder of an environment's machine and the folders in it: path, or the
+ * environment's own folder when undefined. */
+export function listFolders(environmentId: string | undefined, path: string | undefined): Promise<FolderList | undefined> {
+  return run((e) => e.workspace.browse, () => gateway().call('environment/listFolders', { environmentId, path }))
+}
+
+/** Makes a folder named name in parent, answering its path. */
+export function makeFolder(environmentId: string | undefined, parent: string, name: string): Promise<string | undefined> {
+  return run((e) => e.workspace.makeFolder, async () => (await gateway().call('environment/makeFolder', { environmentId, parent, name })).path)
+}
+
+/** The workspaces of one environment are its folders; a deleted one's
+ * scratch workspace, the only one it may have had, goes with it. */
+export function dropEnvironmentWorkspaces(environmentId: string): void {
+  useWorkspaces.setState((s) => ({ list: s.list.filter((w) => w.environmentId !== environmentId) }))
+}
+
+/** The scratch workspace of an environment, where a thread started in no
+ * project goes: the user's first environment's when none is named. */
+export function scratchOf(list: readonly WorkspaceRow[], environmentId: string | undefined, environments: readonly { id: string }[]): WorkspaceRow | undefined {
+  const env = environmentId ?? environments[0]?.id
+  return list.find((w) => w.kind === 'scratch' && w.environmentId === env)
 }
 
 export function renameWorkspace(workspaceId: string, name: string): Promise<void | undefined> {

@@ -166,7 +166,7 @@ function Assign({ todo }: { todo: TodoRow }) {
       { value: '', label: t.noConversation, description: active.length === 0 ? t.noThreads : undefined },
     ]
     for (const thread of active) {
-      const project = thread.workspaceId ? names.get(thread.workspaceId) : undefined
+      const project = names.get(thread.workspaceId)
       options.push({
         value: thread.id,
         label: threadTitle(m, thread),

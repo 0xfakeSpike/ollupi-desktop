@@ -5,10 +5,9 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, superAgentFolder, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, superAgentFolder, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
-import type { TempAttachments } from './attachments'
 import type { BackendHome } from './backend/home'
 import type { BackendSkills } from './backend/skills'
 import type { RemoteStore } from './backend/remote'
@@ -17,14 +16,11 @@ import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
 import type { History } from './browser/history'
 import { suggest } from './browser/suggest'
-import type { WorkspaceChanges } from './changes'
 import type { BackendSupervisor } from './backend/supervisor'
-import { kindOf, listFolder, readFile } from './files'
 import { providerBalance } from './balance'
 import { listModels } from './models'
 import { setBadge, showNotice } from './notices'
 import type { Presence } from './presence/presence'
-import type { Terminals } from './terminal'
 import type { AppUpdater } from './update'
 
 export function registerIpc(
@@ -32,12 +28,9 @@ export function registerIpc(
   remote: RemoteStore,
   backendHome: BackendHome,
   skills: BackendSkills,
-  changes: WorkspaceChanges,
   browser: AgentBrowser,
   bookmarks: Bookmarks,
   history: History,
-  terminals: Terminals,
-  attachments: TempAttachments,
   updater: AppUpdater,
   presence: Presence,
   home: string,
@@ -61,7 +54,7 @@ export function registerIpc(
     for (const win of BrowserWindow.getAllWindows()) win.webContents.reload()
   })
   ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
-    const source = await pickDirectory(event.sender, false)
+    const source = await pickDirectory(event.sender)
     return source === undefined ? undefined : skills.read(source)
   })
   ipcMain.handle(IpcChannel.ProfileDelete, async (_event, profile: unknown) => {
@@ -89,32 +82,6 @@ export function registerIpc(
     await mkdir(folder, { recursive: true })
     return folder
   })
-  ipcMain.handle(IpcChannel.FilesList, (_event, root: unknown, path: unknown) => listFolder(text(root), text(path)))
-  ipcMain.handle(IpcChannel.FilesRead, (_event, root: unknown, path: unknown) => readFile(text(root), text(path)))
-  ipcMain.handle(IpcChannel.FilesKind, (_event, root: unknown, path: unknown) => kindOf(text(root), text(path)))
-  ipcMain.handle(IpcChannel.ChangesList, (_event, root: unknown) => changes.list(absolute(root)))
-  ipcMain.handle(IpcChannel.ChangesStage, (_event, root: unknown, paths: unknown) => changes.stage(absolute(root), texts(paths)))
-  ipcMain.handle(IpcChannel.ChangesUnstage, (_event, root: unknown, paths: unknown) => changes.unstage(absolute(root), texts(paths)))
-  ipcMain.handle(IpcChannel.ChangesDiscard, (_event, root: unknown, file: unknown) => {
-    const f = file as FileChange
-    if (!['modified', 'added', 'deleted', 'untracked'].includes(f?.kind)) throw new Error('expected a changed file')
-    return changes.discard(absolute(root), { path: text(f.path), kind: f.kind, staged: f.staged })
-  })
-  ipcMain.handle(IpcChannel.ChangesCommit, (_event, root: unknown, message: unknown) => changes.commit(absolute(root), text(message)))
-  ipcMain.handle(IpcChannel.ChangesDiff, (_event, root: unknown, path: unknown, untracked: unknown) =>
-    changes.diff(absolute(root), text(path), untracked === true),
-  )
-  ipcMain.handle(IpcChannel.AttachmentsWrite, (_event, name: unknown, data: unknown) => {
-    if (!(data instanceof Uint8Array)) throw new Error('expected bytes')
-    return attachments.write(text(name), data)
-  })
-  ipcMain.handle(IpcChannel.AttachmentsRemove, (_event, path: unknown) => attachments.remove(absolute(path)))
-  ipcMain.handle(IpcChannel.TerminalOpen, (_event, key: unknown, cwd: unknown, cols: unknown, rows: unknown) =>
-    terminals.open(text(key), absolute(cwd), size(cols), size(rows)),
-  )
-  ipcMain.handle(IpcChannel.TerminalWrite, (_event, key: unknown, data: unknown) => terminals.write(text(key), text(data)))
-  ipcMain.handle(IpcChannel.TerminalResize, (_event, key: unknown, cols: unknown, rows: unknown) => terminals.resize(text(key), size(cols), size(rows)))
-  ipcMain.handle(IpcChannel.TerminalClose, (_event, key: unknown) => terminals.close(text(key)))
   ipcMain.handle(IpcChannel.BrowserState, (_event, thread: unknown) => browser.state(text(thread)))
   ipcMain.handle(IpcChannel.BrowserPlace, (_event, thread: unknown, bounds: unknown) => browser.place(text(thread), validBounds(bounds)))
   ipcMain.handle(IpcChannel.BrowserOpen, (_event, thread: unknown, url: unknown) => browser.open(text(thread), typedPage(text(url))))
@@ -166,7 +133,6 @@ export function registerIpc(
     const answer = presenceAck(ack)
     if (answer) presence.onAck(answer)
   })
-  ipcMain.handle(IpcChannel.PickDirectory, (event) => pickDirectory(event.sender, true))
   ipcMain.handle(IpcChannel.SaveFile, (event, name: unknown, content: unknown) => saveFile(event.sender, basename(text(name)), text(content)))
   ipcMain.handle(IpcChannel.OpenPath, async (_event, path: unknown) => {
     if (typeof path !== 'string' || !isAbsolute(path)) throw new Error('expected an absolute path')
@@ -195,8 +161,6 @@ export function registerIpc(
   browser.on('downloaded', (thread: string, download: BrowserDownload) => send(IpcChannel.BrowserDownloaded, thread, download))
   browser.on('permission', (thread: string, permission: BrowserPermission) => send(IpcChannel.BrowserPermissionAsked, thread, permission))
   browser.on('permissionClosed', (thread: string, id: number) => send(IpcChannel.BrowserPermissionClosed, thread, id))
-  terminals.on('data', (key: string, data: string) => send(IpcChannel.TerminalData, key, data))
-  terminals.on('exit', (key: string, code: number) => send(IpcChannel.TerminalExit, key, code))
   updater.on('state', (state: UpdateState) => send(IpcChannel.UpdateChanged, state))
 }
 
@@ -210,9 +174,9 @@ async function saveFile(sender: Electron.WebContents, name: string, content: str
   return res.filePath
 }
 
-/** A folder the user chooses; create lets them make a new one. */
-async function pickDirectory(sender: Electron.WebContents, create: boolean): Promise<string | undefined> {
-  const opts: Electron.OpenDialogOptions = { properties: create ? ['openDirectory', 'createDirectory'] : ['openDirectory'] }
+/** A folder of this Mac the user chooses, as a skill to import. */
+async function pickDirectory(sender: Electron.WebContents): Promise<string | undefined> {
+  const opts: Electron.OpenDialogOptions = { properties: ['openDirectory'] }
   const win = BrowserWindow.fromWebContents(sender)
   const res = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
   return res.canceled ? undefined : res.filePaths[0]
@@ -231,12 +195,6 @@ function absolute(value: unknown): string {
   return value
 }
 
-/** A terminal's columns or rows. */
-function size(value: unknown): number {
-  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 1000) throw new Error('expected a terminal size')
-  return value as number
-}
-
 function tabId(value: unknown): number {
   if (!Number.isInteger(value)) throw new Error('expected a tab id')
   return value as number
@@ -252,11 +210,6 @@ function remoteInput(value: unknown): RemoteInput {
   const v = value as Partial<RemoteInput> | null
   if (typeof v?.enabled !== 'boolean') throw new Error('expected remote settings')
   return { enabled: v.enabled, url: text(v.url), token: text(v.token), accessClientId: text(v.accessClientId), accessClientSecret: text(v.accessClientSecret) }
-}
-
-function texts(value: unknown): string[] {
-  if (!Array.isArray(value)) throw new Error('expected a list of strings')
-  return value.map(text)
 }
 
 /** A profile id, as the backend names one: its hub folder is a folder of

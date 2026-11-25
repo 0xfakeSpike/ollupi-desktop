@@ -22,15 +22,14 @@ import { desktop } from '../platform/desktop'
 
 const PAGE_SIZE = 50
 
-/** more: whether a group has threads past those read, by workspace id
- * ('' for threads outside any). */
+/** more: whether a group has threads past those read, by workspace id. */
 export const useThreads = create<{ list: ThreadRow[]; more: Record<string, boolean> }>()(() => ({ list: [], more: {} }))
 
 /** thread/list with archived: across every workspace, newest first.
  * Undefined until the sidebar first shows it. */
 export const useArchivedThreads = create<{ list: ThreadRow[] | undefined; more: boolean }>()(() => ({ list: undefined, more: false }))
 
-const groupKey = (t: Pick<ThreadRow, 'workspaceId'>) => t.workspaceId ?? ''
+const groupKey = (t: Pick<ThreadRow, 'workspaceId'>) => t.workspaceId
 
 /** The commit each thread was last set at in a list, a deletion included:
  * one map for the list of those not archived, one for the archived list,
@@ -137,7 +136,7 @@ export const threadsDomain: Domain = {
   },
   // Runs after workspaces have synced (session order).
   sync: async (client) => {
-    const scopes = ['', ...activeWorkspaces(useWorkspaces.getState().list).map((w) => w.id)]
+    const scopes = activeWorkspaces(useWorkspaces.getState().list).map((w) => w.id)
     const pages = await Promise.all(scopes.map((workspaceId) => client.call('thread/list', { workspaceId, limit: PAGE_SIZE })))
     // What changed while the pages were on their way is in the list already.
     const rows = pages.flatMap((page) => fresh(listedSeqs, page))
@@ -156,9 +155,9 @@ export const threadsDomain: Domain = {
   },
 }
 
-/** The next page of a group: a workspace's threads, or those outside any. */
-export function loadMoreThreads(workspaceId: string | undefined): Promise<void | undefined> {
-  return run((e) => e.thread.list, () => readGroup(workspaceId ?? '', 'more'))
+/** The next page of a workspace's threads. */
+export function loadMoreThreads(workspaceId: string): Promise<void | undefined> {
+  return run((e) => e.thread.list, () => readGroup(workspaceId, 'more'))
 }
 
 export function loadArchivedThreads(from: 'start' | 'more'): Promise<void | undefined> {
@@ -217,11 +216,13 @@ export async function threadMenu(labels: Record<ThreadAction, string>): Promise<
   return actions.find((a) => a === picked)
 }
 
-export type WorkspaceAction = 'reveal' | 'settings' | 'archive'
+export type WorkspaceAction = 'settings' | 'archive'
 
 /** A workspace's menu, the system's own; archiving last. */
-export async function workspaceMenu(labels: Record<WorkspaceAction, string>): Promise<WorkspaceAction | undefined> {
-  const actions: WorkspaceAction[] = ['reveal', 'settings', 'archive']
+/** A workspace's menu; a scratch workspace stays with its environment, so it
+ * is not archived. */
+export async function workspaceMenu(labels: Record<WorkspaceAction, string>, scratch: boolean): Promise<WorkspaceAction | undefined> {
+  const actions: WorkspaceAction[] = scratch ? ['settings'] : ['settings', 'archive']
   const picked = await desktop.contextMenu(actions.map((id) => ({ id, label: labels[id] })))
   return actions.find((a) => a === picked)
 }

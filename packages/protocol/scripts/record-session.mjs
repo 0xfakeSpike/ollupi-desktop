@@ -174,11 +174,21 @@ await call('environment/delete', { environmentId: envs[0].id }).catch(() => {})
 const { thread } = await call('thread/start', { workspaceId: ws1.id })
 
 await turn(thread.id, 'Hello there\nsecond line')
-// A file goes by its path; ollupi copies it into the thread's attachments.
-const notes = join(tmp, 'notes.txt')
-writeFileSync(notes, 'indent with two spaces\n')
-const attached = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'read the attached notes' }, { type: 'file', path: notes }] })
+// A file from the person's device is uploaded first, over HTTP; the message
+// names the upload, and ollupi copies it into the thread's attachments.
+const uploaded = await fetch(new URL('/uploads', url.replace(/^ws/, 'http')), {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${CONNECTION}`, 'Content-Type': 'text/plain', 'Content-Disposition': "attachment; filename*=UTF-8''notes.txt" },
+  body: 'indent with two spaces\n',
+}).then((r) => r.json())
+const attached = await call('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'read the attached notes' }, { type: 'upload', uploadId: uploaded.uploadId }] })
 await completed(attached.turn.id)
+// The workspace's files and changes, read where it is, and the folders of
+// its environment's machine, to choose a workspace's among.
+await call('workspace/listFiles', { workspaceId: ws1.id })
+await call('workspace/statFile', { workspaceId: ws1.id, path: 'missing.txt' })
+await call('workspace/changes', { workspaceId: ws1.id })
+await call('environment/listFolders', { path: workspace })
 await turn(thread.id, 'run ls please')
 await turn(thread.id, 'please ask me which language')
 await turn(thread.id, 'make a plan')
@@ -219,7 +229,6 @@ await call('skill/set', { name: 'Not A Name', description: 'x', instructions: 'x
 await call('skill/delete', { name: 'release-notes' })
 await call('memory/status', {})
 await call('memory/list', { scope: 'global' })
-await call('memory/list', { scope: 'general' })
 // The Super Agent: a hub workspace with instructions.
 const hubFolder = join(tmp, 'super-agent')
 mkdirSync(hubFolder, { recursive: true })

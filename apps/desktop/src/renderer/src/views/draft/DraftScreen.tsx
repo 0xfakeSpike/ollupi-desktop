@@ -27,9 +27,14 @@ import { useThreads } from '../../domains/threads'
 import { ToastHost } from '../common/Toasts'
 
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
-  const workspace = useWorkspace(workspaceId)
+  const named = useWorkspace(workspaceId)
   const panel = usePanel()
-  const environment = useDraftEnvironment(workspace?.environmentId)
+  const environment = useDraftEnvironment(named?.environmentId)
+  // A draft in no project starts in its environment's scratch workspace:
+  // its panels are that folder's.
+  const scratch = useWorkspaces((s) => s.list.find((w) => w.kind === 'scratch' && w.environmentId === environment?.id))
+  const workspace = named ?? scratch
+  const project = workspace && workspace.kind !== 'scratch' ? workspace : undefined
   const [managing, setManaging] = useState(false)
   const approval = useNavigation((s) => s.approval)
   const agentPolicy = useUserPolicy()
@@ -53,9 +58,9 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           {firstUse ? <Emblem className="mb-3 size-16" /> : <Horizon className="pointer-events-none mb-4 h-auto w-80" />}
           <h1 className="text-hero text-fg">{hub ? m.conversation.draft.hubTitle : m.conversation.draft.title}</h1>
           <p className="max-w-md text-center text-ui text-fg-muted">
-            {hub ? m.conversation.draft.hubIntro : workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}
+            {hub ? m.conversation.draft.hubIntro : project ? m.conversation.draft.commandsRunIn(project.name) : m.conversation.draft.noFolder}
           </p>
-          {!hub && <Suggestions workspace={workspace} />}
+          {!hub && <Suggestions workspace={project} />}
           {/* Above the message box, so the box cannot paint over it. */}
           <ToastHost />
         </div>
@@ -65,13 +70,13 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           onSubmit={(message) => startThread(workspaceId, message)}
           toolbar={
             <>
-              <EnvironmentPicker current={environment} inWorkspace={!!workspace} onManage={() => setManaging(true)} />
-              <WorkspacePicker workspaceId={workspaceId} />
+              <EnvironmentPicker current={environment} inWorkspace={!!named} onManage={() => setManaging(true)} />
+              <WorkspacePicker workspaceId={project?.id} />
               <ModelPicker inherited={undefined} />
               <ApprovalPicker
                 value={approval}
                 inherited={workspace?.settings.approvalPolicy ?? agentPolicy}
-                from={workspace ? m.settings.permissions.fromWorkspace : m.settings.permissions.fromAgent}
+                from={m.settings.permissions.fromWorkspace}
                 onChange={chooseApproval}
               />
             </>
@@ -89,8 +94,10 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
 const ADD = '__add__'
 const MANAGE = '__manage__'
 
+/** The project the draft is in, or none: the scratch workspace of the
+ * environment chosen. */
 function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
-  const workspaces = activeWorkspaces(useWorkspaces((s) => s.list))
+  const workspaces = activeWorkspaces(useWorkspaces((s) => s.list)).filter((w) => w.kind !== 'scratch')
   const current = workspaces.find((w) => w.id === workspaceId)
   const m = useT()
   return (
@@ -115,8 +122,8 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
 }
 
 /** The environment the draft would run in: its workspace's, whose folder
- * the workspace is, or outside one the environment chosen, or the user's
- * first. */
+ * the workspace is, or outside a project the environment chosen, or the
+ * user's first. */
 function useDraftEnvironment(workspaceEnvironment: string | undefined) {
   const environments = useEnvironments((s) => s.list)
   const chosen = useNavigation((s) => s.environment)

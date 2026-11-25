@@ -12,7 +12,7 @@ import { go } from '../../domains/navigation'
 import { queryTerms, shownResult, useSearch, useSearchScreen } from '../../domains/search'
 import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT, type Messages } from '../../i18n'
-import { relativeTime, threadTitle } from '../../i18n/format'
+import { relativeTime, threadTitle, workspaceName } from '../../i18n/format'
 import { Highlight } from './Highlight'
 import { Wolf } from '../common/Wolf'
 
@@ -132,8 +132,11 @@ function Meta({ children }: { children: ReactNode[] }) {
 
 function useWorkspaceName(): (id: string | undefined) => string {
   const workspaces = useWorkspaces((s) => s.list)
-  const t = useT().search
-  return (id) => (id ? (workspaces.find((w) => w.id === id)?.name ?? t.noWorkspace) : t.noWorkspace)
+  const m = useT()
+  return (id) => {
+    const w = id ? workspaces.find((x) => x.id === id) : undefined
+    return w ? workspaceName(m, w) : m.search.noWorkspace
+  }
 }
 
 function ThreadResult({ thread, terms }: { thread: ThreadRow; terms: string[] }) {
@@ -207,6 +210,5 @@ function MemoryResult({ memory, terms }: { memory: MemoryRow; terms: string[] })
 
 function scopeLabel(m: Messages, memory: MemoryRow, workspace: (id: string | undefined) => string): string {
   if (memory.scope === 'global') return m.memory.screen.global
-  if (memory.scope === 'general') return m.memory.screen.general
   return workspace(memory.workspaceId)
 }

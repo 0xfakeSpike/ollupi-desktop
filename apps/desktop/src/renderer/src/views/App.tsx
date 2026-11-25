@@ -7,6 +7,7 @@ import { go, useNavigation } from '../domains/navigation'
 import { useT } from '../i18n'
 import { BackendScreen } from './backend/BackendScreen'
 import { CapabilitiesScreen } from './capabilities/CapabilitiesScreen'
+import { AddWorkspaceDialog } from './common/AddWorkspaceDialog'
 import { Toasts } from './common/Toasts'
 import { ConversationScreen } from './conversation/ConversationScreen'
 import { DraftScreen } from './draft/DraftScreen'
@@ -36,6 +37,7 @@ export function App() {
               <CurrentScreen />
             </main>
           </div>
+          <AddWorkspaceDialog />
         </div>
       ) : (
         <BackendScreen />

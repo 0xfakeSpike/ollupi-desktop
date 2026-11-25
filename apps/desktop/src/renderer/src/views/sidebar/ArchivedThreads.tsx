@@ -7,7 +7,7 @@ import { useOpenThreadId } from '../../domains/navigation'
 import { archiveThread, deleteThread, loadArchivedThreads, useArchivedThreads } from '../../domains/threads'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useT } from '../../i18n'
-import { threadTitle } from '../../i18n/format'
+import { threadTitle, workspaceName } from '../../i18n/format'
 
 /** Archived threads of every workspace, read when first opened: they keep
  * their messages but take no new ones, and their scheduled tasks are not
@@ -70,7 +70,7 @@ function ArchivedThread({ thread }: { thread: ThreadRow }) {
       <button
         type="button"
         onClick={() => void openThread(thread.id)}
-        title={workspace?.name ?? s.noWorkspace}
+        title={workspace ? workspaceName(m, workspace) : undefined}
         className={cn(
           'flex h-9 w-full items-center rounded-full pr-14 pl-3.5 text-left text-ui transition-colors duration-100 ease-standard',
           'focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none',

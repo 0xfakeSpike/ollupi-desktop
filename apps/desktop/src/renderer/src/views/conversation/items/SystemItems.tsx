@@ -29,7 +29,7 @@ export function MemoryContext({ item }: { item: ItemRow }) {
 
 /** The scopes in the order a conversation lists them (see the catalog's
  * memoryScope for their names). */
-const scopes: Scope[] = ['global', 'general', 'workspace']
+const scopes: Scope[] = ['global', 'workspace']
 
 /** Memories a conversation sees, by the scope each carries. */
 function MemoryGroups({ memories }: { memories: MemoryReference[] }) {

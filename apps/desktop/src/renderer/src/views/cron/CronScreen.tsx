@@ -13,17 +13,16 @@ import { createJob, deleteJob, setPaused, useCron } from '../../domains/cron'
 import { useThreads } from '../../domains/threads'
 import { activeWorkspaces, useWorkspaces } from '../../domains/workspaces'
 import { useLocale, useT } from '../../i18n'
-import { clock, describeSchedule, monthDay, relativeTime, threadTitle } from '../../i18n/format'
+import { clock, describeSchedule, monthDay, relativeTime, threadTitle, workspaceName } from '../../i18n/format'
 import { useFound } from '../common/found'
 import { defaultChoice, onceTime, SchedulePicker, type Choice } from './SchedulePicker'
 import { Wolf } from '../common/Wolf'
 
-/** The list shown: every task, those outside any workspace, or one
- * workspace's. */
+/** The list shown: every task, or one workspace's (a scratch one's holds
+ * those of conversations started in no project). */
 const ALL = 'all'
-const GENERAL = 'general'
 
-const placeOf = (job: { workspaceId?: string }): string => job.workspaceId ?? GENERAL
+const placeOf = (job: { workspaceId?: string }): string => job.workspaceId ?? ''
 
 export function CronScreen({ found }: { found?: string }) {
   const m = useT()
@@ -35,8 +34,7 @@ export function CronScreen({ found }: { found?: string }) {
   const count = (p: string) => jobs && String(p === ALL ? jobs.length : jobs.filter((j) => placeOf(j) === p).length)
   const places = [
     { id: ALL, label: m.cron.all, detail: count(ALL) },
-    { id: GENERAL, label: m.cron.general, detail: count(GENERAL) },
-    ...workspaces.map((w) => ({ id: w.id, label: w.name, detail: count(w.id) })),
+    ...[...workspaces.filter((w) => w.kind === 'scratch'), ...workspaces.filter((w) => w.kind !== 'scratch')].map((w) => ({ id: w.id, label: workspaceName(m, w), detail: count(w.id) })),
   ]
   const shown = (jobs ?? []).filter((j) => place === ALL || placeOf(j) === place).sort(byNextRun)
 
@@ -115,7 +113,7 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobRow; workspace: Wo
           <button type="button" className="min-w-0 truncate text-fg-muted hover:text-fg hover:underline" onClick={() => void openThread(job.threadId)}>
             {threadTitle(m, { title: job.threadTitle })}
           </button>
-          {showWorkspace && <span>· {workspace?.name ?? m.cron.general}</span>}
+          {showWorkspace && workspace && <span>· {workspaceName(m, workspace)}</span>}
         </div>
         <p className="mt-0.5 text-small text-fg-subtle">
           {job.paused ? m.cron.paused : m.cron.next(relativeTime(m, locale, job.nextRunAt), new Date(job.nextRunAt).toLocaleString(locale))}
@@ -138,16 +136,16 @@ function Job({ job, workspace, showWorkspace }: { job: CronJobRow; workspace: Wo
   )
 }
 
-/** A new task goes to an existing top-level thread of an active workspace
- * (or of none): ollupi skips runs in archived workspaces. The workspace is picked first, starting from the
+/** A new task goes to an existing top-level thread of an active workspace:
+ * ollupi skips runs in archived workspaces. The workspace is picked first, starting from the
  * one shown on the left, then one of its threads; those offered are the ones
  * the sidebar loaded. */
 function NewJob({ place, workspaces }: { place: string; workspaces: WorkspaceRow[] }) {
   const m = useT()
   const threads = useThreads((s) => s.list)
   const active = activeWorkspaces(workspaces)
-  const eligible = threads.filter((t) => !t.parentThreadId && (!t.workspaceId || active.some((w) => w.id === t.workspaceId)))
-  const spaces = [{ id: GENERAL, name: m.cron.general }, ...active].filter((s) => eligible.some((t) => placeOf(t) === s.id))
+  const eligible = threads.filter((t) => !t.parentThreadId && active.some((w) => w.id === t.workspaceId))
+  const spaces = active.map((w) => ({ id: w.id, name: workspaceName(m, w) })).filter((s) => eligible.some((t) => placeOf(t) === s.id))
   // A workspace picked here holds until another one is shown on the left.
   const [picked, setPicked] = useState({ place, space: place })
   const space = spaces.find((s) => s.id === (picked.place === place ? picked.space : place)) ?? spaces[0]

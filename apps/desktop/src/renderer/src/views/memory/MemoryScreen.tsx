@@ -3,7 +3,7 @@
 // keeps extraction from rewriting them), moved between their own scope and
 // global, or forgotten.
 
-import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus } from '@ollupi/protocol'
+import type { MemoryFailure, MemoryRow, MemorySkip, MemoryStatus, WorkspaceRow } from '@ollupi/protocol'
 import { Badge, Button, ClampText, Details, EmptyState, IconButton, Loader, Tabs, Textarea } from '@ollupi/ui'
 import { ArrowRightLeft, Pencil, RotateCw, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -15,19 +15,21 @@ import { useThreadRow } from '../../domains/threads'
 import { useWorkspaces } from '../../domains/workspaces'
 import { useConnection } from '../../gateway/connection'
 import { useLocale, useT, type Messages } from '../../i18n'
-import { relativeTime, threadTitle } from '../../i18n/format'
+import { relativeTime, threadTitle, workspaceName } from '../../i18n/format'
 import { useFound } from '../common/found'
 import { NavPage } from '../common/NavPage'
 import { MemorySettings } from './MemorySettings'
 import { useModels } from '../../domains/models'
 import { Wolf } from '../common/Wolf'
 
-/** The places a memory can be in, as the list names them. */
-function placesOf(m: Messages, workspaces: { id: string; name: string }[]): { place: MemoryPlace; label: string }[] {
+/** The places a memory can be in, as the list names them: global, then
+ * what was started in no project (the scratch workspaces), then each
+ * workspace. */
+function placesOf(m: Messages, workspaces: WorkspaceRow[]): { place: MemoryPlace; label: string }[] {
+  const scratch = workspaces.filter((w) => w.kind === 'scratch')
   return [
     { place: { scope: 'global' }, label: m.memory.screen.global },
-    { place: { scope: 'general' }, label: m.memory.screen.general },
-    ...workspaces.map((w) => ({ place: { scope: 'workspace' as const, workspaceId: w.id }, label: w.name })),
+    ...[...scratch, ...workspaces.filter((w) => w.kind !== 'scratch')].map((w) => ({ place: { scope: 'workspace' as const, workspaceId: w.id }, label: workspaceName(m, w) })),
   ]
 }
 
@@ -41,7 +43,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState(0)
   // A workspace's search also finds global memories; the list keeps this tab's.
-  const matches = shownResult(useSearch(query, scope === 'global' || scope === 'general' ? '' : scope, searched))?.memories?.filter(
+  const matches = shownResult(useSearch(query, scope === 'global' ? '' : scope, searched))?.memories?.filter(
     (e) => placeKey(placeOf(e)) === scope,
   )
   const searching = !!query.trim()
@@ -144,7 +146,7 @@ export function MemoryScreen({ found }: { found?: { id: string; scope: string } 
             <Entry
               key={e.id}
               entry={e}
-              origin={e.scope === 'global' ? placeLabel(e.originWorkspaceId || 'general') : undefined}
+              origin={e.scope === 'global' ? placeLabel(e.originWorkspaceId ?? '') : undefined}
               onSaved={replace}
               onMoved={moved}
               onForgotten={() => remove(e.id)}

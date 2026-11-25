@@ -48,6 +48,7 @@ import {
 
 const thread = (extra: Partial<ThreadRow> = {}): ThreadRow => ({
   id: 'th',
+  workspaceId: 'scratch',
   title: 'hello',
   settings: { permissions: {} },
   status: 'idle',
@@ -260,41 +261,42 @@ describe('threads', () => {
     const ws = { id: 'w', name: 'W', environmentId: 'here', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
     const hub = { ...ws, id: 'hub', kind: 'hub' as const }
     const list = [thread({ id: 'plan', workspaceId: 'hub' }), thread({ id: 'work', workspaceId: 'w' })]
-    expect(groupByWorkspace([hub, ws], list).map((g) => g.workspace?.id)).toEqual(['w', undefined])
+    expect(groupByWorkspace([hub, ws], list).map((g) => g.workspace.id)).toEqual(['w'])
     expect(hubOf([ws, hub])?.id).toBe('hub')
     expect(hubOf([ws, { ...hub, archivedAt: '2026-01-01T00:00:00Z' }])).toBeUndefined()
   })
 
-  it('groups by active workspace with loose threads last', () => {
+  it('groups by active workspace, a scratch one as any other', () => {
     const ws = { id: 'w', name: 'W', environmentId: 'here', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
+    const scratch = { ...ws, id: 'scratch', name: 'Scratch', rootPath: '', kind: 'scratch' as const }
     const list = upsertThread(upsertThread([], thread({ workspaceId: 'w' })), thread({ id: 'loose' }))
-    const groups = groupByWorkspace([ws, { ...ws, id: 'old', archivedAt: '2026-01-01T00:00:00Z' }], list)
-    expect(groups.map((g) => [g.workspace?.id, g.threads.map((t) => t.id)])).toEqual([
+    const groups = groupByWorkspace([ws, scratch, { ...ws, id: 'old', archivedAt: '2026-01-01T00:00:00Z' }], list)
+    expect(groups.map((g) => [g.workspace.id, g.threads.map((t) => t.id)])).toEqual([
       ['w', ['th']],
-      [undefined, ['loose']],
+      ['scratch', ['loose']],
     ])
   })
 
   it('puts what waits on the person first: its threads, then its workspace', () => {
     const ws = (id: string) => ({ id, name: id, environmentId: 'here', rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
-    const at = (id: string, workspaceId: string | undefined, updatedAt: string, status: ThreadRow['status']): ThreadRow => thread({ id, workspaceId, updatedAt, status })
+    const at = (id: string, workspaceId: string, updatedAt: string, status: ThreadRow['status']): ThreadRow => thread({ id, workspaceId, updatedAt, status })
     // Newest first, as thread/list orders them.
     const list = [
       at('a1', 'a', '2026-01-06T00:00:00Z', 'active'),
-      at('loose1', undefined, '2026-01-05T00:00:00Z', 'idle'),
+      at('loose1', 's', '2026-01-05T00:00:00Z', 'idle'),
       at('b1', 'b', '2026-01-04T00:00:00Z', 'idle'),
       at('b2', 'b', '2026-01-03T00:00:00Z', 'waitingOnUserInput'),
-      at('loose2', undefined, '2026-01-02T00:00:00Z', 'waitingOnApproval'),
+      at('loose2', 's', '2026-01-02T00:00:00Z', 'waitingOnApproval'),
       at('c1', 'c', '2026-01-01T12:00:00Z', 'waitingOnApproval'),
       at('b3', 'b', '2026-01-01T00:00:00Z', 'waitingOnApproval'),
     ]
-    const groups = groupByWorkspace([ws('a'), ws('b'), ws('c'), ws('d')], list)
-    expect(groups.map((g) => [g.workspace?.id, g.threads.map((t) => t.id)])).toEqual([
+    const groups = groupByWorkspace([ws('a'), ws('b'), ws('c'), ws('d'), { ...ws('s'), kind: 'scratch' as const }], list)
+    expect(groups.map((g) => [g.workspace.id, g.threads.map((t) => t.id)])).toEqual([
+      ['s', ['loose2', 'loose1']],
       ['b', ['b2', 'b3', 'b1']],
       ['c', ['c1']],
       ['a', ['a1']],
       ['d', []],
-      [undefined, ['loose2', 'loose1']],
     ])
   })
   it('is unread from the end of a turn until read, as the engine says', () => {
@@ -310,7 +312,7 @@ describe('threads', () => {
     // workspace/list's order: the workspaces changed last first.
     const workspaces = [ws('docs', '2026-01-08T00:00:00Z'), ws('app', '2026-01-07T00:00:00Z'), ws('fresh', '2026-01-09T12:00:00.5Z'), ws('old', '2026-01-01T00:00:00Z')]
     const list = [at('s1', 'app', '2026-01-11T14:31:31.610699Z'), at('d1', 'docs', '2026-01-08T08:28:18.489406Z'), at('o1', 'old', '2026-01-09T12:00:00.25Z')]
-    expect(groupByWorkspace(workspaces, list).map((g) => g.workspace?.id)).toEqual(['app', 'fresh', 'old', 'docs', undefined])
+    expect(groupByWorkspace(workspaces, list).map((g) => g.workspace.id)).toEqual(['app', 'fresh', 'old', 'docs'])
   })
 
   it('reads a link to a conversation, and leaves other links', () => {

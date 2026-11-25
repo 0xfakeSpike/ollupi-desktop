@@ -15,6 +15,8 @@ export const en = {
     permissions: 'Could not save the workspace permissions',
     instructions: 'Could not save the workspace instructions',
     superAgent: 'Could not set up the Super Agent',
+    browse: 'Could not read the folders there',
+    makeFolder: 'Could not make the folder',
   },
   environment: {
     add: 'Could not add the environment',
@@ -75,7 +77,6 @@ export const en = {
     list: 'Could not read the folder',
     read: 'Could not read the file',
     open: 'Could not open it',
-    reveal: 'Could not show it in Finder',
   },
   browser: {
     open: 'Could not open the page',
@@ -128,6 +129,8 @@ export const zh: typeof en = {
     permissions: '无法保存工作区权限',
     instructions: '无法保存工作区指令',
     superAgent: '无法设置 Super Agent',
+    browse: '无法读取那里的文件夹',
+    makeFolder: '无法新建文件夹',
   },
   environment: {
     add: '无法添加环境',
@@ -188,7 +191,6 @@ export const zh: typeof en = {
     list: '无法读取文件夹',
     read: '无法读取文件',
     open: '无法打开',
-    reveal: '无法在访达中显示',
   },
   browser: {
     open: '无法打开网页',

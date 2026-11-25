@@ -4,7 +4,7 @@
 // a line after a colon.
 
 /** The path relative to root that text names: relative already, or
- * absolute under root, with a leading ./ and a trailing :line(:column)
+ * absolute under root (when root is known; a scratch workspace's is not), with a leading ./ and a trailing :line(:column)
  * dropped. Undefined for text that is not a path into the workspace: a
  * URL, a home-relative or outside path, or a bare word, which is code more
  * often than a file. Whether the file is there is for the caller to ask. */
@@ -13,6 +13,8 @@ export function workspacePath(text: string, root: string): string | undefined {
   if (!path || path.length > 1024 || /[\n<>|"*?`{}$]/.test(path) || /^[a-z][\w+.-]*:/i.test(path)) return undefined
   path = path.replace(/:\d+(?::\d+)?$/, '').replace(/^(?:\.\/)+/, '')
   if (path.startsWith('/')) {
+    // Under no folder known (a scratch workspace's), no absolute path is in it.
+    if (!root) return undefined
     const base = root.endsWith('/') ? root : `${root}/`
     if (!path.startsWith(base)) return undefined
     path = path.slice(base.length)
@@ -37,6 +39,7 @@ export function linkedPath(ref: string, folder: string, root: string): string | 
   }
   let from = folder
   if (path.startsWith('/')) {
+    if (!root) return undefined
     const base = root.endsWith('/') ? root : `${root}/`
     if (!path.startsWith(base)) return undefined
     path = path.slice(base.length)

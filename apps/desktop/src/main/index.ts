@@ -14,9 +14,6 @@ import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
 import { History } from './browser/history'
 import { Permissions } from './browser/permissions'
-import { TempAttachments } from './attachments'
-import { WorkspaceChanges } from './changes'
-import { Terminals } from './terminal'
 import { registerIpc } from './ipc'
 import { activeProfile, rememberProfile } from './profile'
 import { registerAppScheme, serveRenderer } from './protocol'
@@ -39,8 +36,6 @@ if (!app.requestSingleInstanceLock()) {
   const noted = (work: Promise<void>) => void work.catch((err: unknown) => console.error('browser history not kept', err))
   browser.on('visited', (url: string, title: string) => noted(history.visit(url, title)))
   browser.on('titled', (url: string, title: string) => noted(history.title(url, title)))
-  const terminals = new Terminals()
-  const attachments = new TempAttachments(join(app.getPath('temp'), 'Ollupi', 'attachments'))
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
@@ -92,12 +87,11 @@ if (!app.requestSingleInstanceLock()) {
       const target = await remote.target()
       return target ? remoteSources(target) : []
     })
-    void attachments.clear()
     // An older config.yaml and profiles.json move into the store before the
     // backend starts, and config.yaml goes. A failed import is said in the
     // log; the backend starts all the same.
     await homeFiles.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
-    registerIpc(backend, remote, homeFiles, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
+    registerIpc(backend, remote, homeFiles, skills, browser, bookmarks, history, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.
     const newWindow = () => {
@@ -129,7 +123,6 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault()
     // Quit again from a fresh task: re-quitting from a microtask while this
     // quit unwinds hangs Electron when a window-all-closed listener exists.
-    terminals.closeAll()
     // The last stretches go to the backend before it stops, so the quit order
     // matters: presence first, then the backend and the history.
     void presence.stop().finally(() =>

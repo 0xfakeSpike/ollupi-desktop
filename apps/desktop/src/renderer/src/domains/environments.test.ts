@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnvironmentRow } from '@ollupi/protocol'
+vi.mock('../platform/desktop', () => ({ desktop: {} }))
+
 import { defaultEnvironment, environmentName, environmentsDomain, onThisMachine, providerName, useEnvironments } from './environments'
 
 const env = (id: string, name: string, provider: string, createdAt: string): EnvironmentRow => ({

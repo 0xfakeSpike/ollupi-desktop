@@ -75,13 +75,14 @@ export function isWorking(status: ThreadStatus | undefined): boolean {
 }
 
 export interface WorkspaceGroup {
-  workspace: WorkspaceRow | undefined
+  workspace: WorkspaceRow
   threads: ThreadRow[]
 }
 
-/** Threads under each active project workspace, then those outside any
- * workspace. Archived workspaces are not listed, nor the hub, which the
- * sidebar shows on its own (hubOf). What waits on the person comes first:
+/** Threads under each active workspace: every thread is in one, those
+ * started in no project in their environment's scratch workspace. Archived
+ * workspaces are not listed, nor the hub, which the sidebar shows on its
+ * own (hubOf). What waits on the person comes first:
  * in each group the threads waiting on an approval or an answer, then the
  * rest, and the workspaces holding such a thread before the others. Past
  * that, the workspace worked in last comes first: its latest thread's
@@ -97,7 +98,7 @@ export function groupByWorkspace(workspaces: readonly WorkspaceRow[], threads: r
     .sort((a, b) => b.last - a.last)
     .map(({ g }) => g)
   const waits = (g: WorkspaceGroup) => g.threads.some((t) => needsUser(t.status))
-  return [...groups.filter(waits), ...groups.filter((g) => !waits(g)), { workspace: undefined, threads: waitingFirst(threads.filter((t) => !t.workspaceId)) }]
+  return [...groups.filter(waits), ...groups.filter((g) => !waits(g))]
 }
 
 /** When a workspace was last worked in, as a time to compare: the later of

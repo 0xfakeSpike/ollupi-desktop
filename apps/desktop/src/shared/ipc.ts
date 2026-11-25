@@ -103,52 +103,6 @@ export function agentsOf(roles: readonly string[]): SkillAgent[] {
   return skillAgents.filter((agent) => rolesOf(agent).some((role) => roles.includes(role)))
 }
 
-/** One entry of a workspace folder. */
-export interface FileEntry {
-  name: string
-  kind: 'file' | 'folder'
-}
-
-/** A workspace file as a preview shows it: its text (only the start of a
- * long file), an image, a PDF's bytes, or none of these. size is the
- * file's, in bytes. */
-export type FilePreview =
-  | { kind: 'text'; size: number; text: string; truncated: boolean }
-  | { kind: 'image'; size: number; dataUrl: string }
-  | { kind: 'pdf'; size: number; data: Uint8Array<ArrayBuffer> }
-  | { kind: 'binary'; size: number }
-
-/** A file that differs from the last commit, as git sees it under the
- * workspace. Line counts are absent for a binary or untracked file. staged
- * is how much of the change the index holds: all of it, part of it (more
- * changed in the working tree since), or none. */
-export interface FileChange {
-  path: string
-  kind: 'modified' | 'added' | 'deleted' | 'untracked'
-  staged: 'all' | 'part' | 'none'
-  added?: number
-  removed?: number
-}
-
-/** A commit just made: its short hash and subject. */
-export interface Commit {
-  hash: string
-  subject: string
-}
-
-/** Where the repository's HEAD is: on a branch, which may have no commit
- * yet, or detached at a commit, by its short hash. */
-export type Head = { branch: string } | { detached: string }
-
-/** A workspace's uncommitted changes and where its HEAD is, or that it is
- * not in a git repository. */
-export type Changes = { repo: false } | { repo: true; head: Head; files: FileChange[] }
-
-/** A file's diff against the last commit; only the start of a long one. */
-export interface FileDiff {
-  text: string
-  truncated: boolean
-}
 
 /** One of a thread's browser tabs; id is its page's. */
 export interface BrowserTab {
@@ -351,51 +305,6 @@ export interface DesktopApi {
    * profile keeps the home's own `super-agent`; later ones have one under
    * `users/<id>`, so two hubs never write the same files. */
   superAgentFolder(profile: string): Promise<string>
-  /** Files sent with a message. ollupi takes a file by its path and copies
-   * it while it takes the message. */
-  attachments: {
-    /** The file's path on this machine; undefined for one that exists only
-     * in memory, such as a pasted screenshot. */
-    pathOf(file: File): string | undefined
-    /** Writes a file that has no path to a temporary one, to send it. */
-    writeTemp(name: string, data: Uint8Array): Promise<string>
-    /** Removes a temporary file once its message is sent or refused. */
-    removeTemp(path: string): Promise<void>
-  }
-  /** A workspace's files, read-only; path is relative to the root, and
-   * nothing outside the root is read. */
-  files: {
-    list(root: string, path: string): Promise<FileEntry[]>
-    read(root: string, path: string): Promise<FilePreview>
-    /** Whether the path is a file or a folder; undefined when it is
-     * neither, is missing, or is outside the root. */
-    kind(root: string, path: string): Promise<FileEntry['kind'] | undefined>
-  }
-  /** A workspace's uncommitted changes, from git, and what the person does
-   * with them. Paths are relative to the root, inside it. */
-  changes: {
-    list(root: string): Promise<Changes>
-    diff(root: string, path: string, untracked: boolean): Promise<FileDiff>
-    stage(root: string, paths: string[]): Promise<void>
-    unstage(root: string, paths: string[]): Promise<void>
-    /** Puts the file back as the last commit has it. Content no commit
-     * holds (a new file) goes to the Trash rather than away. */
-    discard(root: string, file: FileChange): Promise<void>
-    /** Commits what is staged. */
-    commit(root: string, message: string): Promise<Commit>
-  }
-  /** The person's own shell in a workspace's folder, a terminal per key
-   * (the workspace). It keeps running while no panel shows it. */
-  terminal: {
-    /** Starts the shell unless it runs, and answers its output so far. */
-    open(key: string, cwd: string, cols: number, rows: number): Promise<string>
-    write(key: string, text: string): Promise<void>
-    resize(key: string, cols: number, rows: number): Promise<void>
-    /** Ends the shell. */
-    close(key: string): Promise<void>
-    onData(listener: (key: string, text: string) => void): () => void
-    onExit(listener: (key: string, code: number) => void): () => void
-  }
   /** The app's browser: each thread's tabs, which the person and that
    * thread's agent share. The agent acts in the active one; open, back,
    * forward and reload act in it too. */
@@ -488,7 +397,6 @@ export interface DesktopApi {
     onRows(listener: (batch: PresenceBatch) => void): () => void
     ack(ack: PresenceAck): void
   }
-  pickDirectory(): Promise<string | undefined>
   /** Asks where to save text, suggesting a file name in Documents, and
    * writes it there; undefined when the person cancelled. */
   saveFile(name: string, text: string): Promise<string | undefined>
@@ -523,23 +431,6 @@ export const IpcChannel = {
   ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',
   SuperAgentFolder: 'superAgent:folder',
-  AttachmentsWrite: 'attachments:write',
-  AttachmentsRemove: 'attachments:remove',
-  FilesList: 'files:list',
-  FilesRead: 'files:read',
-  FilesKind: 'files:kind',
-  ChangesList: 'changes:list',
-  ChangesDiff: 'changes:diff',
-  ChangesStage: 'changes:stage',
-  ChangesUnstage: 'changes:unstage',
-  ChangesDiscard: 'changes:discard',
-  ChangesCommit: 'changes:commit',
-  TerminalOpen: 'terminal:open',
-  TerminalWrite: 'terminal:write',
-  TerminalResize: 'terminal:resize',
-  TerminalClose: 'terminal:close',
-  TerminalData: 'terminal:data',
-  TerminalExit: 'terminal:exit',
   BrowserState: 'browser:state',
   BrowserPlace: 'browser:place',
   BrowserOpen: 'browser:open',
@@ -579,7 +470,6 @@ export const IpcChannel = {
   PresenceContext: 'presence:context',
   PresenceRows: 'presence:rows',
   PresenceAck: 'presence:ack',
-  PickDirectory: 'dialog:pickDirectory',
   SaveFile: 'dialog:saveFile',
   OpenPath: 'shell:openPath',
   RevealFile: 'shell:revealFile',

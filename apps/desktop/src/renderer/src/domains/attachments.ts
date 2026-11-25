@@ -1,17 +1,16 @@
-// Images and files sent with a message. ollupi takes each by its path on
-// this machine and copies it while it takes the message; it decides from
-// the content what it accepts (PNG, JPEG, GIF and WebP images, text files,
-// up to ten a message) and stores the copies with the thread. A message's
-// attachments come back on its item and turn, and their content over plain
-// HTTP from the gateway's address, which is kept here once read so a
+// Images and files sent with a message. Each goes to ollupi before the
+// message does, uploaded over plain HTTP from wherever the window is, as
+// ollupi may run on another machine; it decides from the content what it
+// accepts (PNG, JPEG, GIF and WebP images, text files, up to ten a
+// message) and the message names each upload, which ollupi then stores
+// with the thread. A message's attachments come back on its item and turn,
+// and their content over plain HTTP too, which is kept here once read so a
 // thumbnail is fetched once.
 
-import { Paths, type Attachment, type UserInput } from '@ollupi/protocol'
+import type { Attachment, UploadResult, UserInput } from '@ollupi/protocol'
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
-import { useConnection } from '../gateway/connection'
-import { t } from '../i18n'
-import { desktop } from '../platform/desktop'
+import { gatewayFetch, gatewayPath } from '../gateway/http'
 
 /** A file the person picked, pasted or dropped, before it is sent. */
 export interface DraftAttachment {
@@ -31,25 +30,25 @@ export function releaseDraft(d: DraftAttachment): void {
   if (d.preview) URL.revokeObjectURL(d.preview)
 }
 
-/** Sends a message as the gateway takes it: its text, then each file by
- * path. A file that has none (pasted, or dragged from a web page) is
- * written to a temporary file first, removed once send returns: by then
- * ollupi has copied it, or refused the message. The file's type is left to
- * ollupi, which reads it from the content; the browser's guess goes by the
- * name (a .ts file would be a video). */
+/** Sends a message as the gateway takes it: its text, then each file,
+ * uploaded first. The file's type is left to ollupi, which reads it from
+ * the content; the browser's guess goes by the name (a .ts file would be a
+ * video). */
 export async function withMessageInput<T>(text: string, files: readonly File[], send: (input: UserInput[]) => Promise<T>): Promise<T> {
-  const temps: string[] = []
-  try {
-    const parts: UserInput[] = text ? [{ type: 'text', text }] : []
-    for (const file of files) {
-      let path = desktop.attachments.pathOf(file)
-      if (!path) temps.push((path = await desktop.attachments.writeTemp(file.name, new Uint8Array(await file.arrayBuffer()))))
-      parts.push({ type: 'file', path, name: file.name })
-    }
-    return await send(parts)
-  } finally {
-    for (const path of temps) void desktop.attachments.removeTemp(path)
-  }
+  const parts: UserInput[] = text ? [{ type: 'text', text }] : []
+  for (const file of files) parts.push({ type: 'upload', uploadId: (await upload(file)).uploadId })
+  return send(parts)
+}
+
+/** Uploads a file for the message about to be sent; ollupi keeps it for an
+ * hour unless a message takes it. */
+async function upload(file: File): Promise<UploadResult> {
+  const res = await gatewayFetch(gatewayPath('upload', {}), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}` },
+    body: file,
+  })
+  return (await res.json()) as UploadResult
 }
 
 /** An attachment's content, and an object URL to show it by. */
@@ -100,14 +99,7 @@ export async function attachmentFile(threadId: string, attachment: Attachment): 
   return new File([blob], attachment.name, { type: attachment.mimeType })
 }
 
-/** Reads an attachment from the gateway over HTTP, at the backend's address
- * and with its token, as the WebSocket is opened. async so that being
- * offline rejects: thrown in an Effect it would take the whole window down. */
+/** Reads an attachment from the gateway over HTTP. */
 async function readAttachment(threadId: string, attachmentId: string): Promise<Blob> {
-  const backend = useConnection.getState().backend
-  if (backend.status !== 'ready') throw new Error(t().errors.notConnected)
-  const path = Paths.attachment.replace('{thread}', encodeURIComponent(threadId)).replace('{attachment}', encodeURIComponent(attachmentId))
-  const res = await fetch(new URL(path, backend.url.replace(/^ws/, 'http')), { headers: { Authorization: `Bearer ${backend.token}` } })
-  if (!res.ok) throw new Error(`attachment ${attachmentId}: ${res.status} ${await res.text()}`)
-  return res.blob()
+  return (await gatewayFetch(gatewayPath('attachment', { thread: threadId, attachment: attachmentId }))).blob()
 }

@@ -16,7 +16,7 @@ export function PermissionsPanel({ thread }: { thread: ThreadRow }) {
       <PermissionEditor
         key={thread.id}
         value={thread.settings}
-        inheritFrom={thread.workspaceId ? t.fromWorkspace : t.fromAgent}
+        inheritFrom={t.fromWorkspace}
         onSave={(s) => updateThreadPermissions(thread.id, s)}
       />
     </SidePanel>

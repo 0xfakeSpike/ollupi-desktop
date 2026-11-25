@@ -65,7 +65,6 @@ export const en = {
     exited: '[The shell exited. Start a new one with the button above.]',
   },
   results: {
-    open: 'Open',
     inFolder: (folder: string) => `In ${folder}`,
     more: (n: number) => (n === 1 ? 'and 1 more file' : `and ${n} more files`),
   },
@@ -160,7 +159,7 @@ export const en = {
     hubIntro: 'I hand each part to the project it belongs in; when you ask, I check how each one stands.',
     hubPlaceholder: 'What you need done, in any of your projects',
     commandsRunIn: (folder: string) => `Commands run in the “${folder}” folder`,
-    noFolder: 'No folder chosen. To work on the files in one, pick a workspace below.',
+    noFolder: 'Commands run in the environment’s own folder. To work on a project’s files, pick its workspace below.',
     suggest: {
       label: 'Things to start with',
       try: 'Try',
@@ -180,7 +179,7 @@ export const en = {
     placeholder: 'Describe a task or ask a question',
     environment: 'Environment',
     workspace: 'Workspace',
-    noWorkspace: 'No workspace',
+    noWorkspace: 'Default workspace',
     addWorkspace: 'Add workspace…',
   },
   environments: {
@@ -252,7 +251,6 @@ export const en = {
     copyPath: 'Copy path',
     showSource: 'Show the source',
     showRendered: 'Show it rendered',
-    reveal: 'Show in Finder',
     truncated: (size: string) => `Only the start of this ${size} file is shown.`,
     binary: (size: string) => `${size}; not text, so it is not shown here.`,
   },
@@ -261,7 +259,7 @@ export const en = {
     close: 'Close environment',
     environment: 'Environment',
     folder: 'Folder',
-    openFolder: 'Show in Finder',
+    scratchFolder: 'The environment’s own folder',
     branch: 'Branch',
     detached: (commit: string) => `No branch, at ${commit}`,
     here: 'This computer',
@@ -290,7 +288,7 @@ export const en = {
     committed: (hash: string, subject: string) => `Committed ${hash}: ${subject}`,
     kinds: { modified: 'modified', added: 'added', deleted: 'deleted', untracked: 'new' },
     back: 'All changes',
-    open: 'Open with the default app',
+    showInFiles: 'Show in Files',
     truncated: 'Only the start of this diff is shown.',
   },
   todos: {
@@ -353,10 +351,9 @@ export const en = {
     compaction: 'Summarized earlier context',
   },
   /** How a conversation names a scope of its memories: global, and its
-   * own, which is its workspace or general without one. */
+   * own, which is its workspace's. */
   memoryScope: {
     global: 'All conversations in this profile',
-    general: 'Outside workspaces',
     workspace: 'This workspace',
   },
   items: {
@@ -491,7 +488,6 @@ export const zh: typeof en = {
     exited: '[shell 已退出。点上方的按钮重新开始。]',
   },
   results: {
-    open: '打开',
     inFolder: (folder) => `在「${folder}」里`,
     more: (n) => `还有 ${n} 个文件`,
   },
@@ -585,7 +581,7 @@ export const zh: typeof en = {
     hubIntro: '我把每件事交给它所在的项目去做；你问起时，我去各个项目查进展。',
     hubPlaceholder: '要办的事，哪个项目的都行',
     commandsRunIn: (folder) => `命令会在「${folder}」文件夹里运行`,
-    noFolder: '没有选文件夹。要处理某个文件夹里的东西，在下面选一个工作区。',
+    noFolder: '命令在环境自己的文件夹里运行。要处理某个项目的文件，在下面选它的工作区。',
     suggest: {
       label: '可以从这些开始',
       try: '试试',
@@ -605,7 +601,7 @@ export const zh: typeof en = {
     placeholder: '描述一个任务，或提个问题',
     environment: '环境',
     workspace: '工作区',
-    noWorkspace: '无工作区',
+    noWorkspace: '默认工作区',
     addWorkspace: '添加工作区…',
   },
   environments: {
@@ -677,7 +673,6 @@ export const zh: typeof en = {
     copyPath: '复制路径',
     showSource: '查看源码',
     showRendered: '查看预览',
-    reveal: '在访达中显示',
     truncated: (size) => `文件共 ${size}，这里只显示开头部分。`,
     binary: (size) => `${size}；不是文本，这里不显示。`,
   },
@@ -686,7 +681,7 @@ export const zh: typeof en = {
     close: '关闭环境',
     environment: '环境',
     folder: '目录',
-    openFolder: '在访达中显示',
+    scratchFolder: '环境自己的文件夹',
     branch: '分支',
     detached: (commit) => `不在分支上，位于 ${commit}`,
     here: '这台电脑',
@@ -715,7 +710,7 @@ export const zh: typeof en = {
     committed: (hash, subject) => `已提交 ${hash}：${subject}`,
     kinds: { modified: '修改', added: '新增', deleted: '删除', untracked: '新文件' },
     back: '所有改动',
-    open: '用默认应用打开',
+    showInFiles: '在文件面板中查看',
     truncated: '这份差异只显示了开头部分。',
   },
   todos: {
@@ -779,7 +774,6 @@ export const zh: typeof en = {
   },
   memoryScope: {
     global: '此身份的所有会话',
-    general: '无工作区',
     workspace: '本工作区',
   },
   items: {

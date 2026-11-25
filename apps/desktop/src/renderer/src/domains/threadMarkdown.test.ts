@@ -16,7 +16,7 @@ const words: MarkdownWords = {
   stopped: 'Stopped',
 }
 
-const thread: ThreadRow = { id: 'th', title: 'Fix the build', settings: { permissions: {} }, status: 'idle', createdAt: '', updatedAt: '' }
+const thread: ThreadRow = { id: 'th', workspaceId: 'w', title: 'Fix the build', settings: { permissions: {} }, status: 'idle', createdAt: '', updatedAt: '' }
 const usage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteInputTokens: 0, outputTokens: 0 }
 const turn = (id: string, status: TurnRow['status'], error?: string): TurnRow =>
   ({ id, threadId: 'th', status, model: { name: 'm', connection: 'p/m' }, agent: 'full-main-agent', usage, queuedAt: '', ...(error && { error }) }) as TurnRow

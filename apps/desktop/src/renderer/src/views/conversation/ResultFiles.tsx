@@ -1,14 +1,13 @@
 // What a turn made or changed, as files you can open: shown under the
 // answer once the turn is over, so the result comes before the work behind
 // it (PRODUCT.md, principle 0). A file inside the thread's workspace opens
-// in the Files panel from its card; Open hands it to the app the system
-// opens it with.
+// in the Files panel from its card; the files are where the workspace is,
+// which may be another machine than the window's, so they open nowhere
+// else.
 
-import { Button } from '@ollupi/ui'
 import { FileText } from 'lucide-react'
 import { useContext } from 'react'
 import { workspacePath } from '../../domains/filePaths'
-import { openPath } from '../../domains/files'
 import { showFile } from '../../domains/navigation'
 import { useWorkspace } from '../../domains/workspaces'
 import { useT } from '../../i18n'
@@ -25,8 +24,8 @@ export function ResultFiles({ paths }: { paths: string[] }) {
     <div className="flex flex-col gap-2">
       {paths.slice(0, SHOWN).map((path) => {
         // ollupi names a file inside the workspace relative to its root.
-        const full = path.startsWith('/') || !workspace ? path : `${workspace.rootPath}/${path}`
-        const inside = workspace ? workspacePath(full, workspace.rootPath) : undefined
+        const inside = workspace ? workspacePath(path, workspace.rootPath) : undefined
+        const full = path.startsWith('/') || !workspace?.rootPath ? path : `${workspace.rootPath}/${path}`
         const slash = full.lastIndexOf('/')
         const name = full.slice(slash + 1)
         const folder = slash > 0 ? full.slice(full.lastIndexOf('/', slash - 1) + 1, slash) : ''
@@ -46,9 +45,6 @@ export function ResultFiles({ paths }: { paths: string[] }) {
                 {folder && <span className="truncate text-small text-fg-subtle">{t.inFolder(folder)}</span>}
               </span>
             </button>
-            <Button size="sm" className="bg-canvas" onClick={() => void openPath(full)}>
-              {t.open}
-            </Button>
           </div>
         )
       })}

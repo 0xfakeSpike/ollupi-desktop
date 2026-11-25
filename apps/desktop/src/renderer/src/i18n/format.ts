@@ -90,8 +90,13 @@ export function usageLine(m: Messages, u: Usage): string {
 /** A thread's title is what the app gave it when starting it (from the
  * first message) or the person renamed it to; it may be empty. */
 /** A workspace by name; the hub is the Super Agent, in the app's language. */
+/** What to call a workspace: the hub is the Super Agent, and a scratch
+ * workspace, what was started in no project, is said in the person's
+ * language. */
 export function workspaceName(m: Messages, w: Pick<WorkspaceRow, 'name' | 'kind'>): string {
-  return w.kind === 'hub' ? m.shell.sidebar.superAgent : w.name
+  if (w.kind === 'hub') return m.shell.sidebar.superAgent
+  if (w.kind === 'scratch') return m.shell.sidebar.scratch
+  return w.name
 }
 
 export function threadTitle(m: Messages, thread: Pick<ThreadRow, 'title'>): string {

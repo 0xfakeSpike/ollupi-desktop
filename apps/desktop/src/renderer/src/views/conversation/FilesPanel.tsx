@@ -6,13 +6,12 @@
 // Markdown file shows its images, and its links to other files open them;
 // a CSV or TSV file shows as a table.
 
-import type { WorkspaceRow } from '@ollupi/protocol'
+import type { FileEntryRow, WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Loader } from '@ollupi/ui'
-import { ChevronRight, Code, Eye, File, Folder, FolderOpen, RotateCw } from 'lucide-react'
+import { ChevronRight, Code, Eye, File, Folder, RotateCw } from 'lucide-react'
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { FileEntry, FilePreview } from '../../../../shared/ipc'
 import { parseTable, separatorOf } from '../../domains/csv'
-import { fileMenu, readFolder, readPreview, revealPath } from '../../domains/files'
+import { readFolder, readPreview, releasePreview, type FilePreview } from '../../domains/files'
 import { showFile, usePanelFile } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
 import { fileSize } from '../../i18n/format'
@@ -22,7 +21,6 @@ import { SidePanel, usePanelWidths } from './SidePanel'
 
 export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
   const t = useT().conversation.files
-  const root = workspace.rootPath
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   // Kept with navigation, so a path in the conversation can open its file here.
   const shown = usePanelFile()
@@ -60,7 +58,7 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
     >
       {file === undefined ? (
         <Entries
-          root={root}
+          workspaceId={workspace.id}
           path=""
           depth={0}
           expanded={expanded}
@@ -75,7 +73,8 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
         <ThreadWorkspace.Provider value={workspace.id}>
           <Preview
             key={file}
-            root={root}
+            workspaceId={workspace.id}
+            rootPath={workspace.rootPath}
             name={workspace.name}
             path={file}
             version={version}
@@ -100,7 +99,7 @@ function flip(set: ReadonlySet<string>, path: string): ReadonlySet<string> {
 }
 
 function Entries({
-  root,
+  workspaceId,
   path,
   depth,
   expanded,
@@ -110,7 +109,7 @@ function Entries({
   revealed,
   onRevealed,
 }: {
-  root: string
+  workspaceId: string
   path: string
   depth: number
   expanded: ReadonlySet<string>
@@ -121,14 +120,14 @@ function Entries({
   onRevealed?(): void
 }) {
   const t = useT().conversation.files
-  const [entries, setEntries] = useState<FileEntry[]>()
+  const [entries, setEntries] = useState<FileEntryRow[]>()
   useEffect(() => {
     let live = true
-    void readFolder(root, path).then((e) => live && e && setEntries(e))
+    void readFolder(workspaceId, path).then((e) => live && e && setEntries(e))
     return () => {
       live = false
     }
-  }, [root, path, version])
+  }, [workspaceId, path, version])
 
   if (!entries) {
     return depth === 0 ? (
@@ -159,10 +158,6 @@ function Entries({
                   : undefined
               }
               onClick={() => (e.kind === 'folder' ? onToggle(p) : onOpen(p))}
-              onContextMenu={(ev) => {
-                ev.preventDefault()
-                void fileMenu(`${root}/${p}`, { reveal: t.reveal })
-              }}
               // Each level indents by the chevron's width, so names line up under their folder's.
               style={{ paddingLeft: 4 + depth * 16 }}
               className="flex h-8 w-full items-center gap-1 rounded-full pr-3 text-left text-ui text-fg transition-colors duration-100 ease-standard hover:bg-hover focus-visible:ring-3 focus-visible:ring-focus focus-visible:outline-none"
@@ -177,7 +172,7 @@ function Entries({
             </button>
             {open && (
               <Entries
-                root={root}
+                workspaceId={workspaceId}
                 path={p}
                 depth={depth + 1}
                 expanded={expanded}
@@ -205,7 +200,8 @@ function languageOf(path: string): string {
 const isMarkdown = (path: string) => /\.(md|markdown|mdx)$/i.test(path)
 
 function Preview({
-  root,
+  workspaceId,
+  rootPath,
   name,
   path,
   version,
@@ -214,7 +210,10 @@ function Preview({
   onOpen,
   onReveal,
 }: {
-  root: string
+  workspaceId: string
+  /** The workspace's folder where it is; empty for a scratch workspace's,
+   * which only its environment names. */
+  rootPath: string
   name: string
   path: string
   version: number
@@ -228,30 +227,33 @@ function Preview({
   const [file, setFile] = useState<FilePreview>()
   useEffect(() => {
     let live = true
-    void readPreview(root, path).then((f) => live && f && setFile(f))
+    let read: FilePreview | undefined
+    void readPreview(workspaceId, path).then((f) => {
+      if (!live || !f) return releasePreview(f)
+      read = f
+      setFile(f)
+    })
     return () => {
       live = false
+      releasePreview(read)
     }
-  }, [root, path, version])
+  }, [workspaceId, path, version])
   const markdown = isMarkdown(path)
   const separator = separatorOf(path)
   const renders = markdown || separator !== undefined
   const rendered = renders && !source
-  const inFile = useMemo(() => ({ root, path, version }), [root, path, version])
+  const inFile = useMemo(() => ({ workspaceId, rootPath, path, version }), [workspaceId, rootPath, path, version])
 
   return (
     <div className="flex min-h-full flex-col gap-3">
       <div className="flex items-start gap-1">
-        <Crumbs root={root} name={name} path={path} version={version} onOpen={onOpen} onReveal={onReveal} />
+        <Crumbs workspaceId={workspaceId} name={name} path={path} version={version} onOpen={onOpen} onReveal={onReveal} />
         {renders && (
           <IconButton label={rendered ? t.showSource : t.showRendered} size="sm" onClick={() => onSource(rendered)}>
             {rendered ? <Code size={14} /> : <Eye size={14} />}
           </IconButton>
         )}
-        <CopyButton text={`${root}/${path}`} label={t.copyPath} />
-        <IconButton label={t.reveal} size="sm" onClick={() => void revealPath(`${root}/${path}`)}>
-          <FolderOpen size={14} />
-        </IconButton>
+        <CopyButton text={rootPath ? `${rootPath}/${path}` : path} label={t.copyPath} />
       </div>
       {!file ? (
         <div className="flex justify-center py-8">
@@ -269,7 +271,7 @@ function Preview({
           {file.truncated && <p className="text-small text-fg-subtle">{t.truncated(fileSize(locale, file.size))}</p>}
         </>
       ) : file.kind === 'image' ? (
-        <img src={file.dataUrl} alt={path} className="max-w-full self-start rounded-2xl" />
+        <img src={file.url} alt={path} className="max-w-full self-start rounded-2xl" />
       ) : file.kind === 'pdf' ? (
         <Pdf data={file.data} title={path} />
       ) : (
@@ -332,14 +334,14 @@ function Pdf({ data, title }: { data: Uint8Array<ArrayBuffer>; title: string }) 
 /** The open file's path from the workspace down: a folder for each step,
  * then the file's own name, selectable to copy. */
 function Crumbs({
-  root,
+  workspaceId,
   name,
   path,
   version,
   onOpen,
   onReveal,
 }: {
-  root: string
+  workspaceId: string
   name: string
   path: string
   version: number
@@ -354,7 +356,7 @@ function Crumbs({
     <nav aria-label={t.path} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-0.5 font-mono text-small">
       {folders.map((folder, i) => (
         <Fragment key={folder}>
-          <FolderCrumb root={root} folder={folder} label={i === 0 ? name : parts[i - 1]!} version={version} onOpen={onOpen} onReveal={onReveal} />
+          <FolderCrumb workspaceId={workspaceId} folder={folder} label={i === 0 ? name : parts[i - 1]!} version={version} onOpen={onOpen} onReveal={onReveal} />
           <span aria-hidden className="text-fg-subtle">
             /
           </span>
@@ -371,14 +373,14 @@ function Crumbs({
  * another; a double-click goes back to it in the tree, as does the list's
  * first item for the keyboard. */
 function FolderCrumb({
-  root,
+  workspaceId,
   folder,
   label,
   version,
   onOpen,
   onReveal,
 }: {
-  root: string
+  workspaceId: string
   folder: string
   label: string
   version: number
@@ -441,7 +443,7 @@ function FolderCrumb({
         <div className="my-1 border-t border-line" />
         {open && (
           <Entries
-            root={root}
+            workspaceId={workspaceId}
             path={folder}
             depth={0}
             expanded={expanded}

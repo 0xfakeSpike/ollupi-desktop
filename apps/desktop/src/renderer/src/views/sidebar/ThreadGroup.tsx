@@ -4,7 +4,6 @@ import { Button, cn, IconButton, useTooltip } from '@ollupi/ui'
 import { Archive, ChevronRight, Ellipsis, Plus, Waypoints } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { openThread } from '../../domains/conversation'
-import { openPath } from '../../domains/files'
 import { go, useOpenThreadId } from '../../domains/navigation'
 import { archiveThread, deleteThread, loadMoreThreads, renameThread, threadMenu, useThreads, workspaceMenu } from '../../domains/threads'
 import { ended, useTodos } from '../../domains/todos'
@@ -40,43 +39,43 @@ export function SuperAgentStart() {
 
 /** One workspace's threads, as an area on the map: a field in the
  * workspace's colour holding its name, how many things are in it, and a
- * row for each. Threads outside any workspace sit on the bare ground. The
- * hub is the Super Agent's area, on the paper, first on the map, saying
- * how many of the user's todos are not finished yet. */
-export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | undefined; threads: ThreadRow[] }) {
+ * row for each. A scratch workspace's threads, started in no project, sit
+ * on the bare ground, and only while there are some. The hub is the Super
+ * Agent's area, on the paper, first on the map, saying how many of the
+ * user's todos are not finished yet. */
+export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow; threads: ThreadRow[] }) {
   const [open, setOpen] = useState(true)
   const [all, setAll] = useState(false)
   const [settings, setSettings] = useState(false)
-  const more = useThreads((s) => s.more[workspace?.id ?? ''] ?? false)
+  const more = useThreads((s) => s.more[workspace.id] ?? false)
   const t = useT()
   const m = t.shell.sidebar
-  const hub = workspace?.kind === 'hub'
+  const hub = workspace.kind === 'hub'
+  const scratch = workspace.kind === 'scratch'
   const left = useTodos((s) => (hub ? (s.list ?? []).filter((todo) => !ended(todo)).length : 0))
-  const rootTip = useTooltip({ label: hub ? '' : (workspace?.rootPath ?? '') })
-  const area = useAreaClass(workspace?.id)
-  if (!workspace && threads.length === 0) return null
+  const rootTip = useTooltip({ label: workspace.rootPath })
+  const area = useAreaClass(workspace.id)
+  if (scratch && threads.length === 0) return null
   const visible = all ? threads : threads.slice(0, SHOWN)
   const waiting = threads.filter((t) => needsUser(t.status)).length
   const menu = async () => {
-    if (!workspace) return
-    const picked = await workspaceMenu({ reveal: m.revealFolder, settings: hub ? m.superAgentSettings : m.workspaceSettings, archive: m.archiveWorkspace })
-    if (picked === 'reveal') void openPath(workspace.rootPath)
-    else if (picked === 'settings') setSettings(true)
+    const picked = await workspaceMenu({ settings: hub ? m.superAgentSettings : m.workspaceSettings, archive: m.archiveWorkspace }, scratch)
+    if (picked === 'settings') setSettings(true)
     else if (picked === 'archive') void setArchived(workspace.id, true)
   }
 
   return (
-    <section className={cn('mt-2.5 rounded-3xl p-1.5', hub ? 'bg-canvas' : workspace ? area : 'bg-canvas/60')}>
+    <section className={cn('mt-2.5 rounded-3xl p-1.5', hub ? 'bg-canvas' : scratch ? 'bg-canvas/60' : area)}>
       <div className="group flex h-7 items-center gap-1 pr-0.5 pl-2.5">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left text-small font-semibold text-fg"
-          {...(hub ? {} : rootTip.trigger)}
+          {...(hub || scratch ? {} : rootTip.trigger)}
         >
           {hub && <Waypoints size={14} aria-hidden className="shrink-0 self-center text-fg-muted" />}
-          <span className="truncate">{workspace ? workspaceName(t, workspace) : m.noWorkspace}</span>
+          <span className="truncate">{workspaceName(t, workspace)}</span>
           <span className="shrink-0 font-medium text-fg-muted">{m.things(threads.length)}</span>
           {/* The Super Agent's todos are another count than its things: a capsule of their own. */}
           {hub && left > 0 && <span className="shrink-0 self-center rounded-full bg-hover px-2 text-caption leading-5 font-semibold text-fg-muted">{m.tasksLeft(left)}</span>}
@@ -88,32 +87,30 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
             className={cn('shrink-0 self-center text-fg-muted opacity-0 transition duration-160 ease-standard group-hover:opacity-100', open && 'rotate-90')}
           />
         </button>
-        {workspace && !hub && rootTip.tooltip}
-        {workspace && (
-          // Two on hover (DESIGN.md 3.6): a new thing here, and the rest in the menu.
-          <div className="hidden group-focus-within:flex group-hover:flex">
-            <IconButton label={m.newThreadIn(workspace.name)} size="sm" onClick={() => go({ kind: 'draft', workspaceId: workspace.id })}>
+        {!hub && !scratch && rootTip.tooltip}
+        {/* Two on hover (DESIGN.md 3.6): a new thing here, and the rest in the menu. */}
+        <div className="hidden group-focus-within:flex group-hover:flex">
+            <IconButton label={m.newThreadIn(workspaceName(t, workspace))} size="sm" onClick={() => go({ kind: 'draft', workspaceId: workspace.id })}>
               <Plus size={14} />
             </IconButton>
             <IconButton label={m.workspaceMenu} size="sm" aria-haspopup="menu" onClick={() => void menu()}>
               <Ellipsis size={14} />
             </IconButton>
-          </div>
-        )}
+        </div>
       </div>
       {open && (
         <ul className="flex flex-col gap-0.5">
           {visible.map((t) => (
             <ThreadEntry key={t.id} thread={t} />
           ))}
-          {workspace && threads.length === 0 && <li className="flex h-8 items-center px-2.5 text-small text-fg-muted">{m.noThreads}</li>}
+          {threads.length === 0 && <li className="flex h-8 items-center px-2.5 text-small text-fg-muted">{m.noThreads}</li>}
           {/* The threads read so far show 8 at first; past them, the next page is read. */}
           {threads.length > SHOWN && !all && <MoreButton onClick={() => setAll(true)}>{m.showMore(threads.length - SHOWN)}</MoreButton>}
           {(all || threads.length <= SHOWN) && more && (
             <MoreButton
               onClick={() => {
                 setAll(true)
-                void loadMoreThreads(workspace?.id)
+                void loadMoreThreads(workspace.id)
               }}
             >
               {m.loadMore}
@@ -122,7 +119,7 @@ export function ThreadGroup({ workspace, threads }: { workspace: WorkspaceRow | 
           {all && threads.length > SHOWN && <MoreButton onClick={() => setAll(false)}>{m.showLess}</MoreButton>}
         </ul>
       )}
-      {workspace && settings && <WorkspaceSettingsDialog workspace={workspace} onClose={() => setSettings(false)} />}
+      {settings && <WorkspaceSettingsDialog workspace={workspace} onClose={() => setSettings(false)} />}
     </section>
   )
 }

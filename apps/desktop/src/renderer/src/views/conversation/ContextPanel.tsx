@@ -59,7 +59,7 @@ export function ContextPanel({ timeline }: { timeline: Timeline | undefined }) {
             <div className="flex flex-col gap-6 pt-4">
               <Overview
                 use={contextUse(latest.stats)}
-                details={{ memory: memory && <MemoryDetails memory={memory} inWorkspace={!!timeline?.thread.workspaceId} /> }}
+                details={{ memory: memory && <MemoryDetails memory={memory} /> }}
               />
               <LastCall call={latest} />
               <History calls={calls} connection={connection} partial={!!timeline?.hasMore} />
@@ -237,13 +237,13 @@ function LastCall({ call }: { call: ModelCall }) {
 }
 
 /** The memory snapshot the call carried, by section: global, and the
- * thread's own scope, its workspace or general without one. */
-function MemoryDetails({ memory, inWorkspace }: { memory: PromptMemory; inWorkspace: boolean }) {
+ * thread's own scope, its workspace's. */
+function MemoryDetails({ memory }: { memory: PromptMemory }) {
   const m = useT().conversation
   return (
     <>
       {memory.global && <MemoryList title={m.memoryScope.global} section={memory.global} />}
-      {memory.local && <MemoryList title={m.memoryScope[inWorkspace ? 'workspace' : 'general']} section={memory.local} />}
+      {memory.local && <MemoryList title={m.memoryScope.workspace} section={memory.local} />}
       <p className="text-small text-fg-subtle">{m.context.memoryNote}</p>
     </>
   )
