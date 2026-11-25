@@ -95,8 +95,10 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Tools: tools,
 		// This machine is the one sandbox offered: every environment a
 		// folder of it, commands in it limited as ollupi limits them.
-		Sandboxes: map[string]sandbox.Provider{LocalSandbox: thisMachine(opts.Home, dataHome)},
-		Sandbox:   LocalSandbox,
+		Sandboxes: map[string]sandbox.Provider{LocalSandbox: thisMachine(opts.Home, dataHome, func(ctx context.Context, user string) (string, error) {
+			return firstEnvironment(ctx, st, user)
+		})},
+		Sandbox: LocalSandbox,
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
 		Hub: true,
@@ -161,20 +163,54 @@ func FirstEnvironment() account.Environment {
 }
 
 // thisMachine is this machine as a provider: its environments are folders
-// under home, and commands in them run under Seatbelt. They may not read
-// the store, which holds the models' API keys and every profile's MCP
-// servers; one with full access gets the backend's environment but the
-// OLLUPI_ variables, which hold its tokens.
-func thisMachine(home, dataHome string) sandbox.Local {
+// under home, and commands in them run under Seatbelt. The first profile's
+// first environment keeps the home's own scratch folder, as its Super Agent
+// keeps the home's super-agent; every other one has a folder of its own,
+// users/<profile>/<environment>, so two never write the same files. first
+// names a profile's first environment. Commands may not read the store,
+// which holds the models' API keys and every profile's MCP servers; one with
+// full access gets the backend's environment but the OLLUPI_ variables,
+// which hold its tokens.
+func thisMachine(home, dataHome string, first func(ctx context.Context, user string) (string, error)) sandbox.Local {
 	deny := []string{filepath.Join(dataHome, "data")}
 	if home != dataHome {
 		deny = append(deny, filepath.Join(home, "data"))
 	}
-	return sandbox.Local{Dir: filepath.Join(home, "users"), Config: sandbox.Config{
-		DenyRead:  deny,
-		EnvMarker: "OLLUPI_SANDBOX",
-		HideEnv:   []string{"OLLUPI_"},
-	}}
+	return sandbox.Local{
+		Dir: filepath.Join(home, "users"),
+		Folder: func(ctx context.Context, env sandbox.Env) (string, error) {
+			if env.User != FirstProfile {
+				return "", nil
+			}
+			id, err := first(ctx, env.User)
+			if err != nil || id != env.ID {
+				return "", err
+			}
+			return filepath.Join(home, Scratch), nil
+		},
+		Config: sandbox.Config{
+			DenyRead:  deny,
+			EnvMarker: "OLLUPI_SANDBOX",
+			HideEnv:   []string{"OLLUPI_"},
+		},
+	}
+}
+
+// Scratch is the folder in the home where the first profile's commands run
+// outside a workspace.
+const Scratch = "scratch"
+
+// firstEnvironment is the id of a profile's first environment, the one it
+// was made with.
+func firstEnvironment(ctx context.Context, st store.Store, user string) (id string, err error) {
+	err = st.Read(ctx, func(r store.Reader) error {
+		envs, err := r.Environments(user)
+		if err == nil && len(envs) > 0 {
+			id = envs[0].ID
+		}
+		return err
+	})
+	return id, err
 }
 
 // profileOf names the profile a connection's token acts as: a secret the

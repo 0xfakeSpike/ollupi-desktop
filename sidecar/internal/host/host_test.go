@@ -22,7 +22,7 @@ func TestAServerKeepsTheBackendsEnvironmentAndACommandDoesNot(t *testing.T) {
 	t.Setenv("OLLUPI_GATEWAY_TOKEN", "secret")
 	t.Setenv("BASH_FUNC_x%%", "() { :; }")
 	home := t.TempDir()
-	box, err := thisMachine(home, home).Open(context.Background(), sandbox.Env{User: "a", ID: "e"})
+	box, err := thisMachine(home, home, noFirst).Open(context.Background(), sandbox.Env{User: "a", ID: "e"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestAServerKeepsTheBackendsEnvironmentAndACommandDoesNot(t *testing.T) {
 
 func TestEachEnvironmentIsAFolderOfItsOwn(t *testing.T) {
 	home := t.TempDir()
-	m := thisMachine(home, home)
+	m := thisMachine(home, home, noFirst)
 	a, err := m.Open(context.Background(), sandbox.Env{User: "a", ID: "e1"})
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +57,30 @@ func TestEachEnvironmentIsAFolderOfItsOwn(t *testing.T) {
 	}
 	if !a.Enforced() || a.Roots()[0] == b.Roots()[0] || !strings.HasSuffix(a.Roots()[0], filepath.Join("users", "a", "e1")) {
 		t.Errorf("environments in %v and %v", a.Roots(), b.Roots())
+	}
+}
+
+func noFirst(context.Context, string) (string, error) { return "", nil }
+
+func TestTheFirstProfilesFirstEnvironmentIsTheScratchFolder(t *testing.T) {
+	home := t.TempDir()
+	m := thisMachine(home, home, func(_ context.Context, user string) (string, error) { return "first-of-" + user, nil })
+	open := func(user, env string) string {
+		t.Helper()
+		box, err := m.Open(context.Background(), sandbox.Env{User: user, ID: env})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return box.Roots()[0]
+	}
+	if got := open(FirstProfile, "first-of-"+FirstProfile); !strings.HasSuffix(got, "/"+Scratch) {
+		t.Errorf("the first profile's first environment is %s", got)
+	}
+	if got := open(FirstProfile, "another"); !strings.HasSuffix(got, filepath.Join("users", FirstProfile, "another")) {
+		t.Errorf("another environment of the first profile is %s", got)
+	}
+	if got := open("work", "first-of-work"); !strings.HasSuffix(got, filepath.Join("users", "work", "first-of-work")) {
+		t.Errorf("another profile's first environment is %s", got)
 	}
 }
 

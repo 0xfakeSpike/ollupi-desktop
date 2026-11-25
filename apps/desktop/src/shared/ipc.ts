@@ -596,3 +596,9 @@ export const APP_HOST = 'ollupi'
 /** The profile a home is made with (the sidecar's firstProfile): the app names
  * every connection by a profile, so a fresh home starts as this one. */
 export const FIRST_PROFILE = 'default'
+
+/** Where a profile's Super Agent works in the backend's home: the first
+ * profile in the home's own `super-agent`, a later one under `users/<id>`. */
+export function superAgentFolder(home: string, profile: string): string {
+  return profile === FIRST_PROFILE ? `${home}/super-agent` : `${home}/users/${profile}/super-agent`
+}

@@ -99,11 +99,12 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 ### 3. 目录
 
-- hub 工作区：每个身份用 `<home>/users/<id>/super-agent`。`superAgentFolder(profile)`
-  决定返回哪个。
+- hub 工作区：第一个身份用 `<home>/super-agent`，其余身份用
+  `<home>/users/<id>/super-agent`。`superAgentFolder(home, profile)` 决定返回哪个。
 - 执行环境：sidecar 把本机注册成 ollupi 的一种沙箱提供方（`sandbox.Local`，id
-  `local`），和云沙箱走同一个接口。每个环境是它的一个实例，根目录是
-  `<home>/users/<profile>/<环境 id>`，不在工作区里的命令就在这里跑。命令受 Seatbelt
+  `local`），和云沙箱走同一个接口。每个环境是它的一个实例，有自己的文件夹，不在
+  工作区里的命令就在这里跑：第一个身份的第一个环境是 `<home>/scratch`（和它的
+  `<home>/super-agent` 并列），其余的是 `<home>/users/<profile>/<环境 id>`。命令受 Seatbelt
   限制（只写工作区和这个目录，默认不联网，读不到 `data/`）；MCP 服务是用户自己的程序，
   以完全访问启动，继承后端的环境变量，但拿不到 `OLLUPI_` 开头的令牌。每个身份开始时
   有一个本机环境，还可以再建；云部署时往 `host.Config.Sandboxes` 里加云沙箱提供方即可。

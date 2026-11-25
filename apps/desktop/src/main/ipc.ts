@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, superAgentFolder, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
 import type { TempAttachments } from './attachments'
@@ -80,11 +80,12 @@ export function registerIpc(
     rememberProfile(id)
     backend.selectProfile(id)
   })
-  // The hub keeps nothing of the projects in it; each profile gets its own
-  // folder under the backend home, so two hubs never write the same files.
+  // The hub keeps nothing of the projects in it. The first profile's is the
+  // home's own super-agent, beside its scratch; each later one has its own
+  // under users/<id>, so two hubs never write the same files.
   ipcMain.handle(IpcChannel.SuperAgentFolder, async (_event, profile: unknown) => {
     const id = profileID(profile)
-    const folder = join(home, 'users', id, 'super-agent')
+    const folder = superAgentFolder(home, id)
     await mkdir(folder, { recursive: true })
     return folder
   })
