@@ -1,8 +1,14 @@
 # 发布清单
 
-版本：app `0.8.17-beta.14`，引擎 `v0.34.1`。
+版本：app `0.8.17-beta.15`，引擎 `v0.34.1`（和 beta.14 相同）。
 
 ## 1. 这一版改了什么
+
+beta.15 相对 beta.14：
+
+- 侧边栏底部改成两行：上一行是平台的模型、用量、能力，下一行是自己的记忆、定时任务、设置；定时任务不再在顶部。
+- 模型和用量从设置里拆出来，各是一页；设置只剩这个身份自己的：身份、通用、连接、脱敏、通知、外观、语言、权限。
+- 更新器清理下载目录改用 `rm -rf`：之前 Electron 把 `app.asar` 当目录，重新下载会报 `ENOTEMPTY`。
 
 beta.14 相对 beta.13：默认身份的第一个环境回到 `~/.ollupi/scratch`，Super Agent 用 `~/.ollupi/super-agent`；只有别的身份、别的环境才放到 `~/.ollupi/users/<身份>/...` 下。
 
@@ -42,7 +48,7 @@ grep -ac 'host.firstEnvironment' apps/desktop/release/mac-arm64/Ollupi.app/Conte
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.14 --prerelease --title "0.8.17-beta.14" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.15 --prerelease --title "0.8.17-beta.15" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
@@ -51,6 +57,8 @@ gh release create v0.8.17-beta.14 --prerelease --title "0.8.17-beta.14" --notes-
 - 不选工作区发一条要跑命令的消息：命令在 `~/.ollupi/scratch` 里跑。
 - 环境窗口新建一个环境，在它里面开会话，标题旁显示环境名。
 - MCP 服务照常连上。
+- 侧边栏底部两行六项，中英文都不截断；模型、用量各是一页。
+- 再从 beta.15 往后更新一次，下载目录里有上次留下的文件也能装上。
 
 ## 这版的已知限制
 
