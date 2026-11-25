@@ -3,9 +3,9 @@
 // access.
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, superAgentFolder, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
 import type { BackendHome } from './backend/home'
@@ -72,15 +72,6 @@ export function registerIpc(
     const id = profileID(profile)
     rememberProfile(id)
     backend.selectProfile(id)
-  })
-  // The hub keeps nothing of the projects in it. The first profile's is the
-  // home's own super-agent, beside its scratch; each later one has its own
-  // under users/<id>, so two hubs never write the same files.
-  ipcMain.handle(IpcChannel.SuperAgentFolder, async (_event, profile: unknown) => {
-    const id = profileID(profile)
-    const folder = superAgentFolder(home, id)
-    await mkdir(folder, { recursive: true })
-    return folder
   })
   ipcMain.handle(IpcChannel.BrowserState, (_event, thread: unknown) => browser.state(text(thread)))
   ipcMain.handle(IpcChannel.BrowserPlace, (_event, thread: unknown, bounds: unknown) => browser.place(text(thread), validBounds(bounds)))

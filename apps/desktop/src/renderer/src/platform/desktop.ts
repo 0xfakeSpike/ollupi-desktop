@@ -1,7 +1,7 @@
 // The only module that touches window.desktop, so the rest of the renderer
 // depends on the typed DesktopApi rather than a global.
 
-import { superAgentFolder, type BackendState, type DesktopApi } from '../../../shared/ipc'
+import type { BackendState, DesktopApi } from '../../../shared/ipc'
 
 declare global {
   interface Window {
@@ -33,13 +33,6 @@ function browserShim(): DesktopApi | undefined {
       },
     },
     skills: { import: unavailable },
-    // The folder in the home given, which whoever started the sidecar makes:
-    // a browser cannot.
-    superAgentFolder: async (profile: string) => {
-      const home = q.get('home')
-      if (!home) throw new Error('no home given (?home=)')
-      return superAgentFolder(home, profile)
-    },
     browser: {
       state: unavailable,
       place: unavailable,
@@ -100,7 +93,6 @@ export const desktop: DesktopApi = window.desktop ??
     remote: { read: unavailable, save: unavailable },
     skills: { import: unavailable },
     profile: { delete: unavailable, select: unavailable },
-    superAgentFolder: unavailable,
     browser: {
       state: unavailable,
       place: unavailable,

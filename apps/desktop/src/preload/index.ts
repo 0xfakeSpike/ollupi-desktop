@@ -27,7 +27,6 @@ const api: DesktopApi = {
     delete: (id) => ipcRenderer.invoke(IpcChannel.ProfileDelete, id),
     select: (id) => ipcRenderer.invoke(IpcChannel.ProfileSelect, id),
   },
-  superAgentFolder: (profile) => ipcRenderer.invoke(IpcChannel.SuperAgentFolder, profile),
   browser: {
     state: (thread) => ipcRenderer.invoke(IpcChannel.BrowserState, thread),
     place: (thread, bounds) => ipcRenderer.invoke(IpcChannel.BrowserPlace, thread, bounds),

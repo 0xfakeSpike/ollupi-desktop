@@ -29,7 +29,7 @@ export function SuperAgentStart() {
       </div>
       <p className="px-2.5 text-small text-fg-muted">{m.superAgentIntro}</p>
       <div className="px-2.5">
-        <Button size="sm" onClick={() => void startSuperAgent(m.superAgent)}>
+        <Button size="sm" onClick={() => void startSuperAgent()}>
           {m.superAgentStart}
         </Button>
       </div>

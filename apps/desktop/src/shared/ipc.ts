@@ -300,11 +300,6 @@ export interface DesktopApi {
      * restart opens as it. */
     select(id: string): Promise<void>
   }
-  /** Creates the Super Agent's folder of a profile in the backend's home,
-   * the one its hub workspace is added at, and gives its path. The first
-   * profile keeps the home's own `super-agent`; later ones have one under
-   * `users/<id>`, so two hubs never write the same files. */
-  superAgentFolder(profile: string): Promise<string>
   /** The app's browser: each thread's tabs, which the person and that
    * thread's agent share. The agent acts in the active one; open, back,
    * forward and reload act in it too. */
@@ -430,7 +425,6 @@ export const IpcChannel = {
   SkillsImport: 'skills:import',
   ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',
-  SuperAgentFolder: 'superAgent:folder',
   BrowserState: 'browser:state',
   BrowserPlace: 'browser:place',
   BrowserOpen: 'browser:open',
@@ -486,9 +480,3 @@ export const APP_HOST = 'ollupi'
 /** The profile a home is made with (the sidecar's firstProfile): the app names
  * every connection by a profile, so a fresh home starts as this one. */
 export const FIRST_PROFILE = 'default'
-
-/** Where a profile's Super Agent works in the backend's home: the first
- * profile in the home's own `super-agent`, a later one under `users/<id>`. */
-export function superAgentFolder(home: string, profile: string): string {
-  return profile === FIRST_PROFILE ? `${home}/super-agent` : `${home}/users/${profile}/super-agent`
-}

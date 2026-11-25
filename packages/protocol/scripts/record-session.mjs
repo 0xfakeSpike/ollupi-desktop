@@ -229,11 +229,9 @@ await call('skill/set', { name: 'Not A Name', description: 'x', instructions: 'x
 await call('skill/delete', { name: 'release-notes' })
 await call('memory/status', {})
 await call('memory/list', { scope: 'global' })
-// The Super Agent: a hub workspace with instructions.
-const hubFolder = join(tmp, 'super-agent')
-mkdirSync(hubFolder, { recursive: true })
-const { workspace: hub } = await call('workspace/add', { path: hubFolder, name: 'Super Agent' })
-await call('workspace/setKind', { workspaceId: hub.id, kind: 'hub' })
+// The Super Agent: the hub workspace ollupi makes in the folder the first
+// environment keeps for it, with instructions.
+const { workspace: hub } = await call('workspace/startHub', {})
 await call('workspace/updateInstructions', { workspaceId: hub.id, instructions: 'Hand docs work to Demo.' })
 await call('memory/list', { scope: 'workspace', workspaceId: ws1.id })
 // The workspace scope needs its workspace: refused.

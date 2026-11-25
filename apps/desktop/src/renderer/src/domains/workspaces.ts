@@ -10,9 +10,7 @@ import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
-import { desktop } from '../platform/desktop'
 import { go } from './navigation'
-import { useProfile } from './profile'
 
 export const useWorkspaces = create<{ list: WorkspaceRow[] }>()(() => ({ list: [] }))
 
@@ -115,18 +113,13 @@ export function setArchived(workspaceId: string, archived: boolean): Promise<voi
   })
 }
 
-/** The Super Agent is the user's hub: a workspace of its own folder, in the
- * backend's home, whose conversations hand work out to the projects. The
- * first time, the folder is made, added and made the hub; adding a folder
- * that is a workspace already gives that one back, restored if archived. A
- * draft opens in it either way. */
-export function startSuperAgent(name: string): Promise<void | undefined> {
+/** The Super Agent is the user's hub: a workspace whose conversations hand
+ * work out to the projects, in the folder their first environment keeps for
+ * it. ollupi makes it the first time and gives it back after, restored if
+ * archived; a draft opens in it either way. */
+export function startSuperAgent(): Promise<void | undefined> {
   return run((e) => e.workspace.superAgent, async () => {
-    const { current } = useProfile.getState()
-    if (!current) throw new Error('no profile is selected')
-    const path = await desktop.superAgentFolder(current)
-    const { workspace } = await gateway().call('workspace/add', { path, name })
-    if (workspace.kind !== 'hub') await gateway().call('workspace/setKind', { workspaceId: workspace.id, kind: 'hub' })
+    const { workspace } = await gateway().call('workspace/startHub', {})
     go({ kind: 'draft', workspaceId: workspace.id })
   })
 }
