@@ -106,41 +106,41 @@ describe('timeline', () => {
 
   it('streams text into an item made for it until the item is kept', () => {
     let t = timelineFromPage(page([item('a', 1)], [turn('u1', 'inProgress')]))
-    const delta = (itemId: string, d: string, offset: number) => ({ turnId: 'u1', itemId, delta: d, offset })
-    t = appendDelta(appendDelta(t, delta('m', 'Hel', 0), 'agentMessage'), delta('m', 'lo', 3), 'agentMessage')
+    const delta = (itemId: string, d: string, offset: number) => ({ turnId: 'u1', itemId, type: 'agentMessage' as const, delta: d, offset })
+    t = appendDelta(appendDelta(t, delta('m', 'Hel', 0)), delta('m', 'lo', 3))
     expect(t.items.map((i) => [i.id, i.text, i.status])).toEqual([
       ['a', undefined, 'completed'],
       ['m', 'Hello', 'inProgress'],
     ])
     // Kept, it is the log's: a delta after it changes nothing.
     t = upsertItem(t, item('m', 2, { text: 'Hello!' }))
-    t = appendDelta(t, delta('m', 'x', 6), 'agentMessage')
+    t = appendDelta(t, delta('m', 'x', 6))
     expect(t.items.map((i) => i.text)).toEqual([undefined, 'Hello!'])
   })
 
   it('puts a delta where its offset says, so a repeated one does not repeat its text', () => {
     let t = timelineFromPage(page([], [turn('u1', 'inProgress')]))
-    const delta = (d: string, offset: number) => ({ turnId: 'u1', itemId: 'm', delta: d, offset })
-    t = appendDelta(appendDelta(t, delta('你好', 0), 'agentMessage'), delta('😀!', 2), 'agentMessage')
+    const delta = (d: string, offset: number) => ({ turnId: 'u1', itemId: 'm', type: 'agentMessage' as const, delta: d, offset })
+    t = appendDelta(appendDelta(t, delta('你好', 0)), delta('😀!', 2))
     // Sent again after a reconnect, the same deltas leave the text as it was.
-    t = appendDelta(appendDelta(t, delta('你好', 0), 'agentMessage'), delta('😀!', 2), 'agentMessage')
+    t = appendDelta(appendDelta(t, delta('你好', 0)), delta('😀!', 2))
     expect(t.items[0]!.text).toBe('你好😀!')
-    t = appendDelta(t, delta(' ok', 5), 'agentMessage')
+    t = appendDelta(t, delta(' ok', 5))
     expect(t.items[0]!.text).toBe('你好😀! ok')
   })
 
   it('waits for the kept item when a delta was missed', () => {
     const start = timelineFromPage(page([], [turn('u1', 'inProgress')]))
-    const delta = (d: string, offset: number) => ({ turnId: 'u1', itemId: 'm', delta: d, offset })
+    const delta = (d: string, offset: number) => ({ turnId: 'u1', itemId: 'm', type: 'agentMessage' as const, delta: d, offset })
     // Its first delta missed, the item is not made from a later one.
-    expect(appendDelta(start, delta('lo', 3), 'agentMessage').items).toEqual([])
-    const t = appendDelta(appendDelta(start, delta('Hel', 0), 'agentMessage'), delta('!', 5), 'agentMessage')
+    expect(appendDelta(start, delta('lo', 3)).items).toEqual([])
+    const t = appendDelta(appendDelta(start, delta('Hel', 0)), delta('!', 5))
     expect(t.items[0]!.text).toBe('Hel')
     expect(upsertItem(t, item('m', 2, { text: 'Hello!' })).items[0]!.text).toBe('Hello!')
   })
 
   it('drops streamed text the turn never kept', () => {
-    const streamed = (t: ReturnType<typeof timelineFromPage>) => appendDelta(t, { turnId: 'u1', itemId: 'm', delta: 'Hel', offset: 0 }, 'agentMessage')
+    const streamed = (t: ReturnType<typeof timelineFromPage>) => appendDelta(t, { turnId: 'u1', itemId: 'm', type: 'agentMessage', delta: 'Hel', offset: 0 })
     const start = timelineFromPage(page([], [turn('u1', 'inProgress')]))
     expect(upsertItem(streamed(start), item('e', 2, { type: 'error', error: 'model failed' })).items.map((i) => i.id)).toEqual(['e'])
     expect(upsertTurn(streamed(start), turn('u1', 'interrupted')).items).toEqual([])
@@ -192,13 +192,13 @@ describe('timeline', () => {
 
   it('drops a reply a newer user message overtook, and what its call streams after', () => {
     const running = timelineFromPage(page([item('m1', 1, { type: 'userMessage' })], [turn('u1', 'inProgress')]))
-    const streamed = appendDelta(running, { turnId: 'u1', itemId: 'a1', delta: 'Half an ans', offset: 0 }, 'agentMessage')
+    const streamed = appendDelta(running, { turnId: 'u1', itemId: 'a1', type: 'agentMessage', delta: 'Half an ans', offset: 0 })
     const steered = upsertItem(streamed, item('m2', 2, { type: 'userMessage' }))
     expect(steered.items.map((i) => i.id)).toEqual(['m1', 'm2'])
-    const late = appendDelta(steered, { turnId: 'u1', itemId: 'a1', delta: 'wer', offset: 11 }, 'agentMessage')
+    const late = appendDelta(steered, { turnId: 'u1', itemId: 'a1', type: 'agentMessage', delta: 'wer', offset: 11 })
     expect(late.items.map((i) => i.id)).toEqual(['m1', 'm2'])
     // The next call, which saw the message, streams as usual.
-    expect(appendDelta(late, { turnId: 'u1', itemId: 'a2', delta: 'Now', offset: 0 }, 'agentMessage').items.map((i) => i.id)).toEqual(['m1', 'm2', 'a2'])
+    expect(appendDelta(late, { turnId: 'u1', itemId: 'a2', type: 'agentMessage', delta: 'Now', offset: 0 }).items.map((i) => i.id)).toEqual(['m1', 'm2', 'a2'])
   })
 
   it('keeps older loaded history when refreshing from the latest page', () => {

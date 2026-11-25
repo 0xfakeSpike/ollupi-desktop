@@ -47,7 +47,7 @@ function store(threadId: string, t: Timeline): void {
   useTimelines.setState((s) => ({ byThread: { ...s.byThread, [threadId]: t } }))
 }
 
-const TIMELINE_EVENTS: TimelineEventName[] = ['thread/changed', 'turn/changed', 'item/changed', 'item/agentMessage/delta', 'item/reasoning/textDelta']
+const TIMELINE_EVENTS: TimelineEventName[] = ['thread/changed', 'turn/changed', 'item/changed', 'item/delta']
 
 /** Reads a thread's latest page with what changed in it while the page was
  * on its way, which the page does not have: nothing holds the thread until
@@ -79,8 +79,7 @@ export const conversationDomain: Domain = {
       ),
       client.on('turn/changed', (params) => apply({ method: 'turn/changed', params })),
       client.on('item/changed', (params) => apply({ method: 'item/changed', params })),
-      client.on('item/agentMessage/delta', (params) => apply({ method: 'item/agentMessage/delta', params })),
-      client.on('item/reasoning/textDelta', (params) => apply({ method: 'item/reasoning/textDelta', params })),
+      client.on('item/delta', (params) => apply({ method: 'item/delta', params })),
     ]
     return () => offs.forEach((off) => off())
   },

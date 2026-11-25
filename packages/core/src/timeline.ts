@@ -6,11 +6,11 @@
 // Timeline, so any state container can hold it and unchanged parts keep
 // their identity.
 
-import type { ItemRow, ServerNotifications, ThreadPageResult, ThreadRow, ThreadStatus, TurnRow } from '@ollupi/protocol'
+import type { DeltaNotification, ItemRow, ServerNotifications, ThreadPageResult, ThreadRow, ThreadStatus, TurnRow } from '@ollupi/protocol'
 import { waitsForAnswer, waitsForApproval } from './calls'
 
 /** The notifications that change a thread's timeline. */
-export type TimelineEventName = 'thread/changed' | 'turn/changed' | 'item/changed' | 'item/agentMessage/delta' | 'item/reasoning/textDelta'
+export type TimelineEventName = 'thread/changed' | 'turn/changed' | 'item/changed' | 'item/delta'
 
 export type TimelineEvent = { [N in TimelineEventName]: { method: N; params: ServerNotifications[N] } }[TimelineEventName]
 
@@ -25,10 +25,8 @@ export function applyEvent(t: Timeline, e: TimelineEvent): Timeline {
       return e.params.seq > t.seq ? upsertTurn(t, e.params.turn) : t
     case 'item/changed':
       return e.params.seq > t.seq ? upsertItem(t, e.params.item) : t
-    case 'item/agentMessage/delta':
-      return appendDelta(t, e.params, 'agentMessage')
-    case 'item/reasoning/textDelta':
-      return appendDelta(t, e.params, 'reasoning')
+    case 'item/delta':
+      return appendDelta(t, e.params)
   }
 }
 
@@ -116,13 +114,13 @@ export function upsertItem(t: Timeline, item: ItemRow): Timeline {
  * code units, as a string's length counts), so one repeated or late takes
  * the place of what it repeats; one past the text held follows a delta that
  * was missed, and the text waits for item/changed instead. */
-export function appendDelta(t: Timeline, d: { turnId: string; itemId: string; delta: string; offset: number }, type: 'agentMessage' | 'reasoning'): Timeline {
+export function appendDelta(t: Timeline, d: Omit<DeltaNotification, 'threadId'>): Timeline {
   if (t.overtaken?.includes(d.itemId)) return t
   const i = t.items.findIndex((it) => it.id === d.itemId)
   const items = t.items.slice()
   if (i < 0) {
     if (d.offset > 0) return t
-    items.push({ id: d.itemId, turnId: d.turnId, seq: Number.MAX_SAFE_INTEGER, updated: 0, type, status: 'inProgress', text: d.delta, startedAt: new Date().toISOString() })
+    items.push({ id: d.itemId, turnId: d.turnId, seq: Number.MAX_SAFE_INTEGER, updated: 0, type: d.type, status: 'inProgress', text: d.delta, startedAt: new Date().toISOString() })
     return { ...t, items }
   }
   const it = items[i]!

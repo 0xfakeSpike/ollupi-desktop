@@ -21,7 +21,7 @@ const fixture = JSON.parse(readFileSync(new URL('../../protocol/fixtures/session
   messages: { direction: 'in' | 'out'; message: Message }[]
 }
 
-const timelineEvents: TimelineEventName[] = ['thread/changed', 'turn/changed', 'item/changed', 'item/agentMessage/delta', 'item/reasoning/textDelta']
+const timelineEvents: TimelineEventName[] = ['thread/changed', 'turn/changed', 'item/changed', 'item/delta']
 
 /** The result of the client call that matches `pick`, by JSON-RPC id. */
 function resultOf(pick: (m: Message) => boolean): any {

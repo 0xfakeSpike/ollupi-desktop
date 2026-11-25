@@ -70,8 +70,8 @@ describe('OllupiClient', () => {
     const gw = gateway()
     const client = await OllupiClient.over(gw.transport, info)
     const seen: string[] = []
-    const off = client.on('item/agentMessage/delta', (p) => seen.push(p.delta))
-    const delta = (d: string) => ({ method: 'item/agentMessage/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', delta: d, offset: 0 } })
+    const off = client.on('item/delta', (p) => seen.push(p.delta))
+    const delta = (d: string) => ({ method: 'item/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', type: 'agentMessage', delta: d, offset: 0 } })
     gw.reply(delta('he'))
     off()
     gw.reply(delta('llo'))
@@ -83,7 +83,7 @@ describe('OllupiClient', () => {
     const gw = gateway((m, reply) => {
       reply(todo(1, 4))
       reply(todo(2, 6))
-      reply({ method: 'item/agentMessage/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', delta: 'x', offset: 0 } })
+      reply({ method: 'item/delta', params: { threadId: 't', turnId: 'u', itemId: 'i', type: 'agentMessage', delta: 'x', offset: 0 } })
       reply({ id: m.id, result: { data: [], seq: 5 } })
       setTimeout(() => reply(todo(3, 7)), 0)
     })
