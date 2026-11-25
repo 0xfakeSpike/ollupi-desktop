@@ -16,6 +16,7 @@ import { desktop } from '../../platform/desktop'
 import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { PermissionEditor } from './PermissionEditor'
 import { ProfilesSection } from './ProfilesSection'
+import { EnvironmentsSection } from './EnvironmentsSection'
 import { RemoteSection } from './RemoteSection'
 import { Emblem } from '../common/Wolf'
 
@@ -23,6 +24,7 @@ const bodies: Record<SettingsTab, () => ReactNode> = {
   profiles: ProfilesSection,
   general: General,
   connection: RemoteSection,
+  environments: EnvironmentsSection,
   language: Language,
   appearance: Appearance,
   notifications: Notifications,

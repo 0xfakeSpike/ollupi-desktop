@@ -3,7 +3,6 @@
 // beside it; the pages it opens become the thread's.
 
 import type { EnvironmentRow } from '@ollupi/protocol'
-import { useState } from 'react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
@@ -15,7 +14,6 @@ import { useT } from '../../i18n'
 import { workspaceName } from '../../i18n/format'
 import { BrowserPanel } from '../conversation/BrowserPanel'
 import { chip, Composer } from '../conversation/Composer'
-import { EnvironmentDialog } from '../conversation/EnvironmentDialog'
 import { ApprovalPicker } from '../conversation/ApprovalPicker'
 import { ModelPicker } from '../conversation/ModelPicker'
 import { PanelButtons } from '../conversation/PanelButtons'
@@ -35,7 +33,6 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
   const scratch = useWorkspaces((s) => s.list.find((w) => w.kind === 'scratch' && w.environmentId === environment?.id))
   const workspace = named ?? scratch
   const project = workspace && workspace.kind !== 'scratch' ? workspace : undefined
-  const [managing, setManaging] = useState(false)
   const approval = useNavigation((s) => s.approval)
   const agentPolicy = useUserPolicy()
   const m = useT()
@@ -70,7 +67,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           onSubmit={(message) => startThread(workspaceId, message)}
           toolbar={
             <>
-              <EnvironmentPicker current={environment} inWorkspace={!!named} onManage={() => setManaging(true)} />
+              <EnvironmentPicker current={environment} inWorkspace={!!named} />
               <WorkspacePicker workspaceId={project?.id} />
               <ModelPicker inherited={undefined} />
               <ApprovalPicker
@@ -86,13 +83,11 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
       {panel === 'browser' && <BrowserPanel thread={DRAFT_BROWSER} />}
       {workspace && <WorkspacePanel workspace={workspace} environment={environment} turn={undefined} />}
       {panel === 'todos' && hub && workspace && <TodosPanel />}
-      {managing && <EnvironmentDialog onClose={() => setManaging(false)} />}
     </div>
   )
 }
 
 const ADD = '__add__'
-const MANAGE = '__manage__'
 
 /** The project the draft is in, or none: the scratch workspace of the
  * environment chosen. */
@@ -134,11 +129,10 @@ function useDraftEnvironment(workspaceEnvironment: string | undefined) {
 /** Where the thread runs: a conversation keeps the environment it started
  * in. In a workspace it is the workspace's; choosing another leaves the
  * workspace for a conversation outside one there. */
-function EnvironmentPicker({ current, inWorkspace, onManage }: { current: EnvironmentRow | undefined; inWorkspace: boolean; onManage(): void }) {
+function EnvironmentPicker({ current, inWorkspace }: { current: EnvironmentRow | undefined; inWorkspace: boolean }) {
   const environments = useEnvironments((s) => s.list)
   const m = useT()
   const choose = (id: string) => {
-    if (id === MANAGE) return onManage()
     if (id === current?.id) return
     chooseEnvironment(id || undefined)
     if (inWorkspace) go({ kind: 'draft', workspaceId: undefined })
@@ -157,7 +151,6 @@ function EnvironmentPicker({ current, inWorkspace, onManage }: { current: Enviro
             {environmentName(e)}
           </option>
         ))}
-        <option value={MANAGE}>{m.conversation.environments.manage}</option>
       </select>
     </label>
   )

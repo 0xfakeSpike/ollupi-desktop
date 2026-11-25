@@ -12,6 +12,10 @@ export const en = {
       profiles: { label: 'Profiles', description: 'Each profile has its own conversations, memory, todos, workspaces and settings; switching needs no password and reconnects at once.' },
       general: { label: 'General', description: '' },
       connection: { label: 'Connection', description: 'Which ollupid this window talks to: the one this Mac runs, or one on another machine.' },
+      environments: {
+        label: 'Environments',
+        description: 'Where a conversation’s commands run. Each environment is a sandbox of its own: a folder of the machine ollupid runs on, or a cloud sandbox where the backend offers one. Each has a default workspace, its own folder, and a workspace is a folder of one environment.',
+      },
       language: { label: 'Language', description: 'The language of the app itself. Conversations keep the language they are written in.' },
       appearance: { label: 'Appearance', description: '' },
       notifications: {
@@ -321,6 +325,10 @@ export const zh: typeof en = {
       profiles: { label: '身份', description: '每个身份的会话、记忆、待办、工作区和设置都是自己的；切换不要密码，立即重连。' },
       general: { label: '通用', description: '' },
       connection: { label: '连接', description: '这个窗口连接哪个 ollupid：本机运行的，或另一台机器上的。' },
+      environments: {
+        label: '环境',
+        description: '会话的命令在哪里跑。每个环境是一个独立的沙箱：ollupid 所在机器上的一个文件夹，或者后端提供的云端沙箱。每个环境有一个默认工作区，就是它自己的文件夹；工作区是某个环境里的文件夹。',
+      },
       language: { label: '语言', description: '应用界面的语言。会话内容保持原来的语言。' },
       appearance: { label: '外观', description: '' },
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },

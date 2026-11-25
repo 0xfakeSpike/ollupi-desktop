@@ -1,12 +1,12 @@
-// Where conversations can run: each environment is a sandbox of one of the
-// providers the backend offers, this computer among them. ollupi keeps the
-// list and sends each change; the dialog only asks it to add, rename or
-// delete one. A conversation keeps the environment it was started in and a
+// Settings → Environments: where conversations can run. Each environment is
+// a sandbox of one of the providers the backend offers, this computer among
+// them. ollupi keeps the list and sends each change; the page only asks it
+// to add, rename or delete one. A conversation keeps the environment it was started in and a
 // workspace is a folder of one, so the user's first environment and any
 // environment in use stay: ollupi refuses to remove them.
 
 import type { EnvironmentRow } from '@ollupi/protocol'
-import { Button, Dialog, IconButton, Input, Select } from '@ollupi/ui'
+import { Button, IconButton, Input, Select } from '@ollupi/ui'
 import { Cloud, Laptop, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
@@ -22,9 +22,8 @@ import {
 } from '../../domains/environments'
 import { useT } from '../../i18n'
 
-export function EnvironmentDialog({ onClose }: { onClose(): void }) {
-  const m = useT()
-  const t = m.conversation.environments
+export function EnvironmentsSection() {
+  const t = useT().conversation.environments
   const list = useEnvironments((s) => s.list)
   const providers = useEnvironments((s) => s.providers)
   const first = defaultEnvironment(list)
@@ -39,8 +38,7 @@ export function EnvironmentDialog({ onClose }: { onClose(): void }) {
     if (await addEnvironment(next, chosen)) setName('')
   }
   return (
-    <Dialog title={t.title} description={t.description} closeLabel={m.common.close} onClose={onClose}>
-      <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
         <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
           {list.map((environment) => (
             <Row key={environment.id} environment={environment} first={environment.id === first?.id} />
@@ -76,8 +74,7 @@ export function EnvironmentDialog({ onClose }: { onClose(): void }) {
             {t.add}
           </Button>
         </form>
-      </div>
-    </Dialog>
+    </div>
   )
 }
 

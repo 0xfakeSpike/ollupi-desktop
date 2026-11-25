@@ -25,7 +25,7 @@ export type CapabilityTab = 'skills' | 'mcp' | 'tools'
 /** The profile's own settings, one part at a time: who the window acts as
  * first; then General, with the version and the backend everything runs on.
  * The models and the usage are the platform's, each a screen of its own. */
-export const settingsTabs = ['profiles', 'general', 'connection', 'redaction', 'notifications', 'appearance', 'language', 'permissions'] as const
+export const settingsTabs = ['profiles', 'general', 'connection', 'environments', 'redaction', 'notifications', 'appearance', 'language', 'permissions'] as const
 export type SettingsTab = (typeof settingsTabs)[number]
 
 export type Screen =
