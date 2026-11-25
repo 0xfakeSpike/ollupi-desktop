@@ -1,11 +1,10 @@
 // What a failed action's notice says it was doing, and the reasons the
-// config domains give for refusing a change.
+// domains give for refusing a change.
 
 export const en = {
   failed: (what: string, why: string) => `${what}: ${why}`,
   notConnected: 'Not connected to the backend',
   contractMismatch: (where: string, problem: string) => `Contract mismatch: ${where} ${problem}`,
-  configUnchanged: (why: string) => `config.yaml was not changed: ${why}`,
 
   workspace: {
     add: 'Could not add the workspace',
@@ -61,10 +60,13 @@ export const en = {
     permissions: 'Could not save the permissions',
     model: 'Could not choose the model',
   },
-  config: {
-    read: 'Could not read config.yaml',
-    save: 'Could not save config.yaml',
-    mcpStatus: 'Could not read the MCP servers',
+  mcp: {
+    status: 'Could not read the MCP servers',
+    save: 'Could not save the MCP server',
+  },
+  models: {
+    read: 'Could not read the models',
+    save: 'Could not save the models',
   },
   files: {
     list: 'Could not read the folder',
@@ -113,7 +115,6 @@ export const zh: typeof en = {
   failed: (what, why) => `${what}：${why}`,
   notConnected: '未连接到后端',
   contractMismatch: (where, problem) => `协议不一致：${where} ${problem}`,
-  configUnchanged: (why) => `config.yaml 未修改：${why}`,
 
   workspace: {
     add: '无法添加工作区',
@@ -169,10 +170,13 @@ export const zh: typeof en = {
     permissions: '无法保存权限',
     model: '无法选择模型',
   },
-  config: {
-    read: '无法读取 config.yaml',
-    save: '无法保存 config.yaml',
-    mcpStatus: '无法读取 MCP 服务器',
+  mcp: {
+    status: '无法读取 MCP 服务器',
+    save: '无法保存 MCP 服务器',
+  },
+  models: {
+    read: '无法读取模型',
+    save: '无法保存模型',
   },
   files: {
     list: '无法读取文件夹',

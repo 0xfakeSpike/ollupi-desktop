@@ -56,7 +56,7 @@ export const mcpDomain: Domain = {
 
 /** Reads again how each server is doing. */
 export function refreshMcp(): Promise<void | undefined> {
-  return run((e) => e.config.mcpStatus, () => read(gateway()))
+  return run((e) => e.mcp.status, () => read(gateway()))
 }
 
 /** ollupi's rule for a server name (user.MCPServer): it prefixes the
@@ -85,7 +85,7 @@ export function serverOf(f: McpFields): MCPServerConfig {
 /** Adds a server, or replaces the one named was; a server renamed is the
  * old one removed once the new one is in. Resolves to whether it was. */
 export function saveServer(f: McpFields, was?: string): Promise<boolean> {
-  return run((e) => e.config.save, async () => {
+  return run((e) => e.mcp.save, async () => {
     await gateway().call('mcpServer/set', serverOf(f))
     if (was && was !== f.name) await gateway().call('mcpServer/delete', { name: was })
     return true
@@ -93,7 +93,7 @@ export function saveServer(f: McpFields, was?: string): Promise<boolean> {
 }
 
 export function removeServer(name: string): Promise<void | undefined> {
-  return run((e) => e.config.save, async () => {
+  return run((e) => e.mcp.save, async () => {
     await gateway().call('mcpServer/delete', { name })
   })
 }

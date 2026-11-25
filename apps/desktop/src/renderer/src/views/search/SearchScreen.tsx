@@ -2,7 +2,7 @@
 // opens; a message opens its conversation at it; a task or a memory opens
 // the screen that lists it.
 
-import { Limits, type CronJobRow, type MemoryRow, type MessageHit, type ThreadRow } from '@ollupi/protocol'
+import { GatewayLimits, type CronJobRow, type MemoryRow, type MessageHit, type ThreadRow } from '@ollupi/protocol'
 import { Badge, cn, EmptyState, Select, Spinner } from '@ollupi/ui'
 import { Bot, Brain, CalendarClock, MessageSquare, Search, User } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
@@ -64,7 +64,7 @@ export function SearchScreen() {
           {!terms.length ? (
             <p className="text-small text-fg-subtle">{t.hint}</p>
           ) : state.status === 'refused' ? (
-            <p className="text-small text-fg-muted">{state.reason === 'tooLong' ? t.tooLong(Limits.searchRunes, Limits.searchTerms) : t.timedOut}</p>
+            <p className="text-small text-fg-muted">{state.reason === 'tooLong' ? t.tooLong(GatewayLimits.searchRunes, GatewayLimits.searchTerms) : t.timedOut}</p>
           ) : result && total === 0 && state.status === 'found' ? (
             <EmptyState icon={<Wolf pose="sniff" className="size-16" />} title={t.none(query.trim())} />
           ) : (

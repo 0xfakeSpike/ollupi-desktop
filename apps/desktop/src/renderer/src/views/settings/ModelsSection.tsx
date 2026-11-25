@@ -1,17 +1,17 @@
-// The models the backend serves: config.yaml's providers, each an API of
-// one type (OpenAI compatible, Anthropic or Gemini) with its account, and the
-// models it serves. They are the deployment's, the same for every profile;
-// a saved change is checked by the backend, written, and reloaded into the
-// running backend without stopping its turns. A provider's API key is written
-// there too, like its base URL. Which model this profile's conversations
-// start with is its own choice, kept in its settings.
+// The models the deployment serves: ollupi's catalog, the providers every
+// profile runs on, each an API of one type (OpenAI compatible, Anthropic or
+// Gemini) with its account and key, and the models it serves. The operator
+// sets it whole over the gateway; ollupi checks it, and new turns run on it
+// at once. A connection that is not the operator's only chooses among the
+// models. Which model this profile's conversations start with is its own
+// choice, kept in its settings.
 
 import { formatTokens } from '@ollupi/core'
 import { Badge, Button, Callout, Checkbox, cn, Details, Dialog, Field, IconButton, Input, Select, Spinner, Switch } from '@ollupi/ui'
 import { ChevronRight, Eye, EyeOff, KeyRound, Pencil, Plus, RotateCw, Star, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { apiTypes, type ApiType, type ConfigChange, type ListedModel } from '../../../../shared/ipc'
-import { applyProviders, readConfig, type CheckedConfig } from '../../domains/backendConfig'
+import { apiTypes, type ApiType, type ListedModel } from '../../../../shared/ipc'
+import { saveCatalog, useCatalog } from '../../domains/catalog'
 import {
   addModels,
   addProvider,
@@ -26,7 +26,7 @@ import {
   imagesByDefault,
   limitsOf,
   modelId,
-  providersOf,
+  modelsOf,
   removeModel,
   removeProvider,
   type ModelFields,
@@ -40,53 +40,31 @@ import { useModelList, type ModelListState } from '../../domains/modelList'
 import { useModels } from '../../domains/models'
 import { notify } from '../../domains/notices'
 import { setStartModel, useSettings } from '../../domains/settings'
-import { useConnection } from '../../gateway/connection'
 import { useLocale, useT } from '../../i18n'
-import { desktop } from '../../platform/desktop'
 
 type Editing = { kind: 'provider'; index?: number } | { kind: 'model'; provider: number; index?: number }
 
 export function ModelsSection() {
+  const operator = useCatalog((s) => s.operator)
+  if (operator === false) return <ChooseModels />
+  return <Catalog />
+}
+
+/** The catalog, which this connection may change. */
+function Catalog() {
   const m = useT()
-  const [checked, setChecked] = useState<CheckedConfig>()
-  const [error, setError] = useState<string>()
+  const providers = useCatalog((s) => s.list)
   const [editing, setEditing] = useState<Editing>()
-  const running = useModels((s) => s.list)
   const start = useModels((s) => s.fallback)
   const learnModel = useSettings((s) => s.settings?.learnModel)
-  const connected = useConnection((s) => s.gateway === 'connected')
 
-  useEffect(() => {
-    void readConfig().then((r) => (r?.ok ? setChecked(r) : setError(r?.error)))
-  }, [])
+  if (!providers) return null
 
-  if (error) return <Callout tone="danger">{m.settings.config.unreadable(error)}</Callout>
-  if (!checked) return null
-
-  const config = checked.config
-  const providers = providersOf(config)
-  const models = providers.flatMap((p) => (p.models ?? []).map((n) => modelId(p.id, n.name)))
-  /** Applies changes; true when the backend accepted them. */
-  const apply = async (changes: ConfigChange[]): Promise<boolean> => {
-    const applied = await applyProviders(changes)
-    if (applied) setChecked(applied)
-    return !!applied
-  }
-  // The file and the running backend disagree, e.g. after a hand edit.
-  const stale = connected && running.map((m) => m.connection).join('\n') !== models.join('\n')
+  /** Saves the catalog as an edit leaves it; true when ollupi took it. */
+  const save = (next: Provider[]): Promise<boolean> => saveCatalog(next)
 
   return (
     <>
-      {stale && (
-        <Callout tone="warning">
-          <div className="flex items-center gap-3">
-            <span className="flex-1">{m.settings.models.stale}</span>
-            <Button size="sm" icon={<RotateCw size={14} />} onClick={() => void desktop.backend.restart()}>
-              {m.common.restartBackend}
-            </Button>
-          </div>
-        </Callout>
-      )}
       {providers.map((p, i) => (
         <ProviderCard
           key={`${i}:${p.id}`}
@@ -95,18 +73,18 @@ export function ModelsSection() {
           memoryModel={learnModel || undefined}
           onEdit={() => setEditing({ kind: 'provider', index: i })}
           onRemove={() => {
-            const reason = cannotRemoveProvider(config, i)
+            const reason = cannotRemoveProvider(providers, i)
             if (reason) return notify(m.errors.modelRemoval[reason], 'info')
-            if (confirm(m.settings.models.confirmRemoveProvider(p.id, m.settings.models.renamed))) void apply(removeProvider(config, i))
+            if (confirm(m.settings.models.confirmRemoveProvider(p.id, m.settings.models.renamed))) void save(removeProvider(providers, i))
           }}
           onAddModel={() => setEditing({ kind: 'model', provider: i })}
           onEditModel={(j) => setEditing({ kind: 'model', provider: i, index: j })}
           onRemoveModel={(j) => {
-            const reason = cannotRemove(config)
+            const reason = cannotRemove(providers)
             if (reason) return notify(m.errors.modelRemoval[reason], 'info')
-            if (confirm(m.settings.models.confirmRemoveModel(modelId(p.id, p.models![j]!.name), m.settings.models.renamed))) void apply(removeModel(config, i, j))
+            if (confirm(m.settings.models.confirmRemoveModel(modelId(p.id, modelsOf(p)[j]!.name), m.settings.models.renamed))) void save(removeModel(providers, i, j))
           }}
-          onMakeDefault={(j) => void setStartModel(modelId(p.id, p.models![j]!.name))}
+          onMakeDefault={(j) => void setStartModel(modelId(p.id, modelsOf(p)[j]!.name))}
         />
       ))}
       <div>
@@ -120,27 +98,61 @@ export function ModelsSection() {
           taken={providers.filter((_, i) => i !== editing.index).map((p) => p.id)}
           onClose={() => setEditing(undefined)}
           onSave={async (fields, added) => {
-            const changes = editing.index === undefined
-              ? addProvider(config, fields, added)
-              : [...editProvider(config, editing.index, fields), ...addModels(config, editing.index, added)]
-            if (await apply(changes)) setEditing(undefined)
+            const next = editing.index === undefined
+              ? addProvider(providers, fields, added)
+              : addModels(editProvider(providers, editing.index, fields), editing.index, added)
+            if (await save(next)) setEditing(undefined)
           }}
         />
       )}
       {editing?.kind === 'model' && (
         <ModelDialog
           provider={providers[editing.provider]!}
-          model={editing.index === undefined ? undefined : providers[editing.provider]!.models![editing.index]}
-          taken={(providers[editing.provider]!.models ?? []).filter((_, i) => i !== editing.index).map((m) => m.name)}
+          model={editing.index === undefined ? undefined : modelsOf(providers[editing.provider]!)[editing.index]}
+          taken={modelsOf(providers[editing.provider]!).filter((_, i) => i !== editing.index).map((m) => m.name)}
           onClose={() => setEditing(undefined)}
           onSave={async (fields) => {
-            const changes = editing.index === undefined
-              ? addModels(config, editing.provider, [fields])
-              : editModel(config, editing.provider, editing.index, fields)
-            if (await apply(changes)) setEditing(undefined)
+            const next = editing.index === undefined
+              ? addModels(providers, editing.provider, [fields])
+              : editModel(providers, editing.provider, editing.index, fields)
+            if (await save(next)) setEditing(undefined)
           }}
         />
       )}
+    </>
+  )
+}
+
+/** The models a connection that is not the operator's chooses among: which
+ * one this profile's conversations start with is its own. */
+function ChooseModels() {
+  const m = useT()
+  const c = m.settings.models.card
+  const list = useModels((s) => s.list)
+  const start = useModels((s) => s.fallback)
+  const learnModel = useSettings((s) => s.settings?.learnModel)
+  return (
+    <>
+      <Callout>{m.settings.models.readOnly}</Callout>
+      <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
+        {list.map((model) => {
+          const isDefault = model.connection === start
+          return (
+            <li key={model.connection} className="flex items-center gap-3 px-4 py-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="selectable truncate font-mono text-small text-fg">{model.connection}</span>
+                {isDefault && <Badge>{c.default}</Badge>}
+                {learnModel === model.connection && <Badge>{c.memory}</Badge>}
+              </div>
+              {!isDefault && (
+                <IconButton label={c.makeDefault(model.connection)} size="sm" onClick={() => void setStartModel(model.connection)}>
+                  <Star size={14} />
+                </IconButton>
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </>
   )
 }
@@ -196,7 +208,7 @@ function ProviderCard({
 }) {
   const m = useT()
   const c = m.settings.models.card
-  const names = p.models ?? []
+  const names = modelsOf(p)
   const [open, setOpen] = useState(names.length <= UNFOLDED_MODELS)
   const listId = useId()
   return (
@@ -207,11 +219,11 @@ function ProviderCard({
             <span className="text-ui font-medium text-fg">{p.id}</span>
             <Badge>{m.settings.models.types[apiTypeOf(p)].label}</Badge>
           </div>
-          <div className="selectable mt-0.5 truncate font-mono text-small text-fg-subtle">{p.base_url || c.noBaseUrl}</div>
+          <div className="selectable mt-0.5 truncate font-mono text-small text-fg-subtle">{p.baseUrl || c.noBaseUrl}</div>
           <div className="mt-1 flex items-center gap-1.5 text-small text-fg-muted">
             <KeyRound size={14} />
-            <span>{p.api_key ? c.keySet : c.noKey}</span>
-            <ProviderBalance baseUrl={p.base_url ?? ''} apiKey={p.api_key ?? ''} />
+            <span>{p.apiKey ? c.keySet : c.noKey}</span>
+            <ProviderBalance baseUrl={p.baseUrl ?? ''} apiKey={p.apiKey ?? ''} />
           </div>
         </div>
         <IconButton label={c.edit(p.id)} size="sm" onClick={onEdit}>
@@ -302,7 +314,7 @@ function ProviderDialog({
   const t = m.settings.models.provider
   const [name, setName] = useState(provider?.id ?? '')
   const [type, setType] = useState<ApiType>(provider ? apiTypeOf(provider) : 'openai')
-  const [baseUrl, setBaseUrl] = useState(provider?.base_url ?? '')
+  const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? '')
   // A new provider starts from a preset: one picked fills in the name, the
   // API and its address, so only the key is left; Other shows every field.
   const [preset, setPreset] = useState<PresetId>()
@@ -317,7 +329,7 @@ function ProviderDialog({
     setBaseUrl(p.baseUrl ?? '')
   }
   const custom = !!provider || preset === 'other'
-  const [apiKey, setApiKey] = useState(provider?.api_key ?? '')
+  const [apiKey, setApiKey] = useState(provider?.apiKey ?? '')
   const [showKey, setShowKey] = useState(false)
   const first = useModelForm(name.trim() || 'provider', type, undefined, [])
   const { list, retry } = useModelList(type, baseUrl, apiKey)
@@ -327,7 +339,7 @@ function ProviderDialog({
 
   const trimmed = name.trim()
   const nameError = !trimmed ? t.required : trimmed.includes('/') ? t.noSlash : taken.includes(trimmed) ? t.taken : undefined
-  const renamed = provider && trimmed !== provider.id && (provider.models ?? []).length > 0
+  const renamed = provider && trimmed !== provider.id && modelsOf(provider).length > 0
   const served = (provider?.models ?? []).map((m) => m.name)
   // Listed models the provider does not serve yet, in the list's order.
   const offered = list.status === 'listed' ? list.models.filter((m) => !served.includes(m.name)) : []
@@ -783,7 +795,7 @@ function ModelDialog({
 }) {
   const m = useT()
   // The name can be picked from what the API lists and the provider does not serve.
-  const { list } = useModelList(apiTypeOf(p), p.base_url ?? '', p.api_key ?? '')
+  const { list } = useModelList(apiTypeOf(p), p.baseUrl ?? '', p.apiKey ?? '')
   const listed = list.status === 'listed' ? list.models.filter((m) => !taken.includes(m.name)) : []
   const provider = p.id
   const { form, fields, problem } = useModelForm(provider, apiTypeOf(p), model, taken, listed)

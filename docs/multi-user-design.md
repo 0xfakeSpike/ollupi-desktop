@@ -82,11 +82,12 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 不引入新的凭据体系，也不启用 catalog：
 
-- `BackendSupervisor` 仍然每次启动生成一个 secret `S`（`randomBytes(32)`），传给后端
-  `OLLUPI_GATEWAY_TOKEN`。
-- 渲染层拿到的 token 是 `S + "." + profileID`，主进程从当前选择现算。
-- sidecar 给 `gateway.Options.Authenticate` 传一个函数：常数时间比较 `S`、检查 id 合法，
-  库里没有这个用户就建，返回它。
+- `BackendSupervisor` 每次启动生成两个 secret（`randomBytes(32)`）：网关的传给后端
+  `OLLUPI_GATEWAY_TOKEN`，运营者的传 `OLLUPI_OPERATOR_TOKEN`。
+- 渲染层拿到的 token 是运营者的 secret + `"." + profileID`，主进程从当前选择现算：本机的
+  应用就是它跑的这个后端的运营者，能改模型目录。
+- sidecar 给 `gateway.Options.Authenticate` 传一个函数：常数时间比较两个 secret、检查 id
+  合法，库里没有这个用户就建，返回 `auth.Identity{User, Operator}`。
 - 主进程把上次选的身份记在 `userData/profile.json`，启动按它签 token；切换身份时
   `BackendSupervisor.selectProfile` 用同一个 secret 换一个 profile 重新签发，渲染层收到
   新的 ready 状态就重连——不需要重启后端。
@@ -109,33 +110,23 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 ### 4. 模型是平台的，身份只选
 
-`config.yaml` 的 `providers` 是部署的模型目录，所有身份共用：
+模型目录（各 provider 的账户、key 和模型）存在 ollupi 的库里（迁移 0021 的 `providers`、
+`provider_models`），是部署的，所有身份共用，不在 `config.yaml` 里。
 
-```yaml
-name: ollupi
-providers:
-  - id: openai
-    type: openai
-    base_url: https://api.openai.com/v1
-    api_key: ...
-    models:
-      - name: gpt-5.2
-        limits: { context: 400000, output: 128000 }
-```
-
-- ollupi 的 `host.Config.Models` 收这份目录，`host.SetModels` 原地替换；每个模型一个
+- 宿主启动时从库里读目录，之后跟着库的改动走：`Tx.SetCatalog` 提交一条不属于任何用户的
+  事件，宿主换掉变了的模型客户端，正在调用模型的轮次用旧 client 跑完。每个模型一个
   client，所有用户共用它的并发上限。用户的选择在库里：`settings.model`（新会话默认，
   空或已下架就用目录里第一个）和 `settings.learn_model`（学记忆，空或已下架就不学），
   经网关 `settings/update` 的 `model`、`learnModel` 改，只能选目录里有的。
-- 目录在运营者这边，key 不经过用户的连接：`model/list` 只给模型名和能力。查余额、
-  拉取厂商的模型列表都是设置页（运营者）拿着配置里的 key 做的。
-- 设置 → 模型改的是目录：渲染层把增删改变成对 `providers` 的修改，主进程用后端的
-  `--check-config` 校验后原子写入。只动 `providers` 的修改给后端发 SIGHUP，sidecar
-  重读并 `SetModels`，正在调用模型的轮次用旧 client 跑完；后端不在运行或重载失败时退回
-  重启。其他修改（名字、prompt、工具、slots、手改文件）提示后重启。
+- 目录归运营者：`catalog/read`（带 key）和 `catalog/set`（整份替换，`CheckCatalog` 不过
+  就 invalidParams）只有运营者连接能调，用户连接回 `forbidden`。改动给运营者连接发
+  `catalog/changed`，给每个连接发 `model/changed`（只有模型和开新会话默认用哪个）。
+  `model/list` 只给模型名和能力。
+- 设置 → 模型：运营者连接读整份目录，增删改后整份 `catalog/set`；不是运营者的连接只列出
+  模型、选默认。查余额、拉取厂商的模型列表是设置页拿着目录里的 key 经主进程做的。
 - 模型卡片上的星标是“本身份的新会话默认用它”，记忆页的模型是“本身份用它学记忆”，
   都走网关，不碰文件。
-- 命令跑在沙箱里，读不到 `config.yaml`（key 在里面）也读不到 `<home>/data`（库）。
+- 命令跑在沙箱里，读不到 `config.yaml`，也读不到 `<home>/data`（库，key 在里面）。
 
 #### 从旧配置导入
 
@@ -143,11 +134,13 @@ providers:
 provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都由
 `ollupid --import-config` 一次性拆开，主进程每次启动、读配置之前先跑它：
 
-- 所有身份用过的 provider 合成一份 `providers`：同名同账户的合并模型；同名不同账户的
+- 所有身份用过的 provider 合成一份目录写进库：同名同账户的合并模型；同名不同账户的
   后来者改名为 `名字-2`，那个身份的选择跟着改。provider 名字不变，旧会话记着的
   `provider/model` 照样能用。
 - 每个身份建用户，原来的第一个模型和记忆模型写进它的 settings。
 - 名称和颜色写进 `profiles.json`：beta.4 从配置里来，beta.3 从 `userData/profiles.json` 来。
+- beta.5 到 beta.9 的 `config.yaml` 顶层写着 `providers`：整份写进库里的目录，再从文件里
+  删掉这一项。
 - 原文件留作 `config.yaml.pre-import`，新文件保留其余部分和注释。每一步都能重跑，
   中途断了下次启动接着做。
 
@@ -170,7 +163,7 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
 |---|---|---|
 | P1 | （已完成）网关强制身份、token 带身份、config 的 `profiles[]` 声明并在启动时建用户、hub 目录按身份 | 第二个身份有独立的会话、记忆、待办、工作区；hub 目录不撞 |
 | P2 | （已完成）侧栏身份菜单（切换/新建/编辑）、主进程按身份签 token、选择记在 `userData/profile.json`、切换即重连、草稿按身份隔离、通知标题带身份 | 界面上能切身份，切完看到的是对方的数据；重启后仍停在原身份 |
-| P3 | （已完成）模型目录归部署（`providers`、`host.Config.Models`、`SetModels` 热替换）；身份只在库里选默认模型和记忆模型；`profiles.json` 归主进程，token 首次使用即开户；旧配置一次性导入 | 所有身份用同一份模型目录，各自选默认和记忆模型；改目录不中断正在跑的轮次 |
+| P3 | （已完成）模型目录归部署（存在 ollupi 的库里，运营者经网关 `catalog/set` 改，宿主跟着库的改动换客户端）；身份只在库里选默认模型和记忆模型；`profiles.json` 归主进程，token 首次使用即开户；旧配置一次性导入 | 所有身份用同一份模型目录，各自选默认和记忆模型；改目录不中断正在跑的轮次 |
 
 模型目录是部署的，每个 Profile 只在里面选。引擎 API 变化要发新 tag，并在桌面端 bump `go.mod`。
 

@@ -2,15 +2,8 @@
 // the API the preload exposes as window.desktop. Both sides import it, so a
 // change is checked on both ends.
 
-import type { ConfigCheck as CheckOutput } from './generated/backend-config'
 import type { SkillFolder } from './generated/backend-skills'
 import type { AgentRole, PresenceInput } from '@ollupi/protocol'
-
-/** config.yaml as the backend decodes it. */
-export type BackendConfig = NonNullable<CheckOutput['config']>
-/** ollupid --check-config's result: the config with its models in order, or
- * why the backend would not start with it. */
-export type ConfigCheck = { ok: true; config: BackendConfig } | { ok: false; error: string }
 
 /** The backend process as the supervisor sees it. */
 export type BackendState =
@@ -69,13 +62,8 @@ export interface AppInfo {
   userHome: string
 }
 
-/** One edit to config.yaml, by key path, e.g. ['providers', 0, 'api_key']. */
-export type ConfigChange =
-  | { kind: 'set'; path: (string | number)[]; value: unknown }
-  | { kind: 'delete'; path: (string | number)[] }
-
-/** The API a provider speaks (config.yaml's type), which picks the
- * backend's client for it. */
+/** The API a provider of the catalog speaks, which picks the backend's
+ * client for it, and how this app lists the provider's models. */
 export const apiTypes = ['openai', 'anthropic', 'gemini'] as const
 export type ApiType = (typeof apiTypes)[number]
 
@@ -351,12 +339,6 @@ export interface DesktopApi {
      * names the remote host. */
     save(input: RemoteInput): Promise<void>
   }
-  config: {
-    read(): Promise<ConfigCheck>
-    /** Validates the changed file with the backend; when it passes, writes it
-     * and restarts the backend, since ollupi reads its config only at start. */
-    apply(changes: ConfigChange[]): Promise<ConfigCheck>
-  }
   /** Skills are each profile's, in the store, over the gateway; a folder
    * on this Mac is read here for import. */
   skills: {
@@ -554,8 +536,6 @@ export const IpcChannel = {
   BackendCheck: 'backend:check',
   RemoteRead: 'remote:read',
   RemoteSave: 'remote:save',
-  ConfigRead: 'config:read',
-  ConfigApply: 'config:apply',
   SkillsImport: 'skills:import',
   ProfileList: 'profile:list',
   ProfileCreate: 'profile:create',

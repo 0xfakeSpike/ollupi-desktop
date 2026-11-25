@@ -10,6 +10,7 @@ import { PROTOCOL_SHA256 } from '@ollupi/protocol'
 import type { BackendState } from '../../../shared/ipc'
 import { conversationDomain } from '../domains/conversation'
 import { cronDomain } from '../domains/cron'
+import { catalogDomain } from '../domains/catalog'
 import { modelsDomain } from '../domains/models'
 import { noticesDomain } from '../domains/notices'
 import { notificationsDomain } from '../domains/notifications'
@@ -31,7 +32,7 @@ type ReadyBackend = Extract<BackendState, { status: 'ready' }>
 
 // Sync runs in this order: threads are listed per workspace, so workspaces
 // come first.
-const domains: Domain[] = [profileDomain, environmentsDomain, workspacesDomain, threadsDomain, conversationDomain, requestsDomain, noticesDomain, notificationsDomain, modelsDomain, toolsDomain, cronDomain, settingsDomain, mcpDomain, skillsDomain, todosDomain]
+const domains: Domain[] = [profileDomain, environmentsDomain, workspacesDomain, threadsDomain, conversationDomain, requestsDomain, noticesDomain, notificationsDomain, modelsDomain, catalogDomain, toolsDomain, cronDomain, settingsDomain, mcpDomain, skillsDomain, todosDomain]
 const CLIENT_INFO = { name: 'ollupi-desktop', version: '0.2.0' }
 const MAX_BACKOFF_MS = 5000
 

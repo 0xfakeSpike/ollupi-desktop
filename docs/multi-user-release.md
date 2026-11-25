@@ -48,6 +48,6 @@ gh release create v0.8.17-beta.9 --prerelease --title "0.8.17-beta.9" --notes-fi
 ## 这版的已知限制
 
 - 身份不是本机上的安全边界：同一 macOS 账户下，各身份的文件互相可读。
-- API key 仍明文写在 config.yaml（沙箱里的命令读不到它和数据库）；Keychain 以后再做。
-- providers 以外的配置改动（名字、prompt、工具、slots）仍然重启后端。
+- API key 仍明文存在数据库里（沙箱里的命令读不到数据库）；Keychain 以后再做。
+- `config.yaml` 的改动（名字、prompt、工具、slots）仍然要重启后端。
 - 技能带的文件只能随导入整体替换，应用里不能单独改。

@@ -20,10 +20,6 @@ const api: DesktopApi = {
     read: () => ipcRenderer.invoke(IpcChannel.RemoteRead),
     save: (input) => ipcRenderer.invoke(IpcChannel.RemoteSave, input),
   },
-  config: {
-    read: () => ipcRenderer.invoke(IpcChannel.ConfigRead),
-    apply: (changes) => ipcRenderer.invoke(IpcChannel.ConfigApply, changes),
-  },
   skills: {
     import: () => ipcRenderer.invoke(IpcChannel.SkillsImport),
   },

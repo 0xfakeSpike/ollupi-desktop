@@ -1,50 +1,48 @@
 import { describe, expect, it } from 'vitest'
-import type { BackendConfig } from '../../../shared/ipc'
-import { addModels, addProvider, cannotRemove, cannotRemoveProvider, editModel, editProvider, limitsOf, removeModel, removeProvider, type ModelFields } from './providers'
+import { addModels, addProvider, cannotRemove, cannotRemoveProvider, editModel, editProvider, limitsOf, removeModel, removeProvider, type ModelFields, type Provider } from './providers'
 
 const limits = { context: 128_000, output: 16_384 }
 const listed = (name: string): ModelFields => ({ name, calls: undefined, thinking: undefined, images: false, limits })
 
-const config = {
-  name: 'ollupi',
-  providers: [
-    { id: 'deepseek', type: 'openai', api_key: 'sk-test', models: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
-    { id: 'local', type: 'openai', models: [{ name: 'qwen3:32b', limits }] },
-  ],
-} as BackendConfig
+const catalog: Provider[] = [
+  { id: 'deepseek', api: 'openai', apiKey: 'sk-test', models: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
+  { id: 'local', api: 'openai', models: [{ name: 'qwen3:32b', limits }] },
+]
 
-describe('provider edits', () => {
-  it('adds a provider with the models chosen from its list', () => {
-    expect(addProvider(config, { provider: 'openai', type: 'openai', baseUrl: '', apiKey: 'sk-o' }, [listed('gpt-5.2')])).toEqual([
-      { kind: 'set', path: ['providers', 2], value: { id: 'openai', type: 'openai', api_key: 'sk-o', models: [{ name: 'gpt-5.2', limits }] } },
+describe('catalog edits', () => {
+  it('adds a provider with the models chosen from its list, after the others', () => {
+    expect(addProvider(catalog, { provider: 'openai', type: 'openai', baseUrl: '', apiKey: 'sk-o' }, [listed('gpt-5.2')])).toEqual([
+      ...catalog,
+      { id: 'openai', api: 'openai', apiKey: 'sk-o', models: [{ name: 'gpt-5.2', limits }] },
     ])
   })
 
   it('appends models after the ones a provider serves', () => {
-    expect(addModels(config, 0, [listed('deepseek-chat')])).toEqual([{ kind: 'set', path: ['providers', 0, 'models', 2], value: { name: 'deepseek-chat', limits } }])
+    expect(addModels(catalog, 0, [listed('deepseek-chat')])[0]!.models!.map((m) => m.name)).toEqual(['deepseek-flash', 'deepseek-pro', 'deepseek-chat'])
   })
 
-  it('edits the model at its place in the provider', () => {
-    const changes = editModel(config, 0, 1, { ...listed('deepseek-pro'), images: true })
-    expect(changes).toContainEqual({ kind: 'set', path: ['providers', 0, 'models', 1, 'images'], value: true })
-    expect(changes.every((c) => c.path.slice(0, 4).join('/') === 'providers/0/models/1')).toBe(true)
+  it('edits the model at its place in the provider, and nothing else', () => {
+    const next = editModel(catalog, 0, 1, { ...listed('deepseek-pro'), images: true })
+    expect(next[0]!.models).toEqual([{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', images: true, limits }])
+    expect(next[1]).toBe(catalog[1])
   })
 
-  it('writes the key in the file, and removes it when emptied', () => {
-    expect(editProvider(config, 1, { provider: 'local', type: 'openai', baseUrl: '', apiKey: 'sk-local' })).toContainEqual({ kind: 'set', path: ['providers', 1, 'api_key'], value: 'sk-local' })
-    expect(editProvider(config, 0, { provider: 'deepseek', type: 'openai', baseUrl: '', apiKey: '' })).toContainEqual({ kind: 'delete', path: ['providers', 0, 'api_key'] })
+  it('keeps a provider’s models when its account changes, and drops an emptied key', () => {
+    const keyed = editProvider(catalog, 1, { provider: 'local', type: 'openai', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: 'sk-local' })[1]!
+    expect(keyed).toEqual({ id: 'local', api: 'openai', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: 'sk-local', models: catalog[1]!.models })
+    expect(editProvider(catalog, 0, { provider: 'deepseek', type: 'openai', baseUrl: '', apiKey: '' })[0]).not.toHaveProperty('apiKey')
   })
 
   it('removes a provider with its last model', () => {
-    expect(removeModel(config, 1, 0)).toEqual([{ kind: 'delete', path: ['providers', 1] }])
-    expect(removeModel(config, 0, 1)).toEqual([{ kind: 'delete', path: ['providers', 0, 'models', 1] }])
-    expect(removeProvider(config, 0)).toEqual([{ kind: 'delete', path: ['providers', 0] }])
+    expect(removeModel(catalog, 1, 0)).toEqual([catalog[0]])
+    expect(removeModel(catalog, 0, 1)[0]!.models).toEqual([{ name: 'deepseek-flash', limits }])
+    expect(removeProvider(catalog, 0)).toEqual([catalog[1]])
   })
 
-  it('keeps the backend serving at least one model', () => {
-    expect(cannotRemove(config)).toBeUndefined()
-    expect(cannotRemoveProvider(config, 0)).toBeUndefined()
-    const one = { ...config, providers: [config.providers![1]!] } as BackendConfig
+  it('keeps the deployment serving at least one model', () => {
+    expect(cannotRemove(catalog)).toBeUndefined()
+    expect(cannotRemoveProvider(catalog, 0)).toBeUndefined()
+    const one = [catalog[1]!]
     expect(cannotRemove(one)).toBe('lastModel')
     expect(cannotRemoveProvider(one, 0)).toBe('lastModel')
   })

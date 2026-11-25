@@ -1,18 +1,21 @@
-// Edits to the models the backend serves: config.yaml's providers, the
-// deployment's catalog that every profile runs on. They follow the backend's
-// rules: providers have distinct names without '/', each speaks one API type
-// and serves at least one model, a model is selected by its id,
-// provider/name. A provider's API key is written in the file, like its base
-// URL. Saving one (applyProviders) reloads the providers into the running
-// backend, so turns go on. Which model a profile starts and learns with is its
-// own choice, in its settings (domains/settings).
+// Edits to the deployment's catalog: the providers every profile runs on,
+// each an API account with its key, and the models each serves. They follow
+// ollupi's rules: providers have distinct names without '/', each speaks
+// one API and serves at least one model, a model is selected by its id,
+// provider/name. Each edit gives the catalog as it would be; the operator
+// saves it whole (domains/catalog). Which model a profile starts and learns
+// with is its own choice, in its settings (domains/settings).
 
-import type { ApiType, BackendConfig, ConfigChange } from '../../../shared/ipc'
+import type { ModelProviderRow, ProviderModel as ProviderModelRow } from '@ollupi/protocol'
+import type { ApiType } from '../../../shared/ipc'
 
-export type Provider = NonNullable<BackendConfig['providers']>[number]
-export type ProviderModel = NonNullable<Provider['models']>[number]
+export type Provider = ModelProviderRow
+export type ProviderModel = ProviderModelRow
 
 export const modelId = (provider: string, name: string): string => `${provider}/${name}`
+
+/** The models a provider serves, in order. */
+export const modelsOf = (p: Provider): ProviderModel[] => p.models ?? []
 
 export interface ProviderFields {
   provider: string
@@ -68,12 +71,10 @@ export function imagesByDefault(type: ApiType): boolean {
   return type !== 'openai'
 }
 
-/** A provider's type as config.yaml has it; the backend refuses any other. */
+/** The API a provider speaks. */
 export function apiTypeOf(p: Provider): ApiType {
-  return p.type as ApiType
+  return p.api
 }
-
-export const providersOf = (c: BackendConfig): Provider[] => c.providers ?? []
 
 function modelValue(m: ModelFields): ProviderModel {
   return {
@@ -85,74 +86,49 @@ function modelValue(m: ModelFields): ProviderModel {
   }
 }
 
-/** Sets a key to a value, or removes it when there is none. */
-function setOrDelete(path: (string | number)[], value: unknown): ConfigChange {
-  return value === undefined || value === '' ? { kind: 'delete', path } : { kind: 'set', path, value }
+function providerValue(p: ProviderFields, models: ProviderModel[]): Provider {
+  return { id: p.provider, api: p.type, ...(p.baseUrl && { baseUrl: p.baseUrl }), ...(p.apiKey && { apiKey: p.apiKey }), models }
 }
 
 /** A provider serves at least one model, so it comes with its models. */
-export function addProvider(c: BackendConfig, p: ProviderFields, models: ModelFields[]): ConfigChange[] {
-  return [
-    {
-      kind: 'set',
-      path: ['providers', providersOf(c).length],
-      value: {
-        id: p.provider,
-        type: p.type,
-        ...(p.baseUrl && { base_url: p.baseUrl }),
-        ...(p.apiKey && { api_key: p.apiKey }),
-        models: models.map(modelValue),
-      },
-    },
-  ]
+export function addProvider(list: Provider[], p: ProviderFields, models: ModelFields[]): Provider[] {
+  return [...list, providerValue(p, models.map(modelValue))]
 }
 
 /** Renaming a provider renames its models: a profile that chose one of them,
  * and a conversation that ran one, must choose again. */
-export function editProvider(_c: BackendConfig, index: number, p: ProviderFields): ConfigChange[] {
-  const at = ['providers', index]
-  return [
-    { kind: 'set', path: [...at, 'id'], value: p.provider },
-    { kind: 'set', path: [...at, 'type'], value: p.type },
-    setOrDelete([...at, 'base_url'], p.baseUrl),
-    setOrDelete([...at, 'api_key'], p.apiKey),
-  ]
+export function editProvider(list: Provider[], index: number, p: ProviderFields): Provider[] {
+  return list.map((o, i) => (i === index ? providerValue(p, modelsOf(o)) : o))
 }
 
 /** Appends models to a provider, after the ones it serves. */
-export function addModels(c: BackendConfig, index: number, models: ModelFields[]): ConfigChange[] {
-  const served = providersOf(c)[index]?.models?.length ?? 0
-  return models.map((m, i) => ({ kind: 'set', path: ['providers', index, 'models', served + i], value: modelValue(m) }))
+export function addModels(list: Provider[], index: number, models: ModelFields[]): Provider[] {
+  return list.map((o, i) => (i === index ? { ...o, models: [...modelsOf(o), ...models.map(modelValue)] } : o))
 }
 
-export function editModel(_c: BackendConfig, provider: number, index: number, m: ModelFields): ConfigChange[] {
-  const at = ['providers', provider, 'models', index]
-  return [
-    { kind: 'set', path: [...at, 'name'], value: m.name },
-    setOrDelete([...at, 'calls'], m.calls),
-    setOrDelete([...at, 'thinking'], m.thinking),
-    setOrDelete([...at, 'images'], m.images || undefined),
-    { kind: 'set', path: [...at, 'limits'], value: m.limits },
-  ]
+export function editModel(list: Provider[], provider: number, index: number, m: ModelFields): Provider[] {
+  return list.map((o, i) => (i === provider ? { ...o, models: modelsOf(o).map((n, j) => (j === index ? modelValue(m) : n)) } : o))
 }
 
 /** A provider serves at least one model, so removing its last removes it. */
-export function removeModel(c: BackendConfig, provider: number, index: number): ConfigChange[] {
-  if ((providersOf(c)[provider]?.models?.length ?? 0) <= 1) return removeProvider(c, provider)
-  return [{ kind: 'delete', path: ['providers', provider, 'models', index] }]
+export function removeModel(list: Provider[], provider: number, index: number): Provider[] {
+  const p = list[provider]
+  if (!p || modelsOf(p).length <= 1) return removeProvider(list, provider)
+  return list.map((o, i) => (i === provider ? { ...o, models: modelsOf(o).filter((_, j) => j !== index) } : o))
 }
 
-export function removeProvider(_c: BackendConfig, index: number): ConfigChange[] {
-  return [{ kind: 'delete', path: ['providers', index] }]
+export function removeProvider(list: Provider[], index: number): Provider[] {
+  return list.filter((_, i) => i !== index)
 }
 
-const served = (c: BackendConfig): number => providersOf(c).reduce((n, p) => n + (p.models?.length ?? 0), 0)
+const served = (list: Provider[]): number => list.reduce((n, p) => n + modelsOf(p).length, 0)
 
-/** The backend keeps serving at least one model, or no turn could run. */
-export function cannotRemove(c: BackendConfig): 'lastModel' | undefined {
-  return served(c) <= 1 ? 'lastModel' : undefined
+/** The deployment keeps serving at least one model, or no turn could run. */
+export function cannotRemove(list: Provider[]): 'lastModel' | undefined {
+  return served(list) <= 1 ? 'lastModel' : undefined
 }
 
-export function cannotRemoveProvider(c: BackendConfig, index: number): 'lastModel' | undefined {
-  return served(c) - (providersOf(c)[index]?.models?.length ?? 0) <= 0 ? 'lastModel' : undefined
+export function cannotRemoveProvider(list: Provider[], index: number): 'lastModel' | undefined {
+  const p = list[index]
+  return served(list) - (p ? modelsOf(p).length : 0) <= 0 ? 'lastModel' : undefined
 }

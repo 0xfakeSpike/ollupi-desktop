@@ -2,7 +2,7 @@ import { errorMessage } from '@ollupi/client'
 import { Button, Dialog, Field, Input, Switch } from '@ollupi/ui'
 import { useEffect, useState } from 'react'
 import type { RemoteSettings } from '../../../../shared/ipc'
-import { confirmRestart } from '../../domains/backendConfig'
+import { confirmRestart } from '../../domains/restart'
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 

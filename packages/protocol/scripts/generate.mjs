@@ -114,7 +114,7 @@ function messages() {
   for (const [code, name] of Object.entries(contract.errors).sort((a, b) => a[1].localeCompare(b[1]))) out.push(`  ${name}: ${Number(code)},`)
   out.push('} as const\n', `export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]\n`)
 
-  out.push(`/** The bounds the gateway holds a request to, so that a client can keep within them before it asks. */`, `export const Limits = {`)
+  out.push(`/** The bounds the gateway holds a request to, so that a client can keep within them before it asks. */`, `export const GatewayLimits = {`)
   for (const [name, value] of Object.entries(contract.limits)) out.push(`  ${name}: ${Number(value)},`)
   out.push('} as const\n')
 

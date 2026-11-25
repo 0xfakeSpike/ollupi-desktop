@@ -35,21 +35,20 @@ var legacyKeys = []string{"schema_version", "models", "memory", "credentials", "
 // Legacy takes apart a config that still declares models per profile. Every
 // model any profile ran becomes one of the deployment's providers, and each
 // profile keeps its choices. found is false for a config without those
-// sections; rest is the file with providers in their place and everything
-// else, comments included, as it was. A provider keeps its name, so a
-// conversation's model stays the same, unless two profiles gave one name to
-// different accounts: the later one is then renamed, and its profile's
-// choices with it.
-func Legacy(raw []byte) (profiles []LegacyProfile, rest []byte, found bool, err error) {
+// sections; rest is the file without them, everything else, comments
+// included, as it was. A provider keeps its name, so a conversation's model
+// stays the same, unless two profiles gave one name to different accounts:
+// the later one is then renamed, and its profile's choices with it.
+func Legacy(raw []byte) (profiles []LegacyProfile, providers []account.ModelProvider, rest []byte, found bool, err error) {
 	var tree map[string]any
 	if err := yaml.Unmarshal(raw, &tree); err != nil {
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	}
 	if !slices.ContainsFunc(legacyKeys, func(k string) bool { _, ok := tree[k]; return ok }) {
-		return nil, raw, false, nil
+		return nil, nil, raw, false, nil
 	}
-	if _, ok := tree["providers"]; ok {
-		return nil, nil, true, errors.New("the config has providers and also the sections they replaced")
+	if _, ok := tree[providersKey]; ok {
+		return nil, nil, nil, true, errors.New("the config has providers and also the sections they replaced")
 	}
 	var catalog catalog
 	switch {
@@ -61,18 +60,23 @@ func Legacy(raw []byte) (profiles []LegacyProfile, rest []byte, found bool, err 
 		profiles, err = catalog.fromModels(tree)
 	}
 	if err != nil {
-		return nil, nil, true, err
+		return nil, nil, nil, true, err
 	}
 	for _, p := range profiles {
 		if !ProfileID.MatchString(p.ID) {
-			return nil, nil, true, fmt.Errorf("profiles: %q is not a profile id", p.ID)
+			return nil, nil, nil, true, fmt.Errorf("profiles: %q is not a profile id", p.ID)
 		}
 	}
 	if err := account.CheckCatalog(catalog.providers); err != nil {
-		return nil, nil, true, err
+		return nil, nil, nil, true, err
 	}
-	rest, err = replaced(raw, legacyKeys, catalog.providers)
-	return profiles, rest, true, err
+	rest = raw
+	for _, key := range legacyKeys {
+		if _, rest, err = takeKey(rest, key); err != nil {
+			return nil, nil, nil, true, err
+		}
+	}
+	return profiles, catalog.providers, rest, true, nil
 }
 
 // catalog gathers the deployment's providers from every profile's.
@@ -202,103 +206,6 @@ func modelOf(raw any) (account.ProviderModel, error) {
 	dec := json.NewDecoder(bytes.NewReader(asJSON))
 	dec.DisallowUnknownFields()
 	return m, dec.Decode(&m)
-}
-
-const providersComment = `The models this backend serves, each provider an API account. Every profile
-runs on them and chooses which; a model is selected as provider/name.`
-
-// replaced is the YAML document without the given top-level keys and with
-// the providers after its prompt (or its name), the rest with its comments.
-func replaced(raw []byte, keys []string, providers []account.ModelProvider) ([]byte, error) {
-	var doc yaml.Node
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		return nil, err
-	}
-	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.New("the config is not a mapping")
-	}
-	m := doc.Content[0]
-	var kept []*yaml.Node
-	at := 0
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		key := m.Content[i].Value
-		if slices.Contains(keys, key) {
-			continue
-		}
-		kept = append(kept, m.Content[i], m.Content[i+1])
-		if key == "name" || key == "prompt" {
-			at = len(kept)
-		}
-	}
-	section := []*yaml.Node{
-		{Kind: yaml.ScalarNode, Value: "providers", HeadComment: providersComment},
-		providersNode(providers),
-	}
-	m.Content = slices.Insert(kept, at, section...)
-	var out bytes.Buffer
-	enc := yaml.NewEncoder(&out)
-	enc.SetIndent(2)
-	if err := enc.Encode(&doc); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), enc.Close()
-}
-
-// providersNode writes providers with config.yaml's keys, in the order a
-// person reads them.
-func providersNode(providers []account.ModelProvider) *yaml.Node {
-	seq := &yaml.Node{Kind: yaml.SequenceNode}
-	for _, p := range providers {
-		n := mapping()
-		pair(n, "id", scalar(p.ID))
-		pair(n, "type", scalar(string(p.API)))
-		if p.BaseURL != "" {
-			pair(n, "base_url", scalar(p.BaseURL))
-		}
-		if p.APIKey != "" {
-			pair(n, "api_key", scalar(p.APIKey))
-		}
-		models := &yaml.Node{Kind: yaml.SequenceNode}
-		for _, m := range p.Models {
-			mn := mapping()
-			pair(mn, "name", scalar(m.Name))
-			if m.Calls != 0 {
-				pair(mn, "calls", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(m.Calls)})
-			}
-			if m.Thinking != nil {
-				pair(mn, "thinking", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(*m.Thinking)})
-			}
-			if m.Images {
-				pair(mn, "images", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"})
-			}
-			limits := mapping()
-			limits.Style = yaml.FlowStyle
-			pair(limits, "context", number(m.Limits.Context))
-			pair(limits, "output", number(m.Limits.Output))
-			if m.Limits.MaxInput != 0 {
-				pair(limits, "input", number(m.Limits.MaxInput))
-			}
-			pair(mn, "limits", limits)
-			models.Content = append(models.Content, mn)
-		}
-		pair(n, "models", models)
-		seq.Content = append(seq.Content, n)
-	}
-	return seq
-}
-
-func mapping() *yaml.Node { return &yaml.Node{Kind: yaml.MappingNode} }
-
-func scalar(v string) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v}
-}
-
-func number(v int) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(v)}
-}
-
-func pair(m *yaml.Node, key string, value *yaml.Node) {
-	m.Content = append(m.Content, scalar(key), value)
 }
 
 func list(v any) []any {

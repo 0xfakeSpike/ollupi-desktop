@@ -12,13 +12,13 @@ const plain = "name: x\n"
 
 func TestTemplateParses(t *testing.T) {
 	cfg, err := Parse([]byte(Template))
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || cfg.Name != "ollupi" {
+		t.Fatalf("unexpected config: %+v, %v", cfg, err)
 	}
-	if len(cfg.Providers) != 1 || cfg.Providers[0].ID != "openai" {
-		t.Fatalf("unexpected config: %+v", cfg)
+	if _, _, found, _ := Providers([]byte(Template)); found {
+		t.Fatal("the template lists providers")
 	}
-	if _, _, found, _ := Legacy([]byte(Template)); found {
+	if _, _, _, found, _ := Legacy([]byte(Template)); found {
 		t.Fatal("the template declares profiles")
 	}
 	if _, found, _ := Workspace([]byte(Template)); found {
@@ -60,18 +60,49 @@ func TestLoadFileRefusesASkillsDir(t *testing.T) {
 
 func TestValidateRejects(t *testing.T) {
 	cases := map[string]string{
-		"no name":             "prompt: hi\n",
-		"provider twice":      plain + "providers: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}, {id: p, type: openai, models: [{name: n, limits: {context: 1000, output: 100}}]}]\n",
-		"provider with slash": plain + "providers: [{id: a/b, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"provider bad type":   plain + "providers: [{id: p, type: claude, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
-		"model no limits":     plain + "providers: [{id: p, type: openai, models: [{name: m}]}]\n",
-		"negative slots":      plain + "slots: -1\n",
-		"unknown key":         plain + "modle: 1\n",
+		"no name":        "prompt: hi\n",
+		"negative slots": plain + "slots: -1\n",
+		"unknown key":    plain + "modle: 1\n",
 	}
 	for name, raw := range cases {
 		if _, err := Parse([]byte(raw)); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
+	}
+}
+
+func TestProvidersAreTakenOutOfAnOlderConfig(t *testing.T) {
+	raw := []byte("name: x\n\n# The models.\nproviders:\n  - id: deep\n    type: openai\n    base_url: https://api.deepseek.com\n    api_key: sk-d\n    models:\n      - name: flash\n        calls: 2\n        limits: {context: 1000, output: 100, input: 800}\n\n# kept\nslots: 4\n")
+	catalog, rest, found, err := Providers(raw)
+	if err != nil || !found {
+		t.Fatalf("found = %v, err = %v", found, err)
+	}
+	if len(catalog) != 1 || catalog[0].ID != "deep" || catalog[0].APIKey != "sk-d" || catalog[0].Models[0].Calls != 2 || catalog[0].Models[0].Limits.MaxInput != 800 {
+		t.Fatalf("catalog %+v", catalog)
+	}
+	if strings.Contains(string(rest), "providers") || strings.Contains(string(rest), "The models") || !strings.Contains(string(rest), "# kept") {
+		t.Fatalf("rest = %q", rest)
+	}
+	if cfg, err := Parse(rest); err != nil || cfg.Slots != 4 {
+		t.Fatalf("rest parses to %+v, %v", cfg, err)
+	}
+	for name, bad := range map[string]string{
+		"twice":     "providers: [{id: p, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}, {id: p, type: openai, models: [{name: n, limits: {context: 1000, output: 100}}]}]\n",
+		"slash":     "providers: [{id: a/b, type: openai, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"bad type":  "providers: [{id: p, type: claude, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+		"no limits": "providers: [{id: p, type: openai, models: [{name: m}]}]\n",
+		"unknown":   "providers: [{id: p, type: openai, key: k, models: [{name: m, limits: {context: 1000, output: 100}}]}]\n",
+	} {
+		if _, _, _, err := Providers([]byte(plain + bad)); err == nil {
+			t.Errorf("%s: taken", name)
+		}
+	}
+	path := filepath.Join(t.TempDir(), FileName)
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadFile(path); err == nil || !strings.Contains(err.Error(), "--import-config") {
+		t.Fatalf("want a refusal naming --import-config, got %v", err)
 	}
 }
 
@@ -178,7 +209,7 @@ profiles:
 			providers: map[string][]string{"openai": {"a", "b"}}},
 	}
 	for name, c := range cases {
-		got, rest, found, err := Legacy([]byte(c.raw))
+		got, catalog, rest, found, err := Legacy([]byte(c.raw))
 		if err != nil || !found {
 			t.Fatalf("%s: found %v, %v", name, found, err)
 		}
@@ -190,7 +221,10 @@ profiles:
 			t.Fatalf("%s: the rest %q parses as %+v, %v", name, rest, cfg, err)
 		}
 		served := map[string][]string{}
-		for _, p := range cfg.Providers {
+		if strings.Contains(string(rest), "providers") {
+			t.Fatalf("%s: the rest lists providers:\n%s", name, rest)
+		}
+		for _, p := range catalog {
 			for _, m := range p.Models {
 				served[p.ID] = append(served[p.ID], m.Name)
 			}
@@ -203,19 +237,18 @@ profiles:
 				t.Fatalf("%s: providers %v, want %v", name, served, c.providers)
 			}
 		}
-		if _, _, again, _ := Legacy(rest); again {
+		if _, _, _, again, _ := Legacy(rest); again {
 			t.Fatalf("%s: the rest still declares profiles", name)
 		}
 	}
 	// Every setting of a model and its account comes through.
-	_, rest, _, _ := Legacy([]byte(cases["beta.2"].raw))
-	cfg, _ := Parse(rest)
-	p := cfg.Providers[0]
+	_, catalog, rest, _, _ := Legacy([]byte(cases["beta.2"].raw))
+	p := catalog[0]
 	if p.APIKey != "sk-a" || p.Models[0].Calls != 2 || p.Models[1].Thinking == nil || *p.Models[1].Thinking || p.Models[1].Limits.MaxInput != 1500 {
 		t.Fatalf("provider %+v", p)
 	}
-	if strings.Index(string(rest), "providers:") < strings.Index(string(rest), "prompt: hi") {
-		t.Fatalf("providers come before the prompt:\n%s", rest)
+	if !strings.Contains(string(rest), "prompt: hi") {
+		t.Fatalf("the rest lost the prompt:\n%s", rest)
 	}
 }
 

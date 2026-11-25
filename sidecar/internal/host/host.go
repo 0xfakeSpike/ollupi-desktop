@@ -40,8 +40,15 @@ type Options struct {
 	Home string
 	// DataHome holds the store and the attachments; empty means Home.
 	DataHome string
-	Token    string
-	Config   config.Config
+	// Token is the gateway's secret: a connection's token is it, a dot and
+	// the profile the connection acts as.
+	Token string
+	// OperatorToken is the operator's secret, given the same way: a
+	// connection with it acts as the profile and also as the deployment's
+	// operator, which may set the catalog of models. The app connects with
+	// it; a remote one hands out whichever it means to.
+	OperatorToken string
+	Config        config.Config
 	// AllowedOrigins are WebSocket origin patterns beyond loopback, e.g. the
 	// packaged renderer's app://ollupi.
 	AllowedOrigins []string
@@ -84,8 +91,8 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	// made then, as a cloud shard makes a user placed on it. There is no
 	// anonymous connection.
 	var users *app.App
-	authenticate := func(ctx context.Context, token string) (string, error) {
-		return profileOf(ctx, token, opts.Token, st, users)
+	authenticate := func(ctx context.Context, token string) (auth.Identity, error) {
+		return profileOf(ctx, token, opts.Token, opts.OperatorToken, st, users)
 	}
 	// Commands and file edits, in the sandbox as ollupi sets it up.
 	ws, err := workspace.New(workspace.Options{
@@ -129,7 +136,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		Home:      dataHome,
 		Name:      cfg.Name,
 		Prompt:    cfg.Prompt,
-		Models:    cfg.Catalog(),
 		Tools:     tools,
 		Allowlist: cfg.Tools,
 		Boxes:     boxes.box,
@@ -145,13 +151,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	h.closers = append(h.closers, h.ollupi.Close)
 	st, users = h.ollupi.Store, h.ollupi.App
 	return h, nil
-}
-
-// Reload takes cfg's providers without a restart: new turns run on them at
-// once, and turns already calling a model finish on the client they started
-// with. Nothing else in cfg is read; those settings take a restart.
-func (h *Host) Reload(cfg config.Config) error {
-	return h.ollupi.SetModels(cfg.Catalog())
 }
 
 // Serve serves the gateway on ln and runs ollupi's flows until ctx ends or
@@ -171,25 +170,6 @@ func (h *Host) Serve(ctx context.Context, ln net.Listener) error {
 		})
 	}
 	return g.Wait()
-}
-
-// Check reports whether cfg would start: it builds the backend as New
-// does, which is where ollupi checks the models and the workspace's sandbox, against a throwaway store. Nothing is served and the
-// real store is not opened.
-func Check(home string, cfg config.Config, browser *browser.Endpoint) error {
-	data, err := os.MkdirTemp("", "ollupid-check-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(data)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	h, err := New(ctx, Options{Home: home, DataHome: data, Token: "check", Config: cfg, Browser: browser})
-	if err != nil {
-		return err
-	}
-	h.close()
-	return nil
 }
 
 func (h *Host) close() {
@@ -252,25 +232,35 @@ func (b *userBoxes) Close() error {
 	return errors.Join(errs...)
 }
 
-// profileOf names the profile a connection's token acts as: the secret the
-// backend was started with, a dot, the profile. The secret is the app's
-// alone, so the profile it names is made if the store has not seen it, with
-// the skills the desktop ships.
-func profileOf(ctx context.Context, token, secret string, st store.Store, users *app.App) (string, error) {
+// profileOf names the profile a connection's token acts as: a secret the
+// backend was started with, a dot, the profile. The gateway's secret makes
+// it a user; the operator's makes it the deployment's operator as well. The
+// secrets are the app's alone, so the profile a token names is made if the
+// store has not seen it, with the skills the desktop ships.
+func profileOf(ctx context.Context, token, secret, operator string, st store.Store, users *app.App) (auth.Identity, error) {
 	given, profile, ok := strings.Cut(token, ".")
-	if !ok || !config.ProfileID.MatchString(profile) || st == nil || users == nil || subtle.ConstantTimeCompare([]byte(given), []byte(secret)) != 1 {
-		return "", auth.ErrUnknownToken
+	if !ok || !config.ProfileID.MatchString(profile) || st == nil || users == nil {
+		return auth.Identity{}, auth.ErrUnknownToken
+	}
+	var id auth.Identity
+	switch {
+	case operator != "" && subtle.ConstantTimeCompare([]byte(given), []byte(operator)) == 1:
+		id = auth.Identity{User: profile, Operator: true}
+	case subtle.ConstantTimeCompare([]byte(given), []byte(secret)) == 1:
+		id = auth.Identity{User: profile}
+	default:
+		return auth.Identity{}, auth.ErrUnknownToken
 	}
 	if slices.Contains(profiles(ctx, st), profile) {
-		return profile, nil
+		return id, nil
 	}
 	if err := users.EnsureUser(ctx, profile); err != nil {
-		return "", fmt.Errorf("profile %s: %w", profile, err)
+		return auth.Identity{}, fmt.Errorf("profile %s: %w", profile, err)
 	}
 	if err := giveStarterSkills(ctx, users, profile); err != nil {
-		return "", fmt.Errorf("profile %s: %w", profile, err)
+		return auth.Identity{}, fmt.Errorf("profile %s: %w", profile, err)
 	}
-	return profile, nil
+	return id, nil
 }
 
 // giveStarterSkills gives a new profile the skills the desktop ships.

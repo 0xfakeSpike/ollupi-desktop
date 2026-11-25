@@ -4,7 +4,7 @@
 // person opens a result and comes back.
 
 import { RpcError } from '@ollupi/client'
-import { ErrorCode, Limits, type SearchResult } from '@ollupi/protocol'
+import { ErrorCode, GatewayLimits, type SearchResult } from '@ollupi/protocol'
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
@@ -41,7 +41,7 @@ export function useSearch(query: string, workspaceId: string, version = 0): Sear
       setState({ status: 'idle' })
       return
     }
-    if ([...q].length > Limits.searchRunes || queryTerms(q).length > Limits.searchTerms) {
+    if ([...q].length > GatewayLimits.searchRunes || queryTerms(q).length > GatewayLimits.searchTerms) {
       setState({ status: 'refused', reason: 'tooLong' })
       return
     }

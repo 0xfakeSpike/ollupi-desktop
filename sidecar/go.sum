@@ -8,6 +8,8 @@ cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdB
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
 github.com/0xfakeSpike/ollupi v0.31.0 h1:+K14Z0BZDUGqU1ZyrKcZOrovtSSS+oocDd8DfP1HxLE=
 github.com/0xfakeSpike/ollupi v0.31.0/go.mod h1:yxx236Rv3US6XtC7H9nAPptmCuAoPCByoUe1eDxF8ek=
+github.com/0xfakeSpike/ollupi v0.32.0 h1:7zKY+L9YKtj0W8d6KDmvPWetXRNsxfiDQtbhg1PiJcg=
+github.com/0xfakeSpike/ollupi v0.32.0/go.mod h1:yxx236Rv3US6XtC7H9nAPptmCuAoPCByoUe1eDxF8ek=
 github.com/JohannesKaufmann/dom v0.3.1 h1:J16l9JAHWgkFPR3VIPbQ1gvS0cWab6laK1q7PFL3qh0=
 github.com/JohannesKaufmann/dom v0.3.1/go.mod h1:BZPkf8ZeYrBgABjwJn9iiKt8aiCtkxpHkevms+Yp2DE=
 github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2 h1:XFJZFWESIWlUEHHjzBuv8RvrtCWnSGlimEX17ysSDb8=

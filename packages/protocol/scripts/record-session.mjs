@@ -29,9 +29,11 @@ const out = join(here, '../fixtures/session.json')
 const tmp = mkdtempSync(join(tmpdir(), 'ollupi-record-'))
 const PORT = 18000 + Math.floor(Math.random() * 1000)
 const TOKEN = 'record'
-/** The secret and the profile the one recorded session acts as: every
- * connection is named by a profile the home holds. */
-const CONNECTION = `${TOKEN}.default`
+const OPERATOR = 'record-operator'
+/** The operator's secret and the profile the one recorded session acts as,
+ * as the app connects: every connection is named by a profile, and the
+ * operator's also sets the catalog of models. */
+const CONNECTION = `${OPERATOR}.default`
 
 const children = []
 process.on('exit', () => {
@@ -56,19 +58,11 @@ writeFileSync(join(workspace, 'README.md'), '# demo\n')
 writeFileSync(
   join(home, 'config.yaml'),
   `name: ollupi
-providers:
-  - id: mock
-    type: openai
-    base_url: http://127.0.0.1:${PORT}/v1
-    api_key: test
-    models:
-      - name: mock-model
-        limits: { context: 128000, output: 8000 }
 `,
 )
 
 children.push(spawn('node', [join(here, 'mock-model.mjs')], { env: { ...process.env, PORT: String(PORT) }, stdio: 'ignore' }))
-const backend = spawn(binary, ['--home', home], { env: { ...process.env, OLLUPI_GATEWAY_TOKEN: TOKEN }, stdio: ['ignore', 'pipe', 'inherit'] })
+const backend = spawn(binary, ['--home', home], { env: { ...process.env, OLLUPI_GATEWAY_TOKEN: TOKEN, OLLUPI_OPERATOR_TOKEN: OPERATOR }, stdio: ['ignore', 'pipe', 'inherit'] })
 children.push(backend)
 const url = await new Promise((resolve, reject) => {
   createInterface({ input: backend.stdout }).once('line', (line) => {
@@ -147,6 +141,11 @@ async function turn(threadId, text) {
 
 await call('initialize', { clientInfo: { name: 'record-session', version: '0' } })
 send({ jsonrpc: '2.0', method: 'initialized', params: {} })
+await call('catalog/read', {})
+await call('catalog/set', {
+  data: [{ id: 'mock', api: 'openai', baseUrl: `http://127.0.0.1:${PORT}/v1`, apiKey: 'test', models: [{ name: 'mock-model', limits: { context: 128000, output: 8000 } }] }],
+})
+await call('catalog/set', { data: [{ id: 'a/b', api: 'openai', models: [{ name: 'x', limits: { context: 1000, output: 100 } }] }] }).catch(() => {})
 await call('model/list', {})
 await call('settings/read', {})
 // The user's MCP servers, one that cannot start beside it; each arrives as

@@ -1,15 +1,13 @@
 // Command ollupid is the desktop app's backend: it embeds the ollupi agent and
 // serves its gateway on a loopback port. The Electron main process spawns it
-// with the gateway token in OLLUPI_GATEWAY_TOKEN and reads one handshake line
-// from stdout. SIGTERM, or stdin closing when the parent dies, shuts it down.
+// with the gateway's secret in OLLUPI_GATEWAY_TOKEN and the operator's in
+// OLLUPI_OPERATOR_TOKEN, and reads one handshake line from stdout. SIGTERM,
+// or stdin closing when the parent dies, shuts it down.
 //
-// Other modes serve the app's config and skill editing; each prints one JSON
-// line:
+// Other modes serve the app; each prints one JSON line:
 //
-//	ollupid --check-config FILE   whether FILE would start
-//	ollupid --import-config       take apart an older config.yaml that declares models per profile or a skills_dir, once
+//	ollupid --import-config       take apart an older config.yaml (models per profile, providers, a skills_dir, a workspace block), once
 //	ollupid --delete-profile ID   delete a profile's data from the store, with the backend stopped
-//	ollupid --config-schema       the JSON Schema of --check-config's output
 //	ollupid --read-skill DIR      the skill folder DIR, as the app sends it to skill/set
 //	ollupid --skill-schema        the JSON Schema of --read-skill's output
 package main
@@ -46,11 +44,9 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:0", "gateway listen address")
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
-	checkConfig := flag.String("check-config", "", "check a config file for this home and exit")
-	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml that declares models per profile or a skills_dir, then exit")
+	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml (models per profile, providers, a skills_dir, a workspace block), then exit")
 	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names and colours it kept")
 	deleteProfile := flag.String("delete-profile", "", "delete a profile's data from the store, then exit")
-	configSchema := flag.Bool("config-schema", false, "print the JSON Schema of --check-config's output and exit")
 	readSkillDir := flag.String("read-skill", "", "read a skill folder and exit")
 	skillSchema := flag.Bool("skill-schema", false, "print the JSON Schema of --read-skill's output and exit")
 	flag.Parse()
@@ -60,10 +56,6 @@ func main() {
 		os.Exit(importLegacy(*home, *names))
 	case *deleteProfile != "":
 		os.Exit(deleteProfileData(*home, *deleteProfile))
-	case *configSchema:
-		os.Exit(printSchema[checkResult]())
-	case *checkConfig != "":
-		os.Exit(check(*checkConfig, *home))
 	case *skillSchema:
 		os.Exit(printSchema[readResult]())
 	case *readSkillDir != "":
@@ -105,9 +97,12 @@ func deleteProfileData(home, id string) int {
 }
 
 func run(home, listen string, origins []string, watchStdin bool) error {
-	token := os.Getenv("OLLUPI_GATEWAY_TOKEN")
-	if strings.TrimSpace(token) == "" {
-		return errors.New("OLLUPI_GATEWAY_TOKEN is not set")
+	token, operator := os.Getenv("OLLUPI_GATEWAY_TOKEN"), os.Getenv("OLLUPI_OPERATOR_TOKEN")
+	if strings.TrimSpace(token) == "" || strings.TrimSpace(operator) == "" {
+		return errors.New("OLLUPI_GATEWAY_TOKEN and OLLUPI_OPERATOR_TOKEN must both be set")
+	}
+	if token == operator {
+		return errors.New("OLLUPI_OPERATOR_TOKEN must differ from OLLUPI_GATEWAY_TOKEN, or every user would be the operator")
 	}
 	if err := os.MkdirAll(home, 0o755); err != nil {
 		return err
@@ -118,7 +113,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	h, err := host.New(ctx, host.Options{Home: home, Token: token, Config: cfg, AllowedOrigins: origins, Browser: browserEndpoint()})
+	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, Config: cfg, AllowedOrigins: origins, Browser: browserEndpoint()})
 	if err != nil {
 		return err
 	}
@@ -126,21 +121,6 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	if err != nil {
 		return err
 	}
-	reload := make(chan os.Signal, 1)
-	signal.Notify(reload, syscall.SIGHUP)
-	defer signal.Stop(reload)
-	go func() {
-		for range reload {
-			next, err := config.LoadFile(filepath.Join(home, config.FileName))
-			if err == nil {
-				err = h.Reload(next)
-			}
-			if err != nil {
-				slog.Error("providers not reloaded", "err", err)
-			}
-			handshake.Reloaded(err)
-		}
-	}()
 	if watchStdin {
 		go func() {
 			// However stdin ends, the parent is gone.
@@ -164,32 +144,6 @@ func browserEndpoint() *browser.Endpoint {
 		return nil
 	}
 	return &browser.Endpoint{URL: url, Token: os.Getenv("OLLUPI_BROWSER_TOKEN")}
-}
-
-// checkResult is --check-config's output: the config as the backend decodes
-// it (defaults applied, paths resolved), or why it would not start. API keys
-// stay in: the app edits them like the base URL.
-type checkResult struct {
-	OK     bool           `json:"ok"`
-	Config *config.Config `json:"config,omitempty"`
-	Error  string         `json:"error,omitempty"`
-}
-
-func check(path, home string) int {
-	cfg, err := config.LoadFile(path)
-	if err == nil {
-		err = host.Check(home, cfg, browserEndpoint())
-	}
-	out := checkResult{Error: errorText(err)}
-	if err == nil {
-		out = checkResult{OK: true, Config: &cfg}
-	}
-	line, _ := json.Marshal(out)
-	fmt.Println(string(line))
-	if err != nil {
-		return 1
-	}
-	return 0
 }
 
 func printSchema[T any]() int {

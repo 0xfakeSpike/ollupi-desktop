@@ -51,13 +51,9 @@ export const en = {
       'Phone numbers, ID and bank card numbers, email addresses and keys become placeholders before anything reaches a model; tools that need the real value still get it. Applies from the next model call, in every thread.',
   },
 
-  config: {
-    unreadable: (error: string) => `config.yaml cannot be read: ${error}`,
-  },
-
   models: {
     renamed: 'Profiles that chose a model by the old id, and threads whose last turn used it, need another model chosen.',
-    stale: 'config.yaml lists different models than the backend is using.',
+    readOnly: 'This connection only chooses among the models. The backend\'s operator adds and edits them.',
     confirmRemoveProvider: (provider: string, renamed: string) => `Remove ${provider} and its models? ${renamed}`,
     confirmRemoveModel: (id: string, renamed: string) => `Remove ${id}? ${renamed}`,
     addProvider: 'Add provider',
@@ -359,13 +355,9 @@ export const zh: typeof en = {
     redactionNote: '手机号、身份证号、银行卡号、邮箱和密钥等在发给模型前换成占位符，需要真实值的工具仍拿到真实值。从下一次模型调用起生效，对所有会话有效。',
   },
 
-  config: {
-    unreadable: (error) => `无法读取 config.yaml：${error}`,
-  },
-
   models: {
     renamed: '选了旧 ID 模型的身份，以及上一轮用了它的会话，都需要另选模型。',
-    stale: 'config.yaml 中的模型与后端正在使用的不同。',
+    readOnly: '这个连接只能从已有的模型里选。添加和修改模型由后端的运营者来做。',
     confirmRemoveProvider: (provider, renamed) => `删除 ${provider} 及其模型？${renamed}`,
     confirmRemoveModel: (id, renamed) => `删除 ${id}？${renamed}`,
     addProvider: '添加提供方',

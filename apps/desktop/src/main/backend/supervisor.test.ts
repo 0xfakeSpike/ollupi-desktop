@@ -65,43 +65,28 @@ exec cat >/dev/null
     expect((await readFile(starts, 'utf8')).trim().split('\n')).toHaveLength(1)
   })
 
-  const reloading = (starts: string, reply: string) => `#!/bin/sh
-echo started >> "${starts}"
-trap 'echo "{\\"type\\":\\"${reply}\\"}"' HUP
-echo '{"type":"ready","url":"ws://127.0.0.1:1/"}'
-while :; do sleep 60 & wait $!; done
-`
-
   async function ready(backend: BackendSupervisor): Promise<void> {
     while (backend.state.status !== 'ready') await once(backend, 'state')
   }
 
-  it('reloads a running backend in place', async () => {
+  it('hands the window a token made with the operator secret, not the gateway one', async () => {
     const binary = join(dir, 'ollupid')
-    const starts = join(dir, 'starts')
-    await writeFile(binary, reloading(starts, 'reloaded'))
+    const secrets = join(dir, 'secrets')
+    await writeFile(binary, `#!/bin/sh
+echo "$OLLUPI_GATEWAY_TOKEN $OLLUPI_OPERATOR_TOKEN" > "${secrets}"
+echo '{"type":"ready","url":"ws://127.0.0.1:1/"}'
+exec cat >/dev/null
+`)
     await chmod(binary, 0o755)
     const backend = new BackendSupervisor(options(binary))
     await backend.start()
     await ready(backend)
-    await Promise.all([backend.reload(), backend.reload()])
-    expect(backend.state.status).toBe('ready')
+    const [gatewaySecret, operatorSecret] = (await readFile(secrets, 'utf8')).trim().split(' ')
+    const token = backend.state.status === 'ready' ? backend.state.token : ''
+    expect(gatewaySecret).toMatch(/^[0-9a-f]{64}$/)
+    expect(operatorSecret).not.toBe(gatewaySecret)
+    expect(token).toBe(`${operatorSecret}.default`)
     await backend.stop()
-    expect((await readFile(starts, 'utf8')).trim().split('\n')).toHaveLength(1)
-  })
-
-  it('restarts a backend that cannot reload', async () => {
-    const binary = join(dir, 'ollupid')
-    const starts = join(dir, 'starts')
-    await writeFile(binary, reloading(starts, 'reload_failed'))
-    await chmod(binary, 0o755)
-    const backend = new BackendSupervisor(options(binary))
-    await backend.start()
-    await ready(backend)
-    await backend.reload()
-    await ready(backend)
-    await backend.stop()
-    expect((await readFile(starts, 'utf8')).trim().split('\n')).toHaveLength(2)
   })
 
   const remote: RemoteTarget = { url: 'wss://ollupi.example.com/', token: 'secret.home', access: undefined }

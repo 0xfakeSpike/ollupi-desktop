@@ -64,6 +64,8 @@ ollupi 本身不用改：
   <dict>
     <key>OLLUPI_GATEWAY_TOKEN</key>
     <string><token></string>
+    <key>OLLUPI_OPERATOR_TOKEN</key>
+    <string><operator-token></string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
@@ -82,6 +84,7 @@ ollupi 本身不用改：
 - 不要加 `--watch-stdin`。这个参数让 ollupid 在 stdin 关闭时退出，是桌面端管理本机 sidecar 时用的；launchd 下 stdin 一开始就是关着的，加了会立即退出。
 - `--listen` 只监听 `127.0.0.1`，外面只能经 cloudflared 进来。
 - launchd 给的环境很少，agent 跑命令要用到的工具目录需要写进 `PATH`。
+- 两个 token 都用随机串（比如 `openssl rand -hex 32`），而且不能相同。`<token>.<身份>` 连上来只是这个身份；`<operator-token>.<身份>` 连上来同时是运营者，可以改所有身份共用的模型。只给自己用的那台桌面端填运营者 token，给别人的只给普通 token。
 - plist 里有 token 明文，权限收紧：`chmod 600 ~/Library/LaunchAgents/com.ollupi.ollupid.plist`。
 
 加载并启动：
@@ -114,13 +117,15 @@ curl -i -H "Authorization: Bearer <token>.default" http://127.0.0.1:7777/
 
 ### 模型
 
-模型服务和密钥写在 Mac mini 的 `~/.ollupi/config.yaml` 的 `providers` 里，在 Mac mini 上编辑。改完 `providers` 不用重启，给进程发 SIGHUP 就会重新读：
+模型服务和密钥存在 Mac mini 上 ollupi 的数据库里，不在 `config.yaml` 里。用运营者 token 连上的桌面端，在 设置 → 模型 里添加和修改，保存后马上生效，不用重启；用普通 token 连上的只能在已有的模型里选默认。
+
+旧的 `config.yaml` 里还写着 `providers` 的，先在 Mac mini 上跑一次导入，把它们搬进数据库再启动：
 
 ```bash
-launchctl kill SIGHUP gui/$(id -u)/com.ollupi.ollupid
+/usr/local/bin/ollupid --home ~/.ollupi --import-config
 ```
 
-其他字段要重启才生效：
+`config.yaml` 里剩下的字段（名字、prompt、工具、slots）改了要重启才生效：
 
 ```bash
 launchctl kickstart -k gui/$(id -u)/com.ollupi.ollupid
@@ -222,7 +227,7 @@ curl -i -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" -H
 | 界面提示 | 原因 | 查什么 |
 | --- | --- | --- |
 | Cloudflare Access 拒绝了 …（403） | Access 没放行：服务令牌不对，或者策略没有包含这个令牌 | Client ID / Secret；Access 策略的 Action 是否为 Service Auth |
-| … 的网关拒绝了 token（401） | 过了 Access，但网关不认这个 token | 是否和 Mac mini 上的 `OLLUPI_GATEWAY_TOKEN` 一致，后面是否有 `.<profile>` |
+| … 的网关拒绝了 token（401） | 过了 Access，但网关不认这个 token | 是否和 Mac mini 上的 `OLLUPI_GATEWAY_TOKEN` 或 `OLLUPI_OPERATOR_TOKEN` 一致，后面是否有 `.<profile>` |
 | … 的网关拒绝了 Host 头（403 host not allowed） | cloudflared 没有改写 Host | ingress 里的 `originRequest.httpHostHeader: 127.0.0.1` |
 | 一直显示「正在重新连接…」 | 主机连不上（隧道断了、网络不通），或者握手时 Origin 被拒 | `cloudflared` 是否在跑；ollupid 是否带了 `--allow-origin ollupi` |
 

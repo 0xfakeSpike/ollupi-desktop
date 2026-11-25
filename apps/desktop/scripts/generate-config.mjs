@@ -1,9 +1,6 @@
-// Generates the types of what the sidecar's editing modes print, from the
-// JSON Schema the sidecar prints for each:
+// Generates the types of what the sidecar's modes print, from the JSON
+// Schema the sidecar prints for each:
 //
-//   src/shared/generated/backend-config.ts  ollupid --check-config (the
-//     backend's config.yaml as the sidecar decodes it, and its models as the
-//     app selects them), from --config-schema
 //   src/shared/generated/backend-skills.ts  ollupid --read-skill (a skill
 //     folder as the app imports it), from --skill-schema
 //
@@ -20,7 +17,6 @@ const here = dirname(fileURLToPath(import.meta.url))
 const sidecar = join(here, '../../../sidecar')
 
 const targets = [
-  { file: 'backend-config.ts', title: 'ConfigCheck', flag: '--config-schema', output: '--check-config' },
   { file: 'backend-skills.ts', title: 'SkillFolder', flag: '--skill-schema', output: '--read-skill' },
 ]
 

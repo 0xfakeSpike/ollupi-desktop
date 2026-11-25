@@ -1,17 +1,13 @@
-// The backend's config.yaml, owned by the main process: the renderer reads
-// it and asks for changes, never touching the file. It is the deployment's
-// configuration, the same for every profile: the models it serves (providers,
-// with their keys) and how it runs. Which model a profile chooses is its own,
-// in the store, set through the gateway. apply() validates and writes as one
-// step, so a change the backend would refuse never reaches the file, then
-// has it take effect: the providers reload into the running backend, and
-// anything else restarts it.
+// The backend's home, as the main process tends to it outside the running
+// backend: an older config.yaml is taken apart once before the backend
+// reads it (ollupid --import-config), and a profile's data is deleted while
+// the backend is stopped (ollupid --delete-profile). config.yaml itself is
+// the deployment's: its name, prompt, tools and slots, the same for every
+// profile, edited by hand. The models are not in it: they are ollupi's
+// catalog, which the operator sets over the gateway.
 
 import { execFile } from 'node:child_process'
-import { chmod, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { isMap, parseDocument, type Document } from 'yaml'
-import type { ConfigChange, ConfigCheck } from '../../shared/ipc'
 
 export interface ConfigOptions {
   binary: string
@@ -23,8 +19,6 @@ export interface ConfigOptions {
   backend: {
     start(): Promise<void>
     stop(): Promise<void>
-    restart(): Promise<void>
-    reload(): Promise<void>
   }
 }
 
@@ -34,37 +28,6 @@ export class BackendConfig {
 
   constructor(private readonly opts: ConfigOptions) {
     this.path = join(opts.home, 'config.yaml')
-  }
-
-  /** The current file as the backend decodes it, or why it would not start. */
-  async read(): Promise<ConfigCheck> {
-    await this.importOlder()
-    return this.check(this.path)
-  }
-
-  /** Applies changes to the file, keeping its comments and layout, if the
-   * backend accepts the result; then puts them in effect: changes to the
-   * providers alone reload into the running backend, and any other restarts
-   * it. */
-  async apply(changes: ConfigChange[]): Promise<ConfigCheck> {
-    await this.importOlder()
-    const edited = editConfigText(await readFile(this.path, 'utf8'), changes)
-    if (!edited.ok) return edited
-    // Next to the real file, so the final rename is atomic.
-    const candidate = `${this.path}.candidate`
-    await writeFile(candidate, edited.text, { mode: 0o600 })
-    try {
-      const result = await this.check(candidate)
-      // The change is to config.yaml; the candidate is only how it is checked.
-      if (!result.ok) return { ok: false, error: result.error.replaceAll(candidate, this.path) }
-      await chmod(candidate, 0o600)
-      await rename(candidate, this.path)
-      if (onlyProviders(changes)) await this.opts.backend.reload()
-      else await this.opts.backend.restart()
-      return result
-    } finally {
-      await rm(candidate, { force: true })
-    }
   }
 
   /** Deletes a profile's data from the store while the backend is stopped,
@@ -110,59 +73,5 @@ export class BackendConfig {
         else resolve(result)
       })
     })
-  }
-
-  /** ollupid --check-config: the backend's own validation, run with the
-   * environment the backend gets (MCP ${NAME} references must resolve). */
-  private async check(file: string): Promise<ConfigCheck> {
-    const env = await this.opts.env()
-    return new Promise((resolve) => {
-      execFile(this.opts.binary, ['--home', this.opts.home, '--check-config', file], { env, timeout: 30_000 }, (err, stdout) => {
-        try {
-          resolve(JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as ConfigCheck)
-        } catch {
-          resolve({ ok: false, error: err ? `cannot check the config: ${err.message}` : 'cannot check the config' })
-        }
-      })
-    })
-  }
-}
-
-/** Whether the changes touch only the providers, the one section the
- * running backend takes again without a restart. */
-export function onlyProviders(changes: ConfigChange[]): boolean {
-  return changes.length > 0 && changes.every((c) => c.path[0] === 'providers')
-}
-
-/** Applies changes to config.yaml text, keeping its comments where a person
- * reads them. */
-export function editConfigText(text: string, changes: ConfigChange[]): { ok: true; text: string } | { ok: false; error: string } {
-  const doc = parseDocument(text)
-  if (doc.errors.length) return { ok: false, error: doc.errors[0]!.message }
-  attachSectionComments(doc)
-  for (const c of changes) {
-    if (c.kind === 'delete') doc.deleteIn(c.path)
-    else doc.setIn(c.path, doc.createNode(c.value))
-  }
-  return { ok: true, text: doc.toString() }
-}
-
-/** The YAML library stores the comment block above a top-level key as the
- * end of the previous section's trailing comment, and would re-indent it
- * into that section when writing. In the file a blank line separates the
- * two, so the part after the last blank line goes back to the next key. */
-function attachSectionComments(doc: Document): void {
-  if (!isMap(doc.contents)) return
-  const pairs = doc.contents.items
-  for (let i = 0; i < pairs.length - 1; i++) {
-    const value = pairs[i]!.value as { comment?: string | null } | null
-    const key = pairs[i + 1]!.key as { commentBefore?: string | null; spaceBefore?: boolean } | null
-    const split = value?.comment?.lastIndexOf('\n\n') ?? -1
-    if (!value?.comment || !key || split < 0) continue
-    const above = value.comment.slice(split + 2)
-    value.comment = value.comment.slice(0, split) || null
-    key.commentBefore = key.commentBefore ? `${above}\n${key.commentBefore}` : above
-    // The blank line that separated them stays above the comment.
-    key.spaceBefore = true
   }
 }

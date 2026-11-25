@@ -5,7 +5,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, createProfile, listProfiles, rememberProfile, removeProfile, updateProfile } from './profile'
 import type { TempAttachments } from './attachments'
@@ -60,8 +60,6 @@ export function registerIpc(
     await backend.restart()
     for (const win of BrowserWindow.getAllWindows()) win.webContents.reload()
   })
-  ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
-  ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
   ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
     const source = await pickDirectory(event.sender, false)
     return source === undefined ? undefined : skills.read(source)
@@ -305,21 +303,6 @@ function presenceAck(value: unknown): PresenceAck | null {
   const outcome = ack.outcome
   if (outcome !== 'wrote' && outcome !== 'refused' && outcome !== 'failed') return null
   return { batch: ack.batch, outcome }
-}
-
-/** Changes come from the renderer: only key paths of strings and numbers,
- * and values that are plain JSON. */
-function validChanges(changes: unknown): ConfigChange[] {
-  if (!Array.isArray(changes)) throw new Error('expected a list of changes')
-  return changes.map((c) => {
-    const path = (c as ConfigChange)?.path
-    if (!Array.isArray(path) || path.length === 0 || !path.every((p) => typeof p === 'string' || typeof p === 'number')) {
-      throw new Error('a change needs a key path')
-    }
-    if (c.kind === 'delete') return { kind: 'delete', path }
-    if (c.kind !== 'set') throw new Error('a change is set or delete')
-    return { kind: 'set', path, value: JSON.parse(JSON.stringify(c.value ?? null)) }
-  })
 }
 
 function menuItems(items: unknown): ContextMenuItem[] {
