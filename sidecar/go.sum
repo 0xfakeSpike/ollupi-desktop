@@ -14,6 +14,8 @@ github.com/0xfakeSpike/ollupi v0.33.0 h1:Yd8BWOuY1QxryD4eALBByE8ODtQCA++Cuclr/3I
 github.com/0xfakeSpike/ollupi v0.33.0/go.mod h1:yxx236Rv3US6XtC7H9nAPptmCuAoPCByoUe1eDxF8ek=
 github.com/0xfakeSpike/ollupi v0.33.1 h1:yz5w/QkEls8nB5gnuXTtWysJ1F6juLwHXEkVpF/ntoA=
 github.com/0xfakeSpike/ollupi v0.33.1/go.mod h1:yxx236Rv3US6XtC7H9nAPptmCuAoPCByoUe1eDxF8ek=
+github.com/0xfakeSpike/ollupi v0.34.0 h1:Rz9UAmQEeP6HjqwJTP69i0MW+6rfqyqmoYJYQM/V/ns=
+github.com/0xfakeSpike/ollupi v0.34.0/go.mod h1:yxx236Rv3US6XtC7H9nAPptmCuAoPCByoUe1eDxF8ek=
 github.com/JohannesKaufmann/dom v0.3.1 h1:J16l9JAHWgkFPR3VIPbQ1gvS0cWab6laK1q7PFL3qh0=
 github.com/JohannesKaufmann/dom v0.3.1/go.mod h1:BZPkf8ZeYrBgABjwJn9iiKt8aiCtkxpHkevms+Yp2DE=
 github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2 h1:XFJZFWESIWlUEHHjzBuv8RvrtCWnSGlimEX17ysSDb8=
