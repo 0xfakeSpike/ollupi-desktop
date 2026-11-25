@@ -1,8 +1,13 @@
 # 发布清单
 
-版本：app `0.8.17-beta.23`，引擎 `v0.35.5`。
+版本：app `0.8.17-beta.24`，引擎 `v0.35.6`。
 
 ## 1. 这一版改了什么
+
+beta.24 相对 beta.23（引擎 v0.35.5 → v0.35.6，只改提示词，协议不变）：
+
+- Super Agent 的待办工具说明写明上下级只记在 `parent` 里：把待办挪到另一个下面时，不再往标题或备注里写"挪到了某某下"；备注只写要做什么、在等什么。
+- 交给子 agent 的活归它，直到报告回来：主 agent 派出子 agent 后只做子 agent 不管的事，不再自己把同样的任务重做一遍，依赖报告的部分等报告回来再写。
 
 beta.23 相对 beta.22（引擎 v0.35.4 → v0.35.5）：
 
@@ -61,11 +66,11 @@ beta.15 相对 beta.14：
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.35.5`：
+sidecar 钉在 `v0.35.6`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.5/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.6/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -75,7 +80,7 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.35.5，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.35.6，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
@@ -86,11 +91,13 @@ grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Reso
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.23 --prerelease --title "0.8.17-beta.23" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.24 --prerelease --title "0.8.17-beta.24" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 让 Super Agent 把一个待办挪到另一个下面：备注里没有"挪到了…"之类的记录。
+- 让主 agent 同时派一个调研子 agent 和一个看代码的子 agent：等两份报告回来再写结论，自己不重做它们的任务。
 - 能力 → 技能：每个 agent 一段；给一个技能多勾一个 agent，它在两段下都出现。
 - 能力 → MCP：主 agent、Super Agent、通用子 agent 下有服务器，其余子 agent 写"用不了 MCP 服务器"。
 - 能力 → 内置工具：每行两张卡片；展开一组，它独占一行，旁边的卡片补上来；"帮手"和"载入工具"都有中文名。
@@ -106,7 +113,7 @@ gh release create v0.8.17-beta.23 --prerelease --title "0.8.17-beta.23" --notes-
 - 文件面板看 Markdown（相对路径的图片能显示）、PDF；环境面板暂存、提交、丢弃一个新文件（进废纸篓）。
 - 终端：关掉面板再开，之前的输出还在；`cat ~/.ollupi/data/store.sqlite` 被拒。
 - 发一张粘贴的截图和一个拖进来的文件。
-- 连远程 ollupid（同为 v0.35.5）时，上面这些面板都能用。
+- 连远程 ollupid（同为 v0.35.6）时，上面这些面板都能用。
 
 ## 这版的已知限制
 
