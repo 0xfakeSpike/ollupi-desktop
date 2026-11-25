@@ -17,12 +17,14 @@ import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { ModelsSection } from './ModelsSection'
 import { PermissionEditor } from './PermissionEditor'
 import { ProfilesSection } from './ProfilesSection'
+import { RemoteSection } from './RemoteSection'
 import { UsageSection } from './UsageSection'
 import { Emblem } from '../common/Wolf'
 
 const bodies: Record<SettingsTab, () => ReactNode> = {
   profiles: ProfilesSection,
   general: General,
+  connection: RemoteSection,
   language: Language,
   appearance: Appearance,
   notifications: Notifications,

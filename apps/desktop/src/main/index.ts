@@ -1,13 +1,14 @@
 // Main process entry: app lifecycle only. It wires the backend supervisor,
 // IPC and the window together; each concern lives in its own module.
 
-import { app, net, shell } from 'electron'
+import { app, net, safeStorage, session, shell } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST, IpcChannel } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendConfig } from './backend/config'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
+import { remoteRefusal, remoteSources, RemoteStore, sendAccessToken } from './backend/remote'
 import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
@@ -43,7 +44,23 @@ if (!app.requestSingleInstanceLock()) {
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
-  const backend = new BackendSupervisor({ binary: backendBinary(), home, profile: activeProfile(), allowOrigins: [APP_HOST], env, logFile: backendLog })
+  const remote = new RemoteStore(join(app.getPath('userData'), 'remote.json'), safeStorage)
+  const backend = new BackendSupervisor({
+    binary: backendBinary(),
+    home,
+    profile: activeProfile(),
+    allowOrigins: [APP_HOST],
+    env,
+    logFile: backendLog,
+    // The Access headers go to the remote from the first request the window
+    // makes to it, and to no other host.
+    remote: async () => {
+      const target = await remote.target()
+      sendAccessToken(session.defaultSession.webRequest, target)
+      return target
+    },
+    refusal: (target) => remoteRefusal(net.fetch, target),
+  })
   const config = new BackendConfig({ binary: backendBinary(), home, env, backend, olderProfiles: join(app.getPath('userData'), 'profiles.json') })
   const skills = new BackendSkills({ binary: backendBinary(), home })
   const updater = new AppUpdater({
@@ -68,7 +85,10 @@ if (!app.requestSingleInstanceLock()) {
     // would show Electron's until the interface sets its theme's, so it takes
     // the brand's from the start.
     if (!app.isPackaged) setAppIcon('stone')
-    serveRenderer(join(import.meta.dirname, '../renderer'))
+    serveRenderer(join(import.meta.dirname, '../renderer'), async () => {
+      const target = await remote.target()
+      return target ? remoteSources(target) : []
+    })
     void attachments.clear()
     // An older config.yaml's profiles move into the store before anything
     // reads it, and the first token names a profile the home lists, not a
@@ -76,7 +96,7 @@ if (!app.requestSingleInstanceLock()) {
     // will not start on that file.
     await config.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
     backend.selectProfile(listProfiles(home).current)
-    registerIpc(backend, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
+    registerIpc(backend, remote, config, skills, new WorkspaceChanges({ env: backendEnv, trash: (path) => shell.trashItem(path) }), browser, bookmarks, history, terminals, attachments, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.
     const newWindow = () => {

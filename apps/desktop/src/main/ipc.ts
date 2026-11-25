@@ -5,12 +5,13 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, profileColorNames, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ConfigChange, type ContextMenuItem, type FileChange, type PresenceAck, type PresenceContext, type ProfileColor, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, createProfile, listProfiles, rememberProfile, removeProfile, updateProfile } from './profile'
 import type { TempAttachments } from './attachments'
 import type { BackendConfig } from './backend/config'
 import type { BackendSkills } from './backend/skills'
+import type { RemoteStore } from './backend/remote'
 import { START_PAGE, typedPage } from './browser/address'
 import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
@@ -28,6 +29,7 @@ import type { AppUpdater } from './update'
 
 export function registerIpc(
   backend: BackendSupervisor,
+  remote: RemoteStore,
   config: BackendConfig,
   skills: BackendSkills,
   changes: WorkspaceChanges,
@@ -45,6 +47,19 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.Info, () => info)
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
+  ipcMain.handle(IpcChannel.BackendCheck, () => backend.check())
+  ipcMain.handle(IpcChannel.RemoteRead, () => remote.read())
+  // Switching to or from a remote, or to another one, starts the backend
+  // over and reloads the windows, whose CSP names the one host they reach.
+  // Settings kept while the window runs its own change nothing yet.
+  ipcMain.handle(IpcChannel.RemoteSave, async (_event, input: unknown) => {
+    const before = await remote.read()
+    await remote.save(remoteInput(input))
+    const after = await remote.read()
+    if (!before.enabled && !after.enabled) return
+    await backend.restart()
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.reload()
+  })
   ipcMain.handle(IpcChannel.ConfigRead, () => config.read())
   ipcMain.handle(IpcChannel.ConfigApply, (_event, changes: unknown) => config.apply(validChanges(changes)))
   ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
@@ -241,6 +256,12 @@ function tabId(value: unknown): number {
 function askId(value: unknown): number {
   if (!Number.isInteger(value)) throw new Error('expected a question id')
   return value as number
+}
+
+function remoteInput(value: unknown): RemoteInput {
+  const v = value as Partial<RemoteInput> | null
+  if (typeof v?.enabled !== 'boolean') throw new Error('expected remote settings')
+  return { enabled: v.enabled, url: text(v.url), token: text(v.token), accessClientId: text(v.accessClientId), accessClientSecret: text(v.accessClientSecret) }
 }
 
 function texts(value: unknown): string[] {

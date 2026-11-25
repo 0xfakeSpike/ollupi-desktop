@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const h = vi.hoisted(() => ({
   connect: vi.fn(),
   sync: vi.fn(),
+  check: vi.fn(async () => {}),
   ready: { status: 'ready', url: 'ws://127.0.0.1:1/', token: 't', version: '' },
 }))
 
 vi.mock('@ollupi/client', () => ({ OllupiClient: { connect: h.connect }, errorMessage: String }))
-vi.mock('../platform/desktop', () => ({ desktop: { backend: { onState: () => {}, state: async () => h.ready } } }))
+vi.mock('../platform/desktop', () => ({ desktop: { backend: { onState: () => {}, state: async () => h.ready, check: h.check } } }))
 vi.mock('./contract', () => ({ contractInspector: () => undefined }))
 vi.mock('../domains/conversation', () => ({ conversationDomain: { sync: h.sync } }))
 vi.mock('../domains/cron', () => ({ cronDomain: {} }))
@@ -58,5 +59,8 @@ describe('session', () => {
     await vi.advanceTimersByTimeAsync(10_000)
 
     expect(h.connect).toHaveBeenCalledTimes(2)
+    // The failed sync asks the main process why, as a refused remote would
+    // only say so there.
+    expect(h.check).toHaveBeenCalledTimes(1)
   })
 })

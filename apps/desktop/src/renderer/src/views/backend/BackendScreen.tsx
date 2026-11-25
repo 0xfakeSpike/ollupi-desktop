@@ -2,19 +2,24 @@
 // connecting, or a startup failure and what to do about it.
 
 import { Button, Callout, Loader } from '@ollupi/ui'
-import { FileCog, RotateCw, TriangleAlert } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { FileCog, Globe, RotateCw, TriangleAlert } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { BackendFailure } from '../../../../shared/ipc'
 import { openPath } from '../../domains/files'
 import { useConnection } from '../../gateway/connection'
 import { useT, type Messages } from '../../i18n'
 import { desktop } from '../../platform/desktop'
+import { RemoteDialog } from '../settings/RemoteSection'
 
 export function BackendScreen() {
   const backend = useConnection((s) => s.backend)
   const gateway = useConnection((s) => s.gateway)
   const lastError = useConnection((s) => s.lastError)
   const m = useT().shell.backend
+  // The settings are out of reach until the first sync, so a remote that
+  // cannot be reached is set up again from here.
+  const [remote, setRemote] = useState(false)
+  useEffect(() => void desktop.remote.read().then((s) => setRemote(s.enabled)), [backend])
 
   if (backend.status === 'failed') {
     return (
@@ -30,6 +35,7 @@ export function BackendScreen() {
       <div className="flex flex-col items-center gap-3 text-ui text-fg-muted">
         <Loader label={label} />
         {gateway === 'reconnecting' && lastError && <div className="text-small text-fg-subtle">{lastError}</div>}
+        {remote && <ConnectionSettings />}
       </div>
     </Shell>
   )
@@ -42,11 +48,12 @@ function Shell({ children }: { children: ReactNode }) {
 function Failure({ failure, configPath, log }: { failure: BackendFailure; configPath: string | undefined; log: string }) {
   const [restarting, setRestarting] = useState(false)
   const m = useT()
+  const remote = failure.kind === 'remote'
   return (
     <div className="flex w-full max-w-xl flex-col gap-4">
       <div className="flex items-center gap-2">
         <TriangleAlert size={20} className="text-danger" />
-        <h1 className="text-display text-fg">{m.shell.backend.failed}</h1>
+        <h1 className="text-display text-fg">{remote ? m.shell.backend.remoteFailed : m.shell.backend.failed}</h1>
       </div>
       <Callout tone="danger">
         <span className="selectable text-fg">{failureText(m, failure)}</span>
@@ -67,13 +74,14 @@ function Failure({ failure, configPath, log }: { failure: BackendFailure; config
             void desktop.backend.restart().finally(() => setRestarting(false))
           }}
         >
-          {m.common.restartBackend}
+          {remote ? m.shell.backend.retry : m.common.restartBackend}
         </Button>
         {configPath && (
           <Button size="lg" icon={<FileCog size={16} />} onClick={() => void openPath(configPath)}>
             {m.shell.backend.openConfig}
           </Button>
         )}
+        <ConnectionSettings />
       </div>
       {log && (
         <details className="text-small text-fg-muted">
@@ -96,5 +104,20 @@ function failureText(m: Messages, f: BackendFailure): string {
       return w.exited(f.how)
     case 'reported':
       return f.message ?? w.reported
+    case 'remote':
+      return w.remote[f.refused](f.url)
   }
+}
+
+function ConnectionSettings() {
+  const [open, setOpen] = useState(false)
+  const m = useT().shell.backend
+  return (
+    <>
+      <Button size="lg" icon={<Globe size={16} />} onClick={() => setOpen(true)}>
+        {m.connectionSettings}
+      </Button>
+      {open && <RemoteDialog onClose={() => setOpen(false)} />}
+    </>
+  )
 }

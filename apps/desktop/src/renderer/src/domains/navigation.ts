@@ -25,7 +25,7 @@ export type CapabilityTab = 'skills' | 'mcp' | 'tools'
 /** The settings, one part at a time: who the window acts as first, as the
  * sidebar's settings capsule wears that profile's dot; then General, with
  * the version and the backend everything runs on. */
-export const settingsTabs = ['profiles', 'general', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'usage'] as const
+export const settingsTabs = ['profiles', 'general', 'connection', 'redaction', 'notifications', 'appearance', 'language', 'permissions', 'models', 'usage'] as const
 export type SettingsTab = (typeof settingsTabs)[number]
 
 export type Screen =

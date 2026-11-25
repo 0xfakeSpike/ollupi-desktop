@@ -27,6 +27,35 @@ export type BackendFailure =
   | { kind: 'spawn'; binary: string; error: string }
   | { kind: 'exited'; how: string }
   | { kind: 'reported'; message: string | undefined }
+  /** The remote ollupid's door said no: Cloudflare Access refused the
+   * service token, the gateway refused the token, or the gateway refused the
+   * Host header cloudflared sent. */
+  | { kind: 'remote'; refused: RemoteRefusal; url: string }
+
+export const remoteRefusals = ['access', 'token', 'host'] as const
+export type RemoteRefusal = (typeof remoteRefusals)[number]
+
+/** The remote ollupid the window connects to instead of the one this Mac
+ * runs. The secrets never come back to the renderer: only whether they are
+ * kept. */
+export interface RemoteSettings {
+  enabled: boolean
+  /** wss://host/, or ws:// on a loopback address (an SSH tunnel). */
+  url: string
+  accessClientId: string
+  hasToken: boolean
+  hasAccessSecret: boolean
+}
+
+/** What the person saves. An empty token or Access secret keeps the one
+ * already kept. */
+export interface RemoteInput {
+  enabled: boolean
+  url: string
+  token: string
+  accessClientId: string
+  accessClientSecret: string
+}
 
 export interface AppInfo {
   version: string
@@ -310,7 +339,17 @@ export interface DesktopApi {
   backend: {
     state(): Promise<BackendState>
     restart(): Promise<void>
+    /** After a connection to a remote ollupid fails: asks it why, and turns
+     * a refusal into a failed state. Nothing for the backend this Mac runs. */
+    check(): Promise<void>
     onState(listener: (state: BackendState) => void): () => void
+  }
+  /** Connecting to an ollupid on another machine instead of running one. */
+  remote: {
+    read(): Promise<RemoteSettings>
+    /** Keeps the settings, reconnects and reloads the window, whose CSP
+     * names the remote host. */
+    save(input: RemoteInput): Promise<void>
   }
   config: {
     read(): Promise<ConfigCheck>
@@ -512,6 +551,9 @@ export const IpcChannel = {
   BackendState: 'backend:state',
   BackendRestart: 'backend:restart',
   BackendChanged: 'backend:changed',
+  BackendCheck: 'backend:check',
+  RemoteRead: 'remote:read',
+  RemoteSave: 'remote:save',
   ConfigRead: 'config:read',
   ConfigApply: 'config:apply',
   SkillsImport: 'skills:import',

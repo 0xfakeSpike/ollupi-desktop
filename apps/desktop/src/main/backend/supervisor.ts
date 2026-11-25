@@ -2,7 +2,9 @@
 // gateway token, reads the handshake line, writes its output to the log
 // file and keeps the tail of it for diagnostics, and reports every state
 // change. It never restarts on its own; a crash becomes a visible "failed"
-// state the user can retry.
+// state the user can retry. When the window connects to a remote ollupid
+// instead, it runs nothing: a start hands out the remote's address and
+// token, and a refusal there becomes the failed state.
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -11,7 +13,8 @@ import { createWriteStream, type WriteStream } from 'node:fs'
 import { mkdir, rename, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { createInterface } from 'node:readline'
-import type { BackendFailure, BackendState } from '../../shared/ipc'
+import type { BackendFailure, BackendState, RemoteRefusal } from '../../shared/ipc'
+import type { RemoteTarget } from './remote'
 
 export interface SupervisorOptions {
   binary: string
@@ -26,6 +29,11 @@ export interface SupervisorOptions {
    * messages, arguments or outputs). Past LOG_FILE_BYTES at a start, the
    * file moves to <name>.old, replacing the one before. */
   logFile: string
+  /** The remote ollupid to connect to instead, read at every start;
+   * undefined runs the one this Mac has. */
+  remote(): Promise<RemoteTarget | undefined>
+  /** Who refused a connection to the remote, if anyone did. */
+  refusal(target: RemoteTarget): Promise<RemoteRefusal | undefined>
 }
 
 /** sidecar/internal/handshake.Message */
@@ -58,6 +66,9 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
    * backend answers each delivery once. */
   private reloading: Promise<void> = Promise.resolve()
   private answer: ((reply: ReloadReply | Error) => void) | undefined
+  /** The remote this start connects to, instead of a child. */
+  private target: RemoteTarget | undefined
+  private checking: Promise<void> | undefined
 
   /** The secret this start was given, which every token is made from. */
   private secret: string | undefined
@@ -83,9 +94,15 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
   }
 
   private async launch(): Promise<void> {
-    if (this.child) return
+    if (this.child || this.target) return
     this.log = []
     this.set({ status: 'starting' })
+    const target = await this.opts.remote()
+    if (target) {
+      this.target = target
+      this.set({ status: 'ready', url: target.url, token: target.token, version: '' })
+      return
+    }
     const secret = randomBytes(32).toString('hex')
     this.secret = secret
     // The secret goes in the environment, not argv, which other users can
@@ -148,12 +165,36 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
    * it, and the renderer reconnects under the new one. */
   selectProfile(profile: string): void {
     this.profile = profile
-    if (this.current.status !== 'ready') return
+    // A remote's token names its profile, as whoever runs it gave it.
+    if (this.current.status !== 'ready' || this.target) return
     this.set({ ...this.current, token: this.tokenFor(profile) })
   }
 
-  /** SIGTERM lets the backend finish its writes; SIGKILL if it hangs. */
+  /** After a connection to the remote failed: a refusal there is no
+   * reason to keep trying, so it ends in the failed state. One check at a
+   * time; the backend this Mac runs reports its own failures. */
+  check(): Promise<void> {
+    this.checking ??= this.askRemote().finally(() => {
+      this.checking = undefined
+    })
+    return this.checking
+  }
+
+  private async askRemote(): Promise<void> {
+    const target = this.target
+    if (!target || this.current.status !== 'ready') return
+    const refused = await this.opts.refusal(target)
+    if (refused && this.target === target && this.current.status === 'ready') this.fail({ kind: 'remote', refused, url: target.url })
+  }
+
+  /** SIGTERM lets the backend finish its writes; SIGKILL if it hangs. A
+   * remote is only let go. */
   async stop(): Promise<void> {
+    if (this.target) {
+      this.target = undefined
+      this.set({ status: 'stopped' })
+      return
+    }
     const child = this.child
     if (!child) return
     this.child = undefined

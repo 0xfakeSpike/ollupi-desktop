@@ -72,6 +72,9 @@ export const en = {
     reconnecting: 'Reconnecting…',
     connecting: 'Connecting…',
     failed: 'The backend could not start',
+    remoteFailed: 'The remote ollupid refused the connection',
+    connectionSettings: 'Connection settings',
+    retry: 'Try again',
     configuredIn: (path: ReactNode): ReactNode => <>The backend is configured in {path}. Fix it there, then restart the backend.</>,
     openConfig: 'Open config',
     log: 'Backend log',
@@ -80,6 +83,12 @@ export const en = {
       spawn: (binary: string, error: string) => `cannot start ${binary}: ${error}`,
       exited: (how: string) => `the backend exited unexpectedly (${how})`,
       reported: 'the backend failed to start',
+      remote: {
+        access: (url: string) =>
+          `Cloudflare Access refused ${url} (403). Check the Access Client ID and Secret, and that the Access application’s policy allows this service token.`,
+        token: (url: string) => `The gateway at ${url} refused the token (401). Check that it is that machine’s OLLUPI_GATEWAY_TOKEN, then a dot and the profile.`,
+        host: (url: string) => `The gateway at ${url} refused the Host header (403 host not allowed). Set originRequest.httpHostHeader: 127.0.0.1 in cloudflared’s ingress.`,
+      },
     },
   },
   update: {
@@ -174,6 +183,9 @@ export const zh: typeof en = {
     reconnecting: '正在重新连接…',
     connecting: '正在连接…',
     failed: '后端无法启动',
+    remoteFailed: '远程 ollupid 拒绝了连接',
+    connectionSettings: '连接设置',
+    retry: '重试',
     configuredIn: (path) => <>后端的配置在 {path}。请在那里修改，然后重启后端。</>,
     openConfig: '打开配置',
     log: '后端日志',
@@ -182,6 +194,11 @@ export const zh: typeof en = {
       spawn: (binary, error) => `无法启动 ${binary}：${error}`,
       exited: (how) => `后端意外退出（${how}）`,
       reported: '后端启动失败',
+      remote: {
+        access: (url) => `Cloudflare Access 拒绝了 ${url}（403）。检查 Access Client ID 和 Secret，以及 Access 应用的策略是否放行这个服务令牌。`,
+        token: (url) => `${url} 的网关拒绝了 token（401）。检查它是不是那台机器的 OLLUPI_GATEWAY_TOKEN，后面加一个点和身份。`,
+        host: (url) => `${url} 的网关拒绝了 Host 头（403 host not allowed）。在 cloudflared 的 ingress 里设置 originRequest.httpHostHeader: 127.0.0.1。`,
+      },
     },
   },
   update: {

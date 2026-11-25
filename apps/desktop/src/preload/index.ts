@@ -9,11 +9,16 @@ const api: DesktopApi = {
   backend: {
     state: () => ipcRenderer.invoke(IpcChannel.BackendState),
     restart: () => ipcRenderer.invoke(IpcChannel.BackendRestart),
+    check: () => ipcRenderer.invoke(IpcChannel.BackendCheck),
     onState: (listener) => {
       const wrapped = (_e: IpcRendererEvent, state: BackendState) => listener(state)
       ipcRenderer.on(IpcChannel.BackendChanged, wrapped)
       return () => ipcRenderer.off(IpcChannel.BackendChanged, wrapped)
     },
+  },
+  remote: {
+    read: () => ipcRenderer.invoke(IpcChannel.RemoteRead),
+    save: (input) => ipcRenderer.invoke(IpcChannel.RemoteSave, input),
   },
   config: {
     read: () => ipcRenderer.invoke(IpcChannel.ConfigRead),

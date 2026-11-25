@@ -11,6 +11,7 @@ export const en = {
     sections: {
       profiles: { label: 'Profiles', description: 'Each profile has its own conversations, memory, todos, workspaces and settings; switching needs no password and reconnects at once.' },
       general: { label: 'General', description: '' },
+      connection: { label: 'Connection', description: 'Which ollupid this window talks to: the one this Mac runs, or one on another machine.' },
       language: { label: 'Language', description: 'The language of the app itself. Conversations keep the language they are written in.' },
       appearance: { label: 'Appearance', description: '' },
       notifications: {
@@ -158,6 +159,26 @@ export const en = {
     },
   },
 
+  remote: {
+    mode: 'Backend',
+    local: 'This Mac',
+    remoteAt: (url: string) => `Remote · ${url}`,
+    edit: 'Set up',
+    title: 'Remote ollupid',
+    description: 'Connect to an ollupid running on another machine, e.g. a Mac mini behind a Cloudflare Tunnel, instead of the one on this Mac. While connected to it, this Mac runs no backend.',
+    enabled: 'Connect to a remote ollupid',
+    url: 'Address',
+    urlHint: 'wss://ollupi.example.com, or ws://127.0.0.1:PORT for an SSH tunnel.',
+    token: 'Gateway token',
+    tokenHint: 'OLLUPI_GATEWAY_TOKEN on that machine, then a dot and the profile: <secret>.<profile>.',
+    kept: 'Kept; leave empty to keep it',
+    accessId: 'Access Client ID',
+    accessSecret: 'Access Client Secret',
+    accessHint: 'The Cloudflare Access service token. Both empty when the host is not behind Access.',
+    encrypted: 'The token and the service token are encrypted with this Mac’s keychain.',
+    switching: 'Saving reconnects and reloads the window.',
+  },
+
   usage: {
     period: 'Period',
     periods: { d7: '7 days', d30: '30 days' },
@@ -302,6 +323,7 @@ export const zh: typeof en = {
     sections: {
       profiles: { label: '身份', description: '每个身份的会话、记忆、待办、工作区和设置都是自己的；切换不要密码，立即重连。' },
       general: { label: '通用', description: '' },
+      connection: { label: '连接', description: '这个窗口连接哪个 ollupid：本机运行的，或另一台机器上的。' },
       language: { label: '语言', description: '应用界面的语言。会话内容保持原来的语言。' },
       appearance: { label: '外观', description: '' },
       notifications: { label: '通知', description: '只在 Ollupi 不在前台时显示，点击打开对应会话。Dock 角标显示等你处理的会话数。' },
@@ -442,6 +464,26 @@ export const zh: typeof en = {
       inputPlaceholder: '自动',
       output: '输出',
     },
+  },
+
+  remote: {
+    mode: '后端',
+    local: '本机',
+    remoteAt: (url) => `远程 · ${url}`,
+    edit: '设置',
+    title: '远程 ollupid',
+    description: '连接另一台机器上运行的 ollupid（比如在 Cloudflare Tunnel 后面的 Mac mini），而不是本机的。连着远程时，本机不运行后端。',
+    enabled: '连接远程 ollupid',
+    url: '地址',
+    urlHint: 'wss://ollupi.example.com；通过 SSH 隧道时填 ws://127.0.0.1:端口。',
+    token: '网关 token',
+    tokenHint: '那台机器的 OLLUPI_GATEWAY_TOKEN，加一个点和身份：<secret>.<profile>。',
+    kept: '已保存，留空不变',
+    accessId: 'Access Client ID',
+    accessSecret: 'Access Client Secret',
+    accessHint: 'Cloudflare Access 的服务令牌。主机不在 Access 后面时两项都留空。',
+    encrypted: '网关 token 和服务令牌用本机钥匙串加密保存。',
+    switching: '保存后会重新连接并刷新窗口。',
   },
 
   usage: {
