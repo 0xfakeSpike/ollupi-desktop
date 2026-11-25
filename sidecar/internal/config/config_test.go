@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
 )
 
 const plain = "name: x\n"
@@ -16,11 +15,14 @@ func TestTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Providers) != 1 || cfg.Providers[0].ID != "openai" || !cfg.Workspace.Enabled || cfg.Workspace.SandboxMode != "workspace-write" {
+	if len(cfg.Providers) != 1 || cfg.Providers[0].ID != "openai" {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 	if _, _, found, _ := Legacy([]byte(Template)); found {
 		t.Fatal("the template declares profiles")
+	}
+	if _, found, _ := Workspace([]byte(Template)); found {
+		t.Fatal("the template has a workspace block")
 	}
 }
 
@@ -51,7 +53,7 @@ func TestLoadFileRefusesASkillsDir(t *testing.T) {
 	if err := os.WriteFile(path, []byte(plain+"skills_dir: skills\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadFile(path, home); err == nil || !strings.Contains(err.Error(), "--import-config") {
+	if _, err := LoadFile(path); err == nil || !strings.Contains(err.Error(), "--import-config") {
 		t.Fatalf("want a refusal naming --import-config, got %v", err)
 	}
 }
@@ -73,30 +75,36 @@ func TestValidateRejects(t *testing.T) {
 	}
 }
 
-func TestLoadFileResolvesPaths(t *testing.T) {
-	home := t.TempDir()
-	raw := plain + `workspace: {enabled: true, workspace_dirs: [~/.ollupi/scratch, scratch]}
-`
-	path := filepath.Join(home, FileName)
-	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+func TestWorkspaceIsTakenOutOfAnOlderConfig(t *testing.T) {
+	raw := []byte("name: x\n\n# Commands and file edits, in the sandbox.\nworkspace:\n  enabled: true\n  sandbox_mode: workspace-write\n  network: false\n\n# kept\nslots: 4\n")
+	rest, found, err := Workspace(raw)
+	if err != nil || !found {
+		t.Fatalf("found = %v, err = %v", found, err)
+	}
+	if strings.Contains(string(rest), "workspace") || strings.Contains(string(rest), "sandbox") || !strings.Contains(string(rest), "# kept") {
+		t.Fatalf("rest = %q", rest)
+	}
+	cfg, err := Parse(rest)
+	if err != nil || cfg.Slots != 4 {
+		t.Fatalf("rest parses to %+v, %v", cfg, err)
+	}
+	if _, found, _ := Workspace(rest); found {
+		t.Fatal("the rest still has a workspace block")
+	}
+}
+
+func TestLoadFileRefusesAWorkspaceBlock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), FileName)
+	if err := os.WriteFile(path, []byte(plain+"workspace: {enabled: true}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := LoadFile(path, home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	user, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	dirs := cfg.Workspace.WorkspaceDirs
-	if len(dirs) != 2 || dirs[0] != filepath.Join(user, ".ollupi", "scratch") || dirs[1] != filepath.Join(home, "scratch") {
-		t.Errorf("workspace_dirs = %v", dirs)
+	if _, err := LoadFile(path); err == nil || !strings.Contains(err.Error(), "--import-config") {
+		t.Fatalf("want a refusal naming --import-config, got %v", err)
 	}
 }
 
 func TestLegacyGathersEveryProfilesModelsIntoTheProviders(t *testing.T) {
-	const tail = "# the workspace\nworkspace: {enabled: true}\n"
+	const tail = "# kept\nslots: 4\n"
 	cases := map[string]struct {
 		raw       string
 		profiles  []LegacyProfile
@@ -178,7 +186,7 @@ profiles:
 			t.Fatalf("%s: profiles %+v, want %+v", name, got, c.profiles)
 		}
 		cfg, err := Parse(rest)
-		if err != nil || !cfg.Workspace.Enabled || !strings.Contains(string(rest), "# the workspace") {
+		if err != nil || cfg.Slots != 4 || !strings.Contains(string(rest), "# kept") {
 			t.Fatalf("%s: the rest %q parses as %+v, %v", name, rest, cfg, err)
 		}
 		served := map[string][]string{}
@@ -218,7 +226,7 @@ func TestLoadFileTellsAnOlderConfigToBeImported(t *testing.T) {
 	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadFile(path, home); err == nil || !strings.Contains(err.Error(), "--import-config") {
+	if _, err := LoadFile(path); err == nil || !strings.Contains(err.Error(), "--import-config") {
 		t.Fatalf("loaded an older config: %v", err)
 	}
 }

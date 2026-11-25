@@ -26,11 +26,4 @@ providers:
 
 # How many threads may run at once (default 32).
 # slots: 32
-
-# Commands and file edits, in the sandbox.
-workspace:
-  enabled: true
-  sandbox_mode: workspace-write # read-only | workspace-write | full-access
-  command_timeout_sec: 60
-  network: false
 `

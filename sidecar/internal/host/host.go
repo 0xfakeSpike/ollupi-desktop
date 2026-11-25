@@ -87,43 +87,40 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	authenticate := func(ctx context.Context, token string) (string, error) {
 		return profileOf(ctx, token, opts.Token, st, users)
 	}
-	// web_fetch is ollupi's own, made from the Boxes below.
-	var tools []kit.Provider
-	if cfg.Workspace.Enabled {
-		ws, err := workspace.New(workspace.Options{
-			Config: cfg.Workspace.Config,
-			Agent:  workspace.AgentFiles{Home: opts.Home},
-			// Commands must not read the secrets in the config file, nor the
-			// store, which holds every profile's API keys and MCP servers.
-			DenyRead:  []string{filepath.Join(opts.Home, config.FileName), filepath.Join(dataHome, "data")},
-			EnvMarker: "OLLUPI_SANDBOX",
-			// Commands run on this machine and nowhere else: a conversation
-			// started in another environment is told so rather than having its
-			// commands run here. A nil box leaves the call in this machine's.
-			BoxIn: func(c tool.Caller) (sandbox.Box, error) {
-				if c.Environment == "" {
-					return nil, nil
-				}
-				var env account.Environment
-				err := st.Read(context.Background(), func(r store.Reader) (err error) {
-					env, err = r.Environment(c.User, c.Environment)
-					return err
-				})
-				if err != nil {
-					return nil, err
-				}
-				if env.Kind != account.Local {
-					return nil, fmt.Errorf("%s is another machine, and this build has no way to reach it; start the conversation in %s", env.Name, account.LocalName)
-				}
+	// Commands and file edits, in the sandbox as ollupi sets it up.
+	ws, err := workspace.New(workspace.Options{
+		Agent: workspace.AgentFiles{Home: opts.Home},
+		// Commands must not read the secrets in the config file, nor the
+		// store, which holds every profile's API keys and MCP servers.
+		DenyRead:  []string{filepath.Join(opts.Home, config.FileName), filepath.Join(dataHome, "data")},
+		EnvMarker: "OLLUPI_SANDBOX",
+		// Commands run on this machine and nowhere else: a conversation
+		// started in another environment is told so rather than having its
+		// commands run here. A nil box leaves the call in this machine's.
+		BoxIn: func(c tool.Caller) (sandbox.Box, error) {
+			if c.Environment == "" {
 				return nil, nil
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		h.closers = append(h.closers, ws.Close)
-		tools = append(tools, ws)
+			}
+			var env account.Environment
+			err := st.Read(context.Background(), func(r store.Reader) (err error) {
+				env, err = r.Environment(c.User, c.Environment)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			if env.Kind != account.Local {
+				return nil, fmt.Errorf("%s is another machine, and this build has no way to reach it; start the conversation in %s", env.Name, account.LocalName)
+			}
+			return nil, nil
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
+	h.closers = append(h.closers, ws.Close)
+	// web_fetch is ollupi's own, made from the Boxes below.
+	tools := []kit.Provider{ws}
 	if opts.Browser != nil {
 		tools = append(tools, browser.New(*opts.Browser))
 	}

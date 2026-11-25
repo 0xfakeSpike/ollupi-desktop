@@ -6,13 +6,13 @@ import { editConfigText, onlyProviders } from './config'
 const file = `# Ollupi desktop backend.
 name: ollupi
 
-# Commands and file edits, in the sandbox.
-workspace:
-  enabled: true
-  sandbox_mode: workspace-write # read-only | workspace-write | full-access
-  command_timeout_sec: 60
-  workspace_dirs:
-    - ~/a
+# The models this backend serves.
+providers:
+  - id: openai
+    type: openai # openai | anthropic
+    api_key: sk-a
+    models:
+      - name: a
 
 # The system prompt.
 prompt: hi
@@ -23,10 +23,10 @@ prompt: hi
 
 describe('editConfigText', () => {
   it('changes only what was asked, keeping every comment where it was', () => {
-    const edited = editConfigText(file, [{ kind: 'set', path: ['workspace', 'command_timeout_sec'], value: 120 }])
+    const edited = editConfigText(file, [{ kind: 'set', path: ['providers', 0, 'api_key'], value: 'sk-b' }])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
-    expect(edited.text).toBe(file.replace('  command_timeout_sec: 60\n', '  command_timeout_sec: 120\n'))
+    expect(edited.text).toBe(file.replace('    api_key: sk-a\n', '    api_key: sk-b\n'))
   })
 
   it('leaves the file unchanged when nothing changes', () => {
@@ -34,16 +34,16 @@ describe('editConfigText', () => {
   })
 
   it('deletes keys, leaving the next section its comment', () => {
-    const edited = editConfigText(file, [{ kind: 'delete', path: ['workspace', 'command_timeout_sec'] }])
+    const edited = editConfigText(file, [{ kind: 'delete', path: ['providers', 0, 'api_key'] }])
     expect(edited.ok).toBe(true)
     if (!edited.ok) return
-    expect(edited.text).not.toContain('command_timeout_sec')
+    expect(edited.text).not.toContain('api_key')
     expect(edited.text).toContain('\n# The system prompt.\nprompt: hi\n')
   })
 
   it('appends a list item', () => {
-    const edited = editConfigText(file, [{ kind: 'set', path: ['workspace', 'workspace_dirs', 1], value: '~/b' }])
-    expect(edited.ok && edited.text.includes('  workspace_dirs:\n    - ~/a\n    - ~/b\n')).toBe(true)
+    const edited = editConfigText(file, [{ kind: 'set', path: ['providers', 0, 'models', 1], value: { name: 'b' } }])
+    expect(edited.ok && edited.text.includes('    models:\n      - name: a\n      - name: b\n')).toBe(true)
   })
 
   it('refuses text that is not YAML', () => {

@@ -40,26 +40,54 @@ var profileColors = []string{"stone", "amber", "teal", "violet", "rose", "sky"}
 // settings keep the model it started and learned with, and an entry in the
 // app's profiles.json, and the old file is kept beside the new one. One that
 // names a skills_dir: its skills are given to every profile in the store
-// (importSkills). A config with neither is left alone. Every step can run
-// again, so an import cut short finishes on the next start.
+// (importSkills). One with a workspace block: the block goes, as the
+// workspace tools now always run as ollupi sets them up (dropWorkspace). A
+// config with none of these is left alone. Every step can run again, so an
+// import cut short finishes on the next start.
 func importLegacy(home, names string) int {
-	imported, err := runImport(home, names)
+	workspace, err := dropWorkspace(home)
+	var imported []string
+	if err == nil {
+		imported, err = runImport(home, names)
+	}
 	var skills skillsImport
 	if err == nil {
 		skills, err = importSkills(home)
 	}
 	out := struct {
-		OK       bool         `json:"ok"`
-		Imported []string     `json:"imported,omitempty"`
-		Skills   skillsImport `json:"skills,omitzero"`
-		Error    string       `json:"error,omitempty"`
-	}{OK: err == nil, Imported: imported, Skills: skills, Error: errorText(err)}
+		OK        bool         `json:"ok"`
+		Workspace bool         `json:"workspace,omitempty"`
+		Imported  []string     `json:"imported,omitempty"`
+		Skills    skillsImport `json:"skills,omitzero"`
+		Error     string       `json:"error,omitempty"`
+	}{OK: err == nil, Workspace: workspace, Imported: imported, Skills: skills, Error: errorText(err)}
 	line, _ := json.Marshal(out)
 	fmt.Println(string(line))
 	if err != nil {
 		return 1
 	}
 	return 0
+}
+
+// dropWorkspace takes the workspace block out of config.yaml, keeping the
+// rest of the file and its comments; dropped says it had one.
+func dropWorkspace(home string) (dropped bool, err error) {
+	path := filepath.Join(home, config.FileName)
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	rest, found, err := config.Workspace(raw)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", path, err)
+	}
+	if !found {
+		return false, nil
+	}
+	return true, writeAtomically(path, rest)
 }
 
 func runImport(home, names string) ([]string, error) {

@@ -64,9 +64,6 @@ providers:
     models:
       - name: mock-model
         limits: { context: 128000, output: 8000 }
-workspace:
-  enabled: true
-  sandbox_mode: workspace-write
 `,
 )
 

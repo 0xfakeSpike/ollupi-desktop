@@ -100,7 +100,7 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 - 本地执行环境：ollupi 的 `Boxes(user)` 每个 Profile 一个 `sandbox.Box`，根目录是
   `<home>/users/<id>`，MCP 进程和 web 工具都从它进入本机。今天这些 Box 在同一台机器、
   同一个系统用户下，权限相同；调用边界已经按 Profile 分开，云部署时把这个工厂换成
-  各自的云沙箱即可。工作区命令仍走 workspace 工具自己的沙箱（`sandbox_mode`），
+  各自的云沙箱即可。工作区命令仍走 workspace 工具自己的沙箱（只写工作区，不联网），
   不借这个完全访问的 Box。
 - 这是多 Profile，不是本机上的多用户隔离：同一台机器上的 Profile 能读到彼此的文件。
 - `attachments/` 共享：键是 `threadID/附件ID.ext`，thread id 全局唯一，不会撞。
@@ -121,8 +121,6 @@ providers:
     models:
       - name: gpt-5.2
         limits: { context: 400000, output: 128000 }
-workspace: { enabled: true, sandbox_mode: workspace-write, ... }
-skills_dir: skills
 ```
 
 - ollupi 的 `host.Config.Models` 收这份目录，`host.SetModels` 原地替换；每个模型一个
@@ -134,7 +132,7 @@ skills_dir: skills
 - 设置 → 模型改的是目录：渲染层把增删改变成对 `providers` 的修改，主进程用后端的
   `--check-config` 校验后原子写入。只动 `providers` 的修改给后端发 SIGHUP，sidecar
   重读并 `SetModels`，正在调用模型的轮次用旧 client 跑完；后端不在运行或重载失败时退回
-  重启。其他修改（工作区、沙箱、skills、slots、手改文件）提示后重启。
+  重启。其他修改（名字、prompt、工具、slots、手改文件）提示后重启。
 - 模型卡片上的星标是“本身份的新会话默认用它”，记忆页的模型是“本身份用它学记忆”，
   都走网关，不碰文件。
 - 命令跑在沙箱里，读不到 `config.yaml`（key 在里面）也读不到 `<home>/data`（库）。

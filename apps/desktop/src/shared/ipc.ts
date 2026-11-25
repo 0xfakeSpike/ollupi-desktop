@@ -40,7 +40,7 @@ export interface AppInfo {
   userHome: string
 }
 
-/** One edit to config.yaml, by key path, e.g. ['workspace', 'command_timeout_sec']. */
+/** One edit to config.yaml, by key path, e.g. ['providers', 0, 'api_key']. */
 export type ConfigChange =
   | { kind: 'set'; path: (string | number)[]; value: unknown }
   | { kind: 'delete'; path: (string | number)[] }

@@ -29,23 +29,6 @@ export interface ConfigCheck {
         }[];
     tools?: null | string[];
     slots?: number;
-    workspace: {
-      enabled: boolean;
-      workspace_dirs: null | string[];
-      command_timeout_sec: number;
-      max_command_timeout_sec?: number;
-      command_blacklist: null | string[];
-      sandbox_mode?: string;
-      network?: boolean;
-      allowed_domains?: null | string[];
-      denied_domains?: null | string[];
-      deny_read?: null | string[];
-      read_only?: null | string[];
-      extra_writable?: null | string[];
-      unix_sockets?: null | string[];
-      env_passthrough?: null | string[];
-      max_output_bytes?: number;
-    };
   };
   error?: string;
 }

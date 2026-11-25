@@ -2,12 +2,12 @@
 // what the deployment is, the same for every user it serves. Its providers
 // are the platform's models, with their accounts and keys: every profile runs
 // on them and only chooses which. The rest is its name and prompt, the tool
-// allow-list, slots and the workspace tools. The backend reads it at start; a SIGHUP has it take the providers again, and
-// anything else takes a restart. Nothing in it belongs to one profile: which
+// allow-list and slots. The backend reads it at start; a SIGHUP has it take
+// the providers again, and anything else takes a restart. Nothing in it belongs to one profile: which
 // model a profile starts and learns with, its permissions, MCP servers and
 // memory and skills are its own in ollupi's store, set through the gateway.
-// Files from before that held profiles, or a skills folder, are taken apart
-// once by Legacy and SkillsDir. It only
+// Files from before that held profiles, a skills folder or the workspace
+// tools' settings are taken apart once by Legacy, SkillsDir and Workspace. It only
 // describes; host turns it into running components.
 package config
 
@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/0xfakeSpike/ollupi/account"
-	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 	"gopkg.in/yaml.v3"
 )
 
@@ -39,8 +38,6 @@ type Config struct {
 	Tools []string `json:"tools,omitempty"`
 	// Slots caps how many threads run at once; 0 uses ollupi's default.
 	Slots int `json:"slots,omitempty"`
-	// Workspace turns on run_command, edit_file and write_file.
-	Workspace Workspace `json:"workspace"`
 }
 
 // Provider is one API account of the deployment and the models it serves.
@@ -70,11 +67,6 @@ func (c Config) Catalog() []account.ModelProvider {
 // and is the segment a connection's token carries, so it holds no separator.
 var ProfileID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
-type Workspace struct {
-	Enabled bool `json:"enabled"`
-	workspace.Config
-}
-
 // Load reads <home>/config.yaml, writing the starter template first when
 // there is none.
 func Load(home string) (Config, error) {
@@ -84,12 +76,11 @@ func Load(home string) (Config, error) {
 			return Config{}, fmt.Errorf("write starter config: %w", err)
 		}
 	}
-	return LoadFile(path, home)
+	return LoadFile(path)
 }
 
-// LoadFile reads a config file for a backend whose home is home: a
-// relative path in it resolves against home.
-func LoadFile(path, home string) (Config, error) {
+// LoadFile reads a config file.
+func LoadFile(path string) (Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return Config{}, err
@@ -97,64 +88,21 @@ func LoadFile(path, home string) (Config, error) {
 	if _, _, found, _ := Legacy(raw); found {
 		return Config{}, fmt.Errorf("%s still declares profiles and their own models; ollupid --import-config moves the models into providers and each profile's choices into the store", path)
 	}
-	if _, _, found, _ := SkillsDir(raw, home); found {
+	if _, _, found, _ := SkillsDir(raw, ""); found {
 		return Config{}, fmt.Errorf("%s still names a skills_dir; ollupid --import-config gives its skills to each profile in the store", path)
+	}
+	if _, found, _ := Workspace(raw); found {
+		return Config{}, fmt.Errorf("%s still has a workspace block; ollupid --import-config takes it out", path)
 	}
 	cfg, err := Parse(raw)
 	if err != nil {
 		return Config{}, fmt.Errorf("%s: %w", path, err)
 	}
-	cfg.expandPaths(home)
 	return cfg, nil
 }
 
-// expandPaths resolves the paths the file names: ~ is the user's home and a
-// relative path is the file's own folder. A
-// config and the folders it names then travel to another machine, whose user
-// may be called something else.
-func (c *Config) expandPaths(home string) {
-	w := &c.Workspace
-	w.WorkspaceDirs = expandPaths(w.WorkspaceDirs, home)
-	w.DenyRead = expandPaths(w.DenyRead, home)
-	w.ReadOnly = expandPaths(w.ReadOnly, home)
-	w.ExtraWritable = expandPaths(w.ExtraWritable, home)
-	w.UnixSockets = expandPaths(w.UnixSockets, home)
-}
-
-// expandPath resolves one path of the file; empty stays empty and an absolute
-// path that names no home is left as it is.
-func expandPath(path, home string) string {
-	switch {
-	case path == "":
-		return ""
-	case path == "~" || strings.HasPrefix(path, "~/"):
-		user, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		if path == "~" {
-			return user
-		}
-		return filepath.Join(user, filepath.FromSlash(path[2:]))
-	case filepath.IsAbs(path):
-		return path
-	}
-	return filepath.Join(home, path)
-}
-
-func expandPaths(paths []string, home string) []string {
-	if len(paths) == 0 {
-		return paths
-	}
-	out := make([]string, len(paths))
-	for i, path := range paths {
-		out[i] = expandPath(path, home)
-	}
-	return out
-}
-
-// Parse decodes YAML by way of JSON so the file uses the json tags ollupi
-// defines on its workspace types. Unknown keys are errors.
+// Parse decodes YAML by way of JSON so the file uses the json tags its types
+// and ollupi's define. Unknown keys are errors.
 func Parse(raw []byte) (Config, error) {
 	var tree any
 	if err := yaml.Unmarshal(raw, &tree); err != nil {

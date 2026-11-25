@@ -131,7 +131,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	defer signal.Stop(reload)
 	go func() {
 		for range reload {
-			next, err := config.LoadFile(filepath.Join(home, config.FileName), home)
+			next, err := config.LoadFile(filepath.Join(home, config.FileName))
 			if err == nil {
 				err = h.Reload(next)
 			}
@@ -176,7 +176,7 @@ type checkResult struct {
 }
 
 func check(path, home string) int {
-	cfg, err := config.LoadFile(path, home)
+	cfg, err := config.LoadFile(path)
 	if err == nil {
 		err = host.Check(home, cfg, browserEndpoint())
 	}

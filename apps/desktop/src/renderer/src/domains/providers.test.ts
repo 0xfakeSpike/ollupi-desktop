@@ -11,7 +11,6 @@ const config = {
     { id: 'deepseek', type: 'openai', api_key: 'sk-test', models: [{ name: 'deepseek-flash', limits }, { name: 'deepseek-pro', limits }] },
     { id: 'local', type: 'openai', models: [{ name: 'qwen3:32b', limits }] },
   ],
-  workspace: { enabled: true, workspace_dirs: null, command_timeout_sec: 60, command_blacklist: null },
 } as BackendConfig
 
 describe('provider edits', () => {

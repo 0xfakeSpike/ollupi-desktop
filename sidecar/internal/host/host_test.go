@@ -63,7 +63,7 @@ func load(t *testing.T, home, yaml string) config.Config {
 	if err := os.WriteFile(file, []byte(yaml), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := config.LoadFile(file, home)
+	cfg, err := config.LoadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}

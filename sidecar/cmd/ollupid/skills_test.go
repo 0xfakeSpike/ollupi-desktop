@@ -66,7 +66,7 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	if !slices.Equal(got.Skills, []string{"draw", "edit"}) || len(got.Skipped) != 2 {
 		t.Fatalf("imported %+v", got)
 	}
-	if _, err := config.LoadFile(filepath.Join(home, config.FileName), home); err != nil {
+	if _, err := config.LoadFile(filepath.Join(home, config.FileName)); err != nil {
 		t.Fatalf("the config still does not load: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(skills, "writing-sub-agent", "edit", "SKILL.md")); err != nil {
