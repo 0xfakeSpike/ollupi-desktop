@@ -33,8 +33,10 @@ ollupi 是要水平扩展、服务很多用户的平台，桌面端只是它的�
   `(user_id, root)`，两个身份可以登记同一个文件夹而互不影响。
 - 接口：`store.Store` / `app.App` 的方法全部收 `user`；网关每个连接都带着 user，
   并在每个调用里传给 app。
-- `tx.EnsureUser` 会建 `users` 行、`settings` 行（含脱敏密钥）和本机环境。
-- `app` 的 `Boxes`、`Statuses`、`Tools` 都是 `func(user)`，MCP 客户端也按用户各一套。
+- `tx.EnsureUser` 会建 `users` 行、`settings` 行（含脱敏密钥）和用户的第一个环境
+  （本机）。
+- `app` 的 `Statuses`、`Tools` 都是 `func(user)`，MCP 客户端也按用户各一套；Box 按
+  “用户 + 环境”取（`environment.Boxes.In`）。
 
 写死成“一个用户”的部分：
 
@@ -99,11 +101,12 @@ token 的形式是 `<secret>.<profile>`：`secret` 每次启动新生成，只�
 
 - hub 工作区：每个身份用 `<home>/users/<id>/super-agent`。`superAgentFolder(profile)`
   决定返回哪个。
-- 本地执行环境：ollupi 的 `Boxes(user)` 每个 Profile 一个 `sandbox.Box`，根目录是
-  `<home>/users/<id>`，MCP 进程和 web 工具都从它进入本机。今天这些 Box 在同一台机器、
-  同一个系统用户下，权限相同；调用边界已经按 Profile 分开，云部署时把这个工厂换成
-  各自的云沙箱即可。工作区命令仍走 workspace 工具自己的沙箱（只写工作区，不联网），
-  不借这个完全访问的 Box。
+- 执行环境：sidecar 把本机注册成 ollupi 的一种沙箱提供方（`sandbox.Local`，id
+  `local`），和云沙箱走同一个接口。每个环境是它的一个实例，根目录是
+  `<home>/users/<profile>/<环境 id>`，不在工作区里的命令就在这里跑。命令受 Seatbelt
+  限制（只写工作区和这个目录，默认不联网，读不到 `data/`）；MCP 服务是用户自己的程序，
+  以完全访问启动，继承后端的环境变量，但拿不到 `OLLUPI_` 开头的令牌。每个身份开始时
+  有一个本机环境，还可以再建；云部署时往 `host.Config.Sandboxes` 里加云沙箱提供方即可。
 - 这是多 Profile，不是本机上的多用户隔离：同一台机器上的 Profile 能读到彼此的文件。
 - `attachments/` 共享：键是 `threadID/附件ID.ext`，thread id 全局唯一，不会撞。
 - `skills/` 共享（配置级）。按身份分技能是另一个功能，v1 不做。
@@ -176,7 +179,7 @@ provider）、beta.4（`schema_version: 2` 的 `credentials` + `profiles`）都�
   ollupi 的 `host.Config.ClientFor` 可以按用户换 client，目录不变。
 - **资源**：每个身份一套 MCP 进程、一份 MCP 工具表；后台定时任务对所有身份照跑，
   配额 `slots` 是全局的。
-- **共享目录**：`scratch/`、`attachments/`、`skills/` 是共享的；身份之间能互相看到
+- **共享目录**：`attachments/` 是共享的；身份之间能互相看到
   这些文件，文档和空状态里要说清楚。
 - **不是安全边界**：共用一台电脑时，A 能看到 B 的数据（文件权限层面）。如果需要真隔离，
   用 macOS 账户，那是另一套方案。

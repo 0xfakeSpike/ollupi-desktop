@@ -2,11 +2,12 @@
 // message; sending creates it. Its workspace's panels and a browser show
 // beside it; the pages it opens become the thread's.
 
+import type { EnvironmentRow } from '@ollupi/protocol'
 import { useState } from 'react'
 import { DRAFT_BROWSER } from '../../../../shared/ipc'
 import { startThread } from '../../domains/conversation'
 import { NEW_CONVERSATION } from '../../domains/drafts'
-import { defaultEnvironment, useEnvironments } from '../../domains/environments'
+import { defaultEnvironment, environmentName, useEnvironments } from '../../domains/environments'
 import { chooseApproval, chooseEnvironment, go, useNavigation, usePanel } from '../../domains/navigation'
 import { useUserPolicy } from '../../domains/settings'
 import { activeWorkspaces, addWorkspace, useWorkspace, useWorkspaces } from '../../domains/workspaces'
@@ -28,9 +29,7 @@ import { ToastHost } from '../common/Toasts'
 export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }) {
   const workspace = useWorkspace(workspaceId)
   const panel = usePanel()
-  const environments = useEnvironments((s) => s.list)
-  const chosen = useNavigation((s) => s.environment)
-  const environment = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
+  const environment = useDraftEnvironment(workspace?.environmentId)
   const [managing, setManaging] = useState(false)
   const approval = useNavigation((s) => s.approval)
   const agentPolicy = useUserPolicy()
@@ -56,13 +55,6 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           <p className="max-w-md text-center text-ui text-fg-muted">
             {hub ? m.conversation.draft.hubIntro : workspace ? m.conversation.draft.commandsRunIn(workspace.name) : m.conversation.draft.noFolder}
           </p>
-          {
-            // A cloud sandbox is where the conversation would run, and this
-            // build has no machine to reach one: say so before the first task.
-            environment?.kind === 'machine' && (
-              <p className="max-w-md text-center text-small text-fg-subtle">{m.conversation.draft.machineHint}</p>
-            )
-          }
           {!hub && <Suggestions workspace={workspace} />}
           {/* Above the message box, so the box cannot paint over it. */}
           <ToastHost />
@@ -73,7 +65,7 @@ export function DraftScreen({ workspaceId }: { workspaceId: string | undefined }
           onSubmit={(message) => startThread(workspaceId, message)}
           toolbar={
             <>
-              <EnvironmentPicker onManage={() => setManaging(true)} />
+              <EnvironmentPicker current={environment} inWorkspace={!!workspace} onManage={() => setManaging(true)} />
               <WorkspacePicker workspaceId={workspaceId} />
               <ModelPicker inherited={undefined} />
               <ApprovalPicker
@@ -122,28 +114,40 @@ function WorkspacePicker({ workspaceId }: { workspaceId: string | undefined }) {
   )
 }
 
-/** Where the thread runs. This machine is one environment; the others are
- * cloud sandboxes, and a conversation keeps the one it started in. */
-function EnvironmentPicker({ onManage }: { onManage(): void }) {
+/** The environment the draft would run in: its workspace's, whose folder
+ * the workspace is, or outside one the environment chosen, or the user's
+ * first. */
+function useDraftEnvironment(workspaceEnvironment: string | undefined) {
   const environments = useEnvironments((s) => s.list)
   const chosen = useNavigation((s) => s.environment)
-  const current = environments.find((e) => e.id === chosen) ?? defaultEnvironment(environments)
+  const id = workspaceEnvironment ?? chosen
+  return environments.find((e) => e.id === id) ?? defaultEnvironment(environments)
+}
+
+/** Where the thread runs: a conversation keeps the environment it started
+ * in. In a workspace it is the workspace's; choosing another leaves the
+ * workspace for a conversation outside one there. */
+function EnvironmentPicker({ current, inWorkspace, onManage }: { current: EnvironmentRow | undefined; inWorkspace: boolean; onManage(): void }) {
+  const environments = useEnvironments((s) => s.list)
   const m = useT()
-  // This computer is named by the app, in the person's language; a cloud
-  // sandbox keeps the name it was given.
-  const nameOf = (e: { kind: string; name: string }) => (e.kind === 'machine' ? e.name : m.conversation.environment.here)
+  const choose = (id: string) => {
+    if (id === MANAGE) return onManage()
+    if (id === current?.id) return
+    chooseEnvironment(id || undefined)
+    if (inWorkspace) go({ kind: 'draft', workspaceId: undefined })
+  }
   return (
     <label className={chip}>
-      <span className="truncate">{current ? nameOf(current) : m.conversation.draft.environment}</span>
+      <span className="truncate">{current ? environmentName(current) : m.conversation.draft.environment}</span>
       <select
         aria-label={m.conversation.draft.environment}
         className="absolute inset-0 cursor-pointer opacity-0"
         value={current?.id ?? ''}
-        onChange={(e) => (e.target.value === MANAGE ? onManage() : chooseEnvironment(e.target.value || undefined))}
+        onChange={(e) => choose(e.target.value)}
       >
         {environments.map((e) => (
           <option key={e.id} value={e.id}>
-            {nameOf(e)}
+            {environmentName(e)}
           </option>
         ))}
         <option value={MANAGE}>{m.conversation.environments.manage}</option>

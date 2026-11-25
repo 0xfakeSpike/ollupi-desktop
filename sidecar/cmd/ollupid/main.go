@@ -44,7 +44,7 @@ func main() {
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml and profiles.json into the store, remove config.yaml, then exit")
-	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names and colours it kept")
+	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names it kept")
 	deleteProfile := flag.String("delete-profile", "", "delete a profile's data from the store, then exit")
 	readSkillDir := flag.String("read-skill", "", "read a skill folder and exit")
 	skillSchema := flag.Bool("skill-schema", false, "print the JSON Schema of --read-skill's output and exit")

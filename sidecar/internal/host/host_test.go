@@ -17,41 +17,46 @@ import (
 	"github.com/0xfakeSpike/ollupi/skill"
 )
 
-func TestTheUsersBoxKeepsTheBackendsEnvironment(t *testing.T) {
+func TestAServerKeepsTheBackendsEnvironmentAndACommandDoesNot(t *testing.T) {
 	t.Setenv("MCP_TEST_FROM_PROFILE", "kept")
 	t.Setenv("OLLUPI_GATEWAY_TOKEN", "secret")
 	t.Setenv("BASH_FUNC_x%%", "() { :; }")
-	boxes := newUserBoxes(t.TempDir())
-	box, err := boxes.box("a")
+	home := t.TempDir()
+	box, err := thisMachine(home, home).Open(context.Background(), sandbox.Env{User: "a", ID: "e"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer boxes.Close()
-	res, err := box.Run(context.Background(), sandbox.Command{Program: "/usr/bin/env", Timeout: 5 * time.Second})
-	if err != nil {
-		t.Fatal(err)
+	defer box.Close()
+	env := func(full bool) string {
+		t.Helper()
+		res, err := box.Run(context.Background(), sandbox.Command{Program: "/usr/bin/env", Timeout: 5 * time.Second, FullAccess: full})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Stdout
 	}
-	if !strings.Contains(res.Stdout, "MCP_TEST_FROM_PROFILE=kept") {
-		t.Errorf("a variable of the backend's did not reach the server:\n%s", res.Stdout)
+	// An MCP server starts with full access, as the user's own program.
+	if out := env(true); !strings.Contains(out, "MCP_TEST_FROM_PROFILE=kept") || strings.Contains(out, "OLLUPI_GATEWAY_TOKEN") {
+		t.Errorf("a server's environment:\n%s", out)
 	}
-	if strings.Contains(res.Stdout, "OLLUPI_GATEWAY_TOKEN") {
-		t.Errorf("the gateway token reached the server:\n%s", res.Stdout)
+	if out := env(false); strings.Contains(out, "MCP_TEST_FROM_PROFILE") || strings.Contains(out, "OLLUPI_GATEWAY_TOKEN") {
+		t.Errorf("a limited command's environment:\n%s", out)
 	}
 }
 
-func TestEachProfileHasItsOwnBox(t *testing.T) {
-	boxes := newUserBoxes(t.TempDir())
-	defer boxes.Close()
-	a, err := boxes.box("a")
+func TestEachEnvironmentIsAFolderOfItsOwn(t *testing.T) {
+	home := t.TempDir()
+	m := thisMachine(home, home)
+	a, err := m.Open(context.Background(), sandbox.Env{User: "a", ID: "e1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := boxes.box("b")
+	b, err := m.Open(context.Background(), sandbox.Env{User: "b", ID: "e2"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a == b {
-		t.Fatal("two profiles share one sandbox")
+	if !a.Enforced() || a.Roots()[0] == b.Roots()[0] || !strings.HasSuffix(a.Roots()[0], filepath.Join("users", "a", "e1")) {
+		t.Errorf("environments in %v and %v", a.Roots(), b.Roots())
 	}
 }
 

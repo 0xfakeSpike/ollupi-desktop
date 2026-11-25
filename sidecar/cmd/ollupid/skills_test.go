@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
 	"os"
 	"path/filepath"
 	"slices"
@@ -48,7 +49,7 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	ctx := context.Background()
 	err = st.Update(ctx, func(tx store.Tx) error {
 		for _, u := range []string{"default", "work"} {
-			if err := tx.EnsureUser(u); err != nil {
+			if err := tx.EnsureUser(u, host.FirstEnvironment()); err != nil {
 				return err
 			}
 		}

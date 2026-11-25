@@ -1,9 +1,9 @@
 // Package host puts one ollupi backend together: ollupi's own
 // host (the store, the models, the flows that run turns, learn memory and
-// send scheduled tasks, the app and its gateway, web_fetch among its tools)
-// with the tools the desktop adds to it (the workspace's commands and files,
-// the app's browser). New builds everything without starting anything; Serve
-// runs it all until the context ends.
+// send scheduled tasks, the app and its gateway, its tools) with this
+// machine as the sandbox conversations run in, and the app's browser. New
+// builds everything without starting anything; Serve runs it all until the
+// context ends.
 package host
 
 import (
@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
@@ -28,15 +27,14 @@ import (
 	ollupi "github.com/0xfakeSpike/ollupi/host"
 	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 	"github.com/0xfakeSpike/ollupi/store"
-	"github.com/0xfakeSpike/ollupi/tool"
-	"github.com/0xfakeSpike/ollupi/tool/builtin/workspace"
 	"github.com/0xfakeSpike/ollupi/tool/kit"
 	"golang.org/x/sync/errgroup"
 )
 
 type Options struct {
-	// Home is where config paths resolve; commands outside a
-	// workspace run in its scratch folder (ollupi makes it).
+	// Home is the backend's folder: each environment of this machine is a
+	// folder of users/<profile>/ in it, where commands outside a workspace
+	// run.
 	Home string
 	// DataHome holds the store and the attachments; empty means Home.
 	DataHome string
@@ -74,11 +72,6 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		dataHome = opts.Home
 	}
 
-	// Local profiles share the machine today, but still reach it through one
-	// Box per user. A cloud host replaces the same factory with cloud boxes.
-	boxes := newUserBoxes(opts.Home)
-	h.closers = append(h.closers, boxes.Close)
-
 	// The store is the host's, made below; a call reaches this only once
 	// it is.
 	var st store.Store
@@ -90,40 +83,7 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 	authenticate := func(ctx context.Context, token string) (auth.Identity, error) {
 		return profileOf(ctx, token, opts.Token, opts.OperatorToken, st, users)
 	}
-	// Commands and file edits, in the sandbox as ollupi sets it up.
-	ws, err := workspace.New(workspace.Options{
-		Agent: workspace.AgentFiles{Home: opts.Home},
-		// Commands must not read the store, which holds the models' API keys
-		// and every profile's MCP servers.
-		DenyRead:  []string{filepath.Join(dataHome, "data")},
-		EnvMarker: "OLLUPI_SANDBOX",
-		// Commands run on this machine and nowhere else: a conversation
-		// started in another environment is told so rather than having its
-		// commands run here. A nil box leaves the call in this machine's.
-		BoxIn: func(c tool.Caller) (sandbox.Box, error) {
-			if c.Environment == "" {
-				return nil, nil
-			}
-			var env account.Environment
-			err := st.Read(context.Background(), func(r store.Reader) (err error) {
-				env, err = r.Environment(c.User, c.Environment)
-				return err
-			})
-			if err != nil {
-				return nil, err
-			}
-			if env.Kind != account.Local {
-				return nil, fmt.Errorf("%s is another machine, and this build has no way to reach it; start the conversation in %s", env.Name, account.LocalName)
-			}
-			return nil, nil
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	h.closers = append(h.closers, ws.Close)
-	// web_fetch is ollupi's own, made from the Boxes below.
-	tools := []kit.Provider{ws}
+	var tools []kit.Provider
 	if opts.Browser != nil {
 		tools = append(tools, browser.New(*opts.Browser))
 	}
@@ -133,7 +93,10 @@ func New(ctx context.Context, opts Options) (_ *Host, err error) {
 		// ollupi's own system prompt, every tool, and its slots.
 		Name:  Name,
 		Tools: tools,
-		Boxes: boxes.box,
+		// This machine is the one sandbox offered: every environment a
+		// folder of it, commands in it limited as ollupi limits them.
+		Sandboxes: map[string]sandbox.Provider{LocalSandbox: thisMachine(opts.Home, dataHome)},
+		Sandbox:   LocalSandbox,
 		// The app's Super Agent is ollupi's hub: the user's one hub
 		// workspace hands work out to the project workspaces.
 		Hub: true,
@@ -189,53 +152,29 @@ func (h *Host) close() {
 	}
 }
 
-type userBoxes struct {
-	home  string
-	env   []string
-	mu    sync.Mutex
-	boxes map[string]*sandbox.Sandbox
+// LocalSandbox is what an environment of this machine names its provider.
+const LocalSandbox = "local"
+
+// FirstEnvironment is the environment a profile is made with: this machine.
+func FirstEnvironment() account.Environment {
+	return account.NewEnvironment(sandbox.LocalName, LocalSandbox, nil)
 }
 
-func newUserBoxes(home string) *userBoxes {
-	var env []string
-	for _, pair := range os.Environ() {
-		name, _, _ := strings.Cut(pair, "=")
-		if !strings.HasPrefix(name, "OLLUPI_") && sandbox.ValidateEnvNames([]string{name}) == nil {
-			env = append(env, name)
-		}
+// thisMachine is this machine as a provider: its environments are folders
+// under home, and commands in them run under Seatbelt. They may not read
+// the store, which holds the models' API keys and every profile's MCP
+// servers; one with full access gets the backend's environment but the
+// OLLUPI_ variables, which hold its tokens.
+func thisMachine(home, dataHome string) sandbox.Local {
+	deny := []string{filepath.Join(dataHome, "data")}
+	if home != dataHome {
+		deny = append(deny, filepath.Join(home, "data"))
 	}
-	return &userBoxes{home: home, env: env, boxes: map[string]*sandbox.Sandbox{}}
-}
-
-// box is this machine as one profile sees it. Local profiles share access
-// today, but the factory and lifetime are per user for a cloud Machine.
-func (b *userBoxes) box(user string) (sandbox.Box, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if box := b.boxes[user]; box != nil {
-		return box, nil
-	}
-	root := filepath.Join(b.home, "users", user)
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return nil, err
-	}
-	box, err := sandbox.New(sandbox.Config{Mode: string(sandbox.ModeFullAccess), Roots: []string{root}, EnvPassthrough: b.env})
-	if err != nil {
-		return nil, err
-	}
-	b.boxes[user] = box
-	return box, nil
-}
-
-func (b *userBoxes) Close() error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	var errs []error
-	for _, box := range b.boxes {
-		errs = append(errs, box.Close())
-	}
-	b.boxes = nil
-	return errors.Join(errs...)
+	return sandbox.Local{Dir: filepath.Join(home, "users"), Config: sandbox.Config{
+		DenyRead:  deny,
+		EnvMarker: "OLLUPI_SANDBOX",
+		HideEnv:   []string{"OLLUPI_"},
+	}}
 }
 
 // profileOf names the profile a connection's token acts as: a secret the

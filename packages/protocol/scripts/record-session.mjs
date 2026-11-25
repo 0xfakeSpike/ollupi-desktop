@@ -8,10 +8,11 @@
 // skill/changed and an invalid skill refused, a file attached by path,
 // read_file alone and with glob and grep in one answer, messages sent while
 // a turn runs (each a turn behind it), the cron, workspace, memory,
-// settings, MCP, permission and hub methods, token usage grouped each way,
-// presence stretches and their totals, and an error response. Server requests
-// are answered as a user would (approve, pick the first option). Every JSON-RPC
-// message is kept raw, in order, with its direction.
+// settings, MCP, permission, environment and hub methods, token usage
+// grouped each way, presence stretches and their totals, and an error
+// response. Server requests are answered as a user would (approve, pick the
+// first option). Every JSON-RPC message is kept raw, in order, with its
+// direction.
 //
 //   node scripts/record-session.mjs   (re-run after ollupi changes the contract)
 
@@ -163,6 +164,13 @@ await call('settings/update', { model: 'mock/mock-model' })
 const { workspace: ws1 } = await call('workspace/add', { path: workspace })
 await call('workspace/rename', { workspaceId: ws1.id, name: 'Demo' })
 await call('workspace/list', {})
+// Environments: the profile's first is this machine; another sandbox of it
+// is named, renamed and deleted, and the first refuses to go.
+const { data: envs } = await call('environment/list', {})
+const { environment: scratch } = await call('environment/add', { name: 'Scratch', provider: 'local' })
+await call('environment/rename', { environmentId: scratch.id, name: 'Scratch 2' })
+await call('environment/delete', { environmentId: scratch.id })
+await call('environment/delete', { environmentId: envs[0].id }).catch(() => {})
 const { thread } = await call('thread/start', { workspaceId: ws1.id })
 
 await turn(thread.id, 'Hello there\nsecond line')

@@ -155,9 +155,10 @@ export function startThread(workspaceId: string | undefined, { text, files }: Me
     const title = titleFromMessage(text, files.map((f) => f.name))
     const { thread } = await gateway().call('thread/start', {
       workspaceId,
-      // The environment the draft was started in; undefined is this machine.
-      // One that is no longer there (deleted elsewhere) starts here too.
-      environmentId: chosenEnvironment(),
+      // A conversation in a workspace runs in the workspace's environment;
+      // outside one, in the environment chosen on the draft, or with none the
+      // user's first. One that is no longer there (deleted elsewhere) is none.
+      environmentId: workspaceId ? undefined : chosenEnvironment(),
       title: title || undefined,
     })
     // thread/changed has put it in the list already.

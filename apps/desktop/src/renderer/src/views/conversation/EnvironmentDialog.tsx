@@ -1,34 +1,49 @@
-// Where conversations can run: this computer, which every user has, and the
-// cloud sandboxes they name. ollupi keeps the list and sends each change; the
-// dialog only asks it to add, rename or delete one. A conversation keeps the
-// environment it was started in, so this machine and any environment in use
-// stay: ollupi refuses to remove them.
+// Where conversations can run: each environment is a sandbox of one of the
+// providers the backend offers, this computer among them. ollupi keeps the
+// list and sends each change; the dialog only asks it to add, rename or
+// delete one. A conversation keeps the environment it was started in and a
+// workspace is a folder of one, so the user's first environment and any
+// environment in use stay: ollupi refuses to remove them.
 
 import type { EnvironmentRow } from '@ollupi/protocol'
-import { Button, Dialog, IconButton, Input } from '@ollupi/ui'
+import { Button, Dialog, IconButton, Input, Select } from '@ollupi/ui'
 import { Cloud, Laptop, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { addEnvironment, deleteEnvironment, renameEnvironment, useEnvironments } from '../../domains/environments'
+import {
+  addEnvironment,
+  defaultEnvironment,
+  deleteEnvironment,
+  environmentName,
+  LOCAL_PROVIDER,
+  onThisMachine,
+  providerName,
+  renameEnvironment,
+  useEnvironments,
+} from '../../domains/environments'
 import { useT } from '../../i18n'
 
 export function EnvironmentDialog({ onClose }: { onClose(): void }) {
   const m = useT()
   const t = m.conversation.environments
   const list = useEnvironments((s) => s.list)
+  const providers = useEnvironments((s) => s.providers)
+  const first = defaultEnvironment(list)
   const [name, setName] = useState('')
+  const [provider, setProvider] = useState<string | undefined>(undefined)
+  const chosen = provider ?? providers[0]?.id ?? LOCAL_PROVIDER
   const add = async () => {
     const next = name.trim()
     if (!next) return
     // The list follows through environment/changed, whether the name was
     // taken or the backend refused it.
-    if (await addEnvironment(next)) setName('')
+    if (await addEnvironment(next, chosen)) setName('')
   }
   return (
     <Dialog title={t.title} description={t.description} closeLabel={m.common.close} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
           {list.map((environment) => (
-            <Row key={environment.id} environment={environment} />
+            <Row key={environment.id} environment={environment} first={environment.id === first?.id} />
           ))}
         </ul>
         <p className="-mt-2 text-small text-fg-subtle">{t.renameHint}</p>
@@ -46,6 +61,17 @@ export function EnvironmentDialog({ onClose }: { onClose(): void }) {
             className="min-w-0 flex-1"
             onChange={(e) => setName(e.target.value)}
           />
+          {/* One provider needs no choosing: a new environment is another
+              sandbox of it. */}
+          {providers.length > 1 && (
+            <Select aria-label={t.provider} className="max-w-40" value={chosen} onChange={(e) => setProvider(e.target.value)}>
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <Button type="submit" size="sm" disabled={!name.trim()}>
             {t.add}
           </Button>
@@ -55,28 +81,29 @@ export function EnvironmentDialog({ onClose }: { onClose(): void }) {
   )
 }
 
-/** One environment: its name, renamed in place, and for a cloud sandbox the
- * way to remove it. */
-function Row({ environment }: { environment: EnvironmentRow }) {
+/** One environment: its name, renamed in place, what sandbox it is, and but
+ * for the user's first the way to remove it. */
+function Row({ environment, first }: { environment: EnvironmentRow; first: boolean }) {
   const t = useT().conversation.environments
-  const [name, setName] = useState(environment.name)
+  const providers = useEnvironments((s) => s.providers)
+  const shown = environmentName(environment)
+  const [name, setName] = useState(shown)
   // A rename lands through environment/changed, as does one made elsewhere.
-  useEffect(() => setName(environment.name), [environment.name])
-  const local = environment.kind === 'local'
-  const Icon = local ? Laptop : Cloud
+  useEffect(() => setName(shown), [shown])
+  const Icon = onThisMachine(environment) ? Laptop : Cloud
 
   const rename = async () => {
     const next = name.trim()
-    if (!next || next === environment.name) {
-      setName(environment.name)
+    if (!next || next === shown) {
+      setName(shown)
       return
     }
     // A refused rename leaves the old name, which the input then shows again.
-    if (!(await renameEnvironment(environment.id, next))) setName(environment.name)
+    if (!(await renameEnvironment(environment.id, next))) setName(shown)
   }
 
   const remove = async () => {
-    if (!confirm(t.removeConfirm(environment.name))) return
+    if (!confirm(t.removeConfirm(shown))) return
     await deleteEnvironment(environment.id)
   }
 
@@ -91,12 +118,12 @@ function Row({ environment }: { environment: EnvironmentRow }) {
         onBlur={() => void rename()}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur()
-          if (e.key === 'Escape') setName(environment.name)
+          if (e.key === 'Escape') setName(shown)
         }}
       />
-      <span className="min-w-0 flex-1 truncate text-small text-fg-subtle">{local ? t.localStays : t.machine}</span>
-      {!local && (
-        <IconButton label={`${t.remove} ${environment.name}`} size="sm" onClick={() => void remove()}>
+      <span className="min-w-0 flex-1 truncate text-small text-fg-subtle">{first ? t.firstStays : providerName(environment.provider, providers)}</span>
+      {!first && (
+        <IconButton label={`${t.remove} ${shown}`} size="sm" onClick={() => void remove()}>
           <Trash2 size={14} />
         </IconButton>
       )}

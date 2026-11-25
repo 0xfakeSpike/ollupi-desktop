@@ -1,9 +1,9 @@
 import { activeTurn, awaitedReports, lastConnection, needsUser, waitingFor, type Timeline } from '@ollupi/core'
 import { Badge, Button, cn, IconButton, Loader, useTooltip } from '@ollupi/ui'
-import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Timer } from 'lucide-react'
+import { ArchiveRestore, ArrowDown, ArrowLeft, Cloud, Laptop, Timer } from 'lucide-react'
 import { useUserPolicy } from '../../domains/settings'
 import { interrupt, openThread, sendMessage, updateThreadPermissions, useTimeline } from '../../domains/conversation'
-import { defaultEnvironment, useEnvironment, useEnvironments } from '../../domains/environments'
+import { defaultEnvironment, environmentName, onThisMachine, providerName, useEnvironment, useEnvironments } from '../../domains/environments'
 import { openPanel, usePanel } from '../../domains/navigation'
 import { usePresenceContext, useSpent } from '../../domains/presence'
 import { archiveThread, renameThread, useThreadRow } from '../../domains/threads'
@@ -34,7 +34,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const thread = timeline?.thread ?? summary
   const workspace = useWorkspace(thread?.workspaceId)
   const area = useAreaClass(workspace?.id)
-  // Where the thread runs: this machine keeps quiet, a cloud sandbox says so.
+  // Where the thread runs: the user's first environment keeps quiet,
+  // another says which it is.
   const environment = useEnvironment(thread?.environmentId)
   // A thread that names none runs where ollupi starts conversations.
   const fallback = useEnvironments((s) => defaultEnvironment(s.list))
@@ -54,7 +55,8 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
   const latestTip = useTooltip({ label: m.conversation.screen.scrollToLatest })
   const renameTip = useTooltip({ label: m.conversation.screen.rename })
   const rootTip = useTooltip({ label: workspace?.rootPath ?? '' })
-  const machineTip = useTooltip({ label: m.conversation.environments.machine })
+  const providers = useEnvironments((s) => s.providers)
+  const machineTip = useTooltip({ label: environment ? providerName(environment.provider, providers) : '' })
   const spentTip = useTooltip({ label: m.conversation.screen.spentHint })
   // The main process counts the time this conversation is in front with someone
   // at the computer; the figure is read from the backend it writes to.
@@ -113,11 +115,11 @@ export function ConversationScreen({ threadId }: { threadId: string }) {
             <h1 className="min-w-0 truncate px-1.5 text-title text-fg">{thread ? threadTitle(m, thread) : m.conversation.screen.untitled}</h1>
           )}
           {parent && <Badge>{m.conversation.screen.subagent}</Badge>}
-          {environment && environment.kind !== 'local' && (
+          {environment && environment.id !== fallback?.id && (
             <>
               <span className="flex min-w-0 items-center gap-1 text-small text-fg-subtle" {...machineTip.trigger}>
-                <Cloud size={14} className="shrink-0" />
-                <span className="truncate">{environment.name}</span>
+                {onThisMachine(environment) ? <Laptop size={14} className="shrink-0" /> : <Cloud size={14} className="shrink-0" />}
+                <span className="truncate">{environmentName(environment)}</span>
               </span>
               {machineTip.tooltip}
             </>

@@ -1,17 +1,25 @@
-// Environments: where a conversation's commands run. One is this machine,
-// which every user has; the rest are cloud sandboxes they add. A conversation
-// keeps the one it was started in, so the list is read once and kept live by
+// Environments: where a conversation's commands run. Each is one sandbox of
+// a provider the backend offers (this machine, a cloud's); a user's first is
+// made with them, and a workspace is a folder of one. A conversation keeps
+// the one it was started in, so the list is read once and kept live by
 // environment/changed from then on, each change applied when it is newer
-// than the list (seq).
+// than the list (seq). The providers come with the list and do not change.
 
-import type { EnvironmentChangedNotification, EnvironmentRow } from '@ollupi/protocol'
+import type { EnvironmentChangedNotification, EnvironmentRow, SandboxProviderRow } from '@ollupi/protocol'
 import { create } from 'zustand'
 import { gateway } from '../gateway/connection'
 import type { Domain } from '../gateway/domain'
 import { run } from '../gateway/run'
+import { t } from '../i18n'
 import { useNavigation } from './navigation'
 
-export const useEnvironments = create<{ list: EnvironmentRow[] }>()(() => ({ list: [] }))
+export const useEnvironments = create<{ list: EnvironmentRow[]; providers: SandboxProviderRow[] }>()(() => ({ list: [], providers: [] }))
+
+/** The provider of this machine's sandboxes, as the backend names it. */
+export const LOCAL_PROVIDER = 'local'
+
+/** What the backend names the first environment of this machine. */
+const LOCAL_NAME = 'This computer'
 
 /** ollupi's order: the environment a person had first comes first, and a
  * conversation that names none runs in it. */
@@ -35,12 +43,12 @@ export const environmentsDomain: Domain = {
   sync: async (client) => {
     const { result, newer } = await client.snapshot('environment/list', {}, ['environment/changed'])
     seen = result.seq
-    useEnvironments.setState({ list: order(result.data) })
+    useEnvironments.setState({ list: order(result.data), providers: result.providers ?? [] })
     newer.forEach((e) => changed(e.params))
   },
   disconnect: () => {
     seen = 0
-    useEnvironments.setState({ list: [] })
+    useEnvironments.setState({ list: [], providers: [] })
   },
 }
 
@@ -48,24 +56,41 @@ export function useEnvironment(id: string | undefined): EnvironmentRow | undefin
   return useEnvironments((s) => (id ? s.list.find((e) => e.id === id) : undefined))
 }
 
-/** Where a conversation runs when it names none: this machine, the one
- * environment every user has. */
+/** Where a conversation runs when it names none: the user's first
+ * environment, made with them. */
 export function defaultEnvironment(list: readonly EnvironmentRow[]): EnvironmentRow | undefined {
-  return list.find((e) => e.kind === 'local') ?? list[0]
+  return list[0]
+}
+
+/** Whether an environment is a sandbox of this machine. */
+export const onThisMachine = (e: EnvironmentRow | undefined): boolean => e?.provider === LOCAL_PROVIDER
+
+/** What to call an environment: its name, but the one the backend names
+ * this machine by is said in the person's language. */
+export function environmentName(e: EnvironmentRow): string {
+  return onThisMachine(e) && e.name === LOCAL_NAME ? t().conversation.environment.here : e.name
+}
+
+/** What its provider calls an environment's sandboxes; this machine's are
+ * said in the person's language. */
+export function providerName(provider: string, providers: readonly SandboxProviderRow[]): string {
+  if (provider === LOCAL_PROVIDER) return t().conversation.environment.here
+  return providers.find((p) => p.id === provider)?.name ?? provider
 }
 
 /** The environment the next conversation starts in: the one chosen in the
- * composer while it is still there, or none, which is this machine. */
+ * composer while it is still there, or none, which is the user's first. */
 export function chosenEnvironment(): string | undefined {
   const chosen = useNavigation.getState().environment
   return chosen && useEnvironments.getState().list.some((e) => e.id === chosen) ? chosen : undefined
 }
 
-/** Names another place conversations can run: a cloud sandbox. The list
- * follows the change through environment/changed. */
-export function addEnvironment(name: string): Promise<boolean> {
+/** Names another place conversations can run: a new sandbox of provider,
+ * made when a conversation first runs in it. The list follows the change
+ * through environment/changed. */
+export function addEnvironment(name: string, provider: string): Promise<boolean> {
   return run((e) => e.environment.add, async () => {
-    await gateway().call('environment/add', { name })
+    await gateway().call('environment/add', { name, provider })
     return true
   }).then(Boolean)
 }
@@ -77,8 +102,8 @@ export function renameEnvironment(environmentId: string, name: string): Promise<
   }).then(Boolean)
 }
 
-/** Removes a cloud sandbox from the list. ollupi refuses this machine, and
- * any environment a conversation runs in: a conversation does not move. */
+/** Deletes an environment and its sandbox. ollupi refuses the user's first,
+ * and any environment a conversation or a workspace is in: neither moves. */
 export function deleteEnvironment(environmentId: string): Promise<boolean> {
   return run((e) => e.environment.delete, async () => {
     await gateway().call('environment/delete', { environmentId })

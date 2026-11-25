@@ -257,7 +257,7 @@ describe('threads', () => {
   })
 
   it('keeps the hub out of the project groups', () => {
-    const ws = { id: 'w', name: 'W', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
+    const ws = { id: 'w', name: 'W', environmentId: 'here', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
     const hub = { ...ws, id: 'hub', kind: 'hub' as const }
     const list = [thread({ id: 'plan', workspaceId: 'hub' }), thread({ id: 'work', workspaceId: 'w' })]
     expect(groupByWorkspace([hub, ws], list).map((g) => g.workspace?.id)).toEqual(['w', undefined])
@@ -266,7 +266,7 @@ describe('threads', () => {
   })
 
   it('groups by active workspace with loose threads last', () => {
-    const ws = { id: 'w', name: 'W', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
+    const ws = { id: 'w', name: 'W', environmentId: 'here', rootPath: '/w', kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' }
     const list = upsertThread(upsertThread([], thread({ workspaceId: 'w' })), thread({ id: 'loose' }))
     const groups = groupByWorkspace([ws, { ...ws, id: 'old', archivedAt: '2026-01-01T00:00:00Z' }], list)
     expect(groups.map((g) => [g.workspace?.id, g.threads.map((t) => t.id)])).toEqual([
@@ -276,7 +276,7 @@ describe('threads', () => {
   })
 
   it('puts what waits on the person first: its threads, then its workspace', () => {
-    const ws = (id: string) => ({ id, name: id, rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
+    const ws = (id: string) => ({ id, name: id, environmentId: 'here', rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: '', updatedAt: '' })
     const at = (id: string, workspaceId: string | undefined, updatedAt: string, status: ThreadRow['status']): ThreadRow => thread({ id, workspaceId, updatedAt, status })
     // Newest first, as thread/list orders them.
     const list = [
@@ -305,7 +305,7 @@ describe('threads', () => {
   })
 
   it('orders workspaces by the work done in them last, not by when they were added', () => {
-    const ws = (id: string, updatedAt: string) => ({ id, name: id, rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: updatedAt, updatedAt })
+    const ws = (id: string, updatedAt: string) => ({ id, name: id, environmentId: 'here', rootPath: `/${id}`, kind: 'project' as const, providers: {}, settings: { permissions: {} }, createdAt: updatedAt, updatedAt })
     const at = (id: string, workspaceId: string, updatedAt: string): ThreadRow => thread({ id, workspaceId, updatedAt })
     // workspace/list's order: the workspaces changed last first.
     const workspaces = [ws('docs', '2026-01-08T00:00:00Z'), ws('app', '2026-01-07T00:00:00Z'), ws('fresh', '2026-01-09T12:00:00.5Z'), ws('old', '2026-01-01T00:00:00Z')]

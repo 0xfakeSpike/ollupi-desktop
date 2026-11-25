@@ -13,6 +13,7 @@ import { ArrowLeft, Cloud, ExternalLink, Folder, GitBranch, GitCommitHorizontal,
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Changes, FileChange, FileDiff, Head } from '../../../../shared/ipc'
 import { commitStaged, discardFile, readChanges, readDiff, stageFiles, unstageFiles } from '../../domains/changes'
+import { environmentName, onThisMachine, providerName, useEnvironments } from '../../domains/environments'
 import { openPath } from '../../domains/files'
 import { notify } from '../../domains/notices'
 import { useT } from '../../i18n'
@@ -122,16 +123,16 @@ export function EnvironmentPanel({
 function Where({ environment, root, head }: { environment: EnvironmentRow | undefined; root: string; head: Head | undefined }) {
   const m = useT()
   const t = m.conversation.environment
-  const cloud = environment?.kind === 'machine'
-  // The local environment is named by the app, in the person's language.
-  const place = cloud ? (environment?.name ?? '—') : t.here
+  const providers = useEnvironments((s) => s.providers)
+  const cloud = !!environment && !onThisMachine(environment)
+  const place = environment ? environmentName(environment) : t.here
   const folder = root.slice(root.lastIndexOf('/') + 1) || root
   return (
     <Details summary={<span className="text-small text-fg-muted">{t.where(place, folder)}</span>}>
       <dl className="mt-1.5 flex flex-col gap-0.5">
         <Row icon={cloud ? Cloud : Laptop} label={t.environment}>
           <span className="truncate">{place}</span>
-          {cloud && <span className="shrink-0 text-small text-fg-subtle">{m.conversation.environments.machine}</span>}
+          {environment && <span className="shrink-0 text-small text-fg-subtle">{providerName(environment.provider, providers)}</span>}
         </Row>
         <Row icon={Folder} label={t.folder}>
           <button
