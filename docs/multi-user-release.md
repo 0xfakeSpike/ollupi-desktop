@@ -1,8 +1,16 @@
 # 发布清单
 
-版本：app `0.8.17-beta.22`，引擎 `v0.35.4`（和 beta.21 相同）。
+版本：app `0.8.17-beta.23`，引擎 `v0.35.5`。
 
 ## 1. 这一版改了什么
+
+beta.23 相对 beta.22（引擎 v0.35.4 → v0.35.5）：
+
+- 能力页按 agent 分开看：技能、MCP、内置工具三页都把主 agent、Super Agent 和各个子 agent 从上往下分段列出，每段标出数量。同一个技能、同一台 MCP 服务器在每个有它的 agent 下各出现一次，改它所有 agent 都变。
+- 只有主 agent、Super Agent 和通用子 agent 用得到 MCP；其余子 agent 那一段写"用不了 MCP 服务器"。
+- 内置工具每组一张卡片，按行两张一排、同一行一样高，展开的那组独占一行。
+- 修复："帮手"一组显示成原名 `subagents` 并排在最后；`deferred_tools` 现在叫"载入工具"。
+- 协议：`tool/list` 的每个工具、`mcpServer/list` 和 `mcpServer/changed` 的每台服务器多了 `roles`，列出有它的 agent。
 
 beta.22 相对 beta.21：
 
@@ -53,11 +61,11 @@ beta.15 相对 beta.14：
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.35.4`：
+sidecar 钉在 `v0.35.5`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.4/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.5/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -67,22 +75,25 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.35.4，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.35.5，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
-grep -ac 'item/delta' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+grep -ac 'mcpServer/list' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.22 --prerelease --title "0.8.17-beta.22" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.23 --prerelease --title "0.8.17-beta.23" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 能力 → 技能：每个 agent 一段；给一个技能多勾一个 agent，它在两段下都出现。
+- 能力 → MCP：主 agent、Super Agent、通用子 agent 下有服务器，其余子 agent 写"用不了 MCP 服务器"。
+- 能力 → 内置工具：每行两张卡片；展开一组，它独占一行，旁边的卡片补上来；"帮手"和"载入工具"都有中文名。
 - 让 Super Agent 把一个待办拆成几个子待办：面板里子待办缩进在上级下面，标题里不带上级，原有待办都还在。
 - 重开应用后打开待办面板，归档里有以前做完的待办。
 - 让 Super Agent 列出并读几个会话：同一轮里一起调用，不是一个接一个。
@@ -95,7 +106,7 @@ gh release create v0.8.17-beta.22 --prerelease --title "0.8.17-beta.22" --notes-
 - 文件面板看 Markdown（相对路径的图片能显示）、PDF；环境面板暂存、提交、丢弃一个新文件（进废纸篓）。
 - 终端：关掉面板再开，之前的输出还在；`cat ~/.ollupi/data/store.sqlite` 被拒。
 - 发一张粘贴的截图和一个拖进来的文件。
-- 连远程 ollupid（同为 v0.35.4）时，上面这些面板都能用。
+- 连远程 ollupid（同为 v0.35.5）时，上面这些面板都能用。
 
 ## 这版的已知限制
 
