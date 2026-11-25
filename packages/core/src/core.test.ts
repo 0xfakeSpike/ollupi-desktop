@@ -254,7 +254,7 @@ describe('threads', () => {
 
   it('keeps subagents out of the list', () => {
     expect(upsertThread([], thread({ id: 'child', parentThreadId: 'th', role: 'general-sub-agent' }))).toEqual([])
-    expect(upsertThread([], thread({ id: 'researcher', parentThreadId: 'th', role: 'research-sub-agent' }))).toEqual([])
+    expect(upsertThread([], thread({ id: 'explorer', parentThreadId: 'th', role: 'explore-sub-agent' }))).toEqual([])
   })
 
   it('keeps the hub out of the project groups', () => {
@@ -391,20 +391,10 @@ describe('calls', () => {
   it('reads a subagent task, the role it runs as and the thread its launch started', () => {
     const c = call({ tool: 'general-sub-agent', status: 'completed', arguments: JSON.stringify({ description: 'd', prompt: 'p' }), childThreadId: 'child', result: { output: { subagent: 'child', description: 'd', note: 'n' } } })
     expect(callOf(c)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'general-sub-agent', threadId: 'child' } })
-    const b = call({ tool: 'browser-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(b)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'browser-sub-agent', threadId: undefined } })
-    const design = call({ tool: 'design-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(design)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'design-sub-agent', threadId: undefined } })
-    const codebase = call({ tool: 'codebase-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(codebase)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'codebase-sub-agent', threadId: undefined } })
-    const frontend = call({ tool: 'frontend-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(frontend)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'frontend-sub-agent', threadId: undefined } })
-    const backend = call({ tool: 'backend-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(backend)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'backend-sub-agent', threadId: undefined } })
-    const writing = call({ tool: 'writing-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(writing)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'writing-sub-agent', threadId: undefined } })
-    const research = call({ tool: 'research-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
-    expect(callOf(research)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'research-sub-agent', threadId: undefined } })
+    const explore = call({ tool: 'explore-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(explore)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'explore-sub-agent', threadId: undefined } })
+    const verify = call({ tool: 'verify-sub-agent', arguments: JSON.stringify({ description: 'd', prompt: 'p' }) })
+    expect(callOf(verify)).toEqual({ kind: 'subagent', task: { description: 'd', prompt: 'p', role: 'verify-sub-agent', threadId: undefined } })
   })
 
   it('finds a subagent’s report by the call that launched it', () => {

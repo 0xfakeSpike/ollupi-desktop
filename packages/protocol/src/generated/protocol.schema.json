@@ -7,13 +7,8 @@
         "full-main-agent",
         "compact-main-agent",
         "general-sub-agent",
-        "browser-sub-agent",
-        "design-sub-agent",
-        "codebase-sub-agent",
-        "frontend-sub-agent",
-        "backend-sub-agent",
-        "writing-sub-agent",
-        "research-sub-agent",
+        "explore-sub-agent",
+        "verify-sub-agent",
         "hub-main-agent"
       ]
     },
@@ -3433,6 +3428,12 @@
             "$ref": "#/$defs/AgentRole"
           }
         },
+        "heldBy": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AgentRole"
+          }
+        },
         "files": {
           "type": "array",
           "items": {
@@ -3447,6 +3448,7 @@
         "name",
         "description",
         "roles",
+        "heldBy",
         "files",
         "digest"
       ],
@@ -5920,44 +5922,12 @@
     "workspaceFile": "/workspaces/{workspace}/files/{path...}"
   },
   "builtinTools": {
-    "backend-sub-agent": {
-      "arguments": {
-        "$ref": "#/$defs/SubagentCall"
-      },
-      "output": {
-        "$ref": "#/$defs/SubagentLaunched"
-      }
-    },
-    "browser-sub-agent": {
-      "arguments": {
-        "$ref": "#/$defs/SubagentCall"
-      },
-      "output": {
-        "$ref": "#/$defs/SubagentLaunched"
-      }
-    },
-    "codebase-sub-agent": {
-      "arguments": {
-        "$ref": "#/$defs/SubagentCall"
-      },
-      "output": {
-        "$ref": "#/$defs/SubagentLaunched"
-      }
-    },
-    "design-sub-agent": {
-      "arguments": {
-        "$ref": "#/$defs/SubagentCall"
-      },
-      "output": {
-        "$ref": "#/$defs/SubagentLaunched"
-      }
-    },
     "edit_file": {
       "output": {
         "$ref": "#/$defs/FileOutput"
       }
     },
-    "frontend-sub-agent": {
+    "explore-sub-agent": {
       "arguments": {
         "$ref": "#/$defs/SubagentCall"
       },
@@ -6026,14 +5996,6 @@
         "$ref": "#/$defs/UserInputAnswers"
       }
     },
-    "research-sub-agent": {
-      "arguments": {
-        "$ref": "#/$defs/SubagentCall"
-      },
-      "output": {
-        "$ref": "#/$defs/SubagentLaunched"
-      }
-    },
     "run_command": {
       "output": {
         "$ref": "#/$defs/CommandOutput"
@@ -6060,17 +6022,17 @@
         "$ref": "#/$defs/Plan"
       }
     },
-    "write_file": {
-      "output": {
-        "$ref": "#/$defs/FileOutput"
-      }
-    },
-    "writing-sub-agent": {
+    "verify-sub-agent": {
       "arguments": {
         "$ref": "#/$defs/SubagentCall"
       },
       "output": {
         "$ref": "#/$defs/SubagentLaunched"
+      }
+    },
+    "write_file": {
+      "output": {
+        "$ref": "#/$defs/FileOutput"
       }
     }
   },

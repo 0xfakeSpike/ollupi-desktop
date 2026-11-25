@@ -53,7 +53,7 @@ export const skillsDomain: Domain = {
 
 /** The skills of the main agent, which a new conversation runs as. */
 export function mainSkills(list: SkillRow[]): SkillRow[] {
-  return list.filter((s) => agentsOf(s.roles).includes('main'))
+  return list.filter((s) => agentsOf(s.heldBy).includes('main'))
 }
 
 /** ollupi's rule for a skill's name. */

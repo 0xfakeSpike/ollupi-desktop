@@ -38,9 +38,9 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	skills := filepath.Join(home, "skills")
 	writeSkill(t, filepath.Join(skills, "full-main-agent", "draw"), "draw", "Draw it.")
 	writeSkill(t, filepath.Join(skills, "compact-main-agent", "draw"), "draw", "Draw it.")
-	writeSkill(t, filepath.Join(skills, "writing-sub-agent", "draw"), "draw", "Draw it another way.")
-	writeSkill(t, filepath.Join(skills, "writing-sub-agent", "edit"), "edit", "Edit it.")
-	writeSkill(t, filepath.Join(skills, "writing-sub-agent", "wrong"), "other", "Named otherwise.")
+	writeSkill(t, filepath.Join(skills, "explore-sub-agent", "draw"), "draw", "Draw it another way.")
+	writeSkill(t, filepath.Join(skills, "explore-sub-agent", "edit"), "edit", "Edit it.")
+	writeSkill(t, filepath.Join(skills, "explore-sub-agent", "wrong"), "other", "Named otherwise.")
 
 	st, err := storesqlite.Open(home)
 	if err != nil {
@@ -70,7 +70,7 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	if raw, err := os.ReadFile(filepath.Join(home, config.FileName)); err != nil || strings.Contains(string(raw), "skills_dir") {
 		t.Fatalf("the config still names the folder: %s, %v", raw, err)
 	}
-	if _, err := os.Stat(filepath.Join(skills, "writing-sub-agent", "edit", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(skills, "explore-sub-agent", "edit", "SKILL.md")); err != nil {
 		t.Fatal("the folder was not left as it was")
 	}
 
@@ -93,7 +93,7 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 		roles := slices.Sorted(slices.Values(draw.Roles))
-		if !slices.Equal(roles, []string{"compact-main-agent", "full-main-agent", "writing-sub-agent"}) || draw.Instructions != "Draw it." || draw.Version != "2" {
+		if !slices.Equal(roles, []string{"compact-main-agent", "explore-sub-agent", "full-main-agent"}) || draw.Instructions != "Draw it." || draw.Version != "2" {
 			t.Fatalf("%s's draw is %+v", u, draw)
 		}
 		if len(files) != 1 || files[0].Path != "scripts/run.py" {

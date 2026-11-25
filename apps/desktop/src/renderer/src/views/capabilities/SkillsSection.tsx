@@ -1,5 +1,6 @@
 // The capabilities screen's skills: the profile's skills, listed under each
-// agent given them. A skill is one, however many agents have it, and is
+// agent that has them (SkillRow.heldBy: those given them, and the general
+// subagent, which has the main agent's too). A skill is one, however many agents have it, and is
 // listed under each of them; what is done to it is done for all of them.
 // ollupi checks every change with its own rules, and the agents read their
 // skills on each step, so a change applies without a restart.
@@ -61,7 +62,7 @@ export function SkillsSection() {
         </EmptyState>
       ) : (
         skillAgents.map((agent) => {
-          const own = list.filter((x) => agentsOf(x.roles).includes(agent))
+          const own = list.filter((x) => agentsOf(x.heldBy).includes(agent))
           return (
             <AgentSection key={agent} agent={agent} count={own.length}>
               {own.length === 0 ? (
@@ -122,7 +123,7 @@ function SkillCard({ skill, onEdit, onRemove }: { skill: SkillRow; onEdit(): voi
         </span>
       </div>
       <p className="pointer-events-none relative line-clamp-3 text-ui [overflow-wrap:anywhere] text-fg-muted">{skill.description}</p>
-      <p className="pointer-events-none relative mt-1 truncate text-small text-fg-subtle">{m.agents(agentsOf(skill.roles).map((a) => t.agents[a].name))}</p>
+      <p className="pointer-events-none relative mt-1 truncate text-small text-fg-subtle">{m.agents(agentsOf(skill.heldBy).map((a) => t.agents[a].name))}</p>
     </li>
   )
 }

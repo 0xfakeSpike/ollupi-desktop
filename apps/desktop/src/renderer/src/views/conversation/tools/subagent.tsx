@@ -8,7 +8,7 @@
 import { type SubagentRole, reportOf, turnActive, type ToolCall } from '@ollupi/core'
 import type { ItemRow } from '@ollupi/protocol'
 import { Button, Spinner } from '@ollupi/ui'
-import { ArrowUpRight, Bot, FolderTree, Globe, LayoutTemplate, Palette, PenLine, Search, Server, type LucideIcon } from 'lucide-react'
+import { ArrowUpRight, Bot, ListChecks, Search, type LucideIcon } from 'lucide-react'
 import { openThread } from '../../../domains/conversation'
 import { useThreadRequests } from '../../../domains/requests'
 import { useT } from '../../../i18n'
@@ -20,15 +20,10 @@ type Subagent = Extract<ToolCall, { kind: 'subagent' }>
 
 /** How each role shows beside its launch: the icon, and the note that says
  * what it is doing when its task does not. */
-const looks: Record<SubagentRole, { icon: LucideIcon; note?: 'browserSubagent' | 'designSubagent' | 'codebaseSubagent' }> = {
+const looks: Record<SubagentRole, { icon: LucideIcon; note?: 'exploreSubagent' | 'verifySubagent' }> = {
   'general-sub-agent': { icon: Bot },
-  'browser-sub-agent': { icon: Globe, note: 'browserSubagent' },
-  'design-sub-agent': { icon: Palette, note: 'designSubagent' },
-  'codebase-sub-agent': { icon: FolderTree, note: 'codebaseSubagent' },
-  'frontend-sub-agent': { icon: LayoutTemplate },
-  'backend-sub-agent': { icon: Server },
-  'writing-sub-agent': { icon: PenLine },
-  'research-sub-agent': { icon: Search },
+  'explore-sub-agent': { icon: Search, note: 'exploreSubagent' },
+  'verify-sub-agent': { icon: ListChecks, note: 'verifySubagent' },
 }
 
 export const subagent: ToolView<Subagent> = {

@@ -91,14 +91,14 @@ export type { SkillFolder }
  * ollupi runs as one of two roles by the size of the model (a skill of its
  * is given to both, so a conversation that changes model keeps it), the
  * Super Agent (the hub's role), or one kind of subagent. */
-export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'browser-sub-agent' | 'design-sub-agent' | 'codebase-sub-agent' | 'frontend-sub-agent' | 'backend-sub-agent' | 'writing-sub-agent' | 'research-sub-agent'
-export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'browser-sub-agent', 'design-sub-agent', 'codebase-sub-agent', 'frontend-sub-agent', 'backend-sub-agent', 'writing-sub-agent', 'research-sub-agent']
+export type SkillAgent = 'main' | 'hub-main-agent' | 'general-sub-agent' | 'explore-sub-agent' | 'verify-sub-agent'
+export const skillAgents: readonly SkillAgent[] = ['main', 'hub-main-agent', 'general-sub-agent', 'explore-sub-agent', 'verify-sub-agent']
 /** The roles ollupi gives an agent's skill to. */
 export function rolesOf(agent: SkillAgent): AgentRole[] {
   return agent === 'main' ? ['full-main-agent', 'compact-main-agent'] : [agent]
 }
-/** The agents that have a skill given to these roles: the main agent has
- * one given to either of its roles. */
+/** The agents among these roles: the main agent is there when either of
+ * its roles is. */
 export function agentsOf(roles: readonly string[]): SkillAgent[] {
   return skillAgents.filter((agent) => rolesOf(agent).some((role) => roles.includes(role)))
 }

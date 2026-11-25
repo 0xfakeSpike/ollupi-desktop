@@ -196,13 +196,8 @@ function classify(c: CallFacts): ToolCall {
       return { kind: 'question', questions: c.arguments.questions.map((q) => ({ ...q, answers: answers?.[q.id]?.answers })) }
     }
     case 'general-sub-agent':
-    case 'browser-sub-agent':
-    case 'design-sub-agent':
-    case 'codebase-sub-agent':
-    case 'frontend-sub-agent':
-    case 'backend-sub-agent':
-    case 'writing-sub-agent':
-    case 'research-sub-agent':
+    case 'explore-sub-agent':
+    case 'verify-sub-agent':
       if (!isToolPart(builtin, 'arguments', c.arguments)) break
       // The launch completes once the subagent's conversation is started.
       return { kind: 'subagent', task: { ...c.arguments, role: builtin, threadId: c.child } }
@@ -290,13 +285,8 @@ export function commandFailed(output: CommandOutput): boolean {
 export type SubagentRole = Extract<
   BuiltinToolName,
   | 'general-sub-agent'
-  | 'browser-sub-agent'
-  | 'design-sub-agent'
-  | 'codebase-sub-agent'
-  | 'frontend-sub-agent'
-  | 'backend-sub-agent'
-  | 'writing-sub-agent'
-  | 'research-sub-agent'
+  | 'explore-sub-agent'
+  | 'verify-sub-agent'
 >
 
 /** Work the hub hands to a project: a new conversation there with its first
