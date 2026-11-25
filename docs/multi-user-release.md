@@ -1,8 +1,13 @@
 # 发布清单
 
-版本：app `0.8.17-beta.17`，引擎 `v0.35.0`（和 beta.16 相同）。
+版本：app `0.8.17-beta.18`，引擎 `v0.35.1`。
 
 ## 1. 这一版改了什么
+
+beta.18 相对 beta.17：
+
+- 设置改成一整页：各分类依次排下来，每节一个标题和一句说明；左边的分类跟着滚动标出当前所在的一节，点一下滑过去。
+- Super Agent 由后端建：点「开始」后，后端在第一个环境旁边的 `super-agent` 文件夹建好中枢（本机就是原来的 `~/.ollupi/super-agent`，已有的中枢不动）；桌面端不再自己算路径、建文件夹，连远程 ollupid 也能开始。别的工作区不能再改成中枢，中枢的文件夹不能移动。
 
 beta.17 相对 beta.16：
 
@@ -27,11 +32,11 @@ beta.15 相对 beta.14：
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.35.0`：
+sidecar 钉在 `v0.35.1`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.0/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.1/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -41,22 +46,24 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.35.0，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.35.1，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
-grep -ac 'scratch_workspaces' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
+grep -ac 'workspace/startHub' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.17 --prerelease --title "0.8.17-beta.17" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.18 --prerelease --title "0.8.17-beta.18" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 设置：从上滚到下，左边的分类跟着走；点「权限」滑到最后；侧边栏的设置按钮打开在「身份」。
+- 没有 Super Agent 的身份点「开始」，`super-agent` 文件夹建在环境文件夹旁边；已有的中枢照常打开。
 - 设置 → 环境：新增一个环境、改名、删掉；草稿页的环境选择器里没有"管理环境…"。
 - 升上来之后：工作区、会话都在；原来不属于工作区的会话在侧边栏底部的"默认工作区"里。
 - 添加工作区：弹窗里浏览文件夹、新建文件夹、添加。
@@ -67,7 +74,6 @@ gh release create v0.8.17-beta.17 --prerelease --title "0.8.17-beta.17" --notes-
 
 ## 这版的已知限制
 
-- 连远程 ollupid 时 Super Agent 开不起来：它的文件夹建在这台 Mac 上。
 - 还没接任何云沙箱，提供方只有这台电脑。
 - 身份不是本机上的安全边界：同一 macOS 账户下，各身份的文件互相可读。
 - API key 仍明文存在数据库里（沙箱里的命令读不到数据库）。
