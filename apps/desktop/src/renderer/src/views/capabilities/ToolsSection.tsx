@@ -6,8 +6,8 @@
 // servers' tools are listed under their servers.
 
 import type { Annotations, ToolDescriptor } from '@ollupi/protocol'
-import { Badge, ClampText, Details } from '@ollupi/ui'
-import { useMemo } from 'react'
+import { Badge, ClampText, cn, Details } from '@ollupi/ui'
+import { useMemo, useState } from 'react'
 import { agentsOf, skillAgents, type SkillAgent } from '../../../../shared/ipc'
 import { useMcpServers } from '../../domains/mcp'
 import { useTools } from '../../domains/tools'
@@ -16,7 +16,7 @@ import { AgentSection } from './AgentSection'
 
 /** The providers ollupi and this app register, in the order a person meets
  * what they do; one not listed here keeps its own name, after these. */
-const order = ['workspace', 'web', 'browser', 'plan', 'user_input', 'subagents', 'hub', 'memory', 'skills', 'cron', 'context', 'tool_registry']
+const order = ['workspace', 'web', 'browser', 'plan', 'user_input', 'subagents', 'hub', 'memory', 'skills', 'cron', 'context', 'tool_registry', 'deferred_tools']
 type Known = keyof Messages['capabilities']['groups']
 type Groups = [provider: string, tools: ToolDescriptor[]][]
 
@@ -45,17 +45,26 @@ export function ToolsSection() {
 
 function ToolGroups({ groups }: { groups: Groups }) {
   const m = useT()
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set())
+  const toggle = (provider: string, open: boolean) =>
+    setOpened((was) => new Set(open ? [...was, provider] : [...was].filter((p) => p !== provider)))
   return (
-    // Two columns where the column is wide enough; a group opened grows on
-    // its own, not the one beside it.
-    <ul className="grid items-start gap-2.5 @3xl/page:grid-cols-2">
+    // Filled row by row, two to a row where the column is wide enough, the
+    // cards of a row as tall as each other. A group opened takes a row of its
+    // own, so its list never leaves the card beside it alone in a tall row;
+    // the next ones close up behind it.
+    <ul className="grid grid-flow-row-dense gap-2.5 @3xl/page:grid-cols-2">
       {groups.map(([provider, list]) => {
         const group = (m.capabilities.groups as Record<string, { name: string; about: string } | undefined>)[provider as Known]
         return (
-          <li key={provider} className="flex min-w-0 flex-col gap-1 rounded-3xl bg-surface px-5 py-3.5">
+          <li key={provider} className={cn('flex min-w-0 flex-col gap-1 rounded-3xl bg-surface px-5 py-3.5', opened.has(provider) && '@3xl/page:col-span-2')}>
             <span className="text-ui font-medium text-fg">{group?.name ?? provider}</span>
             {group && <p className="text-small text-fg-muted">{group.about}</p>}
-            <Details summary={<span className="text-small text-fg-subtle">{m.capabilities.toolCount(list.length)}</span>}>
+            <Details
+              open={opened.has(provider)}
+              onToggle={(open) => toggle(provider, open)}
+              summary={<span className="text-small text-fg-subtle">{m.capabilities.toolCount(list.length)}</span>}
+            >
               <ul className="mt-2 flex flex-col gap-3">
                 {list.map((t) => (
                   <li key={t.name} className="flex flex-col gap-1">

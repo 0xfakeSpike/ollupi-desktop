@@ -6,8 +6,28 @@ import { ChevronRight } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 import { cn } from './cn'
 
-export function Details({ summary, className, children, defaultOpen = false }: { summary: ReactNode; className?: string; children: ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
+export function Details({
+  summary,
+  className,
+  children,
+  defaultOpen = false,
+  open: given,
+  onToggle,
+}: {
+  summary: ReactNode
+  className?: string
+  children: ReactNode
+  defaultOpen?: boolean
+  /** Whether it is open, for a parent that lays out around it; its own when absent. */
+  open?: boolean
+  onToggle?(open: boolean): void
+}) {
+  const [own, setOwn] = useState(defaultOpen)
+  const open = given ?? own
+  const setOpen = (next: boolean) => {
+    setOwn(next)
+    onToggle?.(next)
+  }
   const id = useId()
   return (
     <div>
