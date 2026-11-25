@@ -3,13 +3,15 @@
 // preview's path leads back: each folder in it lists its files to jump to,
 // and a double-click returns to that folder in the tree. The agent changes
 // files as it works, so reloading reads every open folder again. A
-// Markdown file shows its images, and its links to other files open them.
+// Markdown file shows its images, and its links to other files open them;
+// a CSV or TSV file shows as a table.
 
 import type { WorkspaceRow } from '@ollupi/protocol'
 import { cn, IconButton, Loader } from '@ollupi/ui'
 import { ChevronRight, Code, Eye, File, Folder, FolderOpen, RotateCw } from 'lucide-react'
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { FileEntry, FilePreview } from '../../../../shared/ipc'
+import { parseTable, separatorOf } from '../../domains/csv'
 import { fileMenu, readFolder, readPreview, revealPath } from '../../domains/files'
 import { showFile, usePanelFile } from '../../domains/navigation'
 import { useLocale, useT } from '../../i18n'
@@ -30,7 +32,7 @@ export function FilesPanel({ workspace }: { workspace: WorkspaceRow }) {
   const [version, setVersion] = useState(0)
   // A folder the tree scrolls to once its row is drawn, after the path led back to it.
   const [revealed, setRevealed] = useState<string>()
-  // Markdown shows rendered until asked for its source, and stays so from file to file.
+  // Markdown and tables show rendered until asked for their source, and stay so from file to file.
   const [source, setSource] = useState(false)
   const toggle = (path: string) => setExpanded((s) => flip(s, path))
   const reveal = (folder: string) => {
@@ -232,14 +234,16 @@ function Preview({
     }
   }, [root, path, version])
   const markdown = isMarkdown(path)
-  const rendered = markdown && !source
+  const separator = separatorOf(path)
+  const renders = markdown || separator !== undefined
+  const rendered = renders && !source
   const inFile = useMemo(() => ({ root, path, version }), [root, path, version])
 
   return (
     <div className="flex min-h-full flex-col gap-3">
       <div className="flex items-start gap-1">
         <Crumbs root={root} name={name} path={path} version={version} onOpen={onOpen} onReveal={onReveal} />
-        {markdown && (
+        {renders && (
           <IconButton label={rendered ? t.showSource : t.showRendered} size="sm" onClick={() => onSource(rendered)}>
             {rendered ? <Code size={14} /> : <Eye size={14} />}
           </IconButton>
@@ -255,7 +259,13 @@ function Preview({
         </div>
       ) : file.kind === 'text' ? (
         <>
-          {rendered ? <Markdown text={file.text} file={inFile} /> : <CodeBlock code={file.text} label={languageOf(path)} />}
+          {!rendered ? (
+            <CodeBlock code={file.text} label={languageOf(path)} />
+          ) : markdown ? (
+            <Markdown text={file.text} file={inFile} />
+          ) : (
+            <Table text={file.text} separator={separator!} truncated={file.truncated} label={languageOf(path)} />
+          )}
           {file.truncated && <p className="text-small text-fg-subtle">{t.truncated(fileSize(locale, file.size))}</p>}
         </>
       ) : file.kind === 'image' ? (
@@ -265,6 +275,40 @@ function Preview({
       ) : (
         <p className="text-small text-fg-subtle">{t.binary(fileSize(locale, file.size))}</p>
       )}
+    </div>
+  )
+}
+
+/** A CSV or TSV file as a table, its first row the heading, drawn as a
+ * Markdown table is. A file with no rows shows as its source. */
+function Table({ text, separator, truncated, label }: { text: string; separator: string; truncated: boolean; label: string }) {
+  const rows = useMemo(() => parseTable(text, separator, truncated), [text, separator, truncated])
+  if (rows.length === 0) return <CodeBlock code={text} label={label} />
+  const [head, ...body] = rows
+  return (
+    <div className="markdown">
+      <table>
+        <thead>
+          <tr>
+            {head!.map((cell, i) => (
+              <th key={i}>{cell}</th>
+            ))}
+          </tr>
+        </thead>
+        {body.length > 0 && (
+          <tbody>
+            {body.map((row, r) => (
+              <tr key={r}>
+                {row.map((cell, i) => (
+                  <td key={i} className="whitespace-pre-line">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        )}
+      </table>
     </div>
   )
 }
