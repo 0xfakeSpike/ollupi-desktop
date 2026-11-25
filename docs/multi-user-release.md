@@ -1,15 +1,12 @@
 # 发布清单
 
-版本：app `0.8.17-beta.8`，引擎 `v0.31.0`（beta.7 是 `v0.28.0`）。
+版本：app `0.8.17-beta.9`，引擎 `v0.31.0`（和 beta.8 相同）。
 
 ## 1. 这一版改了什么
 
-- 技能是每个身份自己的，存在引擎里，经网关读写（`skill/list`、`skill/read`、`skill/set`、`skill/delete`、`skill/changed`）。一个技能可以给几个 agent，能力 → 技能里勾选；新建、编辑、导入文件夹在同一个对话框，被拒时对话框里说原因。技能文件夹、"使用技能"开关、复制给另一个 agent 都没有了。
-- 新身份第一次连上时，主 agent 拿到自带技能（`zhou-shenghua-woodcut-style`），删了不再回来。
-- 升级时 `--import-config` 把 `config.yaml` 里的 `skills_dir` 拆掉：各角色文件夹里的技能给每个已有身份，同名合一（内容不同以主 agent 那份为准），再删掉这一行；文件夹原样留在磁盘上。
-- 附件经 HTTP 读（`GET /attachments/{thread}/{attachment}`），不再用 `attachment/read` 走 WebSocket（引擎 v0.30.0）。
-- 列表和 `*/changed` 通知按 seq 合并，晚到的旧读取不再盖掉新改动（引擎 v0.29.0）。
-- 飞书机器人去掉了。`config.yaml` 里还写着 `feishu:` 块（不是注释）的，后端会以未知字段拒绝启动，删掉这一块即可。
+- 可以连另一台机器上的 ollupid：设置 → 连接里填 `wss://` 地址（SSH 隧道时可用回环地址上的 `ws://`）、网关令牌 `<secret>.<profile>` 和 Cloudflare Access 的服务令牌。密钥用 safeStorage 封存在 `remote.json`，不回到渲染进程。远程模式下不启动本机 sidecar；主进程只给那一个主机的请求加 `CF-Access-Client-Id`/`Secret`，CSP 的 connect-src 只放行它。连不上时读出是谁拒绝的（401 令牌、403 Access、403 "host not allowed" 是 cloudflared 没改写 Host），停在失败状态并说明原因，不再无限重连。部署见 `docs/remote-mac-mini.md`。
+- `config.yaml` 没有 `workspace` 块了：`run_command`、`edit_file`、`write_file` 总是打开，沙箱用引擎默认（工作区可写、不联网、命令默认 30 秒超时，单次最多 600 秒）。启动时 `--import-config` 把旧文件里的这一块删掉，其余内容和注释原样保留。
+- 从旧配置里删键（`skills_dir`、`workspace`）时，上方属于前一项的注释段落不再一起丢。
 
 ## 2. 引擎
 
@@ -27,27 +24,26 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新引擎（第一行要是 v0.31.0，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.31.0，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
+grep -ac 'still has a workspace block' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 grep -ac 'skill/set' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
-grep -ac 'read-skill' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.8 --prerelease --title "0.8.17-beta.8" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.9 --prerelease --title "0.8.17-beta.9" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
-- 从 beta.7 升上来：会话、工作区、身份、设置都在；原来技能文件夹里的技能出现在能力 → 技能，卡片上写着给了哪些 agent；`config.yaml` 里没有 `skills_dir` 了。
-- 编辑一个技能，多勾一个 agent，保存后卡片马上更新；新建一个技能，主 agent 下一步能用 `list_skills` 看到它。
-- 导入一个带脚本的技能文件夹，对话框里文件数对；不是文本的文件列在下面。
+- 从 beta.8 升上来：会话、工作区、身份、技能、设置都在；`config.yaml` 里没有 `workspace` 块了，其余内容和注释都在。
+- 新会话里让 agent 跑一条命令、改一个文件：照常能做，写工作区外面会被沙箱拒绝。
+- 设置 → 连接：不填时照常用本机后端；填一个远程地址保存后，窗口重新加载并连上远程；令牌填错时显示是令牌被拒，而不是一直重连。
 - 新建一个身份，切过去：能力 → 技能里有自带的配图技能。
-- 会话里带图片的消息，图片照常显示（附件走 HTTP）。
 
 ## 这版的已知限制
 
