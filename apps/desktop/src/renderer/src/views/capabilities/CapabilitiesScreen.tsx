@@ -1,5 +1,7 @@
-// What the agent can do, in one place: its skills, the MCP servers that give
-// it tools, and the tools it has built in.
+// What the agents can do, in one place: their skills, the MCP servers that
+// give them tools, and the tools they have built in. Each agent has its
+// own: ollupi gives a skill to the agents chosen for it, and a role keeps
+// the tools of some providers only, so each tab lists them agent by agent.
 
 import { Tabs } from '@ollupi/ui'
 import { go, type CapabilityTab } from '../../domains/navigation'

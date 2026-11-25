@@ -1,8 +1,8 @@
-// The capabilities screen's skills: the profile's skills, each given to the
-// agents that use it. A skill is one, however many agents have it; what is
-// done to it is done for all of them. ollupi checks every change with its
-// own rules, and the agents read their skills on each step, so a change
-// applies without a restart.
+// The capabilities screen's skills: the profile's skills, listed under each
+// agent given them. A skill is one, however many agents have it, and is
+// listed under each of them; what is done to it is done for all of them.
+// ollupi checks every change with its own rules, and the agents read their
+// skills on each step, so a change applies without a restart.
 
 import type { SkillRow } from '@ollupi/protocol'
 import { Badge, Button, Callout, Checkbox, Details, Dialog, EmptyState, Field, IconButton, Input, Loader, Textarea } from '@ollupi/ui'
@@ -13,6 +13,7 @@ import { importFolder, nameError, readSkill, removeSkill, saveSkill, useSkills, 
 import { useT } from '../../i18n'
 import { desktop } from '../../platform/desktop'
 import { Wolf } from '../common/Wolf'
+import { AgentSection, None } from './AgentSection'
 
 /** The dialog open on a skill: a new one, one read from a folder, or one
  * the profile has. */
@@ -59,11 +60,22 @@ export function SkillsSection() {
           {s.emptyHint}
         </EmptyState>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-2.5">
-          {list.map((x) => (
-            <SkillCard key={x.name} skill={x} onEdit={() => setEditing({ kind: 'edit', name: x.name })} onRemove={() => remove(x)} />
-          ))}
-        </ul>
+        skillAgents.map((agent) => {
+          const own = list.filter((x) => agentsOf(x.roles).includes(agent))
+          return (
+            <AgentSection key={agent} agent={agent} count={own.length}>
+              {own.length === 0 ? (
+                <None>{m.capabilities.noSkills}</None>
+              ) : (
+                <ul className="grid grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-2.5">
+                  {own.map((x) => (
+                    <SkillCard key={x.name} skill={x} onEdit={() => setEditing({ kind: 'edit', name: x.name })} onRemove={() => remove(x)} />
+                  ))}
+                </ul>
+              )}
+            </AgentSection>
+          )
+        })
       )}
       {editing?.kind === 'new' && <SkillDialog title={m.skills.dialog.newTitle} initial={blank} taken={taken} onClose={close} />}
       {editing?.kind === 'import' && (

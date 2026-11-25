@@ -1,4 +1,5 @@
-// The tools the agent has built in, from ollupi and this app's browser,
+// The tools the agents have built in, from ollupi and this app's browser,
+// listed under each agent whose role keeps them (ToolDescriptor.roles) and
 // grouped by what they let it do: each group says so in a line, and opens
 // into its tools with the names permission rules use and the hints ollupi
 // uses for permissions (tools.Annotations), worded for a person. MCP
@@ -7,33 +8,46 @@
 import type { Annotations, ToolDescriptor } from '@ollupi/protocol'
 import { Badge, ClampText, Details } from '@ollupi/ui'
 import { useMemo } from 'react'
+import { agentsOf, skillAgents, type SkillAgent } from '../../../../shared/ipc'
 import { useMcpServers } from '../../domains/mcp'
 import { useTools } from '../../domains/tools'
 import { useT, type Messages } from '../../i18n'
+import { AgentSection } from './AgentSection'
 
 /** The providers ollupi and this app register, in the order a person meets
  * what they do; one not listed here keeps its own name, after these. */
-const order = ['workspace', 'web', 'browser', 'plan', 'user_input', 'subagent', 'hub', 'memory', 'skills', 'cron', 'context', 'tool_registry']
+const order = ['workspace', 'web', 'browser', 'plan', 'user_input', 'subagents', 'hub', 'memory', 'skills', 'cron', 'context', 'tool_registry']
 type Known = keyof Messages['capabilities']['groups']
+type Groups = [provider: string, tools: ToolDescriptor[]][]
 
 export function ToolsSection() {
-  const m = useT()
   const tools = useTools((s) => s.list)
   // An MCP server is its tools' provider. Select the stored list itself: a
   // selector that builds a new array each call never settles.
   const serverList = useMcpServers((s) => s.list)
   const servers = useMemo(() => serverList?.map((x) => x.name), [serverList])
-  const byProvider = useMemo(() => {
-    const groups = new Map<string, ToolDescriptor[]>()
-    for (const t of tools) if (!servers?.includes(t.provider)) groups.set(t.provider, [...(groups.get(t.provider) ?? []), t])
+  const byAgent = useMemo(() => {
     const rank = (p: string) => (order.includes(p) ? order.indexOf(p) : order.length)
-    return [...groups].sort(([a], [b]) => rank(a) - rank(b))
+    return skillAgents.map((agent): [SkillAgent, Groups] => {
+      const groups = new Map<string, ToolDescriptor[]>()
+      for (const t of tools) if (!servers?.includes(t.provider) && agentsOf(t.roles).includes(agent)) groups.set(t.provider, [...(groups.get(t.provider) ?? []), t])
+      return [agent, [...groups].sort(([a], [b]) => rank(a) - rank(b))]
+    })
   }, [tools, servers])
 
   if (!servers) return null
+  return byAgent.map(([agent, groups]) => (
+    <AgentSection key={agent} agent={agent} count={groups.reduce((n, [, list]) => n + list.length, 0)}>
+      <ToolGroups groups={groups} />
+    </AgentSection>
+  ))
+}
+
+function ToolGroups({ groups }: { groups: Groups }) {
+  const m = useT()
   return (
     <ul className="flex flex-col divide-y divide-canvas rounded-3xl bg-surface">
-      {byProvider.map(([provider, list]) => {
+      {groups.map(([provider, list]) => {
         const group = (m.capabilities.groups as Record<string, { name: string; about: string } | undefined>)[provider as Known]
         return (
           <li key={provider} className="flex flex-col gap-1 px-5 py-3.5">

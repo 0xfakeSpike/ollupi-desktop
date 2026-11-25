@@ -25,8 +25,8 @@ export const en = {
     browser: { name: 'Browser', about: 'Looks at pages, clicks and fills in forms in the built-in browser, where you can watch and take over.' },
     plan: { name: 'Plan', about: 'Writes a plan for work with several steps and keeps it up to date.' },
     user_input: { name: 'Asking you', about: 'Stops to ask you when a choice is yours.' },
-    subagent: { name: 'Helpers', about: 'Hands part of the work to a helper that works alongside it.' },
-    hub: { name: 'Super Agent', about: 'Only the Super Agent has these: it hands work to your projects, follows it, and keeps your todos.' },
+    subagents: { name: 'Helpers', about: 'Hands part of the work to a helper that works alongside it.' },
+    hub: { name: 'Super Agent', about: 'Hands work to your projects, follows it, and keeps your todos.' },
     memory: { name: 'Memory', about: 'Looks up and writes down what it knows about you.' },
     skills: { name: 'Skills', about: 'Opens a skill when it needs one.' },
     cron: { name: 'Scheduled tasks', about: 'Creates, pauses and deletes scheduled tasks.' },
@@ -34,6 +34,10 @@ export const en = {
     tool_registry: { name: 'Finding tools', about: 'Looks up which tools there are and loads the ones it needs.' },
   },
   toolCount: (n: number) => (n === 1 ? '1 tool' : `${n} tools`),
+  /** Under an agent given none of the profile's skills. */
+  noSkills: 'No skills given to it yet.',
+  /** Under an agent whose role keeps no MCP server's tools. */
+  noMcp: 'Can’t use MCP servers.',
 }
 
 export const zh: typeof en = {
@@ -58,8 +62,8 @@ export const zh: typeof en = {
     browser: { name: '浏览器', about: '在内置浏览器里看网页、点按钮、填表，你可以看着，也可以接手。' },
     plan: { name: '计划', about: '把多步骤的事列成计划，边做边更新。' },
     user_input: { name: '问你', about: '轮到你做决定时，停下来问你。' },
-    subagent: { name: '帮手', about: '把一部分工作交给帮手，一起做。' },
-    hub: { name: 'Super Agent', about: '只有 Super Agent 有：把事情交给各个项目、跟进进展、管你的待办。' },
+    subagents: { name: '帮手', about: '把一部分工作交给帮手，一起做。' },
+    hub: { name: 'Super Agent', about: '把事情交给各个项目、跟进进展、管你的待办。' },
     memory: { name: '记忆', about: '查找和记下关于你的事。' },
     skills: { name: '技能', about: '需要时打开一个技能。' },
     cron: { name: '定时任务', about: '创建、暂停和删除定时任务。' },
@@ -67,4 +71,6 @@ export const zh: typeof en = {
     tool_registry: { name: '找工具', about: '查有哪些工具，按需载入。' },
   },
   toolCount: (n) => `${n} 个工具`,
+  noSkills: '还没有给它的技能。',
+  noMcp: '用不了 MCP 服务器。',
 }

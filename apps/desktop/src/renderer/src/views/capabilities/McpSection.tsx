@@ -1,14 +1,18 @@
-// The user's MCP servers beside how each is doing. ollupi keeps them and
-// applies a change without a restart; what a server runs with is kept as
-// it is written.
+// The user's MCP servers beside how each is doing, listed under each agent
+// whose role keeps their tools (MCPServer.roles); an agent that keeps none
+// is told so. A server is one, however many agents have it. ollupi keeps
+// them and applies a change without a restart; what a server runs with is
+// kept as it is written.
 
 import type { MCPServer } from '@ollupi/protocol'
 import { Badge, Button, Dialog, Field, IconButton, Input, Select, Textarea } from '@ollupi/ui'
 import { Pencil, Plus, RotateCw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { agentsOf, skillAgents } from '../../../../shared/ipc'
 import { nameError, refreshMcp, removeServer, saveServer, useMcpServers, type McpFields } from '../../domains/mcp'
 import { useTools } from '../../domains/tools'
 import { useT, type Messages } from '../../i18n'
+import { AgentSection, None } from './AgentSection'
 
 export function McpSection() {
   const m = useT()
@@ -19,18 +23,6 @@ export function McpSection() {
 
   return (
     <>
-      {servers.length === 0 && <p className="text-ui text-fg-subtle">{m.settings.mcp.empty}</p>}
-      {servers.map((s) => (
-        <ServerCard
-          key={s.name}
-          server={s}
-          tools={tools.filter((t) => t.provider === s.name).map((t) => t.name)}
-          onEdit={() => setEditing({ name: s.name })}
-          onRemove={() => {
-            if (confirm(m.settings.mcp.confirmRemove(s.name))) void removeServer(s.name)
-          }}
-        />
-      ))}
       <div className="flex gap-2">
         <Button icon={<Plus size={14} />} onClick={() => setEditing({})}>
           {m.settings.mcp.addServer}
@@ -41,6 +33,34 @@ export function McpSection() {
           </Button>
         )}
       </div>
+      {servers.length === 0 ? (
+        <p className="text-ui text-fg-subtle">{m.settings.mcp.empty}</p>
+      ) : (
+        skillAgents.map((agent) => {
+          const own = servers.filter((s) => agentsOf(s.roles).includes(agent))
+          return (
+            <AgentSection key={agent} agent={agent} count={own.length}>
+              {own.length === 0 ? (
+                <None>{m.capabilities.noMcp}</None>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {own.map((s) => (
+                    <ServerCard
+                      key={s.name}
+                      server={s}
+                      tools={tools.filter((t) => t.provider === s.name).map((t) => t.name)}
+                      onEdit={() => setEditing({ name: s.name })}
+                      onRemove={() => {
+                        if (confirm(m.settings.mcp.confirmRemove(s.name))) void removeServer(s.name)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </AgentSection>
+          )
+        })
+      )}
       {editing && (
         <ServerDialog
           server={servers.find((s) => s.name === editing.name)}
