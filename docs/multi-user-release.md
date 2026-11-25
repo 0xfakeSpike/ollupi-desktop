@@ -1,14 +1,14 @@
 # 发布清单
 
-版本：app `0.8.17-beta.11`，引擎 `v0.33.1`（beta.10 是 `v0.32.0`）。
+版本：app `0.8.17-beta.12`，引擎 `v0.33.1`（和 beta.11 相同）。
 
 ## 1. 这一版改了什么
 
-- 身份就是 ollupi 库里的用户，带名字（迁移 0022 的 `users.name`），没有颜色了。运营者连接经网关 `user/list`、`user/create`、`user/update` 管理身份，改动发 `user/changed`；普通连接只看得到自己，可以给自己改名。
-- `~/.ollupi/profiles.json` 没有了：升级时 `--import-config` 把里面的身份和名字搬进库，再删掉文件。主进程只记这台 Mac 选的身份，选的身份不在了就退回库里第一个。
-- token 只认库里已有的身份，不再当场开户；全新的数据目录由 sidecar 启动时建第一个身份 `default`，新建的身份由 `gateway.Options.Welcome` 放自带技能。`--delete-profile` 拒绝删最后一个身份。
-- 设置 → 身份 去掉了颜色；侧栏的设置按钮换成齿轮图标。
-- 引擎 v0.33.1：没有模型的部署 `model/list` 回 `[]` 而不是 `null`（beta.10 在全新数据目录里会因此白屏）。
+- 没有 `config.yaml` 了：后端不读任何配置文件，名字固定为 `ollupi`，系统提示词、工具和槽位都用 ollupi 的默认值。沙箱只禁读 `<home>/data`。
+- 升级时 `--import-config` 把旧 `config.yaml` 里的模型、身份、技能搬进数据库，最后删掉这个文件（不留备份）；名字、prompt、工具、slots 的值不保留。
+- 设置 → 通用 去掉了 `config.yaml` 一行；后端启动失败的页面去掉了"打开配置"。
+- 主进程里导入旧文件、删除身份数据的类改名为 `BackendHome`（`main/backend/home.ts`）。
+- 文件面板里 CSV、TSV 文件按表格预览。
 
 ## 2. 引擎
 
@@ -30,21 +30,21 @@ pnpm release
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
+grep -ac 'main.removeConfig' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 grep -ac 'user/create' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
-grep -ac 'profiles.json' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid
 ```
 
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.11 --prerelease --title "0.8.17-beta.11" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.12 --prerelease --title "0.8.17-beta.12" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
-- 从 beta.10 升上来：设置 → 身份 里身份和名字都在，没有颜色；`~/.ollupi/profiles.json` 没有了。
-- 改一个身份的名字，侧栏和身份列表马上更新；新建一个身份并切过去，能力 → 技能里有自带的配图技能。
-- 删除一个不在用的身份；只剩一个身份时删不掉。
+- 从 beta.11 升上来：`~/.ollupi/config.yaml` 没有了；模型、身份、技能、会话都在。
+- 设置 → 通用 里只有应用日志和数据文件夹两行路径。
+- 发一条消息照常回答，agent 能跑命令、改工作区里的文件。
 
 ## 这版的已知限制
 
