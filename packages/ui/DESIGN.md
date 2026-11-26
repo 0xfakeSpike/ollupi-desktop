@@ -445,7 +445,7 @@ agent 产出的每一块用同一个骨架，区别只在重量：
 
 | 浮层 | 何时用 | 规格 |
 |---|---|---|
-| **对话框** | 多字段编辑：定时任务、会话权限、工作区设置、MCP、模型服务商；破坏性确认 | `max-w-dialog`（480）或 `dialog-wide`（640）；`rounded-4xl shadow-lg`；背后 `bg-scrim`；标题区 `px-6 pt-6`，`text-title` + 一句 `fg-muted` 说明；底部 `px-6 pb-6` 右对齐 lg 按钮，内容滚动时才出现顶部细线 |
+| **对话框** | 多字段编辑：定时任务、会话权限、工作区设置、MCP、模型服务商；破坏性确认 | `max-w-dialog`（480）或 `dialog-wide`（640）；`rounded-4xl shadow-lg`；背后 `bg-scrim`；标题区 `px-6 pt-6`，`text-title` + 一句 `fg-muted` 说明；底部 `px-6 pb-6` 右对齐 lg 按钮，内容滚动时才出现顶部细线；有底部按钮时靠「取消」关闭，右上角不放 ×，没有底部按钮的才放 |
 | **选择浮层** | 模型、审批策略、工作区选择 | `@ollupi/ui` 的 `Picker`：`rounded-2xl shadow-md p-1`，选项 `rounded-xl min-h-8 px-2.5`，可带一行 `text-small fg-muted` 说明，选中项 `selected` 底 + 对勾；按来源分组：组标题是名单里的一行「小标题」——来源名 `text-small font-semibold fg-muted`，后面一个 `bg-hover` 圆角小药丸里的模型数（`text-caption tabular-nums fg-subtle`），再一根 `bg-line` 细线拉到右端；滚动时标题钉在列表顶部（`sticky`，横贯整个浮层宽度，选项从它下面穿过），一眼能看出眼前这些模型属于哪个来源。长列表顶部有查找框；动作项在细线下面。上方空间更大时向上展开。`↑` `↓` 移动、`↵` 选择、`Esc` 关闭并回到触发器；点外面或窗口失焦时关闭，点选后不把焦点还给触发器（免得留下焦点环） |
 | **方块菜单** | 标题栏的导出：几个去处或动作，要一眼看全、离按钮都近 | `@ollupi/ui` 的 `TileMenu`：和触发器右边对齐，`rounded-2xl shadow-md p-1`，宽 352；去处两两一行排成方块（`rounded-xl px-3 py-2.5`），图标和名称（`text-ui font-semibold`）一行、下面一行 `text-small fg-muted` 说明，开着的那块苔色底加对勾；动作在细线下面两两一行。**指针停在触发器上 90ms 就展开**，离开触发器和菜单 260ms 后收起，是浮层里唯一不用点的；点击打开的要点外面才关。触控不靠悬停。`↓` / `↵` 打开并聚焦第一块，方向键按格子走，第一行按 `↑` 回到触发器，`Esc` 关闭。各块按离触发器的远近依次淡入（每块晚 25ms） |
 | **面板里的小浮层** | 文件面板的"打开方式"、浏览器的历史和标签 | `rounded-2xl shadow-lg p-1` |

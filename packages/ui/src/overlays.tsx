@@ -13,7 +13,8 @@ export interface DialogProps {
   footer?: ReactNode
   /** 640px for long forms; 480px otherwise. */
   wide?: boolean
-  /** The close button's accessible label, in the app's language. */
+  /** The close button's accessible label, in the app's language. The button
+   * shows only without a footer: a footer carries its own Cancel. */
   closeLabel: string
 }
 
@@ -55,7 +56,9 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
   // masked or clipped container (the sidebar's list fades its edges with a
   // mask) would otherwise be masked and clipped with it.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex animate-fade items-center justify-center bg-scrim p-6" onMouseDown={onClose}>
+    // no-drag: the window's drag regions (the page headers) lie under the
+    // dialog and would otherwise take its clicks there.
+    <div className="fixed inset-0 z-50 flex animate-fade items-center justify-center bg-scrim p-6 [-webkit-app-region:no-drag]" onMouseDown={onClose}>
       <div
         role="dialog"
         data-region
@@ -72,9 +75,11 @@ export function Dialog({ title, description, onClose, children, footer, wide, cl
             <h2 className="text-title text-fg">{title}</h2>
             {description && <p className="mt-1 text-ui text-fg-muted">{description}</p>}
           </div>
-          <IconButton label={closeLabel} size="sm" className="-mt-0.5 -mr-1" onClick={onClose}>
-            <X size={14} />
-          </IconButton>
+          {!footer && (
+            <IconButton label={closeLabel} size="sm" className="-mt-0.5 -mr-1" onClick={onClose}>
+              <X size={14} />
+            </IconButton>
+          )}
         </div>
         <div ref={body} className="overflow-y-auto px-6 py-4">
           <div ref={content}>{children}</div>
