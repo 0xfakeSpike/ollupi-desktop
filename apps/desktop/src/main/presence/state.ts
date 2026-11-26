@@ -20,7 +20,6 @@ export interface PresenceSpan {
   id: string
   state: PresenceState
   threadId: string
-  todoId: number
   workspaceId: string
   start: number
   end: number
@@ -45,7 +44,6 @@ export interface MachineOptions {
 interface Wanted {
   state: PresenceState
   threadId: string
-  todoId: number
   workspaceId: string
 }
 
@@ -113,12 +111,12 @@ export class PresenceMachine {
 
   private wanted(): Wanted | undefined {
     if (this.awayNow || this.idle >= this.idleLimit) return undefined
-    if (!this.focused) return { state: 'elsewhere', threadId: '', todoId: 0, workspaceId: '' }
-    if (!this.context) return { state: 'in_app', threadId: '', todoId: 0, workspaceId: '' }
-    // The interface names the conversation and its project; which todo the
-    // conversation works on is not known yet, so the stretch carries none.
+    if (!this.focused) return { state: 'elsewhere', threadId: '', workspaceId: '' }
+    if (!this.context) return { state: 'in_app', threadId: '', workspaceId: '' }
+    // The interface names the conversation and its project; the todos it
+    // works on are the backend's to find from the conversation.
     const { threadId, workspaceId } = this.context
-    return { state: 'seen', threadId, todoId: 0, workspaceId }
+    return { state: 'seen', threadId, workspaceId }
   }
 
   private evaluate(): void {
@@ -132,13 +130,13 @@ export class PresenceMachine {
     const open = this.open
     this.open = undefined
     if (!open || at <= open.start) return
-    const { id, state, threadId, todoId, workspaceId, start } = open
-    this.opts.write({ id, state, threadId, todoId, workspaceId, start, end: at })
+    const { id, state, threadId, workspaceId, start } = open
+    this.opts.write({ id, state, threadId, workspaceId, start, end: at })
   }
 }
 
 /** Whether the open stretch already says what the moment wants. */
 function same(open: Wanted, wanted: Wanted | undefined): boolean {
   if (!wanted) return false
-  return open.state === wanted.state && open.threadId === wanted.threadId && open.todoId === wanted.todoId && open.workspaceId === wanted.workspaceId
+  return open.state === wanted.state && open.threadId === wanted.threadId && open.workspaceId === wanted.workspaceId
 }

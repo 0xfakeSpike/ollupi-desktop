@@ -148,13 +148,11 @@ export class Presence {
   }
 }
 
-/** A stretch as the gateway takes it: times as ISO strings, todo and workspace
- * carried along even while nothing fills them. */
+/** A stretch as the gateway takes it: times as ISO strings. */
 function row(span: PresenceSpan): PresenceInput {
   return {
     id: span.id,
     threadId: span.threadId,
-    todoId: span.todoId,
     workspaceId: span.workspaceId,
     state: span.state,
     start: new Date(span.start).toISOString(),

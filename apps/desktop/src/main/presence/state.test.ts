@@ -41,7 +41,7 @@ describe('PresenceMachine', () => {
     machine.stop()
 
     expect(spans).toHaveLength(1)
-    expect(spans[0]).toMatchObject({ state: 'seen', threadId: 't1', todoId: 0, workspaceId: 'w1' })
+    expect(spans[0]).toMatchObject({ state: 'seen', threadId: 't1', workspaceId: 'w1' })
     expect(lengths(spans)).toEqual([90_000])
     expect(machine.isOpen).toBe(false)
   })
