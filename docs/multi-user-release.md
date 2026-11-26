@@ -1,8 +1,15 @@
 # 发布清单
 
-版本：app `0.8.17-beta.26`，引擎 `v0.35.10`。
+版本：app `0.8.17-beta.27`，引擎 `v0.35.11`。
 
 ## 1. 这一版改了什么
+
+beta.27 相对 beta.26（引擎 v0.35.10 → v0.35.11）：
+
+- 弹窗：有底栏的弹窗用"取消"关闭，不再另外放关闭按钮；没有底栏的保留关闭按钮。窗口的拖动区域（页面标题栏）不再挡住弹窗上的点击，关闭按钮点得动了。
+- 停留时长不再记待办：一段时间只记它在看的会话，一件待办的时间就是它连着的会话的时间。数据库迁移 0029 删掉 `presence.todo_id`（原来一直是 0，没有数据要搬）。
+- 已结束轮次的工具输出，只有缩短后能省下至少十分之一的输入窗口时才缩短；短会话里不再为此丢掉缓存。
+- 协议：`PresenceInput` 去掉 `todoId`，`presence/summary` 不再能按 `todo` 汇总。要配 v0.35.11 的 ollupid。
 
 beta.26 相对 beta.25（引擎 v0.35.9 → v0.35.10）：
 
@@ -83,11 +90,11 @@ beta.15 相对 beta.14：
 
 ## 2. 引擎
 
-sidecar 钉在 `v0.35.10`：
+sidecar 钉在 `v0.35.11`：
 
 ```bash
 grep 0xfakeSpike/ollupi ~/Desktop/yiming/ollupi-desktop/sidecar/go.mod
-ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.10/store/sqlite/migrations/ | tail -2
+ls ~/go/pkg/mod/github.com/0xfake\!spike/ollupi@v0.35.11/store/sqlite/migrations/ | tail -2
 ```
 
 ## 3. 打包
@@ -97,7 +104,7 @@ cd ~/Desktop/yiming/ollupi-desktop
 pnpm release
 ```
 
-打完确认二进制是新的（第一行要是 v0.35.10，后两行 0 就是没进去）：
+打完确认二进制是新的（第一行要是 v0.35.11，后两行 0 就是没进去）：
 
 ```bash
 go version -m apps/desktop/release/mac-arm64/Ollupi.app/Contents/Resources/bin/ollupid | grep 0xfakeSpike/ollupi
@@ -108,11 +115,13 @@ grep -ac 'terminal/open' apps/desktop/release/mac-arm64/Ollupi.app/Contents/Reso
 ## 4. 发到 GitHub
 
 ```bash
-gh release create v0.8.17-beta.26 --prerelease --title "0.8.17-beta.26" --notes-file notes.md <dmg> <zip> latest-mac.yml
+gh release create v0.8.17-beta.27 --prerelease --title "0.8.17-beta.27" --notes-file notes.md <dmg> <zip> latest-mac.yml
 ```
 
 ## 5. 装完自查
 
+- 打开一个底栏有"取消"的弹窗：没有右上角的关闭按钮，点"取消"关掉；在设置等有标题栏的页面上打开的弹窗，点得动。
+- 升上来之后打开一个会话待一会儿：标题栏的"花了多久"照常增加，之前的时间还在。
 - 升上来之后打开一个以前派过研究或浏览器子 agent 的会话：调用行和子 agent 会话都还能打开。
 - 让主 agent 查一件事：派的是探索子 agent，调用行有放大镜和"只看不改"；让它做完后验收：派验收子 agent，标"只查不改"，它不改文件。
 - 能力 → 技能：只有主 agent、Super Agent、通用、探索、验收五段；升上来后原来主 agent 的技能在通用子 agent 那段也有（迁移 0028 补的）；新建一个只给主 agent 的技能，通用子 agent 那段没有它。
@@ -135,7 +144,7 @@ gh release create v0.8.17-beta.26 --prerelease --title "0.8.17-beta.26" --notes-
 - 文件面板看 Markdown（相对路径的图片能显示）、PDF；环境面板暂存、提交、丢弃一个新文件（进废纸篓）。
 - 终端：关掉面板再开，之前的输出还在；`cat ~/.ollupi/data/store.sqlite` 被拒。
 - 发一张粘贴的截图和一个拖进来的文件。
-- 连远程 ollupid（同为 v0.35.10）时，上面这些面板都能用。
+- 连远程 ollupid（同为 v0.35.11）时，上面这些面板都能用。
 
 ## 这版的已知限制
 
