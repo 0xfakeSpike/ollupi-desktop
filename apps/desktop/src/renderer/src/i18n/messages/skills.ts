@@ -22,7 +22,7 @@ export const en = {
   /** Each agent and what it is, which a skill is given to. */
   agents: {
     main: { name: 'Main agent', about: 'The agent you talk to, on a model of any size.' },
-    'general-sub-agent': { name: 'General subagent', about: 'Does any part of the work the main agent hands it, with the main agent’s skills as well as its own.' },
+    'general-sub-agent': { name: 'General subagent', about: 'Does any part of the work the main agent hands it, and changes what the task needs.' },
     'explore-sub-agent': { name: 'Explore subagent', about: 'Finds things out in the project, on the web and in the browser, and cites each finding; it changes no file.' },
     'verify-sub-agent': { name: 'Verify subagent', about: 'Checks finished work against its criteria — builds, tests, tries it — and fixes nothing.' },
     'hub-main-agent': { name: 'Super Agent', about: 'Plans across your projects and hands each part to the project it belongs in.' },
@@ -39,7 +39,7 @@ export const en = {
     instructions: 'Instructions',
     instructionsHint: 'Markdown the agent follows once the skill is active. Keep it under 500 lines; put details in its files.',
     agents: 'Given to',
-    agentsHint: 'Each agent sees only the skills given to it; the general subagent also has the main agent’s.',
+    agentsHint: 'Each agent sees only the skills given to it.',
     agentsNone: 'Give it to at least one agent.',
     files: (n: number) => (n === 1 ? '1 file' : `${n} files`),
     filesHint: 'Kept as they came with the skill. The agent finds them in its sandbox once it activates the skill.',
@@ -68,7 +68,7 @@ export const zh: typeof en = {
   },
   agents: {
     main: { name: '主 agent', about: '和你对话的 agent，用什么大小的模型都一样。' },
-    'general-sub-agent': { name: '通用子 agent', about: '主 agent 交给它的活都能做；主 agent 的技能它也有。' },
+    'general-sub-agent': { name: '通用子 agent', about: '主 agent 交给它的活都能做，需要时动手改。' },
     'explore-sub-agent': { name: '探索子 agent', about: '在项目里、网上和浏览器里查清楚一件事，每个结论都给出处；不改任何文件。' },
     'verify-sub-agent': { name: '验收子 agent', about: '按标准检查做完的活——构建、跑测试、亲手试——只报告，不修。' },
     'hub-main-agent': { name: 'Super Agent', about: '跨项目统筹，把每件事交给它所在的项目。' },
@@ -85,7 +85,7 @@ export const zh: typeof en = {
     instructions: '指令',
     instructionsHint: '技能启用后 agent 遵循的 Markdown。不要超过 500 行，细节放到它的文件里。',
     agents: '给哪些 agent',
-    agentsHint: '每个 agent 只看得到给了它的技能；通用子 agent 还有主 agent 的。',
+    agentsHint: '每个 agent 只看得到给了它的技能。',
     agentsNone: '至少给一个 agent。',
     files: (n) => `${n} 个文件`,
     filesHint: '按技能带来的样子原样保留。agent 启用技能后，在它的沙箱里能找到这些文件。',

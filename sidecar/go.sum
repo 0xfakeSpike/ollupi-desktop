@@ -6,8 +6,8 @@ cloud.google.com/go/auth/oauth2adapt v0.2.8 h1:keo8NaayQZ6wimpNSmW5OPc283g65QNIi
 cloud.google.com/go/auth/oauth2adapt v0.2.8/go.mod h1:XQ9y31RkqZCcwJWNSx2Xvric3RrU88hAYYbjDWYDL+c=
 cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdBtwLoEkH9Zs=
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
-github.com/0xfakeSpike/ollupi v0.35.9 h1:LHih7K/ACVTLkxd0NpEs98m6376K6H3rYVoXZPK1FI8=
-github.com/0xfakeSpike/ollupi v0.35.9/go.mod h1:6MDL0WqdQVk8ks7KHdYsMRkU9Nu8aN5liG12agWMsTg=
+github.com/0xfakeSpike/ollupi v0.35.10 h1:cPSsz//wNWp3ajCarBTd1I3m8BCWqyEte3ztuNCcJFY=
+github.com/0xfakeSpike/ollupi v0.35.10/go.mod h1:6MDL0WqdQVk8ks7KHdYsMRkU9Nu8aN5liG12agWMsTg=
 github.com/JohannesKaufmann/dom v0.3.1 h1:J16l9JAHWgkFPR3VIPbQ1gvS0cWab6laK1q7PFL3qh0=
 github.com/JohannesKaufmann/dom v0.3.1/go.mod h1:BZPkf8ZeYrBgABjwJn9iiKt8aiCtkxpHkevms+Yp2DE=
 github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2 h1:XFJZFWESIWlUEHHjzBuv8RvrtCWnSGlimEX17ysSDb8=
