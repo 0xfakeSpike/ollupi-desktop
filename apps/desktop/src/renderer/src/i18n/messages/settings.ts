@@ -198,6 +198,7 @@ export const en = {
     remove: 'Remove',
     removeConfirm: 'Remove the Cloudflare sandbox? Environments already built on it stop working; conversations on this Mac are not touched.',
     onServer: 'Connected to a server: the sandboxes are the ones that server was started with, and this Mac’s bridge does not apply.',
+    environmentName: 'Cloudflare',
   },
 
   usage: {
@@ -527,6 +528,7 @@ export const zh: typeof en = {
     remove: '移除',
     removeConfirm: '移除 Cloudflare 沙箱？建在它上面的环境将无法运行；这台 Mac 上的会话不受影响。',
     onServer: '连的是服务器：沙箱由那台服务器启动时决定，本机这个桥不生效。',
+    environmentName: 'Cloudflare',
   },
 
   usage: {

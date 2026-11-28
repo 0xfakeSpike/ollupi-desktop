@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { SandboxSettings } from '../../../../shared/ipc'
 import {
   addEnvironment,
+  CLOUDFLARE_PROVIDER,
   defaultEnvironment,
   deleteEnvironment,
   environmentName,
@@ -109,6 +110,16 @@ function CloudSandbox() {
       .catch((err: unknown) => setError(errorMessage(err)))
   }, [])
   useEffect(reload, [reload])
+
+  // A bridge leaves one environment of it to use: the backend offers the
+  // provider once it is built with the bridge, and the profile in use gets an
+  // environment then, unless it has one already.
+  const providers = useEnvironments((s) => s.providers)
+  useEffect(() => {
+    if (!state?.url || onServer || !providers.some((p) => p.id === CLOUDFLARE_PROVIDER)) return
+    if (useEnvironments.getState().list.some((e) => e.provider === CLOUDFLARE_PROVIDER)) return
+    void addEnvironment(t.environmentName, CLOUDFLARE_PROVIDER)
+  }, [state?.url, onServer, providers, t.environmentName])
 
   if (onServer) return <p className="text-small text-fg-subtle">{t.onServer}</p>
 

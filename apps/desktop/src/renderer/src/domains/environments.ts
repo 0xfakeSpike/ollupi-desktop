@@ -19,6 +19,9 @@ export const useEnvironments = create<{ list: EnvironmentRow[]; providers: Sandb
 /** The provider of this machine's sandboxes, as the backend names it. */
 export const LOCAL_PROVIDER = 'local'
 
+/** The provider of Cloudflare's sandboxes, as the backend names it. */
+export const CLOUDFLARE_PROVIDER = 'cloudflare'
+
 /** What the backend names the first environment of this machine. */
 const LOCAL_NAME = 'This computer'
 
