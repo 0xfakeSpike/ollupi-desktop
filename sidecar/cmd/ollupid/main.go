@@ -32,6 +32,8 @@ import (
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/handshake"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
+	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
+	"github.com/0xfakeSpike/ollupi/sandbox/cloudflare"
 	"github.com/0xfakeSpike/ollupi/store"
 	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -117,7 +119,11 @@ func run(home, listen string, origins, hosts []string, watchStdin bool) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, AllowedOrigins: origins, AllowedHosts: hosts, Browser: browserEndpoint()})
+	sandboxes, err := sandboxProviders()
+	if err != nil {
+		return err
+	}
+	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, AllowedOrigins: origins, AllowedHosts: hosts, Sandboxes: sandboxes, Browser: browserEndpoint()})
 	if err != nil {
 		return err
 	}
@@ -137,6 +143,21 @@ func run(home, listen string, origins, hosts []string, watchStdin bool) error {
 	// as fatal rather than after a ready line.
 	handshake.Ready(fmt.Sprintf("ws://%s/", ln.Addr()), version(), h.Profiles(ctx))
 	return h.Serve(ctx, ln)
+}
+
+// sandboxProviders are the sandboxes this backend offers besides this
+// machine: the Cloudflare bridge the app gives it in SANDBOX_API_URL, as
+// `ollupi serve` takes its own.
+func sandboxProviders() (map[string]sandbox.Provider, error) {
+	address := strings.TrimSpace(os.Getenv("SANDBOX_API_URL"))
+	if address == "" {
+		return nil, nil
+	}
+	p, err := cloudflare.New(cloudflare.Config{BaseURL: address, APIKey: os.Getenv("SANDBOX_API_KEY")})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]sandbox.Provider{"cloudflare": p}, nil
 }
 
 // browserEndpoint is where the app's built-in browser answers: the desktop

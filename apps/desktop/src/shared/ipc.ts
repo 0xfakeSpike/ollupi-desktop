@@ -68,6 +68,22 @@ export interface ServerInput {
   accessClientSecret: string
 }
 
+/** The Cloudflare sandbox bridge the backend this Mac runs offers its
+ * environments: one container per environment, where a conversation's
+ * commands run instead of on this Mac. The token never comes back to the
+ * renderer: only whether it is kept. */
+export interface SandboxSettings {
+  /** https://host, or empty when the backend offers this machine only. */
+  url: string
+  hasKey: boolean
+}
+
+/** What the person saves. An empty token keeps the one already kept. */
+export interface SandboxInput {
+  url: string
+  key: string
+}
+
 export interface AppInfo {
   version: string
   platform: string
@@ -305,6 +321,16 @@ export interface DesktopApi {
     /** Forgets a server not in use. */
     remove(id: string): Promise<void>
   }
+  /** The Cloudflare sandbox bridge this Mac's backend offers its
+   * environments; a server's backend offers whatever it was started with. */
+  sandbox: {
+    read(): Promise<SandboxSettings>
+    /** Keeps the bridge and starts the backend again, so the environments it
+     * makes can be built there. */
+    save(input: SandboxInput): Promise<void>
+    /** Stops offering it, and starts the backend again. */
+    clear(): Promise<void>
+  }
   /** Skills are each profile's, in the store, over the gateway; a folder
    * on this Mac is read here for import. */
   skills: {
@@ -446,6 +472,9 @@ export const IpcChannel = {
   ServersSave: 'servers:save',
   ServersSelect: 'servers:select',
   ServersRemove: 'servers:remove',
+  SandboxRead: 'sandbox:read',
+  SandboxSave: 'sandbox:save',
+  SandboxClear: 'sandbox:clear',
   SkillsImport: 'skills:import',
   ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',

@@ -187,6 +187,19 @@ export const en = {
     pickerDescription: 'The server this window connects to. The one in use is marked; another starts the backend over and reloads the window.',
   },
 
+  cloudflare: {
+    title: 'Cloudflare sandbox',
+    description: 'A second kind of sandbox for the backend this Mac runs: a container on Cloudflare, one per environment, where a conversation’s commands run instead of here.',
+    url: 'Bridge address',
+    urlHint: 'The sandbox bridge’s address, e.g. https://sandbox-bridge.example.workers.dev.',
+    token: 'Bridge token',
+    tokenHint: 'The bridge’s SANDBOX_API_KEY, kept encrypted with this Mac’s keychain.',
+    kept: 'Kept; leave empty to keep it',
+    remove: 'Remove',
+    removeConfirm: 'Remove the Cloudflare sandbox? Environments already built on it stop working; conversations on this Mac are not touched.',
+    onServer: 'Connected to a server: the sandboxes are the ones that server was started with, and this Mac’s bridge does not apply.',
+  },
+
   usage: {
     period: 'Period',
     periods: { d7: '7 days', d30: '30 days' },
@@ -501,6 +514,19 @@ export const zh: typeof en = {
     removeConfirm: (name) => `忘记服务器 ${name}？`,
     pickerTitle: '选择服务器',
     pickerDescription: '这个窗口连接哪个服务器。正在使用的一个有标记；切换会重启后端并刷新窗口。',
+  },
+
+  cloudflare: {
+    title: 'Cloudflare 沙箱',
+    description: '给这台 Mac 运行的后端多加一种沙箱：Cloudflare 上的容器，每个环境一个，会话的命令在那里跑，而不是在这台 Mac 上。',
+    url: '桥地址',
+    urlHint: 'sandbox bridge 的地址，例如 https://sandbox-bridge.example.workers.dev。',
+    token: '桥 token',
+    tokenHint: '桥的 SANDBOX_API_KEY，用本机钥匙串加密保存。',
+    kept: '已保存，留空不变',
+    remove: '移除',
+    removeConfirm: '移除 Cloudflare 沙箱？建在它上面的环境将无法运行；这台 Mac 上的会话不受影响。',
+    onServer: '连的是服务器：沙箱由那台服务器启动时决定，本机这个桥不生效。',
   },
 
   usage: {

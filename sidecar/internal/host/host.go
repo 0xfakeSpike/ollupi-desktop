@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/browser"
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/skills"
+	"github.com/0xfakeSpike/ollupi/pkg/sandbox"
 	"github.com/0xfakeSpike/ollupi/server"
 	"github.com/0xfakeSpike/ollupi/tool/kit"
 )
@@ -35,6 +36,9 @@ type Options struct {
 	// AllowedHosts are Host header names beyond localhost, for a backend
 	// reached through a proxy that keeps its public name.
 	AllowedHosts []string
+	// Sandboxes are the providers an environment can be of besides this
+	// machine, by id (a cloud's); empty offers this machine alone.
+	Sandboxes map[string]sandbox.Provider
 	// Browser is where the app's built-in browser answers; nil outside the
 	// app, which has none.
 	Browser *browser.Endpoint
@@ -59,6 +63,7 @@ func New(ctx context.Context, opts Options) (*Host, error) {
 		AllowedOrigins: opts.AllowedOrigins,
 		AllowedHosts:   opts.AllowedHosts,
 		Tools:          tools,
+		Sandboxes:      opts.Sandboxes,
 		// The app connects as the first profile until the operator makes
 		// others; it is unnamed, and starts with the skills the desktop
 		// ships.

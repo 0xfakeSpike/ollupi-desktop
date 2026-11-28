@@ -22,6 +22,11 @@ const api: DesktopApi = {
     select: (id) => ipcRenderer.invoke(IpcChannel.ServersSelect, id),
     remove: (id) => ipcRenderer.invoke(IpcChannel.ServersRemove, id),
   },
+  sandbox: {
+    read: () => ipcRenderer.invoke(IpcChannel.SandboxRead),
+    save: (input) => ipcRenderer.invoke(IpcChannel.SandboxSave, input),
+    clear: () => ipcRenderer.invoke(IpcChannel.SandboxClear),
+  },
   skills: {
     import: () => ipcRenderer.invoke(IpcChannel.SkillsImport),
   },

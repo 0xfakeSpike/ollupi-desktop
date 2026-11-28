@@ -5,10 +5,12 @@
 // workspace is a folder of one, so the user's first environment and any
 // environment in use stay: ollupi refuses to remove them.
 
+import { errorMessage } from '@ollupi/client'
 import type { EnvironmentRow } from '@ollupi/protocol'
-import { Button, IconButton, Input, Select } from '@ollupi/ui'
+import { Button, Field, IconButton, Input, Select } from '@ollupi/ui'
 import { Cloud, Laptop, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import type { SandboxSettings } from '../../../../shared/ipc'
 import {
   addEnvironment,
   defaultEnvironment,
@@ -20,7 +22,10 @@ import {
   renameEnvironment,
   useEnvironments,
 } from '../../domains/environments'
+import { confirmRestart } from '../../domains/restart'
+import { useConnection } from '../../gateway/connection'
 import { useT } from '../../i18n'
+import { desktop } from '../../platform/desktop'
 
 export function EnvironmentsSection() {
   const t = useT().conversation.environments
@@ -74,7 +79,99 @@ export function EnvironmentsSection() {
             {t.add}
           </Button>
         </form>
+        <CloudSandbox />
     </div>
+  )
+}
+
+/** The Cloudflare sandbox bridge this Mac's backend offers, if the person
+ * gave it one: environments built there run in a container of their own. A
+ * server's backend offers whatever it was started with, so this is this
+ * Mac's alone. */
+function CloudSandbox() {
+  const m = useT()
+  const t = m.settings.cloudflare
+  // The bridge is the backend's, which a server's connection is not.
+  const onServer = useConnection((s) => s.backend.status === 'ready' && s.backend.server === true)
+  const [state, setState] = useState<SandboxSettings>()
+  const [url, setUrl] = useState('')
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+
+  const reload = useCallback(() => {
+    void desktop.sandbox
+      .read()
+      .then((s) => {
+        setState(s)
+        setUrl(s.url)
+      })
+      .catch((err: unknown) => setError(errorMessage(err)))
+  }, [])
+  useEffect(reload, [reload])
+
+  if (onServer) return <p className="text-small text-fg-subtle">{t.onServer}</p>
+
+  const save = async (): Promise<void> => {
+    // Another backend starts, and the turns running here stop with it.
+    if (!confirmRestart()) return
+    setBusy(true)
+    setError(undefined)
+    try {
+      await desktop.sandbox.save({ url, key })
+      setKey('')
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const clear = async (): Promise<void> => {
+    if (!confirm(t.removeConfirm)) return
+    setBusy(true)
+    setError(undefined)
+    try {
+      await desktop.sandbox.clear()
+      reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-ui font-medium text-fg">{t.title}</h3>
+        <p className="text-small text-fg-subtle">{t.description}</p>
+      </div>
+      <Field label={t.url} hint={t.urlHint}>
+        <Input value={url} placeholder="https://sandbox-bridge.example.workers.dev" spellCheck={false} onChange={(e) => setUrl(e.target.value)} />
+      </Field>
+      <Field label={t.token} hint={t.tokenHint}>
+        <Input
+          type="password"
+          value={key}
+          placeholder={state?.hasKey ? t.kept : undefined}
+          autoComplete="off"
+          onChange={(e) => setKey(e.target.value)}
+        />
+      </Field>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="primary" loading={busy} disabled={!url.trim()} onClick={() => void save()}>
+          {m.common.save}
+        </Button>
+        {state?.url && (
+          <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => void clear()}>
+            {t.remove}
+          </Button>
+        )}
+      </div>
+      {error && <p className="text-small text-warning">{error}</p>}
+    </section>
   )
 }
 

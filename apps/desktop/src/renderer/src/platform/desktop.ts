@@ -23,6 +23,7 @@ function browserShim(): DesktopApi | undefined {
     info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', backendLog: '', userHome: '' }),
     backend: { state: async () => state, restart: async () => {}, check: async () => {}, onState: () => () => {} },
     servers: { read: async () => ({ active: LOCAL_SERVER, servers: [] }), save: unavailable, select: unavailable, remove: unavailable },
+    sandbox: { read: async () => ({ url: '', hasKey: false }), save: unavailable, clear: unavailable },
     // The token is the one the browser was opened with, and names the one
     // profile this tab acts as; nothing can mint another here.
     profile: {
@@ -91,6 +92,7 @@ export const desktop: DesktopApi = window.desktop ??
     info: unavailable,
     backend: { state: unavailable, restart: unavailable, check: unavailable, onState: unavailable },
     servers: { read: unavailable, save: unavailable, select: unavailable, remove: unavailable },
+    sandbox: { read: unavailable, save: unavailable, clear: unavailable },
     skills: { import: unavailable },
     profile: { delete: unavailable, select: unavailable },
     browser: {

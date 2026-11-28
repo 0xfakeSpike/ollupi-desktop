@@ -5,11 +5,12 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, LOCAL_SERVER, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type ServerInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, LOCAL_SERVER, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type SandboxInput, type ServerInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
 import type { BackendHome } from './backend/home'
 import type { BackendSkills } from './backend/skills'
+import type { SandboxStore } from './backend/sandbox'
 import type { ServerStore, ServerTarget } from './backend/servers'
 import { START_PAGE, typedPage } from './browser/address'
 import type { Bookmarks } from './browser/bookmarks'
@@ -26,6 +27,7 @@ import type { AppUpdater } from './update'
 export function registerIpc(
   backend: BackendSupervisor,
   servers: ServerStore,
+  sandboxes: SandboxStore,
   backendHome: BackendHome,
   skills: BackendSkills,
   browser: AgentBrowser,
@@ -57,6 +59,18 @@ export function registerIpc(
     await reconnect(servers, backend, before)
   })
   ipcMain.handle(IpcChannel.ServersRemove, (_event, id: unknown) => servers.remove(serverID(id)))
+  ipcMain.handle(IpcChannel.SandboxRead, () => sandboxes.read())
+  // What a backend offers as sandboxes is fixed at its start, so a change
+  // starts it again: the window reconnects and reads the providers with its
+  // environments.
+  ipcMain.handle(IpcChannel.SandboxSave, async (_event, input: unknown) => {
+    await sandboxes.save(sandboxInput(input))
+    await backend.restart()
+  })
+  ipcMain.handle(IpcChannel.SandboxClear, async () => {
+    await sandboxes.clear()
+    await backend.restart()
+  })
   ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
     const source = await pickDirectory(event.sender)
     return source === undefined ? undefined : skills.read(source)
@@ -216,6 +230,11 @@ function serverID(value: unknown): string {
   const id = text(value)
   if (id !== LOCAL_SERVER && !id) throw new Error('expected a server')
   return id
+}
+
+function sandboxInput(value: unknown): SandboxInput {
+  const v = value as Partial<SandboxInput> | null
+  return { url: text(v?.url), key: text(v?.key) }
 }
 
 /** Restarts the backend and reloads the windows when what the window

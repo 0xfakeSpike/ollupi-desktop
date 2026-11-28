@@ -9,6 +9,7 @@ import { BackendHome } from './backend/home'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
 import { serverRefusal, serverSources, ServerStore, sendAccessToken } from './backend/servers'
+import { SandboxStore } from './backend/sandbox'
 import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
@@ -36,8 +37,10 @@ if (!app.requestSingleInstanceLock()) {
   const noted = (work: Promise<void>) => void work.catch((err: unknown) => console.error('browser history not kept', err))
   browser.on('visited', (url: string, title: string) => noted(history.visit(url, title)))
   browser.on('titled', (url: string, title: string) => noted(history.title(url, title)))
-  // Every start and check of the backend reaches the app's browser.
-  const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
+  // Every start and check of the backend reaches the app's browser, and the
+  // Cloudflare bridge this Mac was given, if any.
+  const sandboxes = new SandboxStore(join(app.getPath('userData'), 'sandbox.json'), safeStorage)
+  const env = async () => ({ ...(await backendEnv()), ...(await sandboxes.env()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
   const servers = new ServerStore(join(app.getPath('userData'), 'servers.json'), safeStorage, join(app.getPath('userData'), 'remote.json'))
   const backend = new BackendSupervisor({
@@ -93,7 +96,7 @@ if (!app.requestSingleInstanceLock()) {
     // backend starts, and config.yaml goes. A failed import is said in the
     // log; the backend starts all the same.
     await homeFiles.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
-    registerIpc(backend, servers, homeFiles, skills, browser, bookmarks, history, updater, presence, home, backendLog)
+    registerIpc(backend, servers, sandboxes, homeFiles, skills, browser, bookmarks, history, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.
     const newWindow = () => {
