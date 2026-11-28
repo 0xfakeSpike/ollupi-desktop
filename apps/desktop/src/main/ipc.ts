@@ -5,12 +5,12 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, shell, type WebContents } from 'electron'
 import { rm, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { apiTypes, appThemes, colorSchemes, IpcChannel, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type RemoteInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
+import { apiTypes, appThemes, colorSchemes, IpcChannel, LOCAL_SERVER, type ApiType, type AppTheme, type AppInfo, type BackendState, type BrowserBounds, type BrowserDownload, type BrowserPermission, type BrowserState, type ColorScheme, type ContextMenuItem, type PresenceAck, type PresenceContext, type ServerInput, type ThreadNotice, type UpdateState } from '../shared/ipc'
 import { setAppIcon } from './appIcon'
 import { activeProfile, PROFILE_ID, rememberProfile } from './profile'
 import type { BackendHome } from './backend/home'
 import type { BackendSkills } from './backend/skills'
-import type { RemoteStore } from './backend/remote'
+import type { ServerStore, ServerTarget } from './backend/servers'
 import { START_PAGE, typedPage } from './browser/address'
 import type { Bookmarks } from './browser/bookmarks'
 import type { AgentBrowser } from './browser/browser'
@@ -25,7 +25,7 @@ import type { AppUpdater } from './update'
 
 export function registerIpc(
   backend: BackendSupervisor,
-  remote: RemoteStore,
+  servers: ServerStore,
   backendHome: BackendHome,
   skills: BackendSkills,
   browser: AgentBrowser,
@@ -41,18 +41,22 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.BackendState, () => backend.state)
   ipcMain.handle(IpcChannel.BackendRestart, () => backend.restart())
   ipcMain.handle(IpcChannel.BackendCheck, () => backend.check())
-  ipcMain.handle(IpcChannel.RemoteRead, () => remote.read())
-  // Switching to or from a remote, or to another one, starts the backend
-  // over and reloads the windows, whose CSP names the one host they reach.
-  // Settings kept while the window runs its own change nothing yet.
-  ipcMain.handle(IpcChannel.RemoteSave, async (_event, input: unknown) => {
-    const before = await remote.read()
-    await remote.save(remoteInput(input))
-    const after = await remote.read()
-    if (!before.enabled && !after.enabled) return
-    await backend.restart()
-    for (const win of BrowserWindow.getAllWindows()) win.webContents.reload()
+  ipcMain.handle(IpcChannel.ServersRead, () => servers.read())
+  // A new server, an edit or a switch that changes what the window connects
+  // to starts the backend over and reloads the windows, whose CSP names the
+  // one host they reach. Settings kept while the window runs its own change
+  // nothing yet.
+  ipcMain.handle(IpcChannel.ServersSave, async (_event, input: unknown) => {
+    const before = await servers.target().catch(() => undefined)
+    await servers.save(serverInput(input))
+    await reconnect(servers, backend, before)
   })
+  ipcMain.handle(IpcChannel.ServersSelect, async (_event, id: unknown) => {
+    const before = await servers.target().catch(() => undefined)
+    await servers.select(serverID(id))
+    await reconnect(servers, backend, before)
+  })
+  ipcMain.handle(IpcChannel.ServersRemove, (_event, id: unknown) => servers.remove(serverID(id)))
   ipcMain.handle(IpcChannel.SkillsImport, async (event) => {
     const source = await pickDirectory(event.sender)
     return source === undefined ? undefined : skills.read(source)
@@ -60,6 +64,9 @@ export function registerIpc(
   ipcMain.handle(IpcChannel.ProfileDelete, async (_event, profile: unknown) => {
     const id = profileID(profile)
     if (id === activeProfile()) throw new Error('switch away from a profile before deleting it')
+    // The profiles a server holds are its store's, which this Mac cannot
+    // reach; the local backend would be the one deleted from.
+    if (backend.onRemote) throw new Error('a profile of a server is not deleted from this Mac')
     // The backend refuses the last profile, and one with a turn running.
     const threads = await backendHome.deleteProfile(id)
     await Promise.all(threads.map((thread) => rm(join(home, 'attachments', thread), { recursive: true, force: true })))
@@ -197,10 +204,32 @@ function askId(value: unknown): number {
   return value as number
 }
 
-function remoteInput(value: unknown): RemoteInput {
-  const v = value as Partial<RemoteInput> | null
-  if (typeof v?.enabled !== 'boolean') throw new Error('expected remote settings')
-  return { enabled: v.enabled, url: text(v.url), token: text(v.token), accessClientId: text(v.accessClientId), accessClientSecret: text(v.accessClientSecret) }
+function serverInput(value: unknown): ServerInput {
+  const v = value as Partial<ServerInput> | null
+  const id = v?.id
+  if (id !== undefined && typeof id !== 'string') throw new Error('expected a server')
+  return { id, name: text(v?.name), url: text(v?.url), token: text(v?.token), accessClientId: text(v?.accessClientId), accessClientSecret: text(v?.accessClientSecret) }
+}
+
+/** A server's id, or the one this app runs itself. */
+function serverID(value: unknown): string {
+  const id = text(value)
+  if (id !== LOCAL_SERVER && !id) throw new Error('expected a server')
+  return id
+}
+
+/** Restarts the backend and reloads the windows when what the window
+ * connects to changed: another address, token or Access token. */
+async function reconnect(servers: ServerStore, backend: BackendSupervisor, before: ServerTarget | undefined): Promise<void> {
+  const after = await servers.target().catch(() => undefined)
+  if (sameTarget(before, after)) return
+  await backend.restart()
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.reload()
+}
+
+function sameTarget(a: ServerTarget | undefined, b: ServerTarget | undefined): boolean {
+  if (!a || !b) return a === b
+  return a.url === b.url && a.token === b.token && a.access?.clientId === b.access?.clientId && a.access?.clientSecret === b.access?.clientSecret
 }
 
 /** A profile id, as the backend names one: its hub folder is a folder of

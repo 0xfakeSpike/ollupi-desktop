@@ -6,6 +6,7 @@ import type { Profile } from '../../../../shared/ipc'
 import { confirmRestart } from '../../domains/restart'
 import { notify } from '../../domains/notices'
 import { createProfile, deleteProfile, profileName, renameProfile, switchProfile, useProfile } from '../../domains/profile'
+import { useConnection } from '../../gateway/connection'
 import { useT } from '../../i18n'
 
 /** The profiles of the backend, the one the window acts as first. The
@@ -18,6 +19,9 @@ export function ProfilesSection() {
   const list = useProfile((s) => s.list)
   const currentId = useProfile((s) => s.current)
   const operator = useProfile((s) => s.operator)
+  // A server's token names the profile the connection acts as, so switching
+  // or deleting from here would say one thing and do another.
+  const onServer = useConnection((s) => s.backend.status === 'ready' && s.backend.server === true)
   const [making, setMaking] = useState(false)
   const [editing, setEditing] = useState<Profile>()
   const ordered = [...list.filter((p) => p.id === currentId), ...list.filter((p) => p.id !== currentId)]
@@ -39,8 +43,9 @@ export function ProfilesSection() {
               <span className="min-w-0 truncate text-ui font-medium text-fg">{profileName(p, m.unnamed)}</span>
               {current && <Badge>{m.current}</Badge>}
               <span className="flex-1" />
-              {/* The one in use is not deleted: switch away first. */}
-              {!current && operator && (
+              {/* The one in use is not deleted: switch away first, which a
+                  server's token does not allow from here. */}
+              {!current && operator && !onServer && (
                 <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => remove(p)}>
                   {m.delete}
                 </Button>
@@ -48,7 +53,7 @@ export function ProfilesSection() {
               <Button size="sm" onClick={() => setEditing(p)}>
                 {m.edit}
               </Button>
-              {!current && (
+              {!current && !onServer && (
                 <Button size="sm" onClick={() => void switchProfile(p.id)}>
                   {m.switch}
                 </Button>
@@ -64,6 +69,7 @@ export function ProfilesSection() {
           </Button>
         </div>
       )}
+      {onServer && <p className="text-small text-fg-subtle">{m.serverFixed}</p>}
       {making && <ProfileDialog onClose={() => setMaking(false)} />}
       {editing && <ProfileDialog profile={editing} onClose={() => setEditing(undefined)} />}
     </>
@@ -74,6 +80,7 @@ export function ProfilesSection() {
 function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): void }) {
   const t = useT()
   const m = t.shell.profiles
+  const onServer = useConnection((s) => s.backend.status === 'ready' && s.backend.server === true)
   const [name, setName] = useState(profile?.name ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
@@ -88,7 +95,8 @@ function ProfileDialog({ profile, onClose }: { profile?: Profile; onClose(): voi
         if (rename) await renameProfile(profile, name.trim())
       } else {
         const created = await createProfile(name.trim())
-        await switchProfile(created.id)
+        // A server's token keeps the old profile; switching is editing the token.
+        if (!onServer) await switchProfile(created.id)
       }
       onClose()
     } catch (err) {

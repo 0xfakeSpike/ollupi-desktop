@@ -4,22 +4,22 @@
 import { Button, Callout, Loader } from '@ollupi/ui'
 import { Globe, RotateCw, TriangleAlert } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import type { BackendFailure } from '../../../../shared/ipc'
+import { LOCAL_SERVER, type BackendFailure } from '../../../../shared/ipc'
 import { openPath } from '../../domains/files'
 import { useConnection } from '../../gateway/connection'
 import { useT, type Messages } from '../../i18n'
 import { desktop } from '../../platform/desktop'
-import { RemoteDialog } from '../settings/RemoteSection'
+import { ServersDialog } from '../settings/ServersSection'
 
 export function BackendScreen() {
   const backend = useConnection((s) => s.backend)
   const gateway = useConnection((s) => s.gateway)
   const lastError = useConnection((s) => s.lastError)
   const m = useT().shell.backend
-  // The settings are out of reach until the first sync, so a remote that
-  // cannot be reached is set up again from here.
-  const [remote, setRemote] = useState(false)
-  useEffect(() => void desktop.remote.read().then((s) => setRemote(s.enabled)), [backend])
+  // The settings are out of reach until the first sync, so a server that
+  // cannot be reached is changed from here.
+  const [onServer, setOnServer] = useState(false)
+  useEffect(() => void desktop.servers.read().then((s) => setOnServer(s.active !== LOCAL_SERVER)), [backend])
 
   if (backend.status === 'failed') {
     return (
@@ -35,7 +35,7 @@ export function BackendScreen() {
       <div className="flex flex-col items-center gap-3 text-ui text-fg-muted">
         <Loader label={label} />
         {gateway === 'reconnecting' && lastError && <div className="text-small text-fg-subtle">{lastError}</div>}
-        {remote && <ConnectionSettings />}
+        {onServer && <ConnectionSettings />}
       </div>
     </Shell>
   )
@@ -99,6 +99,7 @@ function failureText(m: Messages, f: BackendFailure): string {
   }
 }
 
+/** The servers to choose among, while the settings cannot be reached. */
 function ConnectionSettings() {
   const [open, setOpen] = useState(false)
   const m = useT().shell.backend
@@ -107,7 +108,7 @@ function ConnectionSettings() {
       <Button size="lg" icon={<Globe size={16} />} onClick={() => setOpen(true)}>
         {m.connectionSettings}
       </Button>
-      {open && <RemoteDialog onClose={() => setOpen(false)} />}
+      {open && <ServersDialog onClose={() => setOpen(false)} />}
     </>
   )
 }

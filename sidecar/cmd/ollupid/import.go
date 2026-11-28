@@ -10,8 +10,8 @@ import (
 	"slices"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
 	"github.com/0xfakeSpike/ollupi/account"
+	"github.com/0xfakeSpike/ollupi/server"
 	"github.com/0xfakeSpike/ollupi/store"
 	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
 )
@@ -173,7 +173,7 @@ func importProviders(home string) ([]string, error) {
 }
 
 func importProfile(tx store.Tx, p config.LegacyProfile, served []string) error {
-	if err := tx.EnsureUser(p.ID, host.FirstEnvironment()); err != nil {
+	if err := tx.EnsureUser(p.ID, server.FirstEnvironment()); err != nil {
 		return err
 	}
 	if name, err := account.UserName(p.Name); err == nil {
@@ -243,7 +243,7 @@ func importProfiles(home string) ([]string, error) {
 			if !slices.Contains(ids, e.ID) {
 				continue
 			}
-			if err := tx.EnsureUser(e.ID, host.FirstEnvironment()); err != nil {
+			if err := tx.EnsureUser(e.ID, server.FirstEnvironment()); err != nil {
 				return err
 			}
 			if name, err := account.UserName(e.Name); err == nil {

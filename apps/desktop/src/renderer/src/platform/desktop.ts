@@ -1,7 +1,7 @@
 // The only module that touches window.desktop, so the rest of the renderer
 // depends on the typed DesktopApi rather than a global.
 
-import type { BackendState, DesktopApi } from '../../../shared/ipc'
+import { LOCAL_SERVER, type BackendState, type DesktopApi } from '../../../shared/ipc'
 
 declare global {
   interface Window {
@@ -22,7 +22,7 @@ function browserShim(): DesktopApi | undefined {
   return {
     info: async () => ({ version: 'dev', platform: 'browser', home: q.get('home') ?? '', backendLog: '', userHome: '' }),
     backend: { state: async () => state, restart: async () => {}, check: async () => {}, onState: () => () => {} },
-    remote: { read: async () => ({ enabled: false, url: '', accessClientId: '', hasToken: false, hasAccessSecret: false }), save: unavailable },
+    servers: { read: async () => ({ active: LOCAL_SERVER, servers: [] }), save: unavailable, select: unavailable, remove: unavailable },
     // The token is the one the browser was opened with, and names the one
     // profile this tab acts as; nothing can mint another here.
     profile: {
@@ -90,7 +90,7 @@ export const desktop: DesktopApi = window.desktop ??
   browserShim() ?? {
     info: unavailable,
     backend: { state: unavailable, restart: unavailable, check: unavailable, onState: unavailable },
-    remote: { read: unavailable, save: unavailable },
+    servers: { read: unavailable, save: unavailable, select: unavailable, remove: unavailable },
     skills: { import: unavailable },
     profile: { delete: unavailable, select: unavailable },
     browser: {

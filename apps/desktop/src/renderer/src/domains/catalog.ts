@@ -1,6 +1,6 @@
 // The deployment's catalog of models, as its operator reads and sets it:
 // ollupi keeps it in its store, the same for every profile. A connection of
-// the operator (the app's own, to the backend this Mac runs, or a remote's
+// the operator (the app's own, to the backend this Mac runs, or a server's
 // operator token) reads it with the keys and sets it whole; ollupi checks it
 // and tells every operator connection of the change (catalog/changed), and
 // every connection of the models its profile now chooses among

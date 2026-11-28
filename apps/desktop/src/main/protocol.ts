@@ -6,7 +6,7 @@ import { join, normalize, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { APP_HOST, APP_SCHEME } from '../shared/ipc'
 
-const CSP = (remote: string[]) => [
+const CSP = (sources: string[]) => [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
@@ -15,9 +15,8 @@ const CSP = (remote: string[]) => [
   "font-src 'self' data:",
   // A PDF in the files panel, from its bytes.
   'frame-src blob:',
-  // The backend this Mac runs, or the one remote ollupid the window is set
-  // to connect to.
-  ['connect-src ws://127.0.0.1:* http://127.0.0.1:*', ...remote].join(' '),
+  // The backend this Mac runs, and the host of the server in use.
+  ['connect-src ws://127.0.0.1:* http://127.0.0.1:*', ...sources].join(' '),
 ].join('; ')
 
 /** Must run before the app is ready. */
@@ -25,8 +24,8 @@ export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }])
 }
 
-/** remote: the sources of the remote ollupid the window connects to, if any. */
-export function serveRenderer(root: string, remote: () => Promise<string[]>): void {
+/** sources: the origins of the server in use, if it is not this Mac's. */
+export function serveRenderer(root: string, sources: () => Promise<string[]>): void {
   protocol.handle(APP_SCHEME, async (request) => {
     const url = new URL(request.url)
     if (url.host !== APP_HOST) return new Response('not found', { status: 404 })
@@ -34,7 +33,7 @@ export function serveRenderer(root: string, remote: () => Promise<string[]>): vo
     if (relative(root, file).startsWith('..')) return new Response('forbidden', { status: 403 })
     const res = await net.fetch(pathToFileURL(file).toString())
     const headers = new Headers(res.headers)
-    headers.set('Content-Security-Policy', CSP(await remote()))
+    headers.set('Content-Security-Policy', CSP(await sources()))
     return new Response(res.body, { status: res.status, headers })
   })
 }

@@ -1,8 +1,9 @@
-// Command ollupid is the desktop app's backend: it embeds the ollupi agent and
-// serves its gateway on a loopback port. The Electron main process spawns it
-// with the gateway's secret in OLLUPI_GATEWAY_TOKEN and the operator's in
-// OLLUPI_OPERATOR_TOKEN, and reads one handshake line from stdout. SIGTERM,
-// or stdin closing when the parent dies, shuts it down.
+// Command ollupid is the desktop app's backend: the engine's server package
+// with the app's browser, the skills the desktop ships and its scratch
+// folder, serving the gateway on a loopback port. The Electron main process
+// spawns it with the gateway's secret in OLLUPI_GATEWAY_TOKEN and the
+// operator's in OLLUPI_OPERATOR_TOKEN, and reads one handshake line from
+// stdout. SIGTERM, or stdin closing when the parent dies, shuts it down.
 //
 // Other modes serve the app; each prints one JSON line:
 //
@@ -42,6 +43,7 @@ func main() {
 	home := flag.String("home", defaultHome(), "data and config directory")
 	listen := flag.String("listen", "127.0.0.1:0", "gateway listen address")
 	origins := flag.String("allow-origin", "", "comma-separated extra WebSocket origin patterns")
+	hosts := flag.String("allow-host", "", "comma-separated extra Host header names")
 	watchStdin := flag.Bool("watch-stdin", false, "exit when stdin closes")
 	importConfig := flag.Bool("import-config", false, "take apart an older config.yaml and profiles.json into the store, remove config.yaml, then exit")
 	names := flag.String("names", "", "with --import-config: the app's older profiles.json, for the names it kept")
@@ -61,7 +63,7 @@ func main() {
 		os.Exit(readSkill(*readSkillDir))
 	}
 
-	if err := run(*home, *listen, splitList(*origins), *watchStdin); err != nil {
+	if err := run(*home, *listen, splitList(*origins), splitList(*hosts), *watchStdin); err != nil {
 		handshake.Fatal(err)
 		slog.Error("ollupid stopped", "err", err)
 		os.Exit(1)
@@ -102,7 +104,7 @@ func deleteProfileData(home, id string) int {
 	return 0
 }
 
-func run(home, listen string, origins []string, watchStdin bool) error {
+func run(home, listen string, origins, hosts []string, watchStdin bool) error {
 	token, operator := os.Getenv("OLLUPI_GATEWAY_TOKEN"), os.Getenv("OLLUPI_OPERATOR_TOKEN")
 	if strings.TrimSpace(token) == "" || strings.TrimSpace(operator) == "" {
 		return errors.New("OLLUPI_GATEWAY_TOKEN and OLLUPI_OPERATOR_TOKEN must both be set")
@@ -115,7 +117,7 @@ func run(home, listen string, origins []string, watchStdin bool) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, AllowedOrigins: origins, Browser: browserEndpoint()})
+	h, err := host.New(ctx, host.Options{Home: home, Token: token, OperatorToken: operator, AllowedOrigins: origins, AllowedHosts: hosts, Browser: browserEndpoint()})
 	if err != nil {
 		return err
 	}

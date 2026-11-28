@@ -8,8 +8,10 @@ import type { AgentRole, PresenceInput } from '@ollupi/protocol'
 /** The backend process as the supervisor sees it. */
 export type BackendState =
   | { status: 'starting' }
-  /** profile is the one the token names, which the window acts as. */
-  | { status: 'ready'; url: string; token: string; profile: string; version: string }
+  /** profile is the one the token names, which the window acts as. server
+   * is true when that token is a registered server's, whose identity is
+   * fixed by it: switching profiles here does not change this connection. */
+  | { status: 'ready'; url: string; token: string; profile: string; version: string; server?: boolean }
   | { status: 'failed'; failure: BackendFailure; log: string }
   | { status: 'stopped' }
 
@@ -21,30 +23,45 @@ export type BackendFailure =
   | { kind: 'spawn'; binary: string; error: string }
   | { kind: 'exited'; how: string }
   | { kind: 'reported'; message: string | undefined }
-  /** The remote ollupid's door said no: Cloudflare Access refused the
+  /** A server the window connects to said no: Cloudflare Access refused the
    * service token, the gateway refused the token, or the gateway refused the
-   * Host header cloudflared sent. */
+   * Host header it was asked with. */
   | { kind: 'remote'; refused: RemoteRefusal; url: string }
 
 export const remoteRefusals = ['access', 'token', 'host'] as const
 export type RemoteRefusal = (typeof remoteRefusals)[number]
 
-/** The remote ollupid the window connects to instead of the one this Mac
- * runs. The secrets never come back to the renderer: only whether they are
- * kept. */
-export interface RemoteSettings {
-  enabled: boolean
-  /** wss://host/, or ws:// on a loopback address (an SSH tunnel). */
+/** The server the app runs itself, in this app: the settings name it by this
+ * id, and it cannot be edited or removed. */
+export const LOCAL_SERVER = 'local'
+
+/** One ollupi server the person registered: on another machine, behind a
+ * tunnel, or running on this one. The secrets never come back to the
+ * renderer: only whether they are kept. */
+export interface ServerSettings {
+  id: string
+  /** What the list calls it; the address when the person left it empty. */
+  name: string
+  /** wss://host/, or ws:// on a loopback address (this Mac or an SSH tunnel). */
   url: string
   accessClientId: string
   hasToken: boolean
   hasAccessSecret: boolean
 }
 
-/** What the person saves. An empty token or Access secret keeps the one
- * already kept. */
-export interface RemoteInput {
-  enabled: boolean
+/** The servers the app may connect to, and the one it is set to. */
+export interface ServersSettings {
+  /** LOCAL_SERVER runs the backend this app ships; otherwise a server's id. */
+  active: string
+  servers: ServerSettings[]
+}
+
+/** What the person saves for one server. An empty token or Access secret
+ * keeps the one already kept. */
+export interface ServerInput {
+  /** An id changes that server; none makes one. */
+  id?: string
+  name: string
   url: string
   token: string
   accessClientId: string
@@ -276,12 +293,17 @@ export interface DesktopApi {
     check(): Promise<void>
     onState(listener: (state: BackendState) => void): () => void
   }
-  /** Connecting to an ollupid on another machine instead of running one. */
-  remote: {
-    read(): Promise<RemoteSettings>
-    /** Keeps the settings, reconnects and reloads the window, whose CSP
-     * names the remote host. */
-    save(input: RemoteInput): Promise<void>
+  /** The ollupi servers this app connects to: the one it runs itself, and
+   * the ones the person registered. */
+  servers: {
+    read(): Promise<ServersSettings>
+    /** Keeps a server, new or changed. When the one in use is what changed,
+     * it reconnects and reloads the window, whose CSP names the new host. */
+    save(input: ServerInput): Promise<void>
+    /** Makes a server the one to connect to. */
+    select(id: string): Promise<void>
+    /** Forgets a server not in use. */
+    remove(id: string): Promise<void>
   }
   /** Skills are each profile's, in the store, over the gateway; a folder
    * on this Mac is read here for import. */
@@ -420,8 +442,10 @@ export const IpcChannel = {
   BackendRestart: 'backend:restart',
   BackendChanged: 'backend:changed',
   BackendCheck: 'backend:check',
-  RemoteRead: 'remote:read',
-  RemoteSave: 'remote:save',
+  ServersRead: 'servers:read',
+  ServersSave: 'servers:save',
+  ServersSelect: 'servers:select',
+  ServersRemove: 'servers:remove',
   SkillsImport: 'skills:import',
   ProfileDelete: 'profile:delete',
   ProfileSelect: 'profile:select',

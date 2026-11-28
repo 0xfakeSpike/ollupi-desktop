@@ -8,7 +8,7 @@ import { backendBinary, backendEnv, backendHome } from './backend/environment'
 import { BackendHome } from './backend/home'
 import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
-import { remoteRefusal, remoteSources, RemoteStore, sendAccessToken } from './backend/remote'
+import { serverRefusal, serverSources, ServerStore, sendAccessToken } from './backend/servers'
 import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
@@ -39,7 +39,7 @@ if (!app.requestSingleInstanceLock()) {
   // Every start and check of the backend reaches the app's browser.
   const env = async () => ({ ...(await backendEnv()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
-  const remote = new RemoteStore(join(app.getPath('userData'), 'remote.json'), safeStorage)
+  const servers = new ServerStore(join(app.getPath('userData'), 'servers.json'), safeStorage, join(app.getPath('userData'), 'remote.json'))
   const backend = new BackendSupervisor({
     binary: backendBinary(),
     home,
@@ -50,14 +50,14 @@ if (!app.requestSingleInstanceLock()) {
     allowOrigins: [APP_HOST],
     env,
     logFile: backendLog,
-    // The Access headers go to the remote from the first request the window
-    // makes to it, and to no other host.
-    remote: async () => {
-      const target = await remote.target()
+    // The Access headers go to the server in use from the first request the
+    // window makes to it, and to no other host.
+    target: async () => {
+      const target = await servers.target()
       sendAccessToken(session.defaultSession.webRequest, target)
       return target
     },
-    refusal: (target) => remoteRefusal(net.fetch, target),
+    refusal: (target) => serverRefusal(net.fetch, target),
   })
   const homeFiles = new BackendHome({ binary: backendBinary(), home, env, backend, olderProfiles: join(app.getPath('userData'), 'profiles.json') })
   const skills = new BackendSkills({ binary: backendBinary(), home })
@@ -84,14 +84,16 @@ if (!app.requestSingleInstanceLock()) {
     // the brand's from the start.
     if (!app.isPackaged) setAppIcon('stone')
     serveRenderer(join(import.meta.dirname, '../renderer'), async () => {
-      const target = await remote.target()
-      return target ? remoteSources(target) : []
+      // A saved server this Mac cannot read loads no page: the failure
+      // screen says what to do about it.
+      const target = await servers.target().catch(() => undefined)
+      return target ? serverSources(target) : []
     })
     // An older config.yaml and profiles.json move into the store before the
     // backend starts, and config.yaml goes. A failed import is said in the
     // log; the backend starts all the same.
     await homeFiles.importOlder().catch((err: unknown) => console.error('the older config was not imported', err))
-    registerIpc(backend, remote, homeFiles, skills, browser, bookmarks, history, updater, presence, home, backendLog)
+    registerIpc(backend, servers, homeFiles, skills, browser, bookmarks, history, updater, presence, home, backendLog)
     // The interface places its panels as they mount; a window that is
     // loading again has none yet, so no tab stays over the empty screen.
     const newWindow = () => {

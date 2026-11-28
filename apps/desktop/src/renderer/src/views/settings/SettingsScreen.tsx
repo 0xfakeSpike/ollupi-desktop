@@ -17,13 +17,13 @@ import { UpdateAction, UpdateNote, UpdateProgress } from '../common/Update'
 import { PermissionEditor } from './PermissionEditor'
 import { ProfilesSection } from './ProfilesSection'
 import { EnvironmentsSection } from './EnvironmentsSection'
-import { RemoteSection } from './RemoteSection'
+import { ServersSection } from './ServersSection'
 import { Emblem } from '../common/Wolf'
 
 const bodies: Record<SettingsTab, () => ReactNode> = {
   profiles: ProfilesSection,
   general: General,
-  connection: RemoteSection,
+  servers: ServersSection,
   environments: EnvironmentsSection,
   language: Language,
   appearance: Appearance,

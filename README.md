@@ -27,6 +27,8 @@ xattr -dr com.apple.quarantine /Applications/Ollupi.app
 
 此外还有 **定时任务**（到点向会话发一条消息）、**记忆**（从会话中学习，在会话中使用），以及 **能力** 里的技能、MCP 服务器和工具列表。
 
+Ollupi 默认用应用自带的后端，跑在这台 Mac 上。也可以把别的机器上跑的 ollupi 服务器（比如常开在家里的 Mac mini，或自己起的服务器）注册进来，在 **设置 → 服务器** 里添加、切换和移除，步骤见 [docs/remote-mac-mini.md](docs/remote-mac-mini.md)。
+
 配置和数据都在 `~/.ollupi`，配置文件是 `~/.ollupi/config.yaml`，可在 **设置 → 通用** 里打开。工作区的文件夹以 `~/` 的形式保存在库里，整个 `~/.ollupi` 可以直接拷到另一台机器继续用，只要项目放在相同的相对位置；`config.yaml` 里的路径同样支持 `~` 和相对于该文件的写法。后端起不来时，界面会显示原因和后端日志。
 
 ## 文档

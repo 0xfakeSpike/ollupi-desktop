@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { RemoteRefusal } from '../../shared/ipc'
-import type { RemoteTarget } from './remote'
+import type { ServerTarget } from './servers'
 import { BackendSupervisor, type SupervisorOptions } from './supervisor'
 
 describe('BackendSupervisor', () => {
@@ -14,7 +14,7 @@ describe('BackendSupervisor', () => {
   })
   afterEach(() => rm(dir, { recursive: true, force: true }))
 
-  const options = (binary: string, remote?: RemoteTarget, refused?: RemoteRefusal): SupervisorOptions => ({
+  const options = (binary: string, target?: ServerTarget, refused?: RemoteRefusal): SupervisorOptions => ({
     binary,
     home: dir,
     profile: 'default',
@@ -22,7 +22,7 @@ describe('BackendSupervisor', () => {
     remember: () => {},
     env: async () => process.env,
     logFile: join(dir, 'backend.log'),
-    remote: async () => remote,
+    target: async () => target,
     refusal: async () => refused,
   })
 
@@ -107,13 +107,13 @@ exec cat >/dev/null
     await backend.stop()
   })
 
-  const remote: RemoteTarget = { url: 'wss://ollupi.example.com/', token: 'secret.home', access: undefined }
+  const remote: ServerTarget = { url: 'wss://ollupi.example.com/', token: 'secret.home', access: undefined }
 
-  it('runs nothing for a remote, and hands out its address and token', async () => {
+  it('runs nothing for a server, and hands out its address and token', async () => {
     const backend = new BackendSupervisor(options(join(dir, 'missing'), remote))
     await backend.start()
-    expect(backend.state).toEqual({ status: 'ready', url: remote.url, token: remote.token, profile: 'home', version: '' })
-    // The remote's token names its profile; switching here does not change it.
+    expect(backend.state).toEqual({ status: 'ready', url: remote.url, token: remote.token, profile: 'home', version: '', server: true })
+    // The server's token names its profile; switching here does not change it.
     backend.selectProfile('work')
     expect(backend.state).toMatchObject({ token: 'secret.home' })
     await backend.check()
@@ -122,12 +122,23 @@ exec cat >/dev/null
     expect(backend.state.status).toBe('stopped')
   })
 
-  it('fails on a remote that refuses the connection, until it starts again', async () => {
+  it('fails on a server that refuses the connection, until it starts again', async () => {
     const backend = new BackendSupervisor(options(join(dir, 'missing'), remote, 'access'))
     await backend.start()
     await Promise.all([backend.check(), backend.check()])
     expect(backend.state).toMatchObject({ status: 'failed', failure: { kind: 'remote', refused: 'access', url: remote.url } })
     await backend.restart()
     expect(backend.state.status).toBe('ready')
+  })
+
+  it('says a server it cannot read, rather than running the local backend', async () => {
+    const backend = new BackendSupervisor({
+      ...options(join(dir, 'missing')),
+      target: async () => {
+        throw new Error('the saved gateway token cannot be read on this Mac; enter it again')
+      },
+    })
+    await backend.start()
+    expect(backend.state).toMatchObject({ status: 'failed', failure: { kind: 'reported', message: expect.stringContaining('enter it again') } })
   })
 })

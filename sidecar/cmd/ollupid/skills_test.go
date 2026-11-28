@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/host"
 	"os"
 	"path/filepath"
 	"slices"
@@ -10,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/0xfakeSpike/ollupi-desktop/sidecar/internal/config"
+	"github.com/0xfakeSpike/ollupi/server"
 	"github.com/0xfakeSpike/ollupi/skill"
 	"github.com/0xfakeSpike/ollupi/store"
 	storesqlite "github.com/0xfakeSpike/ollupi/store/sqlite"
@@ -49,7 +49,7 @@ func TestImportGivesEveryProfileTheSkillsOfTheFolder(t *testing.T) {
 	ctx := context.Background()
 	err = st.Update(ctx, func(tx store.Tx) error {
 		for _, u := range []string{"default", "work"} {
-			if err := tx.EnsureUser(u, host.FirstEnvironment()); err != nil {
+			if err := tx.EnsureUser(u, server.FirstEnvironment()); err != nil {
 				return err
 			}
 		}

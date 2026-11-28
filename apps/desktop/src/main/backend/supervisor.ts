@@ -2,9 +2,9 @@
 // secrets, the gateway's and the operator's, reads the handshake line, writes its output to the log
 // file and keeps the tail of it for diagnostics, and reports every state
 // change. It never restarts on its own; a crash becomes a visible "failed"
-// state the user can retry. When the window connects to a remote ollupid
-// instead, it runs nothing: a start hands out the remote's address and
-// token, and a refusal there becomes the failed state.
+// state the user can retry. When the window connects to a server instead,
+// it runs nothing: a start hands out the server's address and token, and a
+// refusal there becomes the failed state.
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -14,7 +14,7 @@ import { mkdir, rename, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { BackendFailure, BackendState, RemoteRefusal } from '../../shared/ipc'
-import type { RemoteTarget } from './remote'
+import type { ServerTarget } from './servers'
 
 export interface SupervisorOptions {
   binary: string
@@ -33,11 +33,11 @@ export interface SupervisorOptions {
    * messages, arguments or outputs). Past LOG_FILE_BYTES at a start, the
    * file moves to <name>.old, replacing the one before. */
   logFile: string
-  /** The remote ollupid to connect to instead, read at every start;
+  /** The server to connect to instead, read at every start;
    * undefined runs the one this Mac has. */
-  remote(): Promise<RemoteTarget | undefined>
-  /** Who refused a connection to the remote, if anyone did. */
-  refusal(target: RemoteTarget): Promise<RemoteRefusal | undefined>
+  target(): Promise<ServerTarget | undefined>
+  /** Who refused a connection to the server, if anyone did. */
+  refusal(target: ServerTarget): Promise<RemoteRefusal | undefined>
 }
 
 /** sidecar/internal/handshake.Message */
@@ -60,8 +60,8 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
   private current: BackendState = { status: 'stopped' }
   private log: string[] = []
   private starting: Promise<void> | undefined
-  /** The remote this start connects to, instead of a child. */
-  private target: RemoteTarget | undefined
+  /** The server this start connects to, instead of a child. */
+  private target: ServerTarget | undefined
   private checking: Promise<void> | undefined
 
   /** The operator's secret this start was given, which every token the app
@@ -79,6 +79,12 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     return this.current
   }
 
+  /** Whether this start connects to a registered server, with no child on
+   * this Mac to stop, start or tend to. */
+  get onRemote(): boolean {
+    return this.target !== undefined
+  }
+
   /** One at a time: a start has no child to show until the environment is
    * read, and a second one then would spawn a backend nobody stops. */
   start(): Promise<void> {
@@ -92,11 +98,19 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
     if (this.child || this.target) return
     this.log = []
     this.set({ status: 'starting' })
-    const target = await this.opts.remote()
+    let target: ServerTarget | undefined
+    try {
+      target = await this.opts.target()
+    } catch (err) {
+      // A saved server this Mac cannot read is said as it is, rather than
+      // running the local backend as if nothing were chosen.
+      this.fail({ kind: 'reported', message: err instanceof Error ? err.message : String(err) })
+      return
+    }
     if (target) {
       this.target = target
-      // A remote's token names its profile, as whoever runs it gave it.
-      this.set({ status: 'ready', url: target.url, token: target.token, profile: target.token.slice(target.token.indexOf('.') + 1), version: '' })
+      // A server's token names its profile, as whoever runs it gave it.
+      this.set({ status: 'ready', url: target.url, token: target.token, profile: target.token.slice(target.token.indexOf('.') + 1), version: '', server: true })
       return
     }
     // The gateway's secret makes a connection a user only; nothing here
@@ -164,12 +178,12 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
    * it, and the renderer reconnects under the new one. */
   selectProfile(profile: string): void {
     this.profile = profile
-    // A remote's token names its profile, as whoever runs it gave it.
+    // A server's token names its profile, as whoever runs it gave it.
     if (this.current.status !== 'ready' || this.target) return
     this.set({ ...this.current, token: this.tokenFor(profile), profile })
   }
 
-  /** After a connection to the remote failed: a refusal there is no
+  /** After a connection to the server failed: a refusal there is no
    * reason to keep trying, so it ends in the failed state. One check at a
    * time; the backend this Mac runs reports its own failures. */
   check(): Promise<void> {
@@ -187,7 +201,7 @@ export class BackendSupervisor extends EventEmitter<{ state: [BackendState] }> {
   }
 
   /** SIGTERM lets the backend finish its writes; SIGKILL if it hangs. A
-   * remote is only let go. */
+   * server is only let go. */
   async stop(): Promise<void> {
     if (this.target) {
       this.target = undefined

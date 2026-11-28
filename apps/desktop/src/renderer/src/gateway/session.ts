@@ -83,7 +83,7 @@ async function connect(backend: ReadyBackend, mine: number, status: 'connecting'
       drop()
       status = 'reconnecting'
       useConnection.setState({ gateway: status, lastError: errorMessage(err) })
-      // A refused WebSocket only says 1006; a remote ollupid's refusal comes
+      // A refused WebSocket only says 1006; a server's refusal comes
       // back as a failed backend, which ends this loop.
       void desktop.backend.check().catch(() => {})
       await new Promise((r) => setTimeout(r, Math.min(MAX_BACKOFF_MS, 250 * 2 ** attempt)))

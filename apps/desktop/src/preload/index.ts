@@ -16,9 +16,11 @@ const api: DesktopApi = {
       return () => ipcRenderer.off(IpcChannel.BackendChanged, wrapped)
     },
   },
-  remote: {
-    read: () => ipcRenderer.invoke(IpcChannel.RemoteRead),
-    save: (input) => ipcRenderer.invoke(IpcChannel.RemoteSave, input),
+  servers: {
+    read: () => ipcRenderer.invoke(IpcChannel.ServersRead),
+    save: (input) => ipcRenderer.invoke(IpcChannel.ServersSave, input),
+    select: (id) => ipcRenderer.invoke(IpcChannel.ServersSelect, id),
+    remove: (id) => ipcRenderer.invoke(IpcChannel.ServersRemove, id),
   },
   skills: {
     import: () => ipcRenderer.invoke(IpcChannel.SkillsImport),
