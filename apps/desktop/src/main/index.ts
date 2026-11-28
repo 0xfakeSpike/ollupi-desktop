@@ -1,7 +1,7 @@
 // Main process entry: app lifecycle only. It wires the backend supervisor,
 // IPC and the window together; each concern lives in its own module.
 
-import { app, net, safeStorage, session, shell } from 'electron'
+import { app, net, session, shell } from 'electron'
 import { join } from 'node:path'
 import { APP_HOST, IpcChannel } from '../shared/ipc'
 import { backendBinary, backendEnv, backendHome } from './backend/environment'
@@ -10,6 +10,7 @@ import { BackendSkills } from './backend/skills'
 import { BackendSupervisor } from './backend/supervisor'
 import { serverRefusal, serverSources, ServerStore, sendAccessToken } from './backend/servers'
 import { SandboxStore } from './backend/sandbox'
+import { Db } from './db'
 import { Bookmarks } from './browser/bookmarks'
 import { AgentBrowser } from './browser/browser'
 import { BrowserEndpoint } from './browser/endpoint'
@@ -37,12 +38,14 @@ if (!app.requestSingleInstanceLock()) {
   const noted = (work: Promise<void>) => void work.catch((err: unknown) => console.error('browser history not kept', err))
   browser.on('visited', (url: string, title: string) => noted(history.visit(url, title)))
   browser.on('titled', (url: string, title: string) => noted(history.title(url, title)))
-  // Every start and check of the backend reaches the app's browser, and the
-  // Cloudflare bridge this Mac was given, if any.
-  const sandboxes = new SandboxStore(join(app.getPath('userData'), 'sandbox.json'), safeStorage)
+  // What the app needs before any backend runs: the servers it may connect
+  // to, and the sandbox bridge it gives the one it runs. Kept in the app's
+  // own SQLite, in plain text.
+  const db = new Db(join(app.getPath('userData'), 'settings.sqlite'))
+  const sandboxes = new SandboxStore(db)
   const env = async () => ({ ...(await backendEnv()), ...(await sandboxes.env()), ...browserEndpoint.env() })
   const backendLog = join(app.getPath('logs'), 'backend.log')
-  const servers = new ServerStore(join(app.getPath('userData'), 'servers.json'), safeStorage, join(app.getPath('userData'), 'remote.json'))
+  const servers = new ServerStore(db)
   const backend = new BackendSupervisor({
     binary: backendBinary(),
     home,

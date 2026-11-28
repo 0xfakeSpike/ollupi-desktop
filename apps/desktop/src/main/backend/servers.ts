@@ -1,9 +1,8 @@
 // The ollupi servers this app connects to, besides the one it runs itself:
 // a Mac mini at home behind a Cloudflare Tunnel, a server on a LAN reached
 // through an SSH tunnel, a second copy of ollupi on this Mac. Which one is in
-// use and each server's secrets are kept in servers.json, the secrets
-// encrypted with the system keychain's key. A remote.json from an older
-// version, which held one remote, becomes its first entry.
+// use and each server's secrets are kept in the app's own database, so they
+// can be read before any backend runs.
 //
 // Cloudflare Access wants its service token in two headers, which a
 // WebSocket in the renderer cannot set, so the main process adds them to
@@ -12,9 +11,8 @@
 // itself and reads the status.
 
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import { LOCAL_SERVER, type RemoteRefusal, type ServerInput, type ServerSettings, type ServersSettings } from '../../shared/ipc'
+import type { Db } from '../db'
 
 /** One server to connect to, as the app uses it: the address and token the
  * gateway takes, and the Access service token when it is behind Access. */
@@ -25,9 +23,6 @@ export interface ServerTarget {
   token: string
   access: { clientId: string; clientSecret: string } | undefined
 }
-
-/** safeStorage, or a stand-in in tests. */
-export type Sealer = Pick<Electron.SafeStorage, 'isAsyncEncryptionAvailable' | 'encryptStringAsync' | 'decryptStringAsync'>
 
 interface StoredServer {
   id: string
@@ -43,18 +38,11 @@ interface Stored {
   servers: StoredServer[]
 }
 
-/** remote.json, as an older version wrote it. */
-interface Legacy {
-  enabled: boolean
-  url: string
-  token?: string
-  accessClientId?: string
-  accessClientSecret?: string
-}
-
 const LOOPBACK = ['127.0.0.1', 'localhost', '[::1]']
 const MAX_SERVERS = 32
 const MAX_NAME = 120
+/** The key the servers are kept under, in the app's database. */
+const KEY = 'servers'
 
 /** The gateway cuts the token at its first dot: the secret before it, and
  * the profile after it, as ollupid names one. The whole token goes into the
@@ -65,155 +53,85 @@ const MAX_NAME = 120
 const TOKEN = /^[!#$%&'*+\-^_`|~0-9A-Za-z]+\.[A-Za-z0-9_-]{1,64}$/
 
 export class ServerStore {
-  constructor(
-    private readonly file: string,
-    private readonly sealer: Sealer,
-    /** remote.json of an older version, taken in once and then retired. */
-    private readonly legacy?: string,
-  ) {}
+  constructor(private readonly db: Db) {}
 
   async read(): Promise<ServersSettings> {
-    const s = await this.load()
+    const s = this.load()
     return {
       active: s.active,
-      servers: await Promise.all(
-        s.servers.map(
-          async (e): Promise<ServerSettings> => ({
-            id: e.id,
-            name: e.name,
-            url: e.url,
-            accessClientId: (await this.open(e.accessClientId)) ?? '',
-            hasToken: !!e.token,
-            hasAccessSecret: !!e.accessClientSecret,
-          }),
-        ),
+      servers: s.servers.map(
+        (e): ServerSettings => ({
+          id: e.id,
+          name: e.name,
+          url: e.url,
+          accessClientId: e.accessClientId ?? '',
+          hasToken: !!e.token,
+          hasAccessSecret: !!e.accessClientSecret,
+        }),
       ),
     }
   }
 
-  /** The server in use; undefined runs the backend this app ships. A token
-   * this Mac's key cannot open is an error rather than a silent fallback to
-   * the local backend. */
+  /** The server in use; undefined runs the backend this app ships. */
   async target(): Promise<ServerTarget | undefined> {
-    const s = await this.load()
+    const s = this.load()
     if (s.active === LOCAL_SERVER) return undefined
     const entry = s.servers.find((e) => e.id === s.active)
-    if (!entry) return undefined
-    const token = await this.open(entry.token)
-    if (!token) throw new Error('the saved gateway token cannot be read on this Mac; enter it again')
-    const clientId = await this.open(entry.accessClientId)
-    const clientSecret = await this.open(entry.accessClientSecret)
-    return { url: serverURL(entry.url), token, access: clientId && clientSecret ? { clientId, clientSecret } : undefined }
+    if (!entry?.token) return undefined
+    const access = entry.accessClientId && entry.accessClientSecret ? { clientId: entry.accessClientId, clientSecret: entry.accessClientSecret } : undefined
+    return { url: serverURL(entry.url), token: entry.token, access }
   }
 
   /** Keeps a server: a new one, or the changes to one. An empty token or
    * Access secret keeps the one already kept. */
   async save(input: ServerInput): Promise<void> {
-    if (!(await this.sealer.isAsyncEncryptionAvailable())) throw new Error('this Mac cannot encrypt the server secrets: the keychain is unavailable')
-    const stored = await this.load()
+    const stored = this.load()
     const existing = input.id ? stored.servers.find((e) => e.id === input.id) : undefined
     if (input.id && !existing) throw new Error('the server is no longer there')
     const url = serverURL(input.url)
     const token = input.token.trim()
     if (token && !TOKEN.test(token)) throw new Error('the gateway token is <secret>.<profile>, and the secret holds no dots, spaces, commas, “=” or “/” (a hex secret fits)')
-    const sealedToken = token ? await this.seal(token) : existing?.token
-    if (!sealedToken) throw new Error('a server needs its gateway token')
+    const keptToken = token || existing?.token
+    if (!keptToken) throw new Error('a server needs its gateway token')
     const clientId = input.accessClientId.trim()
     const clientSecret = input.accessClientSecret.trim()
     if (/\s/.test(clientId + clientSecret)) throw new Error('the Access service token holds no spaces')
-    if (clientId && !clientSecret && clientId !== (await this.open(existing?.accessClientId))) {
-      throw new Error('the Access service token needs its client secret')
-    }
+    if (clientId && !clientSecret && clientId !== (existing?.accessClientId ?? '')) throw new Error('the Access service token needs its client secret')
     const entry: StoredServer = {
       id: existing?.id ?? randomUUID(),
       name: nameOf(input.name, url),
       url,
-      token: sealedToken,
-      accessClientId: clientId ? await this.seal(clientId) : undefined,
-      accessClientSecret: !clientId ? undefined : clientSecret ? await this.seal(clientSecret) : existing?.accessClientSecret,
+      token: keptToken,
+      accessClientId: clientId || undefined,
+      accessClientSecret: clientId ? clientSecret || existing?.accessClientSecret : undefined,
     }
     const servers = existing ? stored.servers.map((e) => (e.id === entry.id ? entry : e)) : [...stored.servers, entry]
     if (servers.length > MAX_SERVERS) throw new Error(`at most ${MAX_SERVERS} servers`)
-    await this.write({ ...stored, servers })
+    this.write({ ...stored, servers })
   }
 
   /** Makes a server the one to connect to. */
   async select(id: string): Promise<void> {
-    const stored = await this.load()
+    const stored = this.load()
     if (id !== LOCAL_SERVER && !stored.servers.some((e) => e.id === id)) throw new Error('the server is no longer there')
-    await this.write({ ...stored, active: id })
+    this.write({ ...stored, active: id })
   }
 
   /** Forgets a server not in use: switch away first, as with a profile. */
   async remove(id: string): Promise<void> {
-    const stored = await this.load()
+    const stored = this.load()
     if (id === LOCAL_SERVER) throw new Error('the backend this app runs is not removed')
     if (id === stored.active) throw new Error('switch away from a server before removing it')
-    await this.write({ ...stored, servers: stored.servers.filter((e) => e.id !== id) })
+    this.write({ ...stored, servers: stored.servers.filter((e) => e.id !== id) })
   }
 
-  private async load(): Promise<Stored> {
-    try {
-      return normalise(JSON.parse(await readFile(this.file, 'utf8')))
-    } catch {
-      // No file yet, or one this version cannot read.
-    }
-    const migrated = await this.migrate()
-    if (!migrated) return { active: LOCAL_SERVER, servers: [] }
-    await this.write(migrated)
-    return migrated
+  private load(): Stored {
+    const kept = this.db.get(KEY)
+    return kept ? normalise(kept) : { active: LOCAL_SERVER, servers: [] }
   }
 
-  /** Takes the one remote an older version kept in as the first server, and
-   * retires the file. */
-  private async migrate(): Promise<Stored | undefined> {
-    if (!this.legacy) return undefined
-    let raw: Partial<Legacy>
-    try {
-      raw = JSON.parse(await readFile(this.legacy, 'utf8')) as Partial<Legacy>
-    } catch {
-      return undefined
-    }
-    await this.retire()
-    const url = typeof raw.url === 'string' && raw.url ? raw.url : ''
-    const token = typeof raw.token === 'string' && raw.token ? raw.token : ''
-    if (!url || !token) return { active: LOCAL_SERVER, servers: [] }
-    const entry: StoredServer = {
-      id: randomUUID(),
-      name: nameOf('', url),
-      url,
-      token,
-      accessClientId: typeof raw.accessClientId === 'string' ? raw.accessClientId : undefined,
-      accessClientSecret: typeof raw.accessClientSecret === 'string' ? raw.accessClientSecret : undefined,
-    }
-    return { active: raw.enabled === true ? entry.id : LOCAL_SERVER, servers: [entry] }
-  }
-
-  /** Leaves the older file beside the new one, for whoever looks back at it. */
-  private async retire(): Promise<void> {
-    if (!this.legacy) return
-    await rename(this.legacy, `${this.legacy}.migrated`).catch(() => {})
-  }
-
-  private async write(stored: Stored): Promise<void> {
-    await mkdir(dirname(this.file), { recursive: true })
-    await writeFile(`${this.file}.tmp`, JSON.stringify(stored, null, 2), { mode: 0o600 })
-    await rename(`${this.file}.tmp`, this.file)
-  }
-
-  private async seal(plain: string): Promise<string> {
-    return (await this.sealer.encryptStringAsync(plain)).toString('base64')
-  }
-
-  /** undefined for nothing kept, and for what this Mac's key cannot open
-   * (a file copied from another Mac): it is entered again. */
-  private async open(sealed: string | undefined): Promise<string | undefined> {
-    if (!sealed) return undefined
-    try {
-      return (await this.sealer.decryptStringAsync(Buffer.from(sealed, 'base64'))).result
-    } catch {
-      return undefined
-    }
+  private write(stored: Stored): void {
+    this.db.set(KEY, JSON.stringify(stored))
   }
 }
 
@@ -223,9 +141,15 @@ function nameOf(name: string, url: string): string {
   return (given || hostOf(url)).slice(0, MAX_NAME)
 }
 
-/** A file's entries, with the parts this version cannot use left out, and
- * the one in use falling back to the local backend when it is gone. */
-function normalise(value: unknown): Stored {
+/** A stored file's entries, with the parts this version cannot use left out,
+ * and the one in use falling back to the local backend when it is gone. */
+function normalise(text: string): Stored {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return { active: LOCAL_SERVER, servers: [] }
+  }
   const v = value as Partial<Stored> | null
   const seen = new Set<string>()
   const servers: StoredServer[] = []

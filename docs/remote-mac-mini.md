@@ -221,7 +221,7 @@ curl -i -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" -H
 
 可以注册多个服务器，随时切换；正在使用的那一个不能移除，先切走再删。列表里第一个「这台 Mac」是应用自带的后端，不能编辑或删除。
 
-网关 token 和服务令牌用本机钥匙串（Electron `safeStorage`）加密后存在 `~/Library/Application Support/Ollupi/servers.json`，界面上不会再显示出来，留空表示保持不变。这个文件拷到别的 Mac 上解不开，要重新填。旧版本的 `remote.json`（只存一个远程）第一次启动时会自动变成一个服务器，文件改名为 `remote.json.migrated` 留着。
+网关 token 和服务令牌保存在应用自己的数据库 `~/Library/Application Support/Ollupi/settings.sqlite`（`settings` 表，明文，不再用本机钥匙串），界面上不会再显示出来，留空表示保持不变。旧版本用钥匙串加密的 `servers.json`、`sandbox.json` 和 `remote.json` 不再读取，升级后要重新填一次 token。
 
 地址也可以填 `ws://127.0.0.1:<端口>`，用于不经过 Cloudflare、走 SSH 端口转发的情况（`ssh -L 7777:127.0.0.1:7777 macmini`），或者连接在这台 Mac 上自己起的服务器；这时 Access 两项留空。跨机器直连要 `wss://`：给 `ollupi serve` 配上 `--tls-cert` / `--tls-key` 直接服务 `wss://`，或者走上面的隧道。
 
@@ -233,7 +233,6 @@ curl -i -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" -H
 | … 的网关拒绝了 token（401） | 过了 Access，但网关不认这个 token：密钥不对，或者身份不存在 | 是否和服务器上的 `OLLUPI_GATEWAY_TOKEN` 或 `OLLUPI_OPERATOR_TOKEN` 一致，后面是否有 `.<profile>`；新服务器上的身份是 `admin` |
 | … 的网关拒绝了 Host 头（403 host not allowed） | cloudflared 没有改写 Host，服务器也没放行这个域名 | ingress 里的 `originRequest.httpHostHeader: 127.0.0.1`，或 `--allow-host` |
 | 一直显示「正在重新连接…」 | 主机连不上（隧道断了、网络不通），或者握手时 Origin 被拒 | `cloudflared` 是否在跑；`ollupi serve` 是否带了 `--allow-origin ollupi` |
-| 保存的网关 token 在这台 Mac 上读不出来 | `servers.json` 是从别的 Mac 拷来的，钥匙串解不开 | 编辑该服务器，重新填 token |
 
 WebSocket 握手失败时，页面只能拿到 1006 这个关闭码。为了区分上面几种情况，连接失败后桌面端会用同样的头对服务器的 `/` 发一次普通 GET，按返回的状态码判断是谁拒绝的。401 和 403 不会因为重试而变好，所以遇到它们就停在错误页，不再重连；改完设置后点「重试」或保存设置即可。设置页进不去时（还没同步过），错误页上的「选择服务器」可以直接换成「这台 Mac」或另一个服务器。
 

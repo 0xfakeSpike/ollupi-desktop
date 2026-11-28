@@ -1,47 +1,36 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { LOCAL_SERVER, type ServersSettings } from '../../shared/ipc'
-import { refusalOf, sendAccessToken, ServerStore, serverRefusal, serverSources, serverURL, type Sealer, type ServerTarget } from './servers'
-
-const sealer: Sealer = {
-  isAsyncEncryptionAvailable: async () => true,
-  encryptStringAsync: async (plain) => Buffer.from(`sealed:${plain}`),
-  decryptStringAsync: async (sealed) => {
-    const text = sealed.toString()
-    if (!text.startsWith('sealed:')) throw new Error('not ours')
-    return { result: text.slice('sealed:'.length), shouldReEncrypt: false }
-  },
-}
+import { Db } from '../db'
+import { refusalOf, sendAccessToken, ServerStore, serverRefusal, serverSources, serverURL, type ServerTarget } from './servers'
 
 const input = { name: 'Mac mini', url: 'wss://ollupi.example.com', token: 'abc.default', accessClientId: 'id.access', accessClientSecret: 'shh' }
 
 const first = (state: ServersSettings) => state.servers[0]!
 
-describe('ServerStore', () => {
-  let dir: string
-  let store: ServerStore
-  beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'ollupi-servers-'))
-    store = new ServerStore(join(dir, 'servers.json'), sealer, join(dir, 'remote.json'))
-  })
-  afterEach(() => rm(dir, { recursive: true, force: true }))
+/** A store over the in-memory database the app's own file stands in for. */
+const opening = () => {
+  const db = new Db(':memory:')
+  return { db, store: new ServerStore(db) }
+}
 
+describe('ServerStore', () => {
   it('runs this Mac’s backend while no server is registered', async () => {
+    const { store } = opening()
     expect(await store.target()).toBeUndefined()
     expect(await store.read()).toEqual({ active: LOCAL_SERVER, servers: [] })
   })
 
-  it('keeps the secrets sealed, and hands them out only to the main process', async () => {
+  it('keeps the servers and their secrets in the app’s database', async () => {
+    const { db, store } = opening()
     await store.save(input)
-    const file = await readFile(join(dir, 'servers.json'), 'utf8')
-    expect(file).not.toContain('abc.default')
-    expect(file).not.toContain('shh')
+    // No keychain: the token is in the app's own row, and the renderer is
+    // only told that it is kept.
+    expect(db.get('servers')).toContain('abc.default')
     const state = await store.read()
     expect(state.servers).toEqual([
       { id: expect.any(String), name: 'Mac mini', url: 'wss://ollupi.example.com/', accessClientId: 'id.access', hasToken: true, hasAccessSecret: true },
     ])
+    expect(state.servers[0]).not.toHaveProperty('token')
     // A new server does not become the one in use: that is a switch.
     expect(state.active).toBe(LOCAL_SERVER)
     expect(await store.target()).toBeUndefined()
@@ -50,11 +39,13 @@ describe('ServerStore', () => {
   })
 
   it('names a server by its host when it is given no name', async () => {
+    const { store } = opening()
     await store.save({ ...input, name: '  ' })
     expect(first(await store.read()).name).toBe('ollupi.example.com')
   })
 
   it('keeps the secrets an edit leaves empty, and drops Access when its id is cleared', async () => {
+    const { store } = opening()
     await store.save(input)
     const { id } = first(await store.read())
     await store.save({ ...input, id, name: 'Home', token: '', accessClientSecret: '' })
@@ -67,6 +58,7 @@ describe('ServerStore', () => {
   })
 
   it('switches between servers, and never removes the one in use', async () => {
+    const { store } = opening()
     await store.save(input)
     await store.save({ ...input, name: 'Laptop', url: 'ws://127.0.0.1:7777' })
     const [mac, laptop] = (await store.read()).servers
@@ -81,6 +73,7 @@ describe('ServerStore', () => {
   })
 
   it('refuses what cannot connect', async () => {
+    const { store } = opening()
     await expect(store.save({ ...input, token: 'no-profile' })).rejects.toThrow('<secret>.<profile>')
     await expect(store.save({ ...input, token: '' })).rejects.toThrow('gateway token')
     await expect(store.save({ ...input, url: '' })).rejects.toThrow('address')
@@ -89,6 +82,7 @@ describe('ServerStore', () => {
   })
 
   it('refuses a token a browser cannot carry in the handshake', async () => {
+    const { store } = opening()
     // The token travels as a WebSocket subprotocol; a comma, space, “=” or
     // “/” makes the browser refuse it before the gateway sees it.
     for (const token of ['abc,def.default', 'abc def.default', 'abc=.default', 'abc/def.default', 'a.b.c']) {
@@ -99,43 +93,10 @@ describe('ServerStore', () => {
     await store.save({ ...input, token: 'a-b_c+d.default' })
   })
 
-  it('saves nothing it cannot encrypt', async () => {
-    const locked = new ServerStore(join(dir, 'servers.json'), { ...sealer, isAsyncEncryptionAvailable: async () => false })
-    await expect(locked.save(input)).rejects.toThrow('keychain')
-  })
-
-  it('says so when a secret this Mac cannot open is saved as the one in use', async () => {
-    await store.save(input)
-    const { id } = first(await store.read())
-    await store.select(id)
-    const other = new ServerStore(join(dir, 'servers.json'), { ...sealer, decryptStringAsync: async () => Promise.reject(new Error('another key')) })
-    await expect(other.target()).rejects.toThrow('enter it again')
-    // The server is still listed, its token to be entered again.
-    expect(first(await other.read()).hasToken).toBe(true)
-  })
-
-  it('takes the one remote an older version kept in', async () => {
-    const sealed = (s: string) => Buffer.from(`sealed:${s}`).toString('base64')
-    await writeFile(
-      join(dir, 'remote.json'),
-      JSON.stringify({ enabled: true, url: 'wss://home.example.com/', token: sealed('old.home'), accessClientId: sealed('id.access'), accessClientSecret: sealed('shh') }),
-    )
-    const state = await store.read()
-    expect(state.servers.map((s) => [s.name, s.url, s.hasToken])).toEqual([['home.example.com', 'wss://home.example.com/', true]])
-    expect(state.active).toBe(first(state).id)
-    expect(await store.target()).toEqual({ url: 'wss://home.example.com/', token: 'old.home', access: { clientId: 'id.access', clientSecret: 'shh' } })
-    // Retired, not deleted, and read once only.
-    await expect(readFile(join(dir, 'remote.json'), 'utf8')).rejects.toThrow()
-    await readFile(join(dir, 'remote.json.migrated'), 'utf8')
-  })
-
-  it('keeps a remote an older version had switched off, without selecting it', async () => {
-    const sealed = (s: string) => Buffer.from(`sealed:${s}`).toString('base64')
-    await writeFile(join(dir, 'remote.json'), JSON.stringify({ enabled: false, url: 'wss://home.example.com/', token: sealed('old.home') }))
-    const state = await store.read()
-    expect(state.active).toBe(LOCAL_SERVER)
-    expect(state.servers).toHaveLength(1)
-    expect(await store.target()).toBeUndefined()
+  it('starts over from a row it cannot read', async () => {
+    const { db, store } = opening()
+    db.set('servers', 'not json')
+    expect(await store.read()).toEqual({ active: LOCAL_SERVER, servers: [] })
   })
 })
 

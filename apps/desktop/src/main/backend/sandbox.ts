@@ -1,20 +1,11 @@
 // A Cloudflare sandbox bridge the backend this Mac runs offers to its
 // environments: one container per environment, where a conversation's
 // commands run instead of on this Mac. The bridge's address and token are
-// kept in sandbox.json, the token sealed with this Mac's keychain, and handed
-// to the backend as SANDBOX_API_URL and SANDBOX_API_KEY, as `ollupi serve`
-// reads its own.
+// kept in the app's database, and handed to the backend as SANDBOX_API_URL
+// and SANDBOX_API_KEY, as `ollupi serve` reads its own.
 
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { SandboxInput, SandboxSettings } from '../../shared/ipc'
-import type { Sealer } from './servers'
-
-/** The bridge as the backend is given it. */
-export interface SandboxTarget {
-  url: string
-  key: string
-}
+import type { Db } from '../db'
 
 interface Stored {
   url: string
@@ -22,77 +13,49 @@ interface Stored {
 }
 
 const LOOPBACK = ['127.0.0.1', 'localhost', '[::1]']
+/** The key the bridge is kept under, in the app's database. */
+const KEY = 'sandbox'
 
 export class SandboxStore {
-  constructor(
-    private readonly file: string,
-    private readonly sealer: Sealer,
-  ) {}
+  constructor(private readonly db: Db) {}
 
   async read(): Promise<SandboxSettings> {
-    const stored = await this.load()
+    const stored = this.load()
     return { url: stored?.url ?? '', hasKey: !!stored?.key }
   }
 
   /** The variables the backend starts with, and none when no bridge is
-   * kept, so one exported in the shell stays in force. A token this Mac's
-   * key cannot open costs the bridge, not the backend. */
+   * kept, so one exported in the shell stays in force. */
   async env(): Promise<Record<string, string>> {
-    try {
-      const target = await this.target()
-      return target ? { SANDBOX_API_URL: target.url, SANDBOX_API_KEY: target.key } : {}
-    } catch (err) {
-      console.error('the sandbox bridge is not offered', err)
-      return {}
-    }
+    const stored = this.load()
+    return stored?.key ? { SANDBOX_API_URL: stored.url, SANDBOX_API_KEY: stored.key } : {}
   }
 
   /** Keeps the bridge; an empty token keeps the one already kept. */
   async save(input: SandboxInput): Promise<void> {
-    if (!(await this.sealer.isAsyncEncryptionAvailable())) throw new Error('this Mac cannot encrypt the sandbox token: the keychain is unavailable')
     const url = bridgeURL(input.url)
     const key = input.key.trim()
     if (/\s/.test(key)) throw new Error('the sandbox token holds no spaces')
-    const sealed = key ? await this.seal(key) : (await this.load())?.key
-    if (!sealed) throw new Error('a sandbox bridge needs its token')
-    await mkdir(dirname(this.file), { recursive: true })
-    await writeFile(`${this.file}.tmp`, JSON.stringify({ url, key: sealed }, null, 2), { mode: 0o600 })
-    await rename(`${this.file}.tmp`, this.file)
+    const kept = key || this.load()?.key
+    if (!kept) throw new Error('a sandbox bridge needs its token')
+    this.db.set(KEY, JSON.stringify({ url, key: kept }))
   }
 
   /** Stops offering the bridge. Environments built on it stay in the store
    * and stop working, which the person is told before this runs. */
   async clear(): Promise<void> {
-    await rm(this.file, { force: true })
+    this.db.delete(KEY)
   }
 
-  private async target(): Promise<SandboxTarget | undefined> {
-    const stored = await this.load()
-    if (!stored) return undefined
-    const key = stored.key && (await this.open(stored.key))
-    if (!key) throw new Error('the saved sandbox token cannot be read on this Mac; enter it again')
-    return { url: stored.url, key }
-  }
-
-  private async load(): Promise<Stored | undefined> {
+  private load(): Stored | undefined {
+    const raw = this.db.get(KEY)
+    if (!raw) return undefined
     try {
-      const raw = JSON.parse(await readFile(this.file, 'utf8')) as Partial<Stored> | null
-      if (typeof raw?.url !== 'string' || !raw.url) return undefined
-      return { url: raw.url, key: typeof raw.key === 'string' && raw.key ? raw.key : undefined }
+      const v = JSON.parse(raw) as Partial<Stored> | null
+      if (typeof v?.url !== 'string' || !v.url) return undefined
+      return { url: v.url, key: typeof v.key === 'string' && v.key ? v.key : undefined }
     } catch {
-      // No bridge yet, or one this version cannot read.
-      return undefined
-    }
-  }
-
-  private async seal(plain: string): Promise<string> {
-    return (await this.sealer.encryptStringAsync(plain)).toString('base64')
-  }
-
-  private async open(sealed: string): Promise<string | undefined> {
-    try {
-      return (await this.sealer.decryptStringAsync(Buffer.from(sealed, 'base64'))).result
-    } catch {
+      // One this version cannot read.
       return undefined
     }
   }
