@@ -197,8 +197,8 @@ export const en = {
     kept: 'Kept; leave empty to keep it',
     remove: 'Remove',
     removeConfirm: 'Remove the Cloudflare sandbox? Environments already built on it stop working; conversations on this Mac are not touched.',
-    onServer: 'Connected to a server: the sandboxes are the ones that server was started with, and this Mac’s bridge does not apply.',
-    environmentName: 'Cloudflare',
+    firstHint: 'The first Cloudflare sandbox needs its bridge here: saving it gives this Mac’s backend the provider, and the environment is made on it. A kept bridge stays as it is when the fields are left empty.',
+    notStarted: 'The bridge was saved, but the backend did not come back offering it. The log in General says why.',
   },
 
   usage: {
@@ -527,8 +527,8 @@ export const zh: typeof en = {
     kept: '已保存，留空不变',
     remove: '移除',
     removeConfirm: '移除 Cloudflare 沙箱？建在它上面的环境将无法运行；这台 Mac 上的会话不受影响。',
-    onServer: '连的是服务器：沙箱由那台服务器启动时决定，本机这个桥不生效。',
-    environmentName: 'Cloudflare',
+    firstHint: '第一个 Cloudflare 沙箱要在这里填它的桥：保存后这台 Mac 的后端就会提供这种沙箱，环境建在它上面。已经保存过的桥留空即沿用。',
+    notStarted: '桥保存了，但后端没有起来提供这个沙箱。看看「通用」里的后端日志。',
   },
 
   usage: {

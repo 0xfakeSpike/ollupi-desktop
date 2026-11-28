@@ -22,6 +22,29 @@ export const LOCAL_PROVIDER = 'local'
 /** The provider of Cloudflare's sandboxes, as the backend names it. */
 export const CLOUDFLARE_PROVIDER = 'cloudflare'
 
+/** How many times the environments have synced: one per connection. */
+let syncs = 0
+export const environmentSyncs = (): number => syncs
+
+/** Waits for a sync after `since` that offers this provider: saving a
+ * bridge builds the backend again, and the connection that answers is a new
+ * one, whose list is the new backend's. */
+export function whenProviderArrives(since: number, provider: string, waitMs = 15_000): Promise<boolean> {
+  const offers = (): boolean => syncs > since && useEnvironments.getState().providers.some((p) => p.id === provider)
+  if (offers()) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const settle = (ok: boolean): void => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(ok)
+    }
+    const unsubscribe = useEnvironments.subscribe(() => {
+      if (offers()) settle(true)
+    })
+    const timer = setTimeout(() => settle(false), waitMs)
+  })
+}
+
 /** What the backend names the first environment of this machine. */
 const LOCAL_NAME = 'This computer'
 
@@ -48,6 +71,7 @@ export const environmentsDomain: Domain = {
   sync: async (client) => {
     const { result, newer } = await client.snapshot('environment/list', {}, ['environment/changed'])
     seen = result.seq
+    syncs++
     useEnvironments.setState({ list: order(result.data), providers: result.providers ?? [] })
     newer.forEach((e) => changed(e.params))
   },
